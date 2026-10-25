@@ -1,0 +1,201 @@
+/*
+ * Composition
+ *   Mobile/tablet: illustration stage → word → 2×2 answers, in one column.
+ *     The stage is the flexible element: it grows into spare height and
+ *     shrinks when the action bar expands for feedback, so the answers stay
+ *     on screen.
+ *   Desktop (≥1024px): split. Large stage on the left, word + answer list on
+ *     the right, vertically centred. The action bar spans the bottom.
+ */
+.screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+
+.topbar {
+  padding: max(var(--space-2), env(safe-area-inset-top)) var(--gutter) var(--space-2);
+}
+
+.topbarInner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: var(--width-column);
+  min-height: 48px;
+  margin: 0 auto;
+}
+
+.exit {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.exit:hover {
+  color: var(--color-text);
+}
+
+.form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2) var(--gutter) var(--space-4);
+}
+
+.exercise {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* safe: when space runs out, overflow scrolls downward instead of clipping the top */
+  justify-content: safe center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+  animation: enter var(--duration-enter) var(--ease-out);
+}
+
+.stage {
+  order: -1;
+  position: relative;
+  flex: 1 1 0;
+  min-height: 96px;
+  max-height: 420px;
+  border-radius: var(--radius-lg);
+  background: var(--color-stage);
+}
+
+.art {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  width: calc(100% - 2 * var(--space-3));
+  height: calc(100% - 2 * var(--space-3));
+}
+
+.prompt {
+  text-align: center;
+}
+
+.instruction {
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+
+.wordRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.word {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.word:focus {
+  outline: none;
+}
+
+.listen {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: var(--border-control) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-primary-strong);
+  cursor: pointer;
+  transition: border-color var(--duration-state) var(--ease-out);
+}
+
+.listen:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: var(--space-2);
+}
+
+@media (min-width: 1024px) {
+  .topbarInner {
+    max-width: var(--width-lesson);
+    min-height: 56px;
+  }
+
+  .main {
+    padding: var(--space-6) var(--gutter);
+  }
+
+  .exercise {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, var(--width-prompt));
+    /* The stage spans both rows; its extra height is split between them, so
+       prompt (aligned to the end) and options (to the start) meet mid-stage. */
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      'art prompt'
+      'art options';
+    align-content: center;
+    column-gap: var(--space-8);
+    row-gap: var(--space-5);
+    max-width: var(--width-lesson);
+  }
+
+  .stage {
+    grid-area: art;
+    align-self: center;
+    height: clamp(320px, 60dvh, 560px);
+    max-height: none;
+  }
+
+  .prompt {
+    grid-area: prompt;
+    align-self: end;
+    text-align: left;
+  }
+
+  .wordRow {
+    justify-content: flex-start;
+  }
+
+  .options {
+    grid-area: options;
+    align-self: start;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
