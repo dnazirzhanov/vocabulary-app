@@ -522,3 +522,12 @@ def complete_session(
         today_points=points_today(db, user, now, time_zone),
         daily_goal=DAILY_GOAL_POINTS,
     )
+
+
+# --- account ---------------------------------------------------------------------------------
+
+
+def delete_learner(db: Session, user: User) -> None:
+    """Foreign keys cascade from users to sessions, attempts and progress (one transaction)."""
+    db.delete(user)
+    db.commit()

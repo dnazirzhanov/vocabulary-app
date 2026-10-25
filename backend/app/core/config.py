@@ -15,10 +15,17 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "production"] = "development"
     database_url: str
-    # Only "dev" exists until a real auth provider is integrated (ADR 0004).
-    auth_mode: Literal["dev"] = "dev"
-    # Comma-separated origins for a deployed web app; empty in development (Vite proxies /api).
+    # "dev": local development users (ADR 0004). "jwt": Supabase-issued tokens (ADR 0009).
+    auth_mode: Literal["dev", "jwt"] = "dev"
+    # jwt mode: the token issuer, e.g. https://<project>.supabase.co/auth/v1
+    auth_issuer: str | None = None
+    auth_audience: str = "authenticated"
+    # Comma-separated origins for a deployed web app; empty when the API serves the web app itself.
     allowed_origins: str = ""
+    # Built web app (web/dist) to serve from the API in production; unset in development.
+    web_dist: str | None = None
+    # Answer submissions allowed per learner per minute (in-process limit; one instance).
+    attempts_per_minute: int = 120
 
     @field_validator("database_url")
     @classmethod
@@ -28,13 +35,22 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
-    def _no_dev_auth_in_production(self) -> "Settings":
+    def _auth_is_complete(self) -> "Settings":
         if self.environment == "production" and self.auth_mode == "dev":
             raise ValueError(
-                "AUTH_MODE=dev cannot run with ENVIRONMENT=production; "
-                "real authentication arrives in Phase 4"
+                "AUTH_MODE=dev cannot run with ENVIRONMENT=production; use AUTH_MODE=jwt"
             )
+        if self.auth_mode == "jwt":
+            if not self.auth_issuer or not self.auth_issuer.startswith("https://"):
+                raise ValueError("AUTH_MODE=jwt needs AUTH_ISSUER (an https:// URL)")
+            self.auth_issuer = self.auth_issuer.rstrip("/")
         return self
+
+    @property
+    def jwks_url(self) -> str:
+        """Public signing keys of the issuer (Supabase serves them under the issuer URL)."""
+        assert self.auth_issuer is not None
+        return f"{self.auth_issuer}/.well-known/jwks.json"
 
     @property
     def cors_origins(self) -> list[str]:
