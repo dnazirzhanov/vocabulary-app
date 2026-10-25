@@ -1,0 +1,30 @@
+.progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.track {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-track);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.count {
+  min-width: 3.5ch;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

@@ -1,0 +1,29 @@
+.button {
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: var(--shadow-press);
+  transition:
+    transform var(--duration-press) var(--ease-out),
+    box-shadow var(--duration-press) var(--ease-out),
+    background-color var(--duration-state) var(--ease-out);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: var(--shadow-press-active);
+}
+
+.button:disabled {
+  background: var(--color-track);
+  color: var(--color-text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
