@@ -42,7 +42,7 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 - **Interface language:** Russian copy, English learning content. Copy is kept in components for now; extraction into a message file happens only when a second interface language is actually needed.
 - **Platform:** mobile-first web app; PWA install later.
 
-## Current state vs P0 (after Phase 3a: reviews)
+## Current state vs P0 (after Phase 3)
 
 | P0 area | Today | Gap |
 |---|---|---|
@@ -50,8 +50,8 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 | B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import | Russian review; grow to 100–200 words |
 | C. Learning session | New words: introduce → choose → type. Reviews: recall → type. Server-checked, resumable, summaries distinguish meeting a word from recalling it later | — |
 | D. Spaced repetition | Leitner scheduler (1/3/7/16/35 days); review sessions with recall-before-reveal; due words first | Validate intervals with pilot data |
-| E. Progress | Words met per deck, persisted server-side | Due reviews, activity, correct-answer rate (Phase 3) |
-| F. Gamification | Progress bar, completion badge | Points and daily goal (Phase 3) |
+| E. Progress | Progress screen: words met / reviewing / currently well learned / due, 7-day activity, delayed-recall rate (labelled as such), total points | Validate with pilot learners |
+| F. Gamification | Points for evidence of learning (none for practice), daily goal (30), streak, session points on the summary | Validate goal size; no leaderboard (P1) |
 | G. Responsive interface | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px | Real-device checks (iOS Safari, on-screen keyboard) |
 
 ## Acceptance criteria by phase
@@ -80,4 +80,4 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 1. Learner age and account model (self sign-up, teacher-created, or both).
 2. Auth/database/hosting provider — pricing, availability from Kyrgyzstan, data export, payment method (decided before Phase 4; see `architecture.md`).
 3. Who reviews the Russian content, and by when.
-4. Daily goal size (words or minutes) — decided with pilot feedback.
+4. Daily goal size — 30 points for now (ADR 0008); revisit with pilot data.

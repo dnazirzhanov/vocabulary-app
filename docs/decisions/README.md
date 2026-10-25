@@ -11,3 +11,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0005](0005-content-as-yaml.md) | Vocabulary as version-controlled YAML with a validated import | Accepted |
 | [0006](0006-leitner-scheduler.md) | Leitner-style review scheduler (1/3/7/16/35 days) | Accepted |
 | [0007](0007-dev-clock-and-server-time.md) | Development clock override; day labels from server time | Accepted |
+| [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Accepted |
