@@ -1,0 +1,242 @@
+/*
+ * Composition mirrors the lesson so the two read as one product:
+ *   Mobile/tablet: reward stage → title + one-line result → word recap,
+ *     scrolling under a fixed action bar.
+ *   Desktop (≥1024px): stage on the left where the illustration was; title,
+ *     result and recap on the right where the word and answers were.
+ */
+.screen {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  padding: max(var(--space-4), env(safe-area-inset-top)) var(--gutter) var(--space-5);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.stage {
+  --badge-size: clamp(112px, 17dvh, 176px);
+  display: grid;
+  place-items: center;
+  flex: none;
+  height: clamp(144px, 22dvh, 220px);
+  border-radius: var(--radius-lg);
+  background: var(--color-stage);
+}
+
+.intro {
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.title:focus {
+  outline: none;
+}
+
+.lead {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+}
+
+.recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.groupTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+}
+
+.groupCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-track);
+  color: var(--color-text);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wordRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.thumb {
+  flex: none;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-stage);
+}
+
+.thumbArt {
+  width: 100%;
+  height: 100%;
+}
+
+.wordText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.word {
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-tight);
+}
+
+.translation {
+  color: var(--color-text-muted);
+}
+
+.status {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.status svg {
+  width: 18px;
+  height: 18px;
+}
+
+.status[data-status='recognized'] {
+  background: var(--color-success-tint);
+  color: var(--color-success);
+}
+
+.status[data-status='missed'] {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.actions {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+.actionsInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.action {
+  width: 100%;
+}
+
+/* The secondary action stays reachable but takes less of the small screen. */
+.actionsInner .secondary {
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  .main {
+    align-items: safe center;
+    padding: var(--space-6) var(--gutter);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, var(--width-prompt));
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      'stage intro'
+      'stage recap';
+    column-gap: var(--space-8);
+    row-gap: var(--space-6);
+    max-width: var(--width-lesson);
+  }
+
+  .thumb {
+    width: 56px;
+    height: 56px;
+  }
+
+  .actionsInner .secondary {
+    min-height: 52px;
+  }
+
+  .stage {
+    --badge-size: clamp(220px, 36dvh, 300px);
+    grid-area: stage;
+    align-self: center;
+    height: clamp(320px, 60dvh, 560px);
+  }
+
+  .intro {
+    grid-area: intro;
+    align-self: end;
+    text-align: left;
+  }
+
+  .recap {
+    grid-area: recap;
+    align-self: start;
+  }
+
+  .actions {
+    border-top: 0;
+    padding-block: var(--space-5);
+  }
+
+  .actionsInner {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    max-width: var(--width-lesson);
+  }
+
+  .action {
+    width: auto;
+    min-width: 200px;
+  }
+}

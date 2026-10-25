@@ -38,3 +38,10 @@ export const CrossIcon = (props: IconProps) => (
     <path d="M7 7l10 10M17 7L7 17" />
   </svg>
 );
+
+export const RepeatIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+    <path d="M17.5 3.5v4h-4" />
+  </svg>
+);

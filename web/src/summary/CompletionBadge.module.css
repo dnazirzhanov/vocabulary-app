@@ -1,0 +1,40 @@
+/* Size is set by the parent through --badge-size. */
+.badge {
+  position: relative;
+  width: var(--badge-size, 200px);
+  aspect-ratio: 1;
+  animation: pop 420ms var(--ease-pop) both;
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop 360ms var(--ease-pop) 220ms both;
+}
+
+.confetti {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: burst 560ms var(--ease-out) 140ms both;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes burst {
+  from {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.2);
+  }
+}
