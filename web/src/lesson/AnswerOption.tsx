@@ -21,13 +21,7 @@ export function AnswerOption({ name, index, label, state, checked, onSelect }: A
   const status = statusText[state];
   return (
     <label className={styles.option} data-state={state}>
-      <input
-        type="radio"
-        name={name}
-        className={styles.input}
-        checked={checked}
-        onChange={onSelect}
-      />
+      <input type="radio" name={name} className={styles.input} checked={checked} onChange={onSelect} />
       <span className={styles.marker} aria-hidden="true">
         {state === 'correct' ? <CheckIcon /> : state === 'incorrect' ? <CrossIcon /> : index + 1}
       </span>

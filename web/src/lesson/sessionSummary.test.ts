@@ -26,8 +26,14 @@ test('splits words into missed and recognised, keeping lesson order', () => {
   ]);
   assert.equal(summary.total, 3);
   assert.equal(summary.correctCount, 2);
-  assert.deepEqual(summary.missed.map((w) => w.word), ['umbrella']);
-  assert.deepEqual(summary.recognized.map((w) => w.word), ['kettle', 'key']);
+  assert.deepEqual(
+    summary.missed.map((w) => w.word),
+    ['umbrella'],
+  );
+  assert.deepEqual(
+    summary.recognized.map((w) => w.word),
+    ['kettle', 'key'],
+  );
   assert.equal(summary.missed[0].translation, 'зонт');
 });
 
@@ -39,7 +45,8 @@ test('only counts exercises that were actually answered', () => {
 
 test('Russian plural forms', () => {
   const forms = { one: 'слово', few: 'слова', many: 'слов' };
-  assert.deepEqual([1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, forms)), [
-    'слово', 'слова', 'слов', 'слов', 'слово', 'слова', 'слов',
-  ]);
+  assert.deepEqual(
+    [1, 2, 5, 11, 21, 22, 25].map((n) => plural(n, forms)),
+    ['слово', 'слова', 'слов', 'слов', 'слово', 'слова', 'слов'],
+  );
 });

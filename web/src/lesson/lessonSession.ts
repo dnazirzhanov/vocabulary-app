@@ -16,10 +16,7 @@ export interface LessonState {
 }
 
 export type LessonAction =
-  | { type: 'select'; optionId: string }
-  | { type: 'check' }
-  | { type: 'continue' }
-  | { type: 'restart' };
+  { type: 'select'; optionId: string } | { type: 'check' } | { type: 'continue' } | { type: 'restart' };
 
 export function createLessonState(): LessonState {
   return { index: 0, selectedId: null, phase: 'answering', results: [] };

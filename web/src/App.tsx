@@ -26,7 +26,12 @@ export function App() {
         kind={session.kind}
         exercises={session.exercises}
         results={results}
-        onPracticeMistakes={(ids) => start('mistakes', session.exercises.filter((exercise) => ids.includes(exercise.id)))}
+        onPracticeMistakes={(ids) =>
+          start(
+            'mistakes',
+            session.exercises.filter((exercise) => ids.includes(exercise.id)),
+          )
+        }
         onRestart={() => start('lesson', demoLesson)}
       />
     );

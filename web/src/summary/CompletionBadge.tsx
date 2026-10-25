@@ -37,7 +37,16 @@ export function CompletionBadge({ perfect }: { perfect: boolean }) {
             <circle cx="42" cy="58" r="6" fill="var(--illo-sky)" strokeWidth={3} />
           </Confetti>
           <Confetti x={196} y={50}>
-            <rect x="189" y="46" width="14" height="8" rx="2" fill="var(--illo-light)" strokeWidth={3} transform="rotate(30 196 50)" />
+            <rect
+              x="189"
+              y="46"
+              width="14"
+              height="8"
+              rx="2"
+              fill="var(--illo-light)"
+              strokeWidth={3}
+              transform="rotate(30 196 50)"
+            />
           </Confetti>
           <Confetti x={208} y={124}>
             <path d="M200 130 L208 114 L216 130 Z" fill="var(--illo-peach)" strokeWidth={3} />
@@ -46,13 +55,31 @@ export function CompletionBadge({ perfect }: { perfect: boolean }) {
             <circle cx="28" cy="138" r="5" fill="var(--illo-accent)" strokeWidth={3} />
           </Confetti>
           <Confetti x={46} y={190}>
-            <rect x="39" y="186" width="14" height="8" rx="2" fill="var(--illo-light)" strokeWidth={3} transform="rotate(-24 46 190)" />
+            <rect
+              x="39"
+              y="186"
+              width="14"
+              height="8"
+              rx="2"
+              fill="var(--illo-light)"
+              strokeWidth={3}
+              transform="rotate(-24 46 190)"
+            />
           </Confetti>
           <Confetti x={198} y={186}>
             <circle cx="198" cy="186" r="6" fill="var(--illo-sky)" strokeWidth={3} />
           </Confetti>
           <Confetti x={72} y={22}>
-            <rect x="66" y="18" width="12" height="7" rx="2" fill="var(--illo-accent)" strokeWidth={3} transform="rotate(-32 72 22)" />
+            <rect
+              x="66"
+              y="18"
+              width="12"
+              height="7"
+              rx="2"
+              fill="var(--illo-accent)"
+              strokeWidth={3}
+              transform="rotate(-32 72 22)"
+            />
           </Confetti>
           <Confetti x={170} y={18}>
             <circle cx="170" cy="18" r="5" fill="var(--illo-peach)" strokeWidth={3} />
