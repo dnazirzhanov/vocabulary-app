@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
             allow_origins=settings.cors_origins,
             allow_methods=["GET", "POST"],
             allow_headers=["Content-Type", "Authorization"],
+            expose_headers=["X-Server-Time"],
         )
     register_error_handlers(app)
     app.include_router(health.router, prefix="/api")

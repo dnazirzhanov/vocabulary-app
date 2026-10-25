@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body
 
 from app.core.auth import CurrentUser, DbSession
+from app.core.clock import Now
 from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
@@ -21,8 +22,8 @@ router = APIRouter(tags=["learning"])
 
 
 @router.get("/decks")
-def list_decks(user: CurrentUser, db: DbSession) -> list[DeckOut]:
-    return sessions.list_decks(db, user)
+def list_decks(user: CurrentUser, db: DbSession, now: Now) -> list[DeckOut]:
+    return sessions.list_decks(db, user, now)
 
 
 # Declared before /sessions/{session_id} so "active" is not parsed as an id.
@@ -33,9 +34,9 @@ def active_session(user: CurrentUser, db: DbSession) -> ActiveSessionOut:
 
 @router.post("/sessions")
 def start_session(
-    request: Annotated[StartSessionIn, Body()], user: CurrentUser, db: DbSession
+    request: Annotated[StartSessionIn, Body()], user: CurrentUser, db: DbSession, now: Now
 ) -> SessionOut:
-    return sessions.start_session(db, user, request)
+    return sessions.start_session(db, user, request, now)
 
 
 @router.get("/sessions/{session_id}")
@@ -45,11 +46,11 @@ def get_session(session_id: UUID, user: CurrentUser, db: DbSession) -> SessionOu
 
 @router.post("/sessions/{session_id}/attempts")
 def submit_attempt(
-    session_id: UUID, attempt: AttemptIn, user: CurrentUser, db: DbSession
+    session_id: UUID, attempt: AttemptIn, user: CurrentUser, db: DbSession, now: Now
 ) -> AttemptResultOut:
-    return sessions.submit_attempt(db, user, session_id, attempt)
+    return sessions.submit_attempt(db, user, session_id, attempt, now)
 
 
 @router.post("/sessions/{session_id}/complete")
-def complete_session(session_id: UUID, user: CurrentUser, db: DbSession) -> SummaryOut:
-    return sessions.complete_session(db, user, session_id)
+def complete_session(session_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> SummaryOut:
+    return sessions.complete_session(db, user, session_id, now)

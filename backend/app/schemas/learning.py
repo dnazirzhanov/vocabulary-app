@@ -1,6 +1,7 @@
 """API contracts for decks, sessions, attempts and summaries. Answer keys never appear in outputs
 until the learner has answered."""
 
+from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -27,6 +28,9 @@ class DeckOut(BaseModel):
     description: str
     word_count: int
     introduced_count: int
+    due_count: int
+    # The earliest upcoming review, when nothing is due yet.
+    next_due_at: datetime | None
 
 
 class PromptWord(BaseModel):
@@ -55,6 +59,15 @@ class ChooseMeaningExercise(BaseModel):
     options: list[OptionOut]
 
 
+class RecallMeaningExercise(BaseModel):
+    """Like choose-meaning, but the learner recalls first and asks to see the options."""
+
+    id: str
+    type: Literal["recall_meaning"] = "recall_meaning"
+    word: PromptWord
+    options: list[OptionOut]
+
+
 class TypePrompt(BaseModel):
     translation: str
     pos: str
@@ -70,8 +83,11 @@ class TypeWordExercise(BaseModel):
 
 
 ExerciseOut = Annotated[
-    IntroduceExercise | ChooseMeaningExercise | TypeWordExercise, Field(discriminator="type")
+    IntroduceExercise | ChooseMeaningExercise | RecallMeaningExercise | TypeWordExercise,
+    Field(discriminator="type"),
 ]
+
+SessionKind = Literal["new", "practice", "review"]
 
 
 class AttemptResultOut(BaseModel):
@@ -84,7 +100,7 @@ class AttemptResultOut(BaseModel):
 
 class SessionOut(BaseModel):
     id: UUID
-    kind: Literal["new", "practice"]
+    kind: SessionKind
     deck_id: str
     completed: bool
     exercises: list[ExerciseOut]
@@ -106,7 +122,13 @@ class StartPracticeSession(_Input):
     source_session_id: UUID
 
 
-StartSessionIn = Annotated[StartNewSession | StartPracticeSession, Field(discriminator="kind")]
+class StartReviewSession(_Input):
+    kind: Literal["review"]
+    deck_id: Annotated[str, StringConstraints(max_length=64)]
+
+
+StartRequest = StartNewSession | StartPracticeSession | StartReviewSession
+StartSessionIn = Annotated[StartRequest, Field(discriminator="kind")]
 
 
 class SeenResponse(_Input):
@@ -134,11 +156,13 @@ class AttemptIn(_Input):
 class SummaryWord(BaseModel):
     word: WordOut
     mistakes: int
+    # When the word comes back for review (after this session's scheduling).
+    next_review_at: datetime
 
 
 class SummaryOut(BaseModel):
     session_id: UUID
-    kind: Literal["new", "practice"]
+    kind: SessionKind
     deck_id: str
     words: list[SummaryWord]
     answers_total: int

@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Index,
+    SmallInteger,
     String,
     UniqueConstraint,
     text,
@@ -20,9 +21,13 @@ from app.models.base import Base
 
 
 class UserWordProgress(Base):
-    """One row per learner and word. Scheduling state arrives with Phase 3."""
+    """One row per learner and word, created when the word is introduced (ADR 0006)."""
 
     __tablename__ = "user_word_progress"
+    __table_args__ = (
+        CheckConstraint("stage BETWEEN 1 AND 5", name="stage_range"),
+        Index("ix_user_word_progress_user_due", "user_id", "due_at"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
@@ -32,12 +37,18 @@ class UserWordProgress(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     correct_count: Mapped[int] = mapped_column(server_default=text("0"))
     incorrect_count: Mapped[int] = mapped_column(server_default=text("0"))
+    # Scheduling: the Leitner stage and when the word is next due for review.
+    stage: Mapped[int] = mapped_column(SmallInteger, server_default=text("1"))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_count: Mapped[int] = mapped_column(server_default=text("0"))
+    lapses: Mapped[int] = mapped_column(server_default=text("0"))
 
 
 class LearningSession(Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (
-        CheckConstraint("kind IN ('new', 'practice')", name="kind"),
+        CheckConstraint("kind IN ('new', 'practice', 'review')", name="kind"),
         # A learner has at most one unfinished session; starting again resumes it.
         Index(
             "uq_learning_sessions_open_per_user",
@@ -79,3 +90,6 @@ class ReviewAttempt(Base):
     # Typed text is evaluated and discarded; only the outcome is kept (privacy requirement).
     correct: Mapped[bool | None]
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Set on the attempt that (re)scheduled the word: introductions and a review's last exercise.
+    stage_after: Mapped[int | None] = mapped_column(SmallInteger)
+    due_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
