@@ -42,6 +42,7 @@ jobs:
       - run: uv run mypy .
       - run: uv run python -m app.cli validate-content ../content/starter-deck
       - run: uv run alembic upgrade head
+      - run: uv run alembic check # models and migrations must not drift apart
       - run: uv run pytest
 
   web:

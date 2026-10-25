@@ -59,11 +59,11 @@ All timestamps are `timestamptz`, stored and compared in UTC.
 | `decks` | `id text` (stable slug), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int` | |
 | `words` | `id text` (stable slug), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null` | |
 | `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
-| `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count` | `PK(user_id, word_id)` — one record per user and word |
-| `learning_sessions` | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice`), `plan jsonb`, `started_at`, `completed_at null` | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
-| `review_attempts` | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type`, `correct bool null`, `answered_at` | `UNIQUE(session_id, exercise_id)`; `correct IS NULL` only for `introduce` |
+| `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count`, `stage`, `due_at`, `last_reviewed_at`, `review_count`, `lapses` | `PK(user_id, word_id)`; `stage BETWEEN 1 AND 5`; index `(user_id, due_at)` |
+| `learning_sessions` | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice` \| `review`), `plan jsonb`, `started_at`, `completed_at null` | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
+| `review_attempts` | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type`, `correct bool null`, `answered_at`, `stage_after null`, `due_after null` | `UNIQUE(session_id, exercise_id)`; `correct IS NULL` only for `introduce` |
 
-Phase 3 adds scheduling state to `user_word_progress` (`stage`, `next_review_at`, `status`) in its own migration rather than carrying unused columns now.
+Scheduling state was added to `user_word_progress` by its own migration in Phase 3 (existing words got their first review the day after they were met).
 
 **Deliberately not stored:** typed answer text, device information, IP addresses in the database.
 
@@ -91,12 +91,12 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 |---|---|
 | `GET /api/health/live` | process is up |
 | `GET /api/health/ready` | database reachable |
-| `GET /api/decks` | decks with the current user's counts (`word_count`, `introduced_count`) |
+| `GET /api/decks` | decks with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) |
 | `GET /api/sessions/active` | `{ "session": … }` or `{ "session": null }` |
-| `POST /api/sessions` | `{deck_id, kind: "new"}` or `{kind: "practice", source_session_id}`; returns the open session if one exists; `409 deck_complete` when no new words remain |
+| `POST /api/sessions` | `{kind: "new", deck_id}`, `{kind: "review", deck_id}` or `{kind: "practice", source_session_id}`; returns the open session if one exists; `409 deck_complete` / `409 nothing_due` |
 | `GET /api/sessions/{id}` | session with exercises and results so far |
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response}` → `{correct, answer}` |
-| `POST /api/sessions/{id}/complete` | summary: words with mistake counts, answer totals, `deck_id` for "next words" |
+| `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, `deck_id` |
 
 Every query is filtered by the authenticated user. A session that exists but belongs to someone else returns **404**, not 403, so identifiers cannot be probed. Request bodies are validated by Pydantic with explicit length limits (e.g. typed answers ≤ 100 characters).
 
@@ -117,9 +117,29 @@ Every query is filtered by the authenticated user. A session that exists but bel
 
 Validation runs in CI, so a broken deck cannot be merged.
 
-## Spaced repetition (Phase 3 outline)
+## Spaced repetition (ADR 0006)
 
-A Leitner-style scheduler in a pure module. Stages with intervals of roughly 1, 3, 7, 16 and 35 days — **hypotheses to validate in the pilot**, not constants from research. A correct recall moves a word up one stage; an incorrect one moves it back to stage 1 and schedules it for the next day (and again within the current session). Intervals are added to UTC timestamps; the learner's time zone is used only for "today" (daily goal, due-today counts), which is where daylight-saving tests apply. Due reviews are offered before new words, with a cap so new material is not starved.
+A Leitner-style scheduler in a pure module, `services/scheduling.py`:
+
+| Stage | Next review after | Reached by |
+|---|---|---|
+| 1 | 1 day | being introduced, or missing a review |
+| 2 | 3 days | one review recalled |
+| 3 | 7 days | two in a row |
+| 4 | 16 days | three in a row — "currently well learned" |
+| 5 | 35 days (cap) | four or more in a row |
+
+- **Review sessions** take up to 8 due words, most overdue first. Each word gets `recall_meaning`
+  (options hidden until the learner asks for them) and later `type_word`; it counts as recalled
+  only if both are right. The attempt that completes a word reschedules it in the same transaction
+  and records `stage_after` / `due_after`.
+- New-word and practice sessions never change a schedule. Leaving a review part-way keeps every
+  word whose exercises were finished; the rest stay due.
+- Intervals are exact 24-hour days added in UTC; time zones only decide a moment's local calendar
+  day. Database sessions run in UTC so timestamps leave the API in one form.
+- Time comes from one dependency (`core/clock.py`). In development, `X-Dev-Now` moves it so review
+  flows can be tested; responses carry `X-Server-Time`, and the web app counts "tomorrow" from
+  server time rather than the device clock (ADR 0007).
 
 ## Reliability
 

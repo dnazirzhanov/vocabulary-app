@@ -39,7 +39,7 @@ make dev                      # API on :8000, web app on http://localhost:5173
 
 Check it is working: http://localhost:8000/api/health/ready should return `{"status":"ok","database":"ok"}`, and http://localhost:5173 should show the starter deck with a «Начать урок» button. Interactive API docs (development only): http://localhost:8000/api/docs.
 
-Development has no sign-in yet (Phase 4): every request acts as one local user. To try a second learner, send an `X-Dev-User: <name>` header — the end-to-end tests do this so each test starts fresh.
+Development has no sign-in yet (Phase 4): every request acts as one local user. Two development-only headers help testing: `X-Dev-User: <name>` acts as another learner, and `X-Dev-Now: <ISO time>` moves the server clock so tomorrow's reviews can be tried today (ADR 0007). Neither works outside development.
 
 On Linux, install PostgreSQL 17 from your distribution, create a role for your user (`sudo -u postgres createuser -s $USER`), and continue from step 2.
 
