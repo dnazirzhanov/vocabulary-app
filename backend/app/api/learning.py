@@ -6,17 +6,18 @@ from uuid import UUID
 from fastapi import APIRouter, Body
 
 from app.core.auth import CurrentUser, DbSession
-from app.core.clock import Now
+from app.core.clock import Now, TimeZone
 from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
     AttemptResultOut,
     DeckOut,
+    ProgressOut,
     SessionOut,
     StartSessionIn,
     SummaryOut,
 )
-from app.services import sessions
+from app.services import progress, sessions
 
 router = APIRouter(tags=["learning"])
 
@@ -52,5 +53,15 @@ def submit_attempt(
 
 
 @router.post("/sessions/{session_id}/complete")
-def complete_session(session_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> SummaryOut:
-    return sessions.complete_session(db, user, session_id, now)
+def complete_session(
+    session_id: UUID, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> SummaryOut:
+    return sessions.complete_session(db, user, session_id, now, time_zone)
+
+
+@router.get("/decks/{deck_id}/progress")
+def deck_progress(
+    deck_id: str, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> ProgressOut:
+    sessions.require_published_deck(db, deck_id)
+    return progress.deck_progress(db, user, deck_id, now, time_zone)

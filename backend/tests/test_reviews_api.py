@@ -4,66 +4,16 @@ is a header instead of a wait."""
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ReviewAttempt, UserWordProgress
-from app.services.content import DeckContent
+from tests.support import Answers, Play, at, respond
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 START_NEW = {"kind": "new", "deck_id": "starter"}
 START_REVIEW = {"kind": "review", "deck_id": "starter"}
-
-
-def at(moment: datetime) -> dict[str, str]:
-    return {"X-Dev-Now": moment.isoformat()}
-
-
-@pytest.fixture
-def answers(starter_content: DeckContent) -> dict[str, dict[str, str]]:
-    return {
-        "translation_of": {w.headword: w.translation for w in starter_content.words},
-        "headword_for": {w.translation: w.headword for w in starter_content.words},
-    }
-
-
-def respond(
-    exercise: dict[str, Any], answers: dict[str, dict[str, str]], correct: bool
-) -> dict[str, str]:
-    if exercise["type"] == "introduce":
-        return {"kind": "seen"}
-    if exercise["type"] in ("choose_meaning", "recall_meaning"):
-        right = answers["translation_of"][exercise["word"]["headword"]]
-        option = next(o for o in exercise["options"] if (o["label"] == right) == correct)
-        return {"kind": "choice", "option_id": option["id"]}
-    headword = answers["headword_for"][exercise["prompt"]["translation"]]
-    return {"kind": "text", "text": headword if correct else headword + "x"}
-
-
-def play(
-    client: TestClient,
-    start: dict[str, str],
-    moment: datetime,
-    answers: dict[str, dict[str, str]],
-    wrong: set[str] = frozenset(),  # type: ignore[assignment]
-) -> dict[str, Any]:
-    """Runs a whole session at `moment`; exercise ids in `wrong` are answered wrongly."""
-    session = client.post("/api/sessions", json=start, headers=at(moment)).json()
-    for exercise in session["exercises"]:
-        client.post(
-            f"/api/sessions/{session['id']}/attempts",
-            json={
-                "exercise_id": exercise["id"],
-                "response": respond(exercise, answers, exercise["id"] not in wrong),
-            },
-            headers=at(moment),
-        )
-    summary: dict[str, Any] = client.post(
-        f"/api/sessions/{session['id']}/complete", headers=at(moment)
-    ).json()
-    return summary
 
 
 def deck(client: TestClient, moment: datetime) -> dict[str, Any]:
@@ -76,10 +26,8 @@ def progress(db: Session, word_id: str) -> UserWordProgress:
     return db.scalars(select(UserWordProgress).where(UserWordProgress.word_id == word_id)).one()
 
 
-def test_new_words_come_back_the_next_day(
-    client: TestClient, answers: dict[str, dict[str, str]]
-) -> None:
-    summary = play(client, START_NEW, DAY0, answers)
+def test_new_words_come_back_the_next_day(play: Play, client: TestClient, answers: Answers) -> None:
+    summary = play(START_NEW, DAY0)
     assert {w["next_review_at"] for w in summary["words"]} == {
         (DAY0 + timedelta(days=1)).isoformat().replace("+00:00", "Z")
     }
@@ -92,9 +40,9 @@ def test_new_words_come_back_the_next_day(
 
 
 def test_a_review_asks_for_recall_then_production(
-    client: TestClient, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     session = client.post(
         "/api/sessions", json=START_REVIEW, headers=at(DAY0 + timedelta(days=1))
     ).json()
@@ -105,12 +53,12 @@ def test_a_review_asks_for_recall_then_production(
 
 
 def test_recalled_words_move_up_and_missed_words_return_tomorrow(
-    client: TestClient, db: Session, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, db: Session, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     day1 = DAY0 + timedelta(days=1)
     # Exercise 1 is recall for "house"; 7 is typing "water". Both words count as not recalled.
-    summary = play(client, START_REVIEW, day1, answers, wrong={"1", "7"})
+    summary = play(START_REVIEW, day1, wrong=frozenset({"1", "7"}))
 
     next_review = {w["word"]["headword"]: w["next_review_at"] for w in summary["words"]}
     assert next_review["house"].startswith("2026-11-04T09:00")  # back to stage 1: +1 day
@@ -134,22 +82,22 @@ def test_recalled_words_move_up_and_missed_words_return_tomorrow(
 
 
 def test_intervals_grow_across_repeated_reviews(
-    client: TestClient, db: Session, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, db: Session, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     moment = DAY0
     for gap, expected_stage in ((1, 2), (3, 3), (7, 4), (16, 5)):
         moment += timedelta(days=gap)
-        play(client, START_REVIEW, moment, answers)
+        play(START_REVIEW, moment)
         assert progress(db, "house").stage == expected_stage
     assert progress(db, "house").due_at == moment + timedelta(days=35)
 
 
 def test_most_overdue_words_are_reviewed_first_eight_at_a_time(
-    client: TestClient, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)  # house … cheap, due day 1
-    play(client, START_NEW, DAY0 + timedelta(hours=2), answers)  # money … morning, due later
+    play(START_NEW, DAY0)  # house … cheap, due day 1
+    play(START_NEW, DAY0 + timedelta(hours=2))  # money … morning, due later
     day2 = DAY0 + timedelta(days=2)
     assert deck(client, day2)["due_count"] == 10
 
@@ -161,20 +109,20 @@ def test_most_overdue_words_are_reviewed_first_eight_at_a_time(
 
 
 def test_practice_and_new_sessions_never_change_the_schedule(
-    client: TestClient, db: Session, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, db: Session, answers: Answers
 ) -> None:
-    first = play(client, START_NEW, DAY0, answers, wrong={"2"})
+    first = play(START_NEW, DAY0, wrong=frozenset({"2"}))
     due_before = progress(db, "house").due_at
     practice = {"kind": "practice", "source_session_id": first["session_id"]}
-    play(client, practice, DAY0 + timedelta(hours=1), answers)
+    play(practice, DAY0 + timedelta(hours=1))
     assert progress(db, "house").due_at == due_before
     assert progress(db, "house").stage == 1
 
 
 def test_leaving_a_review_keeps_finished_words_scheduled(
-    client: TestClient, db: Session, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, db: Session, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     day1 = DAY0 + timedelta(days=1)
     session = client.post("/api/sessions", json=START_REVIEW, headers=at(day1)).json()
     for exercise in session["exercises"][:6]:  # all recalls, then typing for "house" only
@@ -189,9 +137,9 @@ def test_leaving_a_review_keeps_finished_words_scheduled(
 
 
 def test_a_repeated_final_answer_advances_the_word_once(
-    client: TestClient, db: Session, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, db: Session, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     day1 = DAY0 + timedelta(days=1)
     session = client.post("/api/sessions", json=START_REVIEW, headers=at(day1)).json()
     path = f"/api/sessions/{session['id']}/attempts"
@@ -204,9 +152,9 @@ def test_a_repeated_final_answer_advances_the_word_once(
 
 
 def test_new_words_can_still_be_started_while_reviews_are_due(
-    client: TestClient, answers: dict[str, dict[str, str]]
+    play: Play, client: TestClient, answers: Answers
 ) -> None:
-    play(client, START_NEW, DAY0, answers)
+    play(START_NEW, DAY0)
     day1 = DAY0 + timedelta(days=1)
     session = client.post("/api/sessions", json=START_NEW, headers=at(day1)).json()
     assert session["kind"] == "new"

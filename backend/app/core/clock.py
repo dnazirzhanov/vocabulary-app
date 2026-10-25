@@ -6,6 +6,7 @@ from it instead of the device clock, which is often wrong on phones.
 
 from datetime import UTC, datetime
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Depends, Request, Response
 
@@ -14,6 +15,7 @@ from app.core.errors import ApiError
 
 DEV_NOW_HEADER = "X-Dev-Now"
 SERVER_TIME_HEADER = "X-Server-Time"
+TIME_ZONE_HEADER = "X-Time-Zone"
 
 
 def _resolve(request: Request, settings: Settings) -> datetime:
@@ -41,3 +43,18 @@ def get_now(
 
 
 Now = Annotated[datetime, Depends(get_now)]
+
+
+def get_time_zone(request: Request) -> ZoneInfo:
+    """The learner's time zone, sent by the browser. Only used to decide which calendar day it is
+    (daily goal, streaks); an unknown or missing zone falls back to UTC rather than failing."""
+    name = request.headers.get(TIME_ZONE_HEADER, "UTC")
+    if len(name) > 64:  # untrusted input; real IANA names are short (zoneinfo rejects paths)
+        return ZoneInfo("UTC")
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
+TimeZone = Annotated[ZoneInfo, Depends(get_time_zone)]

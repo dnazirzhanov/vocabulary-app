@@ -8,6 +8,7 @@ services/scheduling.py. The current time is always passed in, never read here.
 from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -53,6 +54,12 @@ from app.services.learning import (
     plan_new_session,
     plan_practice_session,
     plan_review_session,
+)
+from app.services.progress import (
+    DAILY_GOAL_POINTS,
+    points_for,
+    points_today,
+    session_points,
 )
 from app.services.scheduling import Schedule, after_review, first_schedule
 
@@ -213,7 +220,7 @@ def get_session(db: Session, user: User, session_id: UUID) -> SessionOut:
 # --- starting --------------------------------------------------------------------------------
 
 
-def _published_deck(db: Session, deck_id: str) -> Deck:
+def require_published_deck(db: Session, deck_id: str) -> Deck:
     deck = db.get(Deck, deck_id)
     if deck is None or deck.status != "published":
         raise ApiError(404, "deck_not_found", "Deck not found")
@@ -223,7 +230,7 @@ def _published_deck(db: Session, deck_id: str) -> Deck:
 def _new_session_plan(
     db: Session, user: User, request: StartNewSession, session_id: UUID
 ) -> tuple[str, list[PlannedExercise]]:
-    deck = _published_deck(db, request.deck_id)
+    deck = require_published_deck(db, request.deck_id)
     pool = _deck_words(db, deck.id)
     introduced = set(
         db.scalars(
@@ -266,7 +273,7 @@ def _practice_session_plan(
 def _review_session_plan(
     db: Session, user: User, request: StartReviewSession, session_id: UUID, now: datetime
 ) -> tuple[str, list[PlannedExercise]]:
-    deck = _published_deck(db, request.deck_id)
+    deck = require_published_deck(db, request.deck_id)
     due_ids = list(
         db.scalars(
             select(UserWordProgress.word_id)
@@ -435,6 +442,7 @@ def submit_attempt(
                 answered_at=now,
                 stage_after=schedule.stage if schedule else None,
                 due_after=schedule.due_at if schedule else None,
+                points=points_for(step.type, reviewed[1] if reviewed else None),
             )
         )
         # Flush first: if another device answered this exercise a moment ago, the unique
@@ -470,7 +478,9 @@ def submit_attempt(
 # --- completing ------------------------------------------------------------------------------
 
 
-def complete_session(db: Session, user: User, session_id: UUID, now: datetime) -> SummaryOut:
+def complete_session(
+    db: Session, user: User, session_id: UUID, now: datetime, time_zone: ZoneInfo
+) -> SummaryOut:
     session = _owned_session(db, user, session_id)
     plan = _plan(session)
     attempts = _attempts(db, session.id)
@@ -508,4 +518,7 @@ def complete_session(db: Session, user: User, session_id: UUID, now: datetime) -
         ],
         answers_total=len(answers),
         answers_correct=sum(1 for a in answers if a.correct),
+        points=session_points(db, session.id),
+        today_points=points_today(db, user, now, time_zone),
+        daily_goal=DAILY_GOAL_POINTS,
     )

@@ -1,6 +1,8 @@
 import os
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -19,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_engine, get_sessionmaker
 from app.main import create_app
 from app.services.content import DeckContent, import_deck, parse_deck
+from tests.support import Answers, Play, at, respond
 
 BACKEND = Path(__file__).resolve().parents[1]
 STARTER_DECK = BACKEND.parent / "content" / "starter-deck"
@@ -54,3 +57,40 @@ def db(database: None) -> Iterator[Session]:
 def client(db: Session) -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def answers(starter_content: DeckContent) -> Answers:
+    return {
+        "translation_of": {w.headword: w.translation for w in starter_content.words},
+        "headword_for": {w.translation: w.headword for w in starter_content.words},
+    }
+
+
+@pytest.fixture
+def play(client: TestClient, answers: Answers) -> Play:
+    """Runs a whole session at a moment; exercise ids in `wrong` are answered wrongly."""
+
+    def run(
+        start: dict[str, str],
+        moment: datetime,
+        wrong: frozenset[str] = frozenset(),
+        time_zone: str = "UTC",
+    ) -> dict[str, Any]:
+        headers = at(moment, time_zone)
+        session = client.post("/api/sessions", json=start, headers=headers).json()
+        for exercise in session["exercises"]:
+            client.post(
+                f"/api/sessions/{session['id']}/attempts",
+                json={
+                    "exercise_id": exercise["id"],
+                    "response": respond(exercise, answers, exercise["id"] not in wrong),
+                },
+                headers=headers,
+            )
+        summary: dict[str, Any] = client.post(
+            f"/api/sessions/{session['id']}/complete", headers=headers
+        ).json()
+        return summary
+
+    return run
