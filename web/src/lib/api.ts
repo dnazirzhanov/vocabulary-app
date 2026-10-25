@@ -1,0 +1,60 @@
+import type { AttemptResponse, AttemptResult, Deck, Session, Summary } from './types.ts';
+
+/** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
+export class ApiError extends Error {
+  readonly kind: 'network' | 'http';
+  readonly status: number;
+  readonly code: string;
+
+  constructor(kind: 'network' | 'http', status: number, code: string, message: string) {
+    super(message);
+    this.kind = kind;
+    this.status = status;
+    this.code = code;
+  }
+}
+
+const TIMEOUT_MS = 15_000;
+
+async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    throw new ApiError('network', 0, 'network_error', 'The request did not reach the server');
+  }
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
+  }
+  return data as T;
+}
+
+export const api = {
+  listDecks: () => request<Deck[]>('GET', '/decks'),
+  activeSession: () => request<{ session: Session | null }>('GET', '/sessions/active'),
+  startNewSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'new', deck_id: deckId }),
+  startPracticeSession: (sourceSessionId: string) =>
+    request<Session>('POST', '/sessions', { kind: 'practice', source_session_id: sourceSessionId }),
+  // Safe to retry: the server keeps exactly one attempt per exercise.
+  submitAttempt: (sessionId: string, exerciseId: string, response: AttemptResponse) =>
+    request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
+  completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
+};
+
+/** Learner-facing message for a failed request. Never shown for a wrong answer. */
+export function describeError(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'network') {
+    return 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
+  }
+  if (error instanceof ApiError && error.status >= 500) {
+    return 'Сервер сейчас не отвечает. Попробуйте ещё раз через минуту.';
+  }
+  return 'Что-то пошло не так. Попробуйте ещё раз.';
+}

@@ -1,44 +1,40 @@
 import { useEffect, useRef } from 'react';
 import { plural } from '../i18n/plural.ts';
-import { Illustration } from '../illustrations/index.tsx';
-import type { AnswerResult } from '../lesson/lessonSession.ts';
-import { summarizeSession, type WordOutcome } from '../lesson/sessionSummary.ts';
-import type { ChoiceExercise } from '../lesson/types.ts';
+import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
+import type { Summary, Word } from '../lib/types.ts';
+import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CheckIcon, RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { CompletionBadge } from './CompletionBadge.tsx';
 import styles from './SessionSummary.module.css';
 
-export type SessionKind = 'lesson' | 'mistakes';
-
 interface SessionSummaryProps {
-  kind: SessionKind;
-  exercises: readonly ChoiceExercise[];
-  results: readonly AnswerResult[];
-  onPracticeMistakes: (exerciseIds: string[]) => void;
-  onRestart: () => void;
+  summary: Summary;
+  onPractice: () => Promise<void>;
+  onNext: () => Promise<void>;
+  onHome: () => void;
 }
 
-// Copy describes what happened (met, recognised) and never claims a word is learned.
-// Counts per group live in the recap headings, so the lead stays one sentence.
+// Copy describes what happened (met, practised) and never claims a word is learned.
 // A no-break space keeps each number on the same line as its noun.
-function describe(kind: SessionKind, total: number, perfect: boolean) {
-  if (kind === 'lesson') {
+function describe(summary: Summary, perfect: boolean) {
+  const total = summary.words.length;
+  if (summary.kind === 'new') {
     const met = `Вы познакомились с ${total}\u00a0${plural(total, { one: 'новым словом', few: 'новыми словами', many: 'новыми словами' })}`;
     return {
       title: perfect ? 'Без единой ошибки!' : 'Урок пройден!',
-      lead: perfect ? `${met} и все узнали с первого раза.` : `${met}.`,
+      lead: perfect ? `${met} — и ни разу не ошиблись.` : `${met}.`,
     };
   }
-  const reviewed = `Вы повторили ${total}\u00a0${plural(total, { one: 'слово', few: 'слова', many: 'слов' })}`;
+  const practised = `Вы повторили ${total}\u00a0${plural(total, { one: 'слово', few: 'слова', many: 'слов' })}`;
   return {
     title: perfect ? 'Ошибки исправлены!' : 'Повторение пройдено',
-    lead: perfect ? `${reviewed} без единой ошибки.` : `${reviewed}.`,
+    lead: perfect ? `${practised} без единой ошибки.` : `${practised}.`,
   };
 }
 
-function WordGroup({ title, words, status }: { title: string; words: WordOutcome[]; status: 'missed' | 'recognized' }) {
+function WordGroup({ title, words, status }: { title: string; words: Word[]; status: 'missed' | 'clean' }) {
   return (
     <section className={styles.group}>
       <h2 className={styles.groupTitle}>
@@ -47,12 +43,18 @@ function WordGroup({ title, words, status }: { title: string; words: WordOutcome
       <ul className={styles.words}>
         {words.map((word) => (
           <li key={word.id} className={styles.wordRow}>
-            <span className={styles.thumb}>
-              <Illustration id={word.illustration} className={styles.thumbArt} />
+            <span className={styles.thumb} data-art={isIllustrationId(word.illustration) || undefined}>
+              {isIllustrationId(word.illustration) ? (
+                <Illustration id={word.illustration} className={styles.thumbArt} />
+              ) : (
+                <span className={styles.initial} aria-hidden="true">
+                  {word.headword.charAt(0)}
+                </span>
+              )}
             </span>
             <span className={styles.wordText}>
               <span className={styles.word} lang="en">
-                {word.word}
+                {word.headword}
               </span>
               <span className={styles.translation}>{word.translation}</span>
             </span>
@@ -66,10 +68,12 @@ function WordGroup({ title, words, status }: { title: string; words: WordOutcome
   );
 }
 
-export function SessionSummary({ kind, exercises, results, onPracticeMistakes, onRestart }: SessionSummaryProps) {
-  const summary = summarizeSession(exercises, results);
-  const hasMistakes = summary.missed.length > 0;
-  const { title, lead } = describe(kind, summary.total, !hasMistakes);
+export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionSummaryProps) {
+  const missed = summary.words.filter((entry) => entry.mistakes > 0).map((entry) => entry.word);
+  const clean = summary.words.filter((entry) => entry.mistakes === 0).map((entry) => entry.word);
+  const perfect = missed.length === 0;
+  const { title, lead } = describe(summary, perfect);
+  const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Announce the result: focus lands on the heading, not on a button.
@@ -80,7 +84,7 @@ export function SessionSummary({ kind, exercises, results, onPracticeMistakes, o
       <main className={styles.main}>
         <div className={styles.layout}>
           <div className={styles.stage}>
-            <CompletionBadge perfect={!hasMistakes} />
+            <CompletionBadge perfect={perfect} />
           </div>
 
           <div className={styles.intro}>
@@ -91,34 +95,31 @@ export function SessionSummary({ kind, exercises, results, onPracticeMistakes, o
           </div>
 
           <div className={styles.recap}>
-            {hasMistakes && <WordGroup title="Стоит повторить" words={summary.missed} status="missed" />}
-            {summary.recognized.length > 0 && (
-              <WordGroup title="Узнали с первого раза" words={summary.recognized} status="recognized" />
-            )}
+            {missed.length > 0 && <WordGroup title="Стоит повторить" words={missed} status="missed" />}
+            {clean.length > 0 && <WordGroup title="Без ошибок" words={clean} status="clean" />}
           </div>
         </div>
       </main>
 
       <footer className={styles.actions}>
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
         <div className={styles.actionsInner}>
-          {hasMistakes ? (
-            <>
-              <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onRestart}>
-                Пройти урок заново
-              </SecondaryButton>
-              <PrimaryButton
-                type="button"
-                className={styles.action}
-                onClick={() => onPracticeMistakes(summary.missed.map((word) => word.id))}
-              >
-                Повторить ошибки
-              </PrimaryButton>
-            </>
-          ) : (
-            <PrimaryButton type="button" className={styles.action} onClick={onRestart}>
-              Пройти урок заново
-            </PrimaryButton>
-          )}
+          <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
+            На главную
+          </SecondaryButton>
+          <PrimaryButton
+            type="button"
+            className={styles.action}
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => run(perfect ? onNext : onPractice)}
+          >
+            {busy ? 'Загружаем…' : perfect ? 'Следующие слова' : 'Повторить ошибки'}
+          </PrimaryButton>
         </div>
       </footer>
     </div>

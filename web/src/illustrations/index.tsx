@@ -19,6 +19,10 @@ const illustrations = {
 
 export type IllustrationId = keyof typeof illustrations;
 
+/** Content may name an illustration the app does not have (yet); callers fall back to text. */
+export const isIllustrationId = (id: string | null | undefined): id is IllustrationId =>
+  id != null && Object.hasOwn(illustrations, id);
+
 interface IllustrationProps {
   id: IllustrationId;
   /** Omit when the word is already shown in text; the art is then hidden from screen readers. */

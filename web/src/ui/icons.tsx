@@ -45,3 +45,9 @@ export const RepeatIcon = (props: IconProps) => (
     <path d="M17.5 3.5v4h-4" />
   </svg>
 );
+
+export const AlertIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 7v6M12 17h.01" />
+  </svg>
+);
