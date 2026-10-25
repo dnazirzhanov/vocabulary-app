@@ -1,0 +1,222 @@
+# One entry per word. `id` is permanent: progress is stored against it, so never
+# rename an id after release — change the headword or translation instead.
+#
+#   id            stable slug (lowercase letters, digits, hyphens)
+#   headword      English word as taught
+#   pos           noun | verb | adjective | adverb
+#   translation   Russian meaning shown to the learner
+#   also_accept   other English spellings accepted when typing (optional)
+#   example       natural English sentence containing the headword as a whole word
+#   example_ru    Russian translation of the example
+#   illustration  id of an existing illustration (optional)
+
+- id: house
+  headword: house
+  pos: noun
+  translation: дом
+  example: They live in a small house near the river.
+  example_ru: Они живут в маленьком доме у реки.
+
+- id: water
+  headword: water
+  pos: noun
+  translation: вода
+  example: Can I have a glass of water, please?
+  example_ru: Можно мне стакан воды, пожалуйста?
+
+- id: friend
+  headword: friend
+  pos: noun
+  translation: друг, подруга
+  example: My best friend lives in Bishkek.
+  example_ru: Мой лучший друг живёт в Бишкеке.
+
+- id: buy
+  headword: buy
+  pos: verb
+  translation: покупать, купить
+  example: I need to buy some bread.
+  example_ru: Мне нужно купить хлеба.
+
+- id: cheap
+  headword: cheap
+  pos: adjective
+  translation: дешёвый
+  example: This jacket is cheap.
+  example_ru: Эта куртка дешёвая.
+
+- id: money
+  headword: money
+  pos: noun
+  translation: деньги
+  example: I don't have enough money for a taxi.
+  example_ru: У меня не хватает денег на такси.
+
+- id: city
+  headword: city
+  pos: noun
+  translation: город
+  example: Bishkek is the biggest city in Kyrgyzstan.
+  example_ru: Бишкек — самый большой город в Кыргызстане.
+
+- id: wait
+  headword: wait
+  pos: verb
+  translation: ждать, подождать
+  example: Please wait for me here.
+  example_ru: Пожалуйста, подожди меня здесь.
+
+- id: busy
+  headword: busy
+  pos: adjective
+  translation: занятой
+  example: I'm very busy today.
+  example_ru: Я сегодня очень занят.
+
+- id: morning
+  headword: morning
+  pos: noun
+  translation: утро
+  example: I drink tea every morning.
+  example_ru: Я пью чай каждое утро.
+
+- id: door
+  headword: door
+  pos: noun
+  translation: дверь
+  example: Please close the door.
+  example_ru: Пожалуйста, закрой дверь.
+
+- id: open
+  headword: open
+  pos: verb
+  translation: открывать, открыть
+  example: Please open your books.
+  example_ru: Пожалуйста, откройте книги.
+
+- id: tired
+  headword: tired
+  pos: adjective
+  translation: уставший
+  example: I'm tired after work.
+  example_ru: Я устал после работы.
+
+- id: window
+  headword: window
+  pos: noun
+  translation: окно
+  example: Can you open the window? It's hot.
+  example_ru: Можешь открыть окно? Жарко.
+
+- id: book
+  headword: book
+  pos: noun
+  translation: книга
+  example: This book is very interesting.
+  example_ru: Эта книга очень интересная.
+
+- id: forget
+  headword: forget
+  pos: verb
+  translation: забывать, забыть
+  example: Don't forget your umbrella!
+  example_ru: Не забудь зонт!
+
+- id: hungry
+  headword: hungry
+  pos: adjective
+  translation: голодный
+  example: Are you hungry? Let's eat.
+  example_ru: Ты голодный? Давай поедим.
+
+- id: food
+  headword: food
+  pos: noun
+  translation: еда
+  example: The food in this café is delicious.
+  example_ru: Еда в этом кафе очень вкусная.
+
+- id: job
+  headword: job
+  pos: noun
+  translation: работа
+  example: She has a new job at a bank.
+  example_ru: У неё новая работа в банке.
+
+- id: help
+  headword: help
+  pos: verb
+  translation: помогать, помочь
+  example: Can you help me with my homework?
+  example_ru: Можешь помочь мне с домашним заданием?
+
+- id: expensive
+  headword: expensive
+  pos: adjective
+  translation: дорогой
+  example: This phone is too expensive.
+  example_ru: Этот телефон слишком дорогой.
+
+- id: weather
+  headword: weather
+  pos: noun
+  translation: погода
+  example: The weather is nice today.
+  example_ru: Сегодня хорошая погода.
+
+- id: key
+  headword: key
+  pos: noun
+  translation: ключ
+  example: Where is the key to the car?
+  example_ru: Где ключ от машины?
+  illustration: key
+
+- id: find
+  headword: find
+  pos: verb
+  translation: находить, найти
+  example: I can't find my phone.
+  example_ru: Я не могу найти свой телефон.
+
+- id: empty
+  headword: empty
+  pos: adjective
+  translation: пустой
+  example: The fridge is empty.
+  example_ru: Холодильник пустой.
+
+- id: family
+  headword: family
+  pos: noun
+  translation: семья
+  example: I have a big family.
+  example_ru: У меня большая семья.
+
+- id: street
+  headword: street
+  pos: noun
+  translation: улица
+  example: Our school is on this street.
+  example_ru: Наша школа на этой улице.
+
+- id: remember
+  headword: remember
+  pos: verb
+  translation: помнить, вспоминать
+  example: I don't remember his name.
+  example_ru: Я не помню его имя.
+
+- id: quiet
+  headword: quiet
+  pos: adjective
+  translation: тихий
+  example: The library is very quiet.
+  example_ru: В библиотеке очень тихо.
+
+- id: question
+  headword: question
+  pos: noun
+  translation: вопрос
+  example: Can I ask a question?
+  example_ru: Можно задать вопрос?

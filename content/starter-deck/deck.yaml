@@ -1,0 +1,45 @@
+# Starter deck metadata. Word order below is the order new words are introduced.
+id: starter
+title: Первые слова
+description: Слова, которые нужны каждый день — дома, на улице, на работе и в учёбе.
+learning_language: en
+explanation_language: ru
+status: published
+# Bump when words change in a way learners should notice (new words, changed meanings).
+content_version: 1
+# Provenance, so nobody mistakes a draft for reviewed content.
+source: >-
+  Everyday A1–A2 words chosen by hand for the first slice; to be cross-checked against
+  the New General Service List and reviewed by a fluent Russian speaker before the pilot.
+review_status: draft
+words:
+  - house
+  - water
+  - friend
+  - buy
+  - cheap
+  - money
+  - city
+  - wait
+  - busy
+  - morning
+  - door
+  - open
+  - tired
+  - window
+  - book
+  - forget
+  - hungry
+  - food
+  - job
+  - help
+  - expensive
+  - weather
+  - key
+  - find
+  - empty
+  - family
+  - street
+  - remember
+  - quiet
+  - question
