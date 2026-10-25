@@ -4,6 +4,7 @@ import type { AttemptResponse, AttemptResult, Exercise, Session } from '../lib/t
  * answering → checking → feedback → (next exercise) … → finishing
  *              ↘ error ↗ (retry)                       ↘ error ↗ (retry)
  * Introductions skip feedback: once the server acknowledges one, the next exercise starts.
+ * Recall exercises start hidden: the first submit only reveals the options (no request).
  */
 export type RunPhase = 'answering' | 'checking' | 'feedback' | 'error' | 'finishing';
 
@@ -12,6 +13,8 @@ export interface RunState {
   phase: RunPhase;
   choice: string | null;
   text: string;
+  /** recall_meaning: whether the learner has asked to see the options yet. */
+  revealed: boolean;
   results: AttemptResult[];
   /** What a retry from the error phase repeats, and the message to show meanwhile. */
   failed: 'attempt' | 'finish' | null;
@@ -35,6 +38,7 @@ export function startRun(session: Session): RunState {
     phase: index >= session.exercises.length ? 'finishing' : 'answering',
     choice: null,
     text: '',
+    revealed: false,
     results: session.results,
     failed: null,
     error: null,
@@ -44,7 +48,10 @@ export function startRun(session: Session): RunState {
 /** The response to send for the current exercise, or null if the learner has not answered yet. */
 export function responseFor(exercise: Exercise, state: RunState): AttemptResponse | null {
   if (exercise.type === 'introduce') return { kind: 'seen' };
-  if (exercise.type === 'choose_meaning') return state.choice ? { kind: 'choice', option_id: state.choice } : null;
+  if (exercise.type === 'recall_meaning' && !state.revealed) return null;
+  if (exercise.type === 'choose_meaning' || exercise.type === 'recall_meaning') {
+    return state.choice ? { kind: 'choice', option_id: state.choice } : null;
+  }
   return state.text.trim() ? { kind: 'text', text: state.text } : null;
 }
 
@@ -55,6 +62,7 @@ function advance(state: RunState, exercises: readonly Exercise[], results: Attem
     phase: index >= exercises.length ? 'finishing' : 'answering',
     choice: null,
     text: '',
+    revealed: false,
     results,
     failed: null,
     error: null,
@@ -64,15 +72,19 @@ function advance(state: RunState, exercises: readonly Exercise[], results: Attem
 export function reduceRun(state: RunState, action: RunAction, exercises: readonly Exercise[]): RunState {
   const exercise = exercises[state.index];
   switch (action.type) {
-    case 'choose':
-      if (state.phase !== 'answering' || exercise?.type !== 'choose_meaning') return state;
-      if (!exercise.options.some((option) => option.id === action.optionId)) return state;
+    case 'choose': {
+      if (state.phase !== 'answering' || !exercise) return state;
+      const choosable = exercise.type === 'choose_meaning' || (exercise.type === 'recall_meaning' && state.revealed);
+      if (!choosable || !exercise.options.some((option) => option.id === action.optionId)) return state;
       return { ...state, choice: action.optionId };
+    }
     case 'input':
       if (state.phase !== 'answering' || exercise?.type !== 'type_word') return state;
       return { ...state, text: action.text.slice(0, 100) };
     case 'submit':
-      if (state.phase !== 'answering' || !exercise || !responseFor(exercise, state)) return state;
+      if (state.phase !== 'answering' || !exercise) return state;
+      if (exercise.type === 'recall_meaning' && !state.revealed) return { ...state, revealed: true };
+      if (!responseFor(exercise, state)) return state;
       return { ...state, phase: 'checking' };
     case 'resolved': {
       if (state.phase !== 'checking' || action.result.exercise_id !== exercise?.id) return state;

@@ -1,3 +1,4 @@
+import { syncWithServer } from './clock.ts';
 import type { AttemptResponse, AttemptResult, Deck, Session, Summary } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
@@ -28,6 +29,7 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
   } catch {
     throw new ApiError('network', 0, 'network_error', 'The request did not reach the server');
   }
+  syncWithServer(response.headers.get('X-Server-Time'));
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
@@ -40,6 +42,7 @@ export const api = {
   listDecks: () => request<Deck[]>('GET', '/decks'),
   activeSession: () => request<{ session: Session | null }>('GET', '/sessions/active'),
   startNewSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'new', deck_id: deckId }),
+  startReviewSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'review', deck_id: deckId }),
   startPracticeSession: (sourceSessionId: string) =>
     request<Session>('POST', '/sessions', { kind: 'practice', source_session_id: sourceSessionId }),
   // Safe to retry: the server keeps exactly one attempt per exercise.

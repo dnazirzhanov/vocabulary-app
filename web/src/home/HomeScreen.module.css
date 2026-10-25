@@ -132,12 +132,19 @@
 }
 
 .actionsInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
   max-width: var(--width-column);
   margin: 0 auto;
 }
 
 .action {
   width: 100%;
+}
+
+.actionsInner .secondary {
+  min-height: 44px;
 }
 
 .error {
@@ -208,9 +215,14 @@
   }
 
   .actionsInner {
-    display: flex;
+    flex-direction: row;
     justify-content: flex-end;
+    gap: var(--space-3);
     max-width: var(--width-lesson);
+  }
+
+  .actionsInner .secondary {
+    min-height: 52px;
   }
 
   .action {

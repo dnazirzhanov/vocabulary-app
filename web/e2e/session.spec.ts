@@ -13,7 +13,7 @@ test('a new learner completes a session and the progress survives a reload', asy
 
   await page.reload();
   await expect(page.getByText('5 из 30 слов')).toBeVisible();
-  await expect(button(page, 'Следующие слова')).toBeVisible();
+  await expect(button(page, 'Новые слова')).toBeVisible();
 });
 
 test('an unfinished session resumes where the learner left off', async ({ page }) => {

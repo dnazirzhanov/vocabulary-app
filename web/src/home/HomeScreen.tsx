@@ -3,11 +3,14 @@ import { plural } from '../i18n/plural.ts';
 import { Illustration } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
 import type { Deck, Session } from '../lib/types.ts';
+import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './HomeScreen.module.css';
 
 type Loaded = { deck: Deck | undefined; active: Session | null };
+type Action = { label: string; run: () => Promise<void> };
 
 interface HomeScreenProps {
   onSession: (session: Session) => void;
@@ -80,13 +83,34 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   }
 
   const met = deck.introduced_count;
-  const finished = met >= deck.word_count && !active;
-  const start = active
-    ? { label: 'Продолжить урок', action: async () => onSession(active) }
-    : {
-        label: met === 0 ? 'Начать урок' : 'Следующие слова',
-        action: async () => onSession(await api.startNewSession(deck.id)),
-      };
+  const due = deck.due_count;
+  const newLeft = met < deck.word_count;
+  const startNew: Action = {
+    label: met === 0 ? 'Начать урок' : 'Новые слова',
+    run: async () => onSession(await api.startNewSession(deck.id)),
+  };
+  // Due reviews come first; new words stay one tap away so they are never blocked.
+  let primary: Action | null = newLeft ? startNew : null;
+  let secondary: Action | null = null;
+  if (active) {
+    primary = { label: 'Продолжить урок', run: async () => onSession(active) };
+  } else if (due > 0) {
+    primary = {
+      label: `Повторить слова · ${due}`,
+      run: async () => onSession(await api.startReviewSession(deck.id)),
+    };
+    secondary = newLeft ? startNew : null;
+  }
+
+  const nextReview = deck.next_due_at ? `Следующее повторение — ${relativeDay(deck.next_due_at)}.` : null;
+  let note: string;
+  if (active) note = 'Урок не закончен — продолжите с того же места.';
+  else if (due > 0)
+    note = `Пора повторить ${due}\u00a0${plural(due, { one: 'слово', few: 'слова', many: 'слов' })}, которые вы уже видели.`;
+  else if (!newLeft)
+    note = nextReview ? `Новых слов в колоде нет. ${nextReview}` : 'Вы познакомились со всеми словами этой колоды.';
+  else if (nextReview) note = `${nextReview} А пока можно взять новые слова.`;
+  else note = 'В уроке 5 новых слов: знакомство, выбор перевода и написание.';
 
   return (
     <div className={styles.screen}>
@@ -121,17 +145,11 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
             >
               <div className={styles.fill} style={{ width: `${(met / deck.word_count) * 100}%` }} />
             </div>
-            <p className={styles.note}>
-              {active
-                ? 'Урок не закончен — продолжите с того же места.'
-                : finished
-                  ? 'Вы познакомились со всеми словами этой колоды.'
-                  : 'В уроке 5 новых слов: знакомство, выбор перевода и написание.'}
-            </p>
+            <p className={styles.note}>{note}</p>
           </section>
         </div>
       </main>
-      {!finished && (
+      {primary && (
         <footer className={styles.actions}>
           {error && (
             <p className={styles.error} role="alert">
@@ -139,14 +157,24 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
             </p>
           )}
           <div className={styles.actionsInner}>
+            {secondary && (
+              <SecondaryButton
+                type="button"
+                className={`${styles.action} ${styles.secondary}`}
+                disabled={busy}
+                onClick={() => run(secondary.run)}
+              >
+                {secondary.label}
+              </SecondaryButton>
+            )}
             <PrimaryButton
               type="button"
               className={styles.action}
               disabled={busy}
               aria-busy={busy}
-              onClick={() => run(start.action)}
+              onClick={() => run(primary.run)}
             >
-              {busy ? 'Загружаем…' : start.label}
+              {busy ? 'Загружаем…' : primary.label}
             </PrimaryButton>
           </div>
         </footer>
