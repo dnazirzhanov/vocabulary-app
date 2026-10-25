@@ -3,9 +3,14 @@ import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { api } from './lib/api.ts';
 import type { Session, Summary } from './lib/types.ts';
+import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 
-type Screen = { name: 'home' } | { name: 'session'; session: Session } | { name: 'summary'; summary: Summary };
+type Screen =
+  | { name: 'home' }
+  | { name: 'session'; session: Session }
+  | { name: 'summary'; summary: Summary }
+  | { name: 'progress'; deckId: string };
 
 /** Three screens and no router: all state that matters lives on the server, so home can always reload it. */
 export function App() {
@@ -34,5 +39,6 @@ export function App() {
       />
     );
   }
-  return <HomeScreen onSession={showSession} />;
+  if (screen.name === 'progress') return <ProgressScreen deckId={screen.deckId} onBack={goHome} />;
+  return <HomeScreen onSession={showSession} onProgress={(deckId) => setScreen({ name: 'progress', deckId })} />;
 }

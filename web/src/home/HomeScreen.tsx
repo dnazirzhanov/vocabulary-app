@@ -2,18 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural } from '../i18n/plural.ts';
 import { Illustration } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
-import type { Deck, Session } from '../lib/types.ts';
+import type { Deck, Progress, Session } from '../lib/types.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import { ChartIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './HomeScreen.module.css';
 
-type Loaded = { deck: Deck | undefined; active: Session | null };
+type Loaded = { deck: Deck | undefined; active: Session | null; progress: Progress | null };
 type Action = { label: string; run: () => Promise<void> };
 
 interface HomeScreenProps {
   onSession: (session: Session) => void;
+  onProgress: (deckId: string) => void;
 }
 
 /** Decorative cover for the deck: a few everyday objects in the house illustration style. */
@@ -27,7 +29,7 @@ function DeckArt() {
   );
 }
 
-export function HomeScreen({ onSession }: HomeScreenProps) {
+export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -36,10 +38,14 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   // State is only set when the requests settle, never synchronously in the effect.
   const load = useCallback(
     () =>
-      Promise.all([api.listDecks(), api.activeSession()]).then(
-        ([decks, active]) => setLoaded({ deck: decks[0], active: active.session }),
-        (caught: unknown) => setLoadError(describeError(caught)),
-      ),
+      Promise.all([api.listDecks(), api.activeSession()])
+        .then(async ([decks, active]) => {
+          const deck = decks[0];
+          // Progress is secondary on this screen: if it fails, home still works.
+          const progress = deck ? await api.deckProgress(deck.id).catch(() => null) : null;
+          setLoaded({ deck, active: active.session, progress });
+        })
+        .catch((caught: unknown) => setLoadError(describeError(caught))),
     [],
   );
 
@@ -72,7 +78,7 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
     );
   }
 
-  const { deck, active } = loaded;
+  const { deck, active, progress } = loaded;
   if (!deck) {
     return (
       <main className={styles.message}>
@@ -114,6 +120,20 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
 
   return (
     <div className={styles.screen}>
+      <header className={styles.topbar}>
+        {/* A streak appears once there is one; "0 days" would only greet newcomers with a zero. */}
+        <span className={styles.streak}>
+          {progress && progress.streak_days > 0 && (
+            <>
+              <FlameIcon aria-hidden="true" />
+              {`${progress.streak_days}\u00a0${plural(progress.streak_days, { one: 'день', few: 'дня', many: 'дней' })} подряд`}
+            </>
+          )}
+        </span>
+        <button type="button" className={styles.progressLink} onClick={() => onProgress(deck.id)}>
+          <ChartIcon aria-hidden="true" /> Прогресс
+        </button>
+      </header>
       <main className={styles.main}>
         <div className={styles.layout}>
           <div className={styles.stage}>

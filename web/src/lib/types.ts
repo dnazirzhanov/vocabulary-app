@@ -79,4 +79,26 @@ export interface Summary {
   words: { word: Word; mistakes: number; next_review_at: string }[];
   answers_total: number;
   answers_correct: number;
+  points: number;
+  today_points: number;
+  daily_goal: number;
+}
+
+export interface DayActivity {
+  /** Local calendar date, YYYY-MM-DD */
+  date: string;
+  points: number;
+}
+
+export interface Progress {
+  deck_id: string;
+  words: { introduced: number; reviewing: number; well_learned: number; due: number };
+  today: DayActivity;
+  daily_goal: number;
+  streak_days: number;
+  /** The last 7 local days, oldest first */
+  week: DayActivity[];
+  /** Delayed recall in scheduled reviews over `days` days */
+  recall: { recalled: number; reviewed: number; days: number };
+  points_total: number;
 }

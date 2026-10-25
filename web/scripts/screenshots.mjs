@@ -171,6 +171,11 @@ try {
       await button('На главную').click();
       await button('Новые слова').waitFor();
       await shot('09-home-progress');
+      await button('Прогресс').click();
+      await page.getByRole('heading', { name: 'Прогресс' }).waitFor();
+      await shot('09b-progress');
+      await button('На главную').click();
+      await button('Новые слова').waitFor();
 
       if (viewport.review) {
         // The next day: the five words met above are due.
@@ -191,6 +196,10 @@ try {
           .filter({ hasText: /Повторение пройдено|Отличная память/ })
           .waitFor();
         await shot('14-summary-review');
+        await button('На главную').click();
+        await button('Прогресс').click();
+        await page.getByText('Вспомнили на повторениях').waitFor();
+        await shot('15-progress-after-review');
         await button('На главную').click();
         await button('Новые слова').waitFor();
       }
