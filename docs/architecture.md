@@ -57,7 +57,7 @@ All timestamps are `timestamptz`, stored and compared in UTC.
 |---|---|---|
 | `users` | `id uuid`, `auth_subject text`, `display_name text null`, `created_at` | `UNIQUE(auth_subject)` |
 | `decks` | `id text` (stable slug), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int` | |
-| `words` | `id text` (stable slug), `headword`, `pos`, `translation_ru`, `accepted_ru text[]`, `accepted_en text[]`, `example_en`, `example_ru`, `illustration null`, `content_version int` | |
+| `words` | `id text` (stable slug), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null` | |
 | `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
 | `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count` | `PK(user_id, word_id)` — one record per user and word |
 | `learning_sessions` | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice`), `plan jsonb`, `started_at`, `completed_at null` | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
@@ -74,12 +74,14 @@ Phase 3 adds scheduling state to `user_word_progress` (`stage`, `next_review_at`
    - then, for each word again: `type_word` (Russian meaning + English example with the word blanked → type the English word).
    Distractors come from the same deck, preferring the same part of speech, chosen by a seeded shuffle so a plan is reproducible in tests.
 2. **Store** the plan (including answer keys) as JSON on the session row. Clients receive exercises **without answer keys**.
-3. **Attempt**: the client submits one response per exercise. The server evaluates it, writes the attempt and updates progress **in one transaction**. A second submission for the same exercise returns the stored result unchanged (idempotent; prevents double counting and answer fishing).
+3. **Attempt**: the client submits one response per exercise, in plan order (skipping ahead returns `409 out_of_order`). The server evaluates it, writes the attempt and updates progress **in one transaction**. A second submission for the same exercise returns the stored result unchanged (idempotent; prevents double counting and answer fishing). When two devices race, the unique constraint fails at flush time and the loser returns the stored result — covered by `tests/test_concurrency.py`.
 4. **Resume**: the open session (if any) is returned with the results so far; the client continues at the first unanswered exercise.
 5. **Complete**: allowed once every exercise has a result; returns the summary. Completing again returns the same summary.
 6. **Practice**: a `practice` session repeats `choose_meaning` + `type_word` for words answered wrongly in a completed session that the same user owns.
 
-Typed-answer normalisation: trim, lowercase, collapse whitespace, unify apostrophes, strip surrounding punctuation; correct if equal to the headword or any `accepted_en`. No typo tolerance in v1 — feedback shows the correct spelling.
+Typed-answer normalisation: trim, lowercase, collapse whitespace, unify apostrophes, strip surrounding punctuation; correct if equal to the headword or any `also_accept` form. No typo tolerance in v1 — feedback shows the correct spelling.
+
+**What clients see before answering:** an introduction shows everything; a choose-meaning question shows the headword, part of speech and example but not the meaning or the picture (the picture would let learners match image to meaning without reading the word); a typing question shows the meaning and the example with the word blanked out.
 
 ## API contract (Phase 2)
 
@@ -94,7 +96,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/sessions` | `{deck_id, kind: "new"}` or `{kind: "practice", source_session_id}`; returns the open session if one exists; `409 deck_complete` when no new words remain |
 | `GET /api/sessions/{id}` | session with exercises and results so far |
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response}` → `{correct, answer}` |
-| `POST /api/sessions/{id}/complete` | summary |
+| `POST /api/sessions/{id}/complete` | summary: words with mistake counts, answer totals, `deck_id` for "next words" |
 
 Every query is filtered by the authenticated user. A session that exists but belongs to someone else returns **404**, not 403, so identifiers cannot be probed. Request bodies are validated by Pydantic with explicit length limits (e.g. typed answers ≤ 100 characters).
 
@@ -107,7 +109,7 @@ Every query is filtered by the authenticated user. A session that exists but bel
 
 ## Content pipeline (ADR 0005)
 
-`content/starter-deck/` holds `deck.yaml` (metadata, content version) and `words.yaml`. `uv run python -m app.cli load-content ../content/starter-deck`:
+`content/starter-deck/` holds `deck.yaml` (metadata, word order, provenance, review status) and `words.yaml`. `make content-load` (`uv run python -m app.cli load-content ../content/starter-deck`; `validate-content` checks without a database):
 
 1. parses YAML into Pydantic models;
 2. validates: unique ids, slug format, required translation and examples, example contains the headword as a whole word, accepted answers non-empty, deck references only known words, illustration ids from the known set;

@@ -1,5 +1,5 @@
 # Common tasks. `make help` lists them.
-.PHONY: help setup db-migrate api web dev check test
+.PHONY: help setup db-migrate content-load api web dev check test test-e2e
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-11s %s\n", $$1, $$2}'
@@ -10,6 +10,9 @@ setup: ## Install backend and web dependencies
 
 db-migrate: ## Apply migrations to DATABASE_URL (from .env)
 	cd backend && uv run alembic upgrade head
+
+content-load: ## Validate the starter deck and import it into DATABASE_URL
+	cd backend && uv run python -m app.cli load-content ../content/starter-deck
 
 api: ## Run the API on http://localhost:8000
 	cd backend && uv run uvicorn app.main:app --reload --port 8000
@@ -24,6 +27,9 @@ check: ## Lint, format check and type check everything
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy .
 	cd web && npm run lint && npm run format:check && npm run typecheck
 
-test: ## Run backend and web tests
+test: ## Run backend and web unit/integration tests
 	cd backend && uv run pytest
 	cd web && npm test
+
+test-e2e: ## Run browser end-to-end tests (reuses `make dev` if running)
+	cd web && npm run test:e2e
