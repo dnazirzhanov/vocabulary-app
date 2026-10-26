@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import { serverNow } from '../lib/clock.ts';
 import { api } from '../lib/api.ts';
 import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
+import { startOfDay, type RoadmapInput } from '../lib/roadmap.ts';
 import type { Deck, Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { RoadmapView } from '../roadmap/RoadmapView.tsx';
 import { CoverageSentence } from './CoverageSentence.tsx';
 import { PacePicker, type PaceChoice } from './PacePicker.tsx';
 import styles from './GoalScreen.module.css';
 
 interface GoalScreenProps {
-  /** First run: the promise, then the pace. Later ("Моя цель"): the pace, with the promise above it. */
+  /** First run: the promise, the pace, then the plan. Later ("Моя цель"): pace and plan together. */
   mode: 'onboarding' | 'edit';
   deck: Deck;
   me: Me;
-  secondsPerExercise?: number;
   onDone: (me: Me) => void;
   onBack?: () => void;
 }
@@ -79,9 +81,27 @@ function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }
   );
 }
 
-export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack }: GoalScreenProps) {
-  const seconds = secondsPerExercise ?? DEFAULT_SECONDS_PER_EXERCISE;
-  const [step, setStep] = useState<'promise' | 'pace'>(mode === 'onboarding' ? 'promise' : 'pace');
+type Step = 'promise' | 'pace' | 'plan';
+const STEPS: Step[] = ['promise', 'pace', 'plan'];
+
+// API timestamps are UTC instants; the ramp counts the learner's local calendar days.
+const localDay = (iso: string | null) => (iso ? startOfDay(new Date(iso)) : null);
+
+export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: GoalScreenProps) {
+  const [step, setStep] = useState<Step>(mode === 'onboarding' ? 'promise' : 'pace');
+  // "Моя цель" is opened after lessons: fresh counts make the plan start from today's real position.
+  const [deck, setDeck] = useState(initialDeck);
+  const [today, setToday] = useState({ metToday: 0, seconds: DEFAULT_SECONDS_PER_EXERCISE });
+  useEffect(() => {
+    if (mode !== 'edit') return;
+    void Promise.all([api.listDecks(), api.pace(initialDeck.id)])
+      .then(([decks, pace]) => {
+        setDeck(decks.find((candidate) => candidate.id === initialDeck.id) ?? initialDeck);
+        setToday({ metToday: pace.new_words_today, seconds: pace.seconds_per_exercise });
+      })
+      .catch(() => undefined); // the plan still works from the counts already loaded
+  }, [mode, initialDeck]);
+  const seconds = today.seconds;
   const initial: PaceChoice = {
     words: me.daily_target_words ?? 5,
     days: me.study_days_per_week,
@@ -110,7 +130,18 @@ export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack 
       ),
     );
 
-  const back = step === 'pace' && mode === 'onboarding' ? () => setStep('promise') : onBack;
+  const back = mode === 'onboarding' && step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : onBack;
+  const roadmapInput: RoadmapInput = {
+    today: startOfDay(serverNow()),
+    totalWords: deck.word_count,
+    introduced: deck.introduced_count,
+    metToday: today.metToday,
+    wordsPerDay: choice.words,
+    studyDaysPerWeek: choice.days,
+    ramp: choice.ramp,
+    rampStartedOn: localDay(me.onboarded_at) ?? startOfDay(serverNow()),
+  };
+  const plan = <RoadmapView input={roadmapInput} courseWords={deck.course_goal?.target_words ?? null} />;
 
   return (
     <div className={styles.screen}>
@@ -124,9 +155,17 @@ export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack 
         )}
         {mode === 'onboarding' && (
           <p className={styles.steps}>
-            <span className="visually-hidden">Шаг {step === 'promise' ? 1 : 2} из 2</span>
-            <span aria-hidden="true" className={styles.dot} data-active="true" />
-            <span aria-hidden="true" className={styles.dot} data-active={step === 'pace'} />
+            <span className="visually-hidden">
+              Шаг {STEPS.indexOf(step) + 1} из {STEPS.length}
+            </span>
+            {STEPS.map((candidate, index) => (
+              <span
+                key={candidate}
+                aria-hidden="true"
+                className={styles.dot}
+                data-active={index <= STEPS.indexOf(step)}
+              />
+            ))}
           </p>
         )}
       </header>
@@ -141,9 +180,20 @@ export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack 
             )}
           </div>
           <div className={styles.content}>
-            {step === 'promise' ? (
-              <CoursePromise deck={deck} />
-            ) : (
+            {step === 'promise' && <CoursePromise deck={deck} />}
+            {step === 'plan' && (
+              <>
+                <h1 className={styles.heading} tabIndex={-1} data-autofocus>
+                  Ваш план
+                </h1>
+                <p className={styles.lead}>
+                  {wordsLabel(choice.words)} в день, {choice.days}&nbsp;дней в неделю. Темп можно поменять в любой
+                  момент — план пересчитается.
+                </p>
+                {plan}
+              </>
+            )}
+            {step === 'pace' && (
               <>
                 {mode === 'edit' && deck.course_goal && (
                   <p className={styles.goalLine}>
@@ -159,6 +209,12 @@ export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack 
                   медленным, приложение подскажет.
                 </p>
                 <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
+                {mode === 'edit' && (
+                  <div className={styles.editPlan}>
+                    <h2 className={styles.subheading}>План при этом темпе</h2>
+                    {plan}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -172,16 +228,22 @@ export function GoalScreen({ mode, deck, me, secondsPerExercise, onDone, onBack 
           </p>
         )}
         <div className={styles.actionsInner}>
-          {step === 'pace' && (
+          {step !== 'promise' && (
             <p className={styles.footerSummary} aria-hidden="true">
               {wordsLabel(choice.words)} в день · {formatMinutes(dailyMinutes(choice.words, seconds))}
             </p>
           )}
-          {step === 'promise' ? (
+          {step === 'promise' && (
             <PrimaryButton type="button" className={styles.action} onClick={() => setStep('pace')}>
               Выбрать темп
             </PrimaryButton>
-          ) : (
+          )}
+          {step === 'pace' && mode === 'onboarding' && (
+            <PrimaryButton type="button" className={styles.action} onClick={() => setStep('plan')}>
+              Дальше: мой план
+            </PrimaryButton>
+          )}
+          {(step === 'plan' || mode === 'edit') && (
             <PrimaryButton
               type="button"
               className={styles.action}

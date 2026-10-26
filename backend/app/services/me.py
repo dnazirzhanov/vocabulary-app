@@ -14,6 +14,7 @@ def me_out(user: User) -> MeOut:
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,
         onboarded=user.onboarded_at is not None,
+        onboarded_at=user.onboarded_at,
     )
 
 

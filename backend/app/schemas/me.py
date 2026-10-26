@@ -1,5 +1,6 @@
 """API contracts for the learner's own settings and daily pace (ADR 0010)."""
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +12,8 @@ class MeOut(BaseModel):
     study_days_per_week: int
     ramp_enabled: bool
     onboarded: bool
+    # When the pace was first chosen: the ramp's weeks count from here.
+    onboarded_at: datetime | None
 
 
 class MeUpdate(BaseModel):

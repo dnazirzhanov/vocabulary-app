@@ -118,6 +118,8 @@ export interface Me {
   study_days_per_week: number;
   ramp_enabled: boolean;
   onboarded: boolean;
+  /** When the pace was first chosen: the ramp's weeks count from here. */
+  onboarded_at: string | null;
 }
 
 export type MeUpdate = Partial<Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled'>>;

@@ -3,7 +3,8 @@ import { button, expect, test } from './learner.ts';
 test.describe('a learner who has not chosen a pace', () => {
   test.use({ onboarded: false });
 
-  test('sees the promise, picks a pace and starts with a warm-up', async ({ page }) => {
+  test('sees the promise, picks a pace, sees the plan and starts with a warm-up', async ({ page, learner }) => {
+    await learner.travelTo(new Date('2026-11-02T09:00:00Z')); // a Monday
     await page.goto('/');
     await expect(page.getByRole('heading', { name: '1 300 слов' })).toBeFocused();
     await expect(page.getByText('около 80% всех слов')).toBeVisible();
@@ -18,6 +19,15 @@ test.describe('a learner who has not chosen a pace', () => {
     await page.getByRole('radio', { name: /Быстрый/ }).check();
     await expect(page.getByText(/Через месяц/)).toHaveCount(0);
     await page.getByRole('radio', { name: '5', exact: true }).check();
+    await button(page, 'Дальше: мой план').click();
+
+    // 10 a day with the warm-up (5, then 8), weekdays only: 25 words this week, the rest on Monday.
+    await expect(page.getByRole('heading', { name: 'Ваш план' })).toBeFocused();
+    await expect(page.getByText('к 9 ноября')).toBeVisible();
+    await expect(page.getByText('≈ к 20 ноября')).toBeVisible();
+    await page.getByText('План по неделям').click();
+    await expect(page.getByRole('row')).toHaveCount(3);
+    await expect(page.getByRole('row').nth(1)).toContainText('+25');
     await button(page, 'Начать').click();
 
     await expect(page.getByText('Разогрев, неделя 1 из 2: сегодня цель 5 из 10.')).toBeVisible();

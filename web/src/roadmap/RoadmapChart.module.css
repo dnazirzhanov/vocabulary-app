@@ -1,0 +1,140 @@
+.figure {
+  margin: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatchMet,
+.swatchFirm {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.swatchMet {
+  background: var(--color-series-met);
+}
+
+.swatchFirm {
+  background: var(--color-series-firm);
+}
+
+.plot {
+  position: relative;
+  border-radius: var(--radius-sm);
+  outline-offset: 4px;
+}
+
+.plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.axis {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: var(--weight-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.met,
+.firm {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.met {
+  stroke: var(--color-series-met);
+}
+
+.firm {
+  stroke: var(--color-series-firm);
+}
+
+.direct {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: var(--weight-strong);
+  paint-order: stroke;
+  stroke: var(--color-bg);
+  stroke-width: 4px;
+}
+
+.finish {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.crosshair {
+  stroke: var(--color-text);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+/* Overlapping markers get a ring of the surface so both stay visible. */
+.dotMet,
+.dotFirm {
+  stroke: var(--color-bg);
+  stroke-width: 2;
+}
+
+.dotMet {
+  fill: var(--color-series-met);
+}
+
+.dotFirm {
+  fill: var(--color-series-firm);
+}
+
+.hit {
+  fill: transparent;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.tooltip {
+  position: absolute;
+  top: -8px;
+  translate: -50% -100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tooltip strong {
+  font-size: var(--text-body);
+}
+
+.rest {
+  opacity: 0.75;
+}
