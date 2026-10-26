@@ -1,5 +1,7 @@
-"""API contracts for decks, sessions, attempts and summaries. Answer keys never appear in outputs
-until the learner has answered."""
+"""API contracts for decks, flashcard sessions, ratings and summaries (ADR 0012).
+
+Flashcards are self-graded: the card carries its answer, the learner reveals it and rates their own
+recall, and the server schedules the word from that rating."""
 
 from datetime import date, datetime
 from typing import Annotated, Literal
@@ -41,69 +43,36 @@ class DeckOut(BaseModel):
     next_due_at: datetime | None
 
 
-class PromptWord(BaseModel):
-    """What a choose-meaning question shows: everything except the meaning (and the picture)."""
+class IntervalPreview(BaseModel):
+    """When the card comes back if given this rating (shown under the buttons, as in Anki)."""
 
-    headword: str
-    pos: str
-    example: str
+    rating: int
+    seconds: int
 
 
-class OptionOut(BaseModel):
+class CardExercise(BaseModel):
     id: str
-    label: str
-
-
-class IntroduceExercise(BaseModel):
-    id: str
-    type: Literal["introduce"] = "introduce"
+    type: Literal["card"] = "card"
     word: WordOut
+    # A word's first showing ever: the back introduces it rather than checking recall.
+    new: bool
+    previews: list[IntervalPreview]
 
 
-class ChooseMeaningExercise(BaseModel):
-    id: str
-    type: Literal["choose_meaning"] = "choose_meaning"
-    word: PromptWord
-    options: list[OptionOut]
+ExerciseOut = CardExercise
 
-
-class RecallMeaningExercise(BaseModel):
-    """Like choose-meaning, but the learner recalls first and asks to see the options."""
-
-    id: str
-    type: Literal["recall_meaning"] = "recall_meaning"
-    word: PromptWord
-    options: list[OptionOut]
-
-
-class TypePrompt(BaseModel):
-    translation: str
-    pos: str
-    # The English example with the target word blanked out.
-    cloze: str | None
-    example_ru: str
-
-
-class TypeWordExercise(BaseModel):
-    id: str
-    type: Literal["type_word"] = "type_word"
-    prompt: TypePrompt
-
-
-ExerciseOut = Annotated[
-    IntroduceExercise | ChooseMeaningExercise | RecallMeaningExercise | TypeWordExercise,
-    Field(discriminator="type"),
-]
-
-SessionKind = Literal["new", "practice", "review"]
+SessionKind = Literal["study", "hard"]
 
 
 class AttemptResultOut(BaseModel):
     exercise_id: str
-    # None for introductions, which are acknowledgements rather than answers.
-    correct: bool | None
-    correct_option_id: str | None = None
-    answer: WordOut
+    rating: int
+    # When the card is due next (practice sessions leave the schedule as it was).
+    next_due_at: datetime
+    # Another showing of the same card later in this session, when it is due again soon, and its
+    # position in the session's exercise list.
+    appended: CardExercise | None = None
+    appended_index: int | None = None
 
 
 class SessionOut(BaseModel):
@@ -112,7 +81,7 @@ class SessionOut(BaseModel):
     deck_id: str
     completed: bool
     exercises: list[ExerciseOut]
-    # One per answered exercise, in exercise order; the client resumes after the last one.
+    # One per rated exercise, in exercise order; the client resumes after the last one.
     results: list[AttemptResultOut]
 
 
@@ -120,52 +89,49 @@ class ActiveSessionOut(BaseModel):
     session: SessionOut | None
 
 
-class StartNewSession(_Input):
-    kind: Literal["new"]
+class StartStudySession(_Input):
+    """Due reviews from every deck, then new words of this deck up to today's pace."""
+
+    kind: Literal["study"]
     deck_id: Annotated[str, StringConstraints(max_length=64)]
 
 
-class StartPracticeSession(_Input):
-    kind: Literal["practice"]
-    source_session_id: UUID
+class StartHardSession(_Input):
+    """Extra practice on the learner's hardest words; the schedule is not changed."""
 
-
-class StartReviewSession(_Input):
-    kind: Literal["review"]
+    kind: Literal["hard"]
     deck_id: Annotated[str, StringConstraints(max_length=64)]
 
 
-StartRequest = StartNewSession | StartPracticeSession | StartReviewSession
+StartRequest = StartStudySession | StartHardSession
 StartSessionIn = Annotated[StartRequest, Field(discriminator="kind")]
 
 
-class SeenResponse(_Input):
-    kind: Literal["seen"]
-
-
-class ChoiceResponse(_Input):
-    kind: Literal["choice"]
-    option_id: Annotated[str, StringConstraints(max_length=64)]
-
-
-class TextResponse(_Input):
-    kind: Literal["text"]
-    text: Annotated[str, StringConstraints(max_length=100)]
-
-
-ResponseIn = Annotated[SeenResponse | ChoiceResponse | TextResponse, Field(discriminator="kind")]
+class RatingResponse(_Input):
+    kind: Literal["rating"]
+    # 1 Снова, 2 Трудно, 3 Хорошо, 4 Легко
+    rating: Annotated[int, Field(ge=1, le=4)]
 
 
 class AttemptIn(_Input):
     exercise_id: Annotated[str, StringConstraints(max_length=8)]
-    response: ResponseIn
+    response: RatingResponse
 
 
 class SummaryWord(BaseModel):
     word: WordOut
-    mistakes: int
-    # When the word comes back for review (after this session's scheduling).
+    # The last and the lowest rating this session, and how often the card was shown.
+    rating: int
+    lowest_rating: int
+    showings: int
     next_review_at: datetime
+
+
+class RatingCounts(BaseModel):
+    again: int
+    hard: int
+    good: int
+    easy: int
 
 
 class SummaryOut(BaseModel):
@@ -173,8 +139,9 @@ class SummaryOut(BaseModel):
     kind: SessionKind
     deck_id: str
     words: list[SummaryWord]
-    answers_total: int
-    answers_correct: int
+    new_words: int
+    reviewed_words: int
+    ratings: RatingCounts
     points: int
     today_points: int
     daily_goal: int
@@ -182,9 +149,9 @@ class SummaryOut(BaseModel):
 
 class WordStages(BaseModel):
     introduced: int
-    # Introduced but not yet well learned (stages 1-3).
+    # Introduced but not yet well learned.
     reviewing: int
-    # "Currently well learned": stage >= 4 (ADR 0006).
+    # "Currently well learned": in review with FSRS stability of 21 days or more (ADR 0012).
     well_learned: int
     due: int
 
@@ -195,8 +162,8 @@ class DayActivity(BaseModel):
 
 
 class RecallRate(BaseModel):
-    """Words recalled in scheduled reviews over the last `days`: delayed recall, not lesson
-    answers."""
+    """Review cards rated anything but «Снова» over the last `days`: recall after a delay, not
+    the first showing of new words."""
 
     recalled: int
     reviewed: int

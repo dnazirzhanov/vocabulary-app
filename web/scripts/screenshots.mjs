@@ -31,23 +31,14 @@ async function loadAnswers() {
   return { translationOf, headwordFor };
 }
 
-function correctResponse(exercise, answers) {
-  if (exercise.type === 'introduce') return { kind: 'seen' };
-  if (exercise.type === 'choose_meaning' || exercise.type === 'recall_meaning') {
-    const right = answers.translationOf[exercise.word.headword];
-    return { kind: 'choice', option_id: exercise.options.find((o) => o.label === right).id };
-  }
-  return { kind: 'text', text: answers.headwordFor[exercise.prompt.translation] };
-}
-
-// Plays whole lessons through the API (same user as the page) to reach later words quickly.
-async function fastForward(request, lessons, answers, headers) {
+// Plays whole study sessions through the API (same user as the page), rating every card «Легко».
+async function fastForward(request, lessons, _answers, headers) {
   for (let n = 0; n < lessons; n += 1) {
-    const response = await request.post('/api/sessions', { data: { kind: 'new', deck_id: 'starter' }, headers });
+    const response = await request.post('/api/sessions', { data: { kind: 'study', deck_id: 'starter' }, headers });
     const session = await response.json();
-    for (const exercise of session.exercises) {
+    for (const card of session.exercises) {
       await request.post(`/api/sessions/${session.id}/attempts`, {
-        data: { exercise_id: exercise.id, response: correctResponse(exercise, answers) },
+        data: { exercise_id: card.id, response: { kind: 'rating', rating: 4 } },
         headers,
       });
     }
@@ -112,33 +103,21 @@ try {
     const button = (name) => page.getByRole('button', { name, exact: true });
     const heading = () => page.getByRole('heading', { level: 1 });
 
-    // Answers the exercise on screen and stops on its feedback (introductions have none).
-    const answer = async ({ correct = true } = {}) => {
-      const type = await page.locator('[data-type]').getAttribute('data-type');
-      if (type === 'introduce') {
-        // The card stays until the server acknowledges it; wait for the next exercise to replace it.
-        const card = await page.locator('[data-type]').elementHandle();
-        await button('Дальше').click();
-        await page.waitForFunction((element) => !element.isConnected, card);
-        return type;
-      }
-      if (type === 'recall_meaning') await button('Показать варианты').click();
-      if (type === 'choose_meaning' || type === 'recall_meaning') {
-        const right = answers.translationOf[await heading().textContent()];
-        const options = page.getByRole('radio');
-        const labels = await options.evaluateAll((els) => els.map((el) => el.closest('label').textContent));
-        await options.nth(labels.findIndex((label) => label.endsWith(right) === correct)).click();
-      } else {
-        const translation = (await heading().textContent()).replace(/\s*(сущ|гл|прил|нар)\.$/, '').trim();
-        const word = answers.headwordFor[translation];
-        await page.getByRole('textbox').fill(correct ? word : word.slice(0, -1));
-      }
-      await button('Проверить').click();
-      await button('Продолжить').waitFor();
-      return type;
+    // Shows the answer of the card on screen and rates it; waits for the next card or the summary.
+    const study = async (rating = 'Хорошо') => {
+      const id = await page.locator('[data-card]').getAttribute('data-card');
+      await button('Показать ответ').click();
+      await page.getByRole('button', { name: new RegExp(`^${rating}`) }).click();
+      await page.locator(`[data-card="${id}"]`).waitFor({ state: 'detached' });
     };
-    const step = async () => {
-      if ((await answer()) !== 'introduce') await button('Продолжить').click();
+    const finish = async (first = {}) => {
+      const seen = new Set();
+      while (!(await button('На главную').isVisible())) {
+        const word = (await heading().textContent()) ?? '';
+        await study(seen.has(word) ? 'Хорошо' : (first[word] ?? 'Хорошо'));
+        seen.add(word);
+        await page.waitForTimeout(50);
+      }
     };
 
     try {
@@ -148,71 +127,45 @@ try {
       await shot('01-home');
 
       await button('Начать урок · 5 слов').click();
-      await page.getByText('Новое слово').waitFor();
-      await shot('02-introduce');
-      await button('Дальше').click();
-      await page.getByText('Выберите перевод').waitFor();
-      await shot('03-choose');
-      await answer({ correct: false });
-      await shot('04-choose-incorrect');
-      await button('Продолжить').click();
-      await step(); // introduce "water"
-      await answer();
-      await shot('05-choose-correct');
-      await button('Продолжить').click();
-      while (!(await page.getByText('Напишите по-английски').isVisible())) await step();
-      await shot('06-type');
-      await answer({ correct: false });
-      await shot('07-type-incorrect');
-      await button('Продолжить').click();
-      for (let i = 0; i < 4; i += 1) await step();
-      await heading()
-        .filter({ hasText: /Урок пройден|Без единой ошибки/ })
-        .waitFor();
-      await shot('08-summary');
+      await button('Показать ответ').waitFor();
+      await shot('02-card-front');
+      await button('Показать ответ').click();
+      await shot('03-card-back');
+      await page.getByRole('button', { name: /^Снова/ }).click();
+      await finish();
+      await shot('04-summary');
       await button('На главную').click();
       await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
-      await shot('09-home-progress');
+      await shot('05-home-progress');
       await button('Прогресс').click();
       await page.getByRole('heading', { name: 'Прогресс' }).waitFor();
-      await shot('09b-progress');
+      await shot('06-progress');
       await button('На главную').click();
-      await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
 
       if (viewport.review) {
-        // The next day: the five words met above are due.
-        await travelTo(new Date(Date.now() + 86_400_000 + 60_000));
+        // Ten days later: the five words met above are due and come first.
+        await travelTo(new Date(Date.now() + 10 * 86_400_000));
         await page.reload();
         await page.getByText('Пора повторить').waitFor();
-        await shot('11-home-review');
-        await page.getByRole('button', { name: /Повторить слова/ }).click();
+        await shot('07-home-review');
+        await page.getByRole('button', { name: /^Учить/ }).click();
         await page.getByText('Вспомните перевод').waitFor();
-        await shot('12-recall');
-        await button('Показать варианты').click();
-        await shot('13-recall-revealed');
-        await page.getByRole('radio').first().click();
-        await button('Проверить').click();
-        await button('Продолжить').click();
-        for (let i = 0; i < 9; i += 1) await step();
-        await heading()
-          .filter({ hasText: /Повторение пройдено|Отличная память/ })
-          .waitFor();
-        await shot('14-summary-review');
+        await shot('08-review-front');
+        await finish();
+        await shot('09-summary-review');
         await button('На главную').click();
-        await button('Прогресс').click();
-        await page.getByText('Вспомнили на повторениях').waitFor();
-        await shot('15-progress-after-review');
-        await button('На главную').click();
-        await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
       }
 
       if (viewport.picture) {
-        // Words 6–20 via the API; the next lesson's third new word ("key") has a picture.
-        await fastForward(context.request, 3, answers, headers);
+        // Up to word 20 via the API; the next lesson's third new word ("key") has a picture.
+        const known = async () =>
+          (await (await context.request.get('/api/decks', { headers })).json())[0].introduced_count;
+        while ((await known()) < 20) await fastForward(context.request, 1, answers, headers);
         await page.reload();
-        await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).click();
-        while (!(await heading().filter({ hasText: /^key$/ }).isVisible())) await step();
-        await shot('10-introduce-picture');
+        await page.getByRole('button', { name: /^(Новые слова|Ещё|Учить)/ }).click();
+        while (!(await heading().filter({ hasText: /^key$/ }).isVisible())) await study('Легко');
+        await button('Показать ответ').click();
+        await shot('10-card-picture');
       }
     } catch (error) {
       // Leave evidence of where the walk broke, then stop.

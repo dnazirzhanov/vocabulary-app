@@ -22,7 +22,7 @@ from app.core.db import get_engine, get_sessionmaker
 from app.core.ratelimit import reset_limits
 from app.main import create_app
 from app.services.content import DeckContent, import_deck, parse_deck
-from tests.support import Answers, Play, at, respond
+from tests.support import Play, Ratings, at, rate
 
 BACKEND = Path(__file__).resolve().parents[1]
 STARTER_DECK = BACKEND.parent / "content" / "starter-deck"
@@ -65,34 +65,37 @@ def client(db: Session) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def answers(starter_content: DeckContent) -> Answers:
-    return {
-        "translation_of": {w.headword: w.translation for w in starter_content.words},
-        "headword_for": {w.translation: w.headword for w in starter_content.words},
-    }
-
-
-@pytest.fixture
-def play(client: TestClient, answers: Answers) -> Play:
-    """Runs a whole session at a moment; exercise ids in `wrong` are answered wrongly."""
+def play(client: TestClient) -> Play:
+    """Runs a whole session at a moment. Each card's first showing gets the rating given for its
+    headword in `ratings` (default «Хорошо»); cards shown again in the session get «Хорошо»."""
 
     def run(
         start: dict[str, str],
         moment: datetime,
-        wrong: frozenset[str] = frozenset(),
+        ratings: Ratings | None = None,
         time_zone: str = "UTC",
     ) -> dict[str, Any]:
         headers = at(moment, time_zone)
         session = client.post("/api/sessions", json=start, headers=headers).json()
-        for exercise in session["exercises"]:
-            client.post(
+        cards = list(session["exercises"])
+        seen: set[str] = set()
+        index = 0
+        while index < len(cards):
+            card = cards[index]
+            headword = card["word"]["headword"]
+            rating = (ratings or {}).get(headword, 3) if headword not in seen else 3
+            seen.add(headword)
+            result = client.post(
                 f"/api/sessions/{session['id']}/attempts",
-                json={
-                    "exercise_id": exercise["id"],
-                    "response": respond(exercise, answers, exercise["id"] not in wrong),
-                },
+                json={"exercise_id": card["id"], "response": rate(rating)},
                 headers=headers,
-            )
+            ).json()
+            if result.get("appended"):
+                # The server inserted another showing a few cards later; mirror its position.
+                cards = client.get(f"/api/sessions/{session['id']}", headers=headers).json()[
+                    "exercises"
+                ]
+            index += 1
         summary: dict[str, Any] = client.post(
             f"/api/sessions/{session['id']}/complete", headers=headers
         ).json()

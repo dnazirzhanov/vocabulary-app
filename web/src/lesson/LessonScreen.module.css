@@ -1,19 +1,13 @@
 /*
- * Composition (shared by all exercise types)
- *   stage   the visual focus: picture, example sentence, or the meaning to type
- *   prompt  instruction and the word
- *   answer  options (choose), input (type) or the example (introduce with a picture)
- *
- *   Mobile/tablet: stage → prompt → answer, in one column.
- *     The stage is the flexible element: it grows into spare height and
- *     shrinks when the action bar expands for feedback, so the answers stay
- *     on screen.
- *   Desktop (≥1024px): split. Large stage on the left, word + answer list on
- *     the right, vertically centred. The action bar spans the bottom.
+ * Flashcards (ADR 0012). One card in the middle of the screen; the action bar below holds either
+ * «Показать ответ» or the four ratings with their intervals, always in the same place.
+ *   Front: label, the word (large) with audio, part of speech.
+ *   Back:  the same top, then translation, the picture (if any) and the example with audio.
+ *   Desktop: the card is wider and the back puts the picture beside the example.
  */
 .screen {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   height: 100dvh;
 }
@@ -49,10 +43,27 @@
   color: var(--color-text);
 }
 
-.form {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 0;
+/* Anki's two counters: new cards (blue) and reviews (green) still ahead, with text for both. */
+.counters {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.counters span {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+
+.countNew strong {
+  color: var(--color-series-firm);
+}
+
+.countReview strong {
+  color: var(--color-success);
 }
 
 .main {
@@ -62,94 +73,37 @@
   padding: var(--space-2) var(--gutter) var(--space-4);
 }
 
-.exercise {
-  flex: 1;
+.cardWrap {
   display: flex;
-  flex-direction: column;
-  /* Top-aligned so the word keeps its place from one exercise to the next; spare
-     height goes to the stage, then below the answers. */
-  justify-content: flex-start;
-  gap: var(--space-4);
   width: 100%;
   max-width: var(--width-column);
-  margin: 0 auto;
+  margin: auto;
   animation: enter var(--duration-enter) var(--ease-out);
 }
 
-.stage {
-  order: -1;
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: 1 1 0;
-  min-height: 96px;
-  max-height: 420px;
-  margin: 0;
-  padding: var(--space-4);
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: min(420px, 62dvh);
+  padding: var(--space-6) var(--space-5);
   border-radius: var(--radius-lg);
-  background: var(--color-stage);
-}
-
-/* Text needs less room than a picture; leave the rest of the height to the answers. */
-.stage:not(:has(.art)) {
-  max-height: 300px;
-}
-
-.stageSentence {
-  max-width: 30ch;
+  background: var(--color-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--color-border),
+    0 4px 0 var(--color-option-edge);
   text-align: center;
-  font-size: clamp(1.125rem, 0.95rem + 0.9vw, 1.625rem);
-  font-weight: var(--weight-strong);
-  line-height: 1.35;
 }
 
-.stageSentenceTranslation {
-  margin-top: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-body);
-  font-weight: var(--weight-body);
+.card:not([data-revealed]) {
+  justify-content: center;
 }
 
-.highlight {
-  padding: 0 0.1em;
-  border-radius: 4px;
-  background: var(--color-highlight);
-  color: inherit;
-}
-
-.stagePrompt {
-  text-align: center;
-  font-size: clamp(2rem, 1.5rem + 2.6vw, 3.25rem);
-  font-weight: var(--weight-display);
-  line-height: var(--leading-tight);
-  overflow-wrap: anywhere;
-}
-
-.pos {
-  margin-left: var(--space-1);
+.cardLabel {
+  margin-bottom: var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-  text-decoration: none;
-  vertical-align: middle;
-  cursor: help;
-}
-
-.art {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  width: calc(100% - 2 * var(--space-3));
-  height: calc(100% - 2 * var(--space-3));
-}
-
-.prompt {
-  text-align: center;
-}
-
-.instruction {
-  color: var(--color-text-muted);
-  font-size: var(--text-body);
   font-weight: var(--weight-strong);
 }
 
@@ -157,14 +111,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .word {
   font-size: var(--text-display);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);
-  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
@@ -172,199 +125,244 @@
   outline: none;
 }
 
+.pos {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
 .listen {
-  display: grid;
-  place-items: center;
   flex: none;
+  display: inline-grid;
+  place-items: center;
   width: 44px;
   height: 44px;
-  border: var(--border-control) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-primary-tint);
   color: var(--color-primary-strong);
+  vertical-align: middle;
   cursor: pointer;
-  transition: border-color var(--duration-state) var(--ease-out);
 }
 
 .listen:hover {
-  border-color: var(--color-primary-strong);
+  background: var(--color-highlight);
 }
 
-.meaning {
-  margin-top: var(--space-1);
+.back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  animation: enter var(--duration-enter) var(--ease-out);
+}
+
+.translation {
   font-size: var(--text-title);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-display);
+}
+
+.art {
+  width: min(160px, 40vw);
+  height: auto;
 }
 
 .example {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  text-align: left;
+}
+
+.exampleEn {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
   font-size: var(--text-option);
   font-weight: var(--weight-strong);
 }
 
-.exampleTranslation {
+.exampleEn .listen {
+  width: 36px;
+  height: 36px;
+}
+
+.exampleEn .listen svg {
+  width: 18px;
+  height: 18px;
+}
+
+.exampleRu {
   margin-top: var(--space-1);
   color: var(--color-text-muted);
 }
 
-.cloze {
-  margin-top: var(--space-2);
-  font-size: var(--text-option);
-  font-weight: var(--weight-strong);
+.highlight {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: var(--color-highlight);
+  color: inherit;
 }
 
-.blank {
-  display: inline-block;
-  width: 3em;
-  margin: 0 0.15em;
-  border-bottom: 3px solid var(--color-primary);
-  vertical-align: -0.1em;
+/* The action bar */
+.bar {
+  padding: var(--space-3) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
 }
 
-.answer {
-  text-align: center;
+.barInner {
+  max-width: var(--width-column);
+  margin: 0 auto;
 }
 
-.recallHint {
-  color: var(--color-text-muted);
-  text-align: center;
+.reveal {
+  width: 100%;
 }
 
-.options {
+.ratings {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
-/* Same tactile edge as the answer tiles; 20px text also stops iOS zooming on focus. */
-.input {
+.rate {
   --edge: var(--color-option-edge);
-  width: 100%;
-  min-height: 56px;
-  padding: 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: var(--space-1);
   border: var(--border-control) solid var(--edge);
   border-radius: var(--radius-md);
   box-shadow: 0 3px 0 var(--edge);
   background: var(--color-surface);
-  color: var(--color-text);
   font: inherit;
-  font-size: 1.25rem;
-  font-weight: var(--weight-strong);
-  text-align: center;
+  cursor: pointer;
   transition:
-    border-color var(--duration-state) var(--ease-out),
-    background-color var(--duration-state) var(--ease-out);
+    transform var(--duration-press) var(--ease-out),
+    box-shadow var(--duration-press) var(--ease-out);
 }
 
-.input::placeholder {
-  color: var(--color-text-muted);
-  font-weight: var(--weight-body);
+.rate:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--edge);
 }
 
-.input:focus {
-  --edge: var(--color-primary-strong);
+.rate:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
-.input[data-verdict='correct'] {
-  --edge: var(--color-success);
-  background: var(--color-success-tint);
+.rate[aria-busy='true'] {
+  opacity: 1;
 }
 
-.input[data-verdict='incorrect'] {
+/* Each rating has its own colour, as in Anki, and always its own word. */
+.rate[data-tone='again'] {
   --edge: var(--color-error);
   background: var(--color-error-tint);
 }
 
-@media (min-width: 1024px) {
-  .topbarInner {
-    max-width: var(--width-lesson);
-    min-height: 56px;
-  }
+.rate[data-tone='hard'] {
+  --edge: var(--color-option-edge-hover);
+}
 
-  .main {
-    padding: var(--space-6) var(--gutter);
-  }
+.rate[data-tone='good'] {
+  --edge: var(--color-success);
+  background: var(--color-success-tint);
+}
 
-  .exercise {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(360px, var(--width-prompt));
-    /* The stage spans both rows; its extra height is split between them, so
-       prompt (aligned to the end) and options (to the start) meet mid-stage. */
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      'art prompt'
-      'art options';
-    align-content: center;
-    column-gap: var(--space-8);
-    row-gap: var(--space-5);
-    max-width: var(--width-lesson);
-  }
+.rate[data-tone='easy'] {
+  --edge: var(--color-series-firm);
+  background: #e9f1fa;
+}
 
-  .stage {
-    grid-area: art;
-    align-self: center;
-    height: clamp(320px, 60dvh, 560px);
-    max-height: none;
-  }
+.rateLabel {
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+}
 
-  .prompt {
-    grid-area: prompt;
-    align-self: end;
-    text-align: left;
-  }
+.rateWhen {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
 
-  .wordRow {
-    justify-content: flex-start;
-  }
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--weight-strong);
+}
 
-  /* A sentence or a single word does not fill a picture-sized panel: size to content. */
-  .stage:not(:has(.art)) {
-    height: auto;
-    min-height: clamp(280px, 42dvh, 400px);
-    max-height: none;
-    padding: var(--space-7);
-  }
-
-  .stageSentence {
-    font-size: clamp(1.5rem, 1rem + 1vw, 2rem);
-  }
-
-  .stagePrompt {
-    font-size: clamp(3rem, 2rem + 2.4vw, 4.5rem);
-  }
-
-  .exercise {
-    justify-content: normal;
-  }
-
-  .options,
-  .answer,
-  .recallHint {
-    grid-area: options;
-    align-self: start;
-  }
-
-  .recallHint {
-    text-align: left;
-  }
-
-  .options {
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-  }
-
-  .answer {
-    text-align: left;
-  }
-
-  .input {
-    text-align: left;
-  }
+.problem span {
+  flex: 1;
 }
 
 @keyframes enter {
   from {
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardWrap,
+  .back {
+    animation: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .topbarInner,
+  .barInner {
+    max-width: 720px;
+  }
+
+  .cardWrap {
+    max-width: 720px;
+  }
+
+  .card {
+    padding: var(--space-7) var(--space-7);
+  }
+
+  .back {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'translation translation'
+      'art example';
+    align-items: center;
+    column-gap: var(--space-5);
+  }
+
+  .translation {
+    grid-area: translation;
+  }
+
+  .art {
+    grid-area: art;
+  }
+
+  .example {
+    grid-area: example;
+  }
+
+  .back:not(:has(.art)) {
+    grid-template-areas:
+      'translation translation'
+      'example example';
+  }
+
+  .rate {
+    min-height: 68px;
   }
 }

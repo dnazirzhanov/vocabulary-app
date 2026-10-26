@@ -31,8 +31,8 @@ def list_decks(user: CurrentUser, db: DbSession, now: Now) -> list[DeckOut]:
 
 # Declared before /sessions/{session_id} so "active" is not parsed as an id.
 @router.get("/sessions/active")
-def active_session(user: CurrentUser, db: DbSession) -> ActiveSessionOut:
-    return sessions.active_session(db, user)
+def active_session(user: CurrentUser, db: DbSession, now: Now) -> ActiveSessionOut:
+    return sessions.active_session(db, user, now)
 
 
 @router.post("/sessions")
@@ -47,8 +47,8 @@ def start_session(
 
 
 @router.get("/sessions/{session_id}")
-def get_session(session_id: UUID, user: CurrentUser, db: DbSession) -> SessionOut:
-    return sessions.get_session(db, user, session_id)
+def get_session(session_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> SessionOut:
+    return sessions.get_session(db, user, session_id, now)
 
 
 @router.post("/sessions/{session_id}/attempts", dependencies=[Depends(limit_attempts)])

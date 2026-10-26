@@ -28,44 +28,31 @@ export interface Deck {
   next_due_at: string | null;
 }
 
-export interface IntroduceExercise {
+/** 1 Снова, 2 Трудно, 3 Хорошо, 4 Легко (ADR 0012). */
+export type Rating = 1 | 2 | 3 | 4;
+
+/** A flashcard: the answer travels with it; the learner reveals it and rates their recall. */
+export interface CardExercise {
   id: string;
-  type: 'introduce';
+  type: 'card';
   word: Word;
+  /** The word's first showing ever: the back introduces it. */
+  new: boolean;
+  /** When the card comes back for each rating, shown under the buttons. */
+  previews: { rating: Rating; seconds: number }[];
 }
 
-export interface ChooseMeaningExercise {
-  id: string;
-  type: 'choose_meaning';
-  word: { headword: string; pos: string; example: string };
-  options: { id: string; label: string }[];
-}
+export type Exercise = CardExercise;
 
-/** Like choose-meaning, but the options stay hidden until the learner has tried to recall. */
-export interface RecallMeaningExercise {
-  id: string;
-  type: 'recall_meaning';
-  word: { headword: string; pos: string; example: string };
-  options: { id: string; label: string }[];
-}
-
-export interface TypeWordExercise {
-  id: string;
-  type: 'type_word';
-  prompt: { translation: string; pos: string; cloze: string | null; example_ru: string };
-}
-
-export type Exercise = IntroduceExercise | ChooseMeaningExercise | RecallMeaningExercise | TypeWordExercise;
-export type ChoiceExercise = ChooseMeaningExercise | RecallMeaningExercise;
-
-export type SessionKind = 'new' | 'practice' | 'review';
+export type SessionKind = 'study' | 'hard';
 
 export interface AttemptResult {
   exercise_id: string;
-  /** null for introductions, which are acknowledgements rather than answers */
-  correct: boolean | null;
-  correct_option_id: string | null;
-  answer: Word;
+  rating: Rating;
+  next_due_at: string;
+  /** Another showing of the card later in this session, and where it goes. */
+  appended: CardExercise | null;
+  appended_index: number | null;
 }
 
 export interface Session {
@@ -73,19 +60,27 @@ export interface Session {
   kind: SessionKind;
   deck_id: string;
   completed: boolean;
-  exercises: Exercise[];
+  exercises: CardExercise[];
   results: AttemptResult[];
 }
 
-export type AttemptResponse = { kind: 'seen' } | { kind: 'choice'; option_id: string } | { kind: 'text'; text: string };
+export interface SummaryWord {
+  word: Word;
+  /** The last and the lowest rating in this session, and how often the card was shown. */
+  rating: Rating;
+  lowest_rating: Rating;
+  showings: number;
+  next_review_at: string;
+}
 
 export interface Summary {
   session_id: string;
   kind: SessionKind;
   deck_id: string;
-  words: { word: Word; mistakes: number; next_review_at: string }[];
-  answers_total: number;
-  answers_correct: number;
+  words: SummaryWord[];
+  new_words: number;
+  reviewed_words: number;
+  ratings: { again: number; hard: number; good: number; easy: number };
   points: number;
   today_points: number;
   daily_goal: number;

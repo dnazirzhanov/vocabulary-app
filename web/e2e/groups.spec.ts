@@ -1,9 +1,9 @@
-import { answer, button, expect, test } from './learner.ts';
+import { button, expect, finishSession, test } from './learner.ts';
 
 test('a learner creates a group, a friend joins by link, both are on the board', async ({ page, browser }) => {
   await page.goto('/');
   await button(page, 'Начать урок · 5 слов').click();
-  for (let step = 0; step < 15; step += 1) await answer(page);
+  await finishSession(page);
   await button(page, 'На главную').click();
 
   await page.getByRole('button', { name: /Учитесь с друзьями/ }).click();

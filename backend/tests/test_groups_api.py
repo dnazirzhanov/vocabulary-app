@@ -5,11 +5,11 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from tests.support import Answers, at, respond
+from tests.support import at, rate
 
 # Thursday 5 November 2026, 09:00 UTC; the group's week is Monday 2 – Sunday 8 November.
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
-NEW = {"kind": "new", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "starter"}
 
 
 def as_(name: str, moment: datetime = THURSDAY, zone: str = "UTC") -> dict[str, str]:
@@ -83,7 +83,7 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
     }
 
 
-def test_the_board_ranks_days_practised_before_points(client: TestClient, answers: Answers) -> None:
+def test_the_board_ranks_days_practised_before_points(client: TestClient) -> None:
     group = create(client)
     code = group["invite_code"]
     join(client, "pavel", code, "Весёлый Кот")
@@ -95,17 +95,18 @@ def test_the_board_ranks_days_practised_before_points(client: TestClient, answer
     for n in range(3):
         moment = monday + timedelta(days=n)
         session = client.post("/api/sessions", json=NEW, headers=as_("olga", moment)).json()
-        play_as(client, answers, "olga", session, moment)
+        play_as(client, "olga", session, moment)
     for n in range(4):  # 20 words (one target lesson of 5, then bonus lessons) on Thursday
         moment = THURSDAY - timedelta(hours=4) + timedelta(minutes=10 * n)
         session = client.post("/api/sessions", json=NEW, headers=as_("pavel", moment)).json()
-        play_as(client, answers, "pavel", session, moment)
+        play_as(client, "pavel", session, moment)
 
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     assert (board["week_start"], board["week_end"]) == ("2026-11-02", "2026-11-08")
     rows = {row["nickname"]: row for row in board["rows"]}
     olga, pavel, rest = rows["Смелый Ёж"], rows["Весёлый Кот"], rows["Тихий Лис"]
-    assert (olga["rank"], olga["days_practised"], olga["points"]) == (1, 3, 90)
+    # 3 new words a day (30 points); Monday's words come back on Wednesday (+3 reviews × 5).
+    assert (olga["rank"], olga["days_practised"], olga["points"]) == (1, 3, 105)
     assert olga["week"] == [True, True, True, False, False, False, False]
     assert olga["is_me"] and olga["streak_days"] == 3  # Mon–Wed; Thursday is not over yet
     assert (pavel["rank"], pavel["days_practised"], pavel["points"]) == (2, 1, 200)
@@ -115,21 +116,24 @@ def test_the_board_ranks_days_practised_before_points(client: TestClient, answer
     assert board["goal"] == {"done": 29, "target": 78}
 
 
-def play_as(
-    client: TestClient, answers: Answers, user: str, session: dict[str, Any], moment: datetime
-) -> None:
-    for exercise in session["exercises"]:
-        client.post(
+def play_as(client: TestClient, user: str, session: dict[str, Any], moment: datetime) -> None:
+    """Rates every card «Хорошо», including the extra showings the server inserts."""
+    cards, index = session["exercises"], 0
+    while index < len(cards):
+        result = client.post(
             f"/api/sessions/{session['id']}/attempts",
-            json={"exercise_id": exercise["id"], "response": respond(exercise, answers, True)},
+            json={"exercise_id": cards[index]["id"], "response": rate(3)},
             headers=as_(user, moment),
-        )
+        ).json()
+        if result.get("appended"):
+            cards = client.get(f"/api/sessions/{session['id']}", headers=as_(user, moment)).json()[
+                "exercises"
+            ]
+        index += 1
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_(user, moment))
 
 
-def test_each_member_s_days_are_counted_in_their_own_time_zone(
-    client: TestClient, answers: Answers
-) -> None:
+def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClient) -> None:
     group = create(client)
     join(client, "aibek", group["invite_code"], "Ранний Орёл")
     # 23:30 UTC on Sunday 1 November is already Monday 2 November in Bishkek (UTC+6).
@@ -139,7 +143,7 @@ def test_each_member_s_days_are_counted_in_their_own_time_zone(
         "/api/me/pace", params={"deck_id": "starter"}, headers=as_("aibek", zone="Asia/Bishkek")
     )
     session = client.post("/api/sessions", json=NEW, headers=as_("aibek", late_sunday)).json()
-    play_as(client, answers, "aibek", session, late_sunday)
+    play_as(client, "aibek", session, late_sunday)
 
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     aibek = next(row for row in board["rows"] if row["nickname"] == "Ранний Орёл")

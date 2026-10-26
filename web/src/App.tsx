@@ -7,7 +7,7 @@ import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
-import { api, describeError } from './lib/api.ts';
+import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import type { Deck, Me, Session, Summary } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
@@ -156,13 +156,15 @@ function Learning({ email }: { email: string | null }) {
     return (
       <SessionSummary
         summary={summary}
-        onPractice={async () => showSession(await api.startPracticeSession(summary.session_id))}
+        onPractice={async () => showSession(await api.startHardSession(summary.deck_id))}
         onNext={async () => {
-          // Same priority as home: due reviews first, then new words, otherwise home explains.
-          const deck = (await api.listDecks()).find((candidate) => candidate.id === summary.deck_id);
-          if (deck && deck.due_count > 0) showSession(await api.startReviewSession(deck.id));
-          else if (deck && deck.introduced_count < deck.word_count) showSession(await api.startNewSession(deck.id));
-          else goHome();
+          // Another study session if anything is due or new words remain; otherwise home explains.
+          try {
+            showSession(await api.startStudySession(summary.deck_id));
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 409) goHome();
+            else throw error;
+          }
         }}
         onHome={goHome}
       />

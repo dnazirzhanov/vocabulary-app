@@ -1,4 +1,4 @@
-import { answer, button, expect, test } from './learner.ts';
+import { button, expect, finishSession, test } from './learner.ts';
 
 test('progress shows the goal, the streak and the words met', async ({ page }) => {
   await page.goto('/');
@@ -8,7 +8,7 @@ test('progress shows the goal, the streak and the words met', async ({ page }) =
   await button(page, 'На главную').click();
 
   await button(page, 'Начать урок · 5 слов').click();
-  for (let step = 0; step < 15; step += 1) await answer(page);
+  await finishSession(page);
   await expect(page.getByText('+50 очков')).toBeVisible();
   await expect(page.getByText('цель на сегодня выполнена')).toBeVisible();
   await button(page, 'На главную').click();

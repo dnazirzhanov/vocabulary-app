@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import DeckWord, User, UserWordProgress, Word
 from app.schemas.learning import DeckWordOut, WordOut
-from app.services.scheduling import WELL_LEARNED_STAGE
+from app.services.scheduling import LEARNING, is_well_learned
 
 Status = Literal["not_started", "new", "learning", "well_learned"]
 
@@ -16,9 +16,10 @@ Status = Literal["not_started", "new", "learning", "well_learned"]
 def _status(progress: UserWordProgress | None) -> Status:
     if progress is None:
         return "not_started"
-    if progress.stage >= WELL_LEARNED_STAGE:
+    if is_well_learned(progress.fsrs_state, progress.stability):
         return "well_learned"
-    return "new" if progress.review_count == 0 else "learning"
+    # Still in its first learning steps (Anki's "learning" cards): just met.
+    return "new" if progress.fsrs_state == LEARNING and progress.lapses == 0 else "learning"
 
 
 def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:

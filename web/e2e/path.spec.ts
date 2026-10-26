@@ -1,4 +1,4 @@
-import { answer, button, expect, test } from './learner.ts';
+import { button, expect, finishSession, test } from './learner.ts';
 
 test('the path shows the level and stone, and the frog moves on after a finished stone', async ({ page }) => {
   await page.goto('/');
@@ -14,7 +14,7 @@ test('the path shows the level and stone, and the frog moves on after a finished
   await expect(page.getByRole('listitem').filter({ hasText: /^morning/ })).toBeVisible();
 
   await button(page, 'Начать урок · 5 слов').click();
-  for (let step = 0; step < 15; step += 1) await answer(page);
+  await finishSession(page);
   await button(page, 'На главную').click();
 
   await expect(page.getByText('Камень 2 из 6 · 5 из 30 слов')).toBeVisible();

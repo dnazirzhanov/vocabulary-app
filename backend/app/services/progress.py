@@ -1,8 +1,8 @@
-"""Points, the daily goal and streaks: pure rules (ADR 0008).
+"""Points, the daily goal and streaks: pure rules (ADR 0008, revised by ADR 0012).
 
-Points reward evidence of learning, not activity: practice sessions earn nothing, so repeating
-easy material cannot farm them, and each exercise has exactly one stored attempt, so nothing can be
-counted twice.
+Points reward studying, not self-assessment: a new word and a review card earn points whatever the
+rating, practice earns nothing, and each showing has exactly one stored rating, so nothing can be
+counted twice or farmed.
 """
 
 from collections.abc import Iterable
@@ -10,28 +10,38 @@ from datetime import date, datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
 from app.schemas.learning import DayActivity, ProgressOut, RecallRate, WordStages
-from app.services.scheduling import WELL_LEARNED_STAGE, local_date
+from app.services.scheduling import AGAIN, REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
-INTRODUCED_POINTS = 10
-RECALLED_POINTS = 20  # the strongest evidence: produced after a delay
-MISSED_REVIEW_POINTS = 5  # the effort of reviewing still counts, less
+INTRODUCED_POINTS = 10  # a new word's first showing
+REVIEWED_POINTS = 5  # a review card, whatever the rating: self-rating is never rewarded
 DAILY_GOAL_POINTS = 30  # roughly one lesson or a short review; a pilot hypothesis
 RECALL_RATE_DAYS = 30
 
 
-def points_for(exercise_type: str, review_outcome: bool | None) -> int:
-    """Points for one attempt. `review_outcome` is set only on the attempt that finishes a word in a
-    review session (True = recalled)."""
-    if exercise_type == "introduce":
-        return INTRODUCED_POINTS
-    if review_outcome is None:
+# An attempt that introduced a word: the old introduce step, or a new card's first (scored) rating.
+INTRODUCTION = or_(
+    ReviewAttempt.exercise_type == "introduce",
+    and_(
+        ReviewAttempt.exercise_type == "card",
+        ReviewAttempt.was_review.is_(False),
+        ReviewAttempt.points > 0,
+    ),
+)
+
+
+def card_points(practice: bool, first_showing: bool, was_review: bool) -> int:
+    """Points for one rated card (ADR 0012). They never depend on the rating, so pressing
+    «Легко» earns nothing extra; practice and repeat showings in a session earn nothing."""
+    if practice:
         return 0
-    return RECALLED_POINTS if review_outcome else MISSED_REVIEW_POINTS
+    if first_showing:
+        return INTRODUCED_POINTS
+    return REVIEWED_POINTS if was_review else 0
 
 
 def local_day_bounds(day: date, time_zone: ZoneInfo) -> tuple[datetime, datetime]:
@@ -93,14 +103,16 @@ def session_points(db: Session, session_id: UUID) -> int:
 
 
 def recall_counts(db: Session, user: User, now: datetime) -> tuple[int, int]:
-    """(recalled, reviewed) in scheduled reviews over the last RECALL_RATE_DAYS."""
+    """(recalled, reviewed): review cards rated anything but «Снова» over the last
+    RECALL_RATE_DAYS — recall after a delay, not first showings or learning steps."""
     reviewed, recalled = db.execute(
-        select(func.count(), func.count().filter(ReviewAttempt.stage_after >= 2))
+        select(func.count(), func.count().filter(ReviewAttempt.rating != AGAIN))
         .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
         .where(
             ReviewAttempt.user_id == user.id,
-            LearningSession.kind == "review",
-            ReviewAttempt.stage_after.is_not(None),
+            ReviewAttempt.exercise_type == "card",
+            ReviewAttempt.was_review.is_(True),
+            LearningSession.kind == "study",
             ReviewAttempt.answered_at >= now - timedelta(days=RECALL_RATE_DAYS),
         )
     ).one()
@@ -119,7 +131,9 @@ def deck_progress(
     introduced, well_learned, due = db.execute(
         select(
             func.count(),
-            func.count().filter(mine.c.stage >= WELL_LEARNED_STAGE),
+            func.count().filter(
+                (mine.c.fsrs_state == REVIEW) & (mine.c.stability >= WELL_LEARNED_STABILITY_DAYS)
+            ),
             func.count().filter(mine.c.due_at <= now),
         ).select_from(mine)
     ).one()

@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.models import DeckWord, PaceDismissal, ReviewAttempt, User, UserWordProgress
 from app.schemas.me import PaceOut, SuggestionOut
-from app.services.progress import local_day_bounds, recall_counts
+from app.services.progress import INTRODUCTION, local_day_bounds, recall_counts
 from app.services.scheduling import local_date
 
 DEFAULT_TARGET = 5  # until the learner chooses (and the size every lesson had before pace)
@@ -187,7 +187,7 @@ def _new_words_by_local_day(
         select(local_day, func.count())
         .where(
             ReviewAttempt.user_id == user.id,
-            ReviewAttempt.exercise_type == "introduce",
+            INTRODUCTION,
             ReviewAttempt.answered_at >= since,
         )
         .group_by(local_day)
@@ -248,7 +248,7 @@ def day_plan(db: Session, user: User, deck_id: str, now: datetime, time_zone: Zo
     new_today = db.scalar(
         select(func.count()).where(
             ReviewAttempt.user_id == user.id,
-            ReviewAttempt.exercise_type == "introduce",
+            INTRODUCTION,
             ReviewAttempt.answered_at >= start,
             ReviewAttempt.answered_at < end,
         )
