@@ -157,3 +157,42 @@ export interface DeckWord {
   status: WordStatus;
   next_review_at: string | null;
 }
+
+// Mirrors backend/app/schemas/groups.py: members are nicknames and member ids, nothing more.
+
+export interface Group {
+  id: string;
+  name: string;
+  invite_code: string;
+  member_count: number;
+  role: 'owner' | 'member';
+  nickname: string;
+}
+
+export interface GroupPreview {
+  name: string;
+  member_count: number;
+  already_member: boolean;
+}
+
+export interface BoardRow {
+  member_id: string;
+  nickname: string;
+  role: 'owner' | 'member';
+  is_me: boolean;
+  /** Null for members with no points yet this week. */
+  rank: number | null;
+  days_practised: number;
+  /** Monday … Sunday: was the daily goal met? */
+  week: boolean[];
+  points: number;
+  streak_days: number;
+}
+
+export interface Board {
+  group: Group;
+  week_start: string;
+  week_end: string;
+  rows: BoardRow[];
+  goal: { done: number; target: number };
+}

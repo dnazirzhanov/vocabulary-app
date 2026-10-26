@@ -50,7 +50,7 @@ def db(database: None) -> Iterator[Session]:
         connection.execute(
             text(
                 "TRUNCATE users, learning_sessions, review_attempts, user_word_progress,"
-                " pace_dismissals CASCADE"
+                " pace_dismissals, groups, group_members CASCADE"
             )
         )
     with get_sessionmaker()() as session:

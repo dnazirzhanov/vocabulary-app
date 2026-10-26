@@ -14,6 +14,9 @@ db-migrate: ## Apply migrations to DATABASE_URL (from .env)
 content-load: ## Validate the starter deck and import it into DATABASE_URL
 	cd backend && uv run python -m app.cli load-content ../content/starter-deck
 
+seed-classmates: ## Development only: a demo group of made-up classmates for the local dev user
+	cd backend && uv run python -m app.cli seed-classmates
+
 api: ## Run the API on http://localhost:8000
 	cd backend && uv run uvicorn app.main:app --reload --port 8000
 

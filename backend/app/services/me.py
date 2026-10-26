@@ -1,7 +1,9 @@
 """The learner's own settings."""
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models import User
@@ -28,3 +30,16 @@ def update_me(db: Session, user: User, changes: MeUpdate, now: datetime) -> MeOu
         user.onboarded_at = now
     db.commit()
     return me_out(user)
+
+
+def remember_time_zone(db: Session, user: User, time_zone: ZoneInfo) -> None:
+    """Keep the browser's zone for group boards, which count each member's days in their own
+    zone. Only zones PostgreSQL knows are stored, so the board query can never fail on one."""
+    if user.time_zone == time_zone.key:
+        return
+    known = db.scalar(
+        text("SELECT count(*) FROM pg_timezone_names WHERE name = :zone"), {"zone": time_zone.key}
+    )
+    if known:
+        user.time_zone = time_zone.key
+        db.commit()

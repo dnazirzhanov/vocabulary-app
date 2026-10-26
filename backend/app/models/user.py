@@ -33,6 +33,9 @@ class User(Base):
     study_days_per_week: Mapped[int] = mapped_column(SmallInteger, server_default=text("6"))
     ramp_enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     onboarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The learner's IANA zone as last sent by the browser: group boards count each member's days
+    # in the member's own zone.
+    time_zone: Mapped[str | None] = mapped_column(String(64))
 
 
 class PaceDismissal(Base):

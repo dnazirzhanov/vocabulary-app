@@ -51,6 +51,7 @@ On Linux, install PostgreSQL 17 from your distribution, create a role for your u
 | `make check` | ruff, ruff format, mypy (backend); ESLint, Prettier, tsc (web) |
 | `make test` | pytest against `vocab_test` (unit, API, concurrency); web unit tests |
 | `make test-e2e` | Playwright: full lessons in a real browser against the API |
+| `make seed-classmates` | Development only: a demo friend group with six made-up classmates for the local user |
 | `make db-migrate` | Apply Alembic migrations to the database in `DATABASE_URL` |
 | `make content-load` | Validate `content/starter-deck` and import it (safe to re-run) |
 | `cd web && npm run screenshots` | Capture the UI at phone, tablet and desktop sizes (dev server must be running) |
