@@ -23,8 +23,8 @@ export default defineConfig({
   forbidOnly: ci,
   reporter: ci ? 'github' : 'list',
   use: {
-    // Local runs use the installed Chrome; CI installs Playwright's Chromium.
-    channel: ci ? undefined : 'chrome',
+    // Playwright's own Chromium everywhere (CI gets it from Playwright's image; locally run
+    // `npx playwright install chromium` once). The system Chrome sometimes hung opening a context.
     trace: 'retain-on-failure',
   },
   projects: [

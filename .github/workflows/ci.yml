@@ -66,6 +66,13 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # Playwright's own image ships the browser and its system libraries, so nothing is installed
+    # per run (installing them took up to 10 minutes on a slow day). Same version as package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    # A stuck run fails instead of hanging.
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17
@@ -81,7 +88,8 @@ jobs:
           --health-retries 10
     env:
       ENVIRONMENT: test
-      DATABASE_URL: postgresql+psycopg://vocab:vocab@localhost:5432/vocab_test
+      # Inside a job container, services are reached by name.
+      DATABASE_URL: postgresql+psycopg://vocab:vocab@postgres:5432/vocab_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -98,11 +106,9 @@ jobs:
           uv sync --locked
           uv run alembic upgrade head
           uv run python -m app.cli load-content ../content/starter-deck
-      - name: Install web dependencies and Chromium
+      - name: Install web dependencies
         working-directory: web
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+        run: npm ci
       - name: Run end-to-end tests
         working-directory: web
         run: npx playwright test
