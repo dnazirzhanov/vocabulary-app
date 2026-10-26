@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.db import get_engine, get_sessionmaker
+from app.core.ratelimit import reset_limits
 from app.main import create_app
 from app.services.content import DeckContent, import_deck, parse_deck
 from tests.support import Answers, Play, at, respond
@@ -55,6 +56,7 @@ def db(database: None) -> Iterator[Session]:
 
 @pytest.fixture
 def client(db: Session) -> Iterator[TestClient]:
+    reset_limits()
     with TestClient(create_app()) as test_client:
         yield test_client
 

@@ -3,10 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends, Response
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
+from app.core.ratelimit import limit_attempts
 from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
@@ -45,7 +46,7 @@ def get_session(session_id: UUID, user: CurrentUser, db: DbSession) -> SessionOu
     return sessions.get_session(db, user, session_id)
 
 
-@router.post("/sessions/{session_id}/attempts")
+@router.post("/sessions/{session_id}/attempts", dependencies=[Depends(limit_attempts)])
 def submit_attempt(
     session_id: UUID, attempt: AttemptIn, user: CurrentUser, db: DbSession, now: Now
 ) -> AttemptResultOut:
@@ -57,6 +58,13 @@ def complete_session(
     session_id: UUID, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
 ) -> SummaryOut:
     return sessions.complete_session(db, user, session_id, now, time_zone)
+
+
+@router.delete("/me", status_code=204)
+def delete_account(user: CurrentUser, db: DbSession) -> Response:
+    """Deletes the learner and, by cascade, every session, attempt and progress record."""
+    sessions.delete_learner(db, user)
+    return Response(status_code=204)
 
 
 @router.get("/decks/{deck_id}/progress")

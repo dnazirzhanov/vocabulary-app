@@ -1,3 +1,4 @@
+import { accessToken } from './auth.ts';
 import { syncWithServer } from './clock.ts';
 import type { AttemptResponse, AttemptResult, Deck, Progress, Session, Summary } from './types.ts';
 
@@ -19,13 +20,15 @@ const TIMEOUT_MS = 15_000;
 // The server counts days (daily goal, streaks) in the learner's own time zone.
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
+  const token = await accessToken();
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method,
       headers: {
         'X-Time-Zone': timeZone,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -55,6 +58,8 @@ export const api = {
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
+  /** Deletes the learner's account data on our server (sessions, answers, progress). */
+  deleteAccount: () => request<null>('DELETE', '/me'),
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */
