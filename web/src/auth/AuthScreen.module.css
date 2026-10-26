@@ -1,0 +1,123 @@
+/* The same stage + text composition as the rest of the app, with a form in the text column. */
+.screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  padding: max(var(--space-5), env(safe-area-inset-top)) var(--gutter) var(--space-6);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.stage {
+  position: relative;
+  height: clamp(120px, 22dvh, 220px);
+  border-radius: var(--radius-lg);
+  background: var(--color-stage);
+}
+
+.art {
+  position: absolute;
+  inset: var(--space-3);
+  width: calc(100% - 2 * var(--space-3));
+  height: calc(100% - 2 * var(--space-3));
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.title:focus {
+  outline: none;
+}
+
+.lead {
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-weight: var(--weight-strong);
+}
+
+.field input {
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.125rem;
+}
+
+.field input:focus {
+  border-color: var(--color-primary-strong);
+}
+
+.field small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-body);
+}
+
+.error {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}
+
+.switch {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.switch button {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, var(--width-prompt));
+    column-gap: var(--space-8);
+    align-items: center;
+    max-width: var(--width-lesson);
+  }
+
+  .stage {
+    height: clamp(320px, 60dvh, 520px);
+  }
+}

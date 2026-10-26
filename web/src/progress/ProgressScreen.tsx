@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import type { Progress } from '../lib/types.ts';
+import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { GoalMeter } from './GoalMeter.tsx';
 import { WeekChart } from './WeekChart.tsx';
 import styles from './ProgressScreen.module.css';
@@ -20,8 +22,76 @@ function Stat({ label, value, note }: { label: string; value: number | string; n
   );
 }
 
+interface AccountProps {
+  email: string | null;
+  onSignOut?: () => void;
+  onAccountDeleted: () => void;
+}
+
+/** Sign-out and deleting your data; deletion asks once more in place instead of a browser dialog. */
+function AccountSection({ email, onSignOut, onAccountDeleted }: AccountProps) {
+  const [confirming, setConfirming] = useState(false);
+  const { run, busy, error } = useAsyncAction();
+  return (
+    <section aria-labelledby="account-heading" className={styles.account}>
+      <h2 id="account-heading" className={styles.sectionTitle}>
+        Аккаунт
+      </h2>
+      {email && <p className={styles.email}>{email}</p>}
+      {confirming ? (
+        <div className={styles.confirm} role="group" aria-labelledby="delete-warning">
+          <p id="delete-warning">
+            Все слова, повторения и очки будут удалены, восстановить их будет нельзя.
+            {email && ' Чтобы удалить и e-mail для входа, напишите организатору.'}
+          </p>
+          <div className={styles.confirmActions}>
+            <SecondaryButton type="button" onClick={() => setConfirming(false)} disabled={busy}>
+              Отмена
+            </SecondaryButton>
+            <button
+              type="button"
+              className={styles.danger}
+              disabled={busy}
+              aria-busy={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.deleteAccount();
+                  onAccountDeleted();
+                })
+              }
+            >
+              {busy ? 'Удаляем…' : 'Да, удалить'}
+            </button>
+          </div>
+          {error && (
+            <p className={styles.errorText} role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className={styles.accountActions}>
+          {onSignOut && (
+            <SecondaryButton type="button" onClick={onSignOut}>
+              Выйти
+            </SecondaryButton>
+          )}
+          <button type="button" className={styles.dangerLink} onClick={() => setConfirming(true)}>
+            Удалить мой прогресс
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface ProgressScreenProps extends AccountProps {
+  deckId: string;
+  onBack: () => void;
+}
+
 /** What has been achieved and what is next — honest numbers, no "mastered". */
-export function ProgressScreen({ deckId, onBack }: { deckId: string; onBack: () => void }) {
+export function ProgressScreen({ deckId, onBack, ...account }: ProgressScreenProps) {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -138,6 +208,7 @@ export function ProgressScreen({ deckId, onBack }: { deckId: string; onBack: () 
                 <Stat label="Всего очков" value={progress.points_total} />
               </div>
             </section>
+            <AccountSection {...account} />
           </div>
         </div>
       </main>

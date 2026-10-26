@@ -112,3 +112,13 @@ jobs:
           name: playwright-traces
           path: web/test-results
           retention-days: 7
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: >
+          docker build -t vocabulary-app
+          --build-arg VITE_SUPABASE_URL=https://example.supabase.co
+          --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=ci-placeholder .
