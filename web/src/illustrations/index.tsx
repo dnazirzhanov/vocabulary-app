@@ -21,14 +21,19 @@ export type IllustrationId = keyof typeof illustrations;
 
 interface IllustrationProps {
   id: IllustrationId;
-  alt: string;
+  /** Omit when the word is already shown in text; the art is then hidden from screen readers. */
+  alt?: string;
   className?: string;
 }
 
 export function Illustration({ id, alt, className }: IllustrationProps) {
   const Art = illustrations[id];
   return (
-    <svg viewBox="0 0 240 240" role="img" aria-label={alt} lang="en" className={className}>
+    <svg
+      viewBox="0 0 240 240"
+      className={className}
+      {...(alt ? { role: 'img', 'aria-label': alt, lang: 'en' } : { 'aria-hidden': true })}
+    >
       <g stroke="var(--illo-line)" strokeWidth={5} strokeLinejoin="round" strokeLinecap="round">
         <Art />
       </g>

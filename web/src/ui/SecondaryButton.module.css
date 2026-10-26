@@ -1,0 +1,21 @@
+/* Quiet companion to PrimaryButton: same size and type, no fill. */
+.button {
+  min-height: 52px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out);
+}
+
+.button:hover {
+  background: rgb(38 38 38 / 0.06);
+}
+
+.button:active {
+  background: rgb(38 38 38 / 0.1);
+}

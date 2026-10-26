@@ -59,6 +59,12 @@ try {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
 
+    const answer = async (label) => {
+      await page.getByRole('radio', { name: label }).click();
+      await page.getByRole('button', { name: 'Проверить' }).click();
+      await page.getByRole('button', { name: 'Продолжить' }).click();
+    };
+
     const states = {};
     const shot = async (state) => {
       await page.screenshot({ path: `${outDir}${viewport.name}-${state}.png`, animations: 'disabled' });
@@ -78,6 +84,22 @@ try {
     await page.getByRole('radio', { name: 'чайник' }).click();
     await page.getByRole('button', { name: 'Проверить' }).click();
     await shot('4-correct');
+
+    // Finish the lesson with two misses (umbrella above, lighthouse here)…
+    await page.getByRole('button', { name: 'Продолжить' }).click();
+    for (const label of ['башня', 'рюкзак', 'ключ']) {
+      await answer(label);
+    }
+    await page.getByRole('heading', { name: 'Урок пройден!' }).waitFor();
+    await shot('5-summary');
+
+    // …then practise the misses without error for the perfect-run variant.
+    await page.getByRole('button', { name: 'Повторить ошибки' }).click();
+    for (const label of ['зонт', 'маяк']) {
+      await answer(label);
+    }
+    await page.getByRole('heading', { name: 'Ошибки исправлены!' }).waitFor();
+    await shot('6-summary-perfect');
 
     report[viewport.name] = { states, fonts: await page.evaluate(fontReport), errors };
     await context.close();

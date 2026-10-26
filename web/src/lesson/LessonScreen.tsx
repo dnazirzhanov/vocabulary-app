@@ -5,6 +5,7 @@ import { ActionBar } from './ActionBar.tsx';
 import { AnswerOption, type AnswerOptionState } from './AnswerOption.tsx';
 import { LessonEnd } from './LessonEnd.tsx';
 import { LessonProgress } from './LessonProgress.tsx';
+import type { AnswerResult } from './lessonSession.ts';
 import type { ChoiceExercise } from './types.ts';
 import { useLessonSession } from './useLessonSession.ts';
 import styles from './LessonScreen.module.css';
@@ -19,12 +20,17 @@ function speak(word: string) {
   speechSynthesis.speak(utterance);
 }
 
-export function LessonScreen({ exercises }: { exercises: readonly ChoiceExercise[] }) {
-  const { state, exercise, total, lastResult, select, check, next, restart } = useLessonSession(exercises);
+interface LessonScreenProps {
+  exercises: readonly ChoiceExercise[];
+  onComplete: (results: readonly AnswerResult[]) => void;
+}
+
+export function LessonScreen({ exercises, onComplete }: LessonScreenProps) {
+  const { state, exercise, total, lastResult, select, check, next, restart } = useLessonSession(exercises, onComplete);
   const [exited, setExited] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
-  const shownIndex = useRef(state.index);
+  const shownIndex = useRef<number | null>(null);
 
   // Keyboard: 1–4 pick an option; Enter checks/continues when focus isn't on a control.
   useEffect(() => {
@@ -47,17 +53,19 @@ export function LessonScreen({ exercises }: { exercises: readonly ChoiceExercise
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [state.phase, exercise, exited, select, check, next]);
 
-  // Focus follows the flow: Continue after checking, the new word after advancing.
+  // Focus follows the flow: the word on start and after advancing, Continue after checking.
   useEffect(() => {
     if (state.phase === 'feedback') continueRef.current?.focus();
     if (state.phase === 'answering' && shownIndex.current !== state.index) headingRef.current?.focus();
     shownIndex.current = state.index;
   }, [state.phase, state.index]);
 
-  if (state.phase === 'complete' || exited) {
+  // The parent replaces this screen on completion; nothing to show meanwhile.
+  if (state.phase === 'complete') return null;
+
+  if (exited) {
     return (
       <LessonEnd
-        reason={exited ? 'exited' : 'complete'}
         correct={state.results.filter((result) => result.correct).length}
         answered={state.results.length}
         onRestart={() => {
