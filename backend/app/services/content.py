@@ -1,0 +1,167 @@
+"""Starter-deck content: parse and validate YAML, then import it into the database (ADR 0005)."""
+
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Annotated, Literal
+
+import yaml
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
+
+from app.models import Deck, DeckWord, Word
+
+# Must match the registry in web/src/illustrations/index.tsx.
+ILLUSTRATIONS = ("umbrella", "kettle", "lighthouse", "backpack", "key")
+
+Slug = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=64)]
+Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class WordEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: Slug
+    headword: Annotated[Text, StringConstraints(max_length=64)]
+    pos: Literal["noun", "verb", "adjective", "adverb"]
+    translation: Annotated[Text, StringConstraints(max_length=120)]
+    also_accept: list[Annotated[Text, StringConstraints(max_length=64)]] = Field(
+        default_factory=list
+    )
+    example: Annotated[Text, StringConstraints(max_length=300)]
+    example_ru: Annotated[Text, StringConstraints(max_length=300)]
+    illustration: Literal[ILLUSTRATIONS] | None = None  # type: ignore[valid-type]
+
+    @model_validator(mode="after")
+    def _example_uses_headword(self) -> "WordEntry":
+        # The typing exercise blanks the headword out of the example, so it must appear verbatim.
+        if not headword_pattern(self.headword).search(self.example):
+            raise ValueError(f"example must contain the headword {self.headword!r} as a whole word")
+        return self
+
+
+class DeckEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: Slug
+    title: Annotated[Text, StringConstraints(max_length=120)]
+    description: Text
+    learning_language: Literal["en"]
+    explanation_language: Literal["ru"]
+    status: Literal["draft", "published"]
+    content_version: int = Field(ge=1)
+    source: Text
+    review_status: Literal["draft", "reviewed"]
+    words: list[Slug] = Field(min_length=4)
+
+
+class ContentError(Exception):
+    """All problems found in a deck, so a reviewer can fix them in one pass."""
+
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__("\n".join(problems))
+        self.problems = problems
+
+
+@dataclass(frozen=True)
+class DeckContent:
+    deck: DeckEntry
+    words: list[WordEntry]
+
+
+def headword_pattern(headword: str) -> re.Pattern[str]:
+    return re.compile(rf"\b{re.escape(headword)}\b", re.IGNORECASE)
+
+
+def _describe(error: ValidationError, where: str) -> list[str]:
+    return [
+        f"{where}: {'.'.join(str(part) for part in err['loc']) or 'entry'}: {err['msg']}"
+        for err in error.errors()
+    ]
+
+
+def parse_deck(directory: Path) -> DeckContent:
+    """Parse and validate deck.yaml + words.yaml. Raises ContentError listing every problem."""
+    problems: list[str] = []
+    try:
+        raw_deck = yaml.safe_load((directory / "deck.yaml").read_text(encoding="utf-8"))
+        raw_words = yaml.safe_load((directory / "words.yaml").read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ContentError([f"cannot read deck files: {exc}"]) from exc
+
+    deck: DeckEntry | None = None
+    try:
+        deck = DeckEntry.model_validate(raw_deck)
+    except ValidationError as exc:
+        problems += _describe(exc, "deck.yaml")
+
+    words: list[WordEntry] = []
+    if not isinstance(raw_words, list):
+        problems.append("words.yaml: must be a list of word entries")
+        raw_words = []
+    for index, raw in enumerate(raw_words, start=1):
+        label = raw.get("id", f"entry {index}") if isinstance(raw, dict) else f"entry {index}"
+        try:
+            words.append(WordEntry.model_validate(raw))
+        except ValidationError as exc:
+            problems += _describe(exc, f"words.yaml [{label}]")
+
+    seen: set[str] = set()
+    for word in words:
+        if word.id in seen:
+            problems.append(f"words.yaml: duplicate id {word.id!r}")
+        seen.add(word.id)
+
+    if deck is not None:
+        if len(set(deck.words)) != len(deck.words):
+            problems.append("deck.yaml: a word is listed more than once")
+        missing = [word_id for word_id in deck.words if word_id not in seen]
+        problems += [f"deck.yaml: unknown word {word_id!r}" for word_id in missing]
+
+    if problems or deck is None:
+        raise ContentError(problems)
+    return DeckContent(deck=deck, words=words)
+
+
+@dataclass(frozen=True)
+class ImportStats:
+    words: int
+    deck_words: int
+
+
+def import_deck(db: Session, content: DeckContent) -> ImportStats:
+    """Upsert words and the deck, replace the deck's word order. One transaction; safe to re-run."""
+    for word in content.words:
+        values = word.model_dump()
+        db.execute(
+            insert(Word)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=[Word.id], set_={k: v for k, v in values.items() if k != "id"}
+            )
+        )
+
+    deck_values = content.deck.model_dump(exclude={"words", "source", "review_status"})
+    db.execute(
+        insert(Deck)
+        .values(**deck_values)
+        .on_conflict_do_update(
+            index_elements=[Deck.id], set_={k: v for k, v in deck_values.items() if k != "id"}
+        )
+    )
+    db.execute(delete(DeckWord).where(DeckWord.deck_id == content.deck.id))
+    db.add_all(
+        DeckWord(deck_id=content.deck.id, word_id=word_id, position=position)
+        for position, word_id in enumerate(content.deck.words)
+    )
+    db.commit()
+    return ImportStats(words=len(content.words), deck_words=len(content.deck.words))

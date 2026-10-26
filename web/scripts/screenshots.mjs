@@ -1,47 +1,81 @@
-// Captures the lesson screen in each state at the design's target viewports,
-// using the locally installed Chrome. Start the dev server first (npm run dev).
+// Captures every screen and exercise state at the design's target viewports, using the locally
+// installed Chrome. Needs the API and the web dev server running (`make dev`).
 //   npm run screenshots            → web/screenshots/*.png + a layout report
 //   BASE_URL=http://… npm run screenshots
-import { mkdir } from 'node:fs/promises';
+// Each viewport uses a fresh development user (X-Dev-User), so runs never share progress.
+import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const baseUrl = process.env.BASE_URL ?? 'http://localhost:5173/';
 const outDir = fileURLToPath(new URL('../screenshots/', import.meta.url));
+const wordsFile = fileURLToPath(new URL('../../content/starter-deck/words.yaml', import.meta.url));
 
 const viewports = [
   { name: '320-small-mobile', width: 320, height: 568, mobile: true },
-  { name: '390-mobile', width: 390, height: 844, mobile: true },
+  { name: '390-mobile', width: 390, height: 844, mobile: true, picture: true },
   { name: '768-tablet', width: 768, height: 1024, mobile: true },
-  { name: '1280-desktop', width: 1280, height: 800 },
+  { name: '1280-desktop', width: 1280, height: 800, picture: true },
   { name: '1440-desktop', width: 1440, height: 900 },
 ];
+
+// The deck format is controlled by us, so two fields per entry can be read without a YAML parser.
+async function loadAnswers() {
+  const text = await readFile(wordsFile, 'utf8');
+  const translationOf = {};
+  for (const entry of text.split(/^- id: /m).slice(1)) {
+    const headword = entry.match(/^ {2}headword: (.+)$/m)[1].trim();
+    translationOf[headword] = entry.match(/^ {2}translation: (.+)$/m)[1].trim();
+  }
+  const headwordFor = Object.fromEntries(Object.entries(translationOf).map(([h, t]) => [t, h]));
+  return { translationOf, headwordFor };
+}
+
+function correctResponse(exercise, answers) {
+  if (exercise.type === 'introduce') return { kind: 'seen' };
+  if (exercise.type === 'choose_meaning') {
+    const right = answers.translationOf[exercise.word.headword];
+    return { kind: 'choice', option_id: exercise.options.find((o) => o.label === right).id };
+  }
+  return { kind: 'text', text: answers.headwordFor[exercise.prompt.translation] };
+}
+
+// Plays whole lessons through the API (same user as the page) to reach later words quickly.
+async function fastForward(request, lessons, answers) {
+  for (let n = 0; n < lessons; n += 1) {
+    const response = await request.post('/api/sessions', { data: { kind: 'new', deck_id: 'starter' } });
+    const session = await response.json();
+    for (const exercise of session.exercises) {
+      await request.post(`/api/sessions/${session.id}/attempts`, {
+        data: { exercise_id: exercise.id, response: correctResponse(exercise, answers) },
+      });
+    }
+    await request.post(`/api/sessions/${session.id}/complete`);
+  }
+}
 
 // Layout problems the eye can miss in a screenshot.
 function inspect() {
   const doc = document.documentElement;
   const footer = document.querySelector('footer')?.getBoundingClientRect();
   const main = document.querySelector('main');
-  const hidden = [...document.querySelectorAll('fieldset label')]
-    .filter((label) => footer && label.getBoundingClientRect().bottom > footer.top + 1)
-    .map((label) => label.textContent.trim());
+  const hidden = [...document.querySelectorAll('fieldset label, main input')]
+    .filter((el) => footer && el.getBoundingClientRect().bottom > footer.top + 1)
+    .map((el) => el.textContent.trim() || el.getAttribute('placeholder'));
   const stage = document.querySelector('figure')?.getBoundingClientRect();
   return {
     horizontalOverflow: doc.scrollWidth > window.innerWidth,
     mainScrollsBy: main ? Math.max(0, main.scrollHeight - main.clientHeight) : 0,
-    optionsBelowFold: hidden,
+    controlsBelowFold: hidden,
     stage: stage ? `${Math.round(stage.width)}×${Math.round(stage.height)}` : null,
   };
 }
 
 function fontReport() {
-  const loaded = [...document.fonts].filter((face) => face.status === 'loaded');
-  return {
-    nunitoCyrillic: document.fonts.check('600 18px "Nunito Variable"', 'резиновые сапоги'),
-    loadedFaces: loaded.map((face) => `${face.family} [${face.unicodeRange.slice(0, 24)}…]`),
-  };
+  return { nunitoCyrillic: document.fonts.check('600 18px "Nunito Variable"', 'резиновые сапоги') };
 }
 
+const answers = await loadAnswers();
 const browser = await chromium.launch({ channel: 'chrome' });
 await mkdir(outDir, { recursive: true });
 const report = {};
@@ -49,57 +83,101 @@ const report = {};
 try {
   for (const viewport of viewports) {
     const context = await browser.newContext({
+      baseURL: baseUrl,
       viewport: { width: viewport.width, height: viewport.height },
       deviceScaleFactor: viewport.mobile ? 2 : 1,
       isMobile: viewport.mobile ?? false,
       hasTouch: viewport.mobile ?? false,
+      extraHTTPHeaders: { 'X-Dev-User': `shots-${viewport.width}-${Date.now()}` },
     });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
 
-    const answer = async (label) => {
-      await page.getByRole('radio', { name: label }).click();
-      await page.getByRole('button', { name: 'Проверить' }).click();
-      await page.getByRole('button', { name: 'Продолжить' }).click();
-    };
-
     const states = {};
     const shot = async (state) => {
       await page.screenshot({ path: `${outDir}${viewport.name}-${state}.png`, animations: 'disabled' });
       states[state] = await page.evaluate(inspect);
     };
+    const button = (name) => page.getByRole('button', { name, exact: true });
+    const heading = () => page.getByRole('heading', { level: 1 });
 
-    await page.goto(baseUrl);
-    await page.getByRole('heading', { level: 1 }).waitFor();
-    await page.evaluate(() => document.fonts.ready);
+    // Answers the exercise on screen and stops on its feedback (introductions have none).
+    const answer = async ({ correct = true } = {}) => {
+      const type = await page.locator('[data-type]').getAttribute('data-type');
+      if (type === 'introduce') {
+        // The card stays until the server acknowledges it; wait for the next exercise to replace it.
+        const card = await page.locator('[data-type]').elementHandle();
+        await button('Дальше').click();
+        await page.waitForFunction((element) => !element.isConnected, card);
+        return type;
+      }
+      if (type === 'choose_meaning') {
+        const right = answers.translationOf[await heading().textContent()];
+        const options = page.getByRole('radio');
+        const labels = await options.evaluateAll((els) => els.map((el) => el.closest('label').textContent));
+        await options.nth(labels.findIndex((label) => label.endsWith(right) === correct)).click();
+      } else {
+        const translation = (await heading().textContent()).replace(/\s*(сущ|гл|прил|нар)\.$/, '').trim();
+        const word = answers.headwordFor[translation];
+        await page.getByRole('textbox').fill(correct ? word : word.slice(0, -1));
+      }
+      await button('Проверить').click();
+      await button('Продолжить').waitFor();
+      return type;
+    };
+    const step = async () => {
+      if ((await answer()) !== 'introduce') await button('Продолжить').click();
+    };
 
-    await shot('1-idle');
-    await page.getByRole('radio', { name: 'шляпа' }).click();
-    await shot('2-selected');
-    await page.getByRole('button', { name: 'Проверить' }).click();
-    await shot('3-incorrect');
-    await page.getByRole('button', { name: 'Продолжить' }).click();
-    await page.getByRole('radio', { name: 'чайник' }).click();
-    await page.getByRole('button', { name: 'Проверить' }).click();
-    await shot('4-correct');
+    try {
+      await page.goto('/');
+      await button('Начать урок').waitFor();
+      await page.evaluate(() => document.fonts.ready);
+      await shot('01-home');
 
-    // Finish the lesson with two misses (umbrella above, lighthouse here)…
-    await page.getByRole('button', { name: 'Продолжить' }).click();
-    for (const label of ['башня', 'рюкзак', 'ключ']) {
-      await answer(label);
+      await button('Начать урок').click();
+      await page.getByText('Новое слово').waitFor();
+      await shot('02-introduce');
+      await button('Дальше').click();
+      await page.getByText('Выберите перевод').waitFor();
+      await shot('03-choose');
+      await answer({ correct: false });
+      await shot('04-choose-incorrect');
+      await button('Продолжить').click();
+      await step(); // introduce "water"
+      await answer();
+      await shot('05-choose-correct');
+      await button('Продолжить').click();
+      while (!(await page.getByText('Напишите по-английски').isVisible())) await step();
+      await shot('06-type');
+      await answer({ correct: false });
+      await shot('07-type-incorrect');
+      await button('Продолжить').click();
+      for (let i = 0; i < 4; i += 1) await step();
+      await heading()
+        .filter({ hasText: /Урок пройден|Без единой ошибки/ })
+        .waitFor();
+      await shot('08-summary');
+      await button('На главную').click();
+      await button('Следующие слова').waitFor();
+      await shot('09-home-progress');
+
+      if (viewport.picture) {
+        // Words 6–20 via the API; the next lesson's third new word ("key") has a picture.
+        await fastForward(context.request, 3, answers);
+        await page.reload();
+        await button('Следующие слова').click();
+        while (!(await heading().filter({ hasText: /^key$/ }).isVisible())) await step();
+        await shot('10-introduce-picture');
+      }
+    } catch (error) {
+      // Leave evidence of where the walk broke, then stop.
+      await page.screenshot({ path: `${outDir}${viewport.name}-FAILED.png` });
+      console.error(`${viewport.name}: walk failed on screen`, await page.getByRole('button').allTextContents());
+      throw error;
     }
-    await page.getByRole('heading', { name: 'Урок пройден!' }).waitFor();
-    await shot('5-summary');
-
-    // …then practise the misses without error for the perfect-run variant.
-    await page.getByRole('button', { name: 'Повторить ошибки' }).click();
-    for (const label of ['зонт', 'маяк']) {
-      await answer(label);
-    }
-    await page.getByRole('heading', { name: 'Ошибки исправлены!' }).waitFor();
-    await shot('6-summary-perfect');
 
     report[viewport.name] = { states, fonts: await page.evaluate(fontReport), errors };
     await context.close();

@@ -1,158 +1,169 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Illustration } from '../illustrations/index.tsx';
-import { CloseIcon, SpeakerIcon } from '../ui/icons.tsx';
-import { ActionBar } from './ActionBar.tsx';
-import { AnswerOption, type AnswerOptionState } from './AnswerOption.tsx';
-import { LessonEnd } from './LessonEnd.tsx';
+import { useEffect, useReducer, useRef, type FormEvent } from 'react';
+import { api, describeError } from '../lib/api.ts';
+import type { AttemptResult, Exercise, Session, Summary } from '../lib/types.ts';
+import { CloseIcon } from '../ui/icons.tsx';
+import { ActionBar, type ActionBarState } from './ActionBar.tsx';
+import { ExerciseView } from './ExerciseView.tsx';
 import { LessonProgress } from './LessonProgress.tsx';
-import type { AnswerResult } from './lessonSession.ts';
-import type { ChoiceExercise } from './types.ts';
-import { useLessonSession } from './useLessonSession.ts';
+import { reduceRun, responseFor, startRun, type RunAction, type RunState } from './sessionRun.ts';
 import styles from './LessonScreen.module.css';
 
-const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
-function speak(word: string) {
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = 'en-US';
-  utterance.rate = 0.9;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
-
 interface LessonScreenProps {
-  exercises: readonly ChoiceExercise[];
-  onComplete: (results: readonly AnswerResult[]) => void;
+  session: Session;
+  onComplete: (summary: Summary) => void;
+  /** Leaving is safe: every answer is already saved, and the session resumes from home. */
+  onExit: () => void;
 }
 
-export function LessonScreen({ exercises, onComplete }: LessonScreenProps) {
-  const { state, exercise, total, lastResult, select, check, next, restart } = useLessonSession(exercises, onComplete);
-  const [exited, setExited] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const continueRef = useRef<HTMLButtonElement>(null);
-  const shownIndex = useRef<number | null>(null);
+function feedbackDetail(exercise: Exercise, result: AttemptResult) {
+  const { headword, translation } = result.answer;
+  if (result.correct) {
+    return (
+      <>
+        <span lang="en">{headword}</span> — {translation}
+      </>
+    );
+  }
+  return exercise.type === 'type_word' ? (
+    <>
+      Правильно: <strong lang="en">{headword}</strong>
+    </>
+  ) : (
+    <>
+      Правильный ответ: <strong>{translation}</strong>
+    </>
+  );
+}
 
-  // Keyboard: 1–4 pick an option; Enter checks/continues when focus isn't on a control.
+export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps) {
+  const { exercises } = session;
+  const [state, dispatch] = useReducer(
+    (current: RunState, action: RunAction) => reduceRun(current, action, exercises),
+    session,
+    startRun,
+  );
+  // While finishing, the last exercise stays on screen with its feedback.
+  const shownIndex = Math.min(state.index, exercises.length - 1);
+  const exercise = exercises[shownIndex];
+  const result = state.results[shownIndex];
+
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const inflight = useRef<string | null>(null);
+
+  // Server round trips follow the phase. The ref keeps one request per step even when an
+  // effect runs twice; the server's one-attempt-per-exercise rule is the real guarantee.
   useEffect(() => {
-    if (state.phase === 'complete' || exited) return;
+    if (state.phase === 'checking') {
+      const current = exercises[state.index];
+      const response = responseFor(current, state);
+      const key = `attempt:${current.id}`;
+      if (!response || inflight.current === key) return;
+      inflight.current = key;
+      api
+        .submitAttempt(session.id, current.id, response)
+        .then(
+          (attempt) => dispatch({ type: 'resolved', result: attempt }),
+          (error: unknown) => dispatch({ type: 'failed', message: describeError(error) }),
+        )
+        .finally(() => {
+          inflight.current = null;
+        });
+    }
+    if (state.phase === 'finishing' && inflight.current !== 'finish') {
+      inflight.current = 'finish';
+      api
+        .completeSession(session.id)
+        .then(onComplete, (error: unknown) => dispatch({ type: 'failed', message: describeError(error) }))
+        .finally(() => {
+          inflight.current = null;
+        });
+    }
+  }, [state, exercises, session.id, onComplete]);
+
+  // Focus follows the flow: the new word (or the input), then the button that moves on.
+  useEffect(() => {
+    if (state.phase !== 'answering') return;
+    if (exercises[state.index]?.type === 'type_word') inputRef.current?.focus();
+    else headingRef.current?.focus();
+  }, [state.index, state.phase, exercises]);
+  useEffect(() => {
+    if (state.phase === 'feedback' || state.phase === 'error') buttonRef.current?.focus();
+  }, [state.phase]);
+
+  // Keyboard: 1–4 pick an option; Enter checks or continues when focus is not on a control.
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as Element;
       const position = Number(event.key);
-      if (state.phase === 'answering' && Number.isInteger(position) && position >= 1) {
+      if (exercise.type === 'choose_meaning' && Number.isInteger(position) && position >= 1) {
         const option = exercise.options[position - 1];
-        if (option) select(option.id);
-      } else if (event.key === 'Enter' && !(event.target as Element).closest('button, input, a, select, textarea')) {
-        // Focus moves to Continue synchronously; without this the same key
-        // press would also activate it and skip the feedback.
+        if (option) dispatch({ type: 'choose', optionId: option.id });
+      } else if (event.key === 'Enter' && !target.closest('button, input, a, select, textarea')) {
+        // Focus moves to Continue synchronously; without this the same key press would also activate it.
         event.preventDefault();
-        if (state.phase === 'answering') check();
-        else next();
+        dispatch({ type: state.phase === 'feedback' ? 'continue' : 'submit' });
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.phase, exercise, exited, select, check, next]);
-
-  // Focus follows the flow: the word on start and after advancing, Continue after checking.
-  useEffect(() => {
-    if (state.phase === 'feedback') continueRef.current?.focus();
-    if (state.phase === 'answering' && shownIndex.current !== state.index) headingRef.current?.focus();
-    shownIndex.current = state.index;
-  }, [state.phase, state.index]);
-
-  // The parent replaces this screen on completion; nothing to show meanwhile.
-  if (state.phase === 'complete') return null;
-
-  if (exited) {
-    return (
-      <LessonEnd
-        correct={state.results.filter((result) => result.correct).length}
-        answered={state.results.length}
-        onRestart={() => {
-          setExited(false);
-          restart();
-        }}
-      />
-    );
-  }
-
-  const optionState = (optionId: string): AnswerOptionState => {
-    if (state.phase === 'answering') return optionId === state.selectedId ? 'selected' : 'idle';
-    if (optionId === exercise.answerId) return 'correct';
-    return optionId === lastResult?.selectedId ? 'incorrect' : 'dimmed';
-  };
+  }, [exercise, state.phase]);
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    check();
+    dispatch({ type: 'submit' });
   };
 
-  const answer = exercise.options.find((option) => option.id === exercise.answerId);
+  let bar: ActionBarState;
+  if (state.phase === 'error') {
+    bar = { kind: 'problem', message: state.error ?? describeError(null), onRetry: () => dispatch({ type: 'retry' }) };
+  } else if ((state.phase === 'feedback' || state.phase === 'finishing') && result?.correct != null) {
+    bar = {
+      kind: 'feedback',
+      correct: result.correct,
+      detail: feedbackDetail(exercise, result),
+      busy: state.phase === 'finishing',
+      onContinue: () => dispatch({ type: 'continue' }),
+    };
+  } else {
+    bar = {
+      kind: 'submit',
+      label: exercise.type === 'introduce' ? 'Дальше' : 'Проверить',
+      // Nothing is being checked on an introduction; the label simply holds while it saves.
+      busyLabel: exercise.type === 'introduce' ? 'Дальше' : 'Проверяем…',
+      disabled: !responseFor(exercise, state),
+      busy: state.phase === 'checking' || state.phase === 'finishing',
+    };
+  }
 
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <button type="button" className={styles.exit} onClick={() => setExited(true)} aria-label="Выйти из урока">
+          <button type="button" className={styles.exit} onClick={onExit} aria-label="Выйти из урока">
             <CloseIcon />
           </button>
-          <LessonProgress answered={state.results.length} total={total} />
+          <LessonProgress answered={state.results.length} total={exercises.length} />
         </div>
       </header>
 
-      <form className={styles.form} onSubmit={onSubmit}>
+      <form className={styles.form} onSubmit={onSubmit} noValidate>
         <main className={styles.main}>
-          <div key={exercise.id} className={styles.exercise}>
-            <div className={styles.prompt}>
-              <p className={styles.instruction}>Выберите перевод</p>
-              <div className={styles.wordRow}>
-                <h1 ref={headingRef} tabIndex={-1} className={styles.word} lang="en">
-                  {exercise.word}
-                </h1>
-                {canSpeak && (
-                  <button
-                    type="button"
-                    className={styles.listen}
-                    onClick={() => speak(exercise.word)}
-                    aria-label="Прослушать произношение"
-                  >
-                    <SpeakerIcon />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <figure className={styles.stage}>
-              <Illustration id={exercise.illustration} alt={exercise.illustrationAlt} className={styles.art} />
-            </figure>
-
-            <fieldset className={styles.options} disabled={state.phase !== 'answering'}>
-              <legend className="visually-hidden">Варианты ответа</legend>
-              {exercise.options.map((option, index) => (
-                <AnswerOption
-                  key={option.id}
-                  name={`answer-${exercise.id}`}
-                  index={index}
-                  label={option.label}
-                  state={optionState(option.id)}
-                  checked={option.id === (state.phase === 'answering' ? state.selectedId : lastResult?.selectedId)}
-                  onSelect={() => select(option.id)}
-                />
-              ))}
-            </fieldset>
+          <div key={exercise.id} className={styles.exercise} data-type={exercise.type}>
+            <ExerciseView
+              exercise={exercise}
+              state={state}
+              result={result}
+              onChoose={(optionId) => dispatch({ type: 'choose', optionId })}
+              onInput={(text) => dispatch({ type: 'input', text })}
+              headingRef={headingRef}
+              inputRef={inputRef}
+            />
           </div>
         </main>
-
-        <ActionBar
-          canCheck={state.selectedId !== null}
-          feedback={
-            lastResult && answer
-              ? { correct: lastResult.correct, word: exercise.word, answer: answer.label }
-              : undefined
-          }
-          onContinue={next}
-          continueRef={continueRef}
-        />
+        <ActionBar state={bar} buttonRef={buttonRef} />
       </form>
     </div>
   );

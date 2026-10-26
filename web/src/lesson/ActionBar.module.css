@@ -12,6 +12,10 @@
   background: var(--color-error-tint);
 }
 
+.bar[data-tone='problem'] {
+  background: var(--color-stage);
+}
+
 .inner {
   display: flex;
   flex-direction: column;
@@ -48,6 +52,10 @@
 
 .bar[data-tone='error'] .icon {
   background: var(--color-error);
+}
+
+.bar[data-tone='problem'] .icon {
+  background: var(--color-text);
 }
 
 .title {

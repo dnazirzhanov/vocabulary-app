@@ -23,6 +23,7 @@
   --color-option-edge: #d8d1c9;
   --color-option-edge-hover: #b3aaa0;
   --color-track: #e5e1dc;
+  --color-highlight: #ffdcc6;         /* marks the target word; graphite text 11.75:1 */
   --color-focus: #262626;
 
   /* Feedback */

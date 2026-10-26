@@ -42,17 +42,17 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 - **Interface language:** Russian copy, English learning content. Copy is kept in components for now; extraction into a message file happens only when a second interface language is actually needed.
 - **Platform:** mobile-first web app; PWA install later.
 
-## Current state vs P0
+## Current state vs P0 (after the Phase 2 slice)
 
 | P0 area | Today | Gap |
 |---|---|---|
-| A. Accounts and persistence | None; state is in memory | Backend, database, auth seam (Phase 1–2), auth provider (Phase 4) |
-| B. Vocabulary content | 5 hard-coded demo words, no examples or POS | Starter deck with validation and import (Phase 2) |
-| C. Learning session | Multiple choice with feedback, summary, practise mistakes | Introduce card, typing, server-checked answers, resume (Phase 2); reviews (Phase 3) |
+| A. Accounts and persistence | Server-side persistence with an auth seam (development user) | Auth provider and sign-up (Phase 4) |
+| B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import | Russian review; grow to 100–200 words |
+| C. Learning session | Introduce → choose meaning → type the word; server-checked; resumable; summary; practise mistakes | Reviews of earlier words and recall-before-reveal (Phase 3) |
 | D. Spaced repetition | None | Scheduler and due reviews (Phase 3) |
-| E. Progress | Per-session summary only | Persistent progress (Phase 2), dashboard (Phase 3) |
+| E. Progress | Words met per deck, persisted server-side | Due reviews, activity, correct-answer rate (Phase 3) |
 | F. Gamification | Progress bar, completion badge | Points and daily goal (Phase 3) |
-| G. Responsive interface | Lesson and summary screens designed and screenshot-tested at 320–1440px | Home screen, loading/error states, new exercise views (Phase 2) |
+| G. Responsive interface | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px | Real-device checks (iOS Safari, on-screen keyboard) |
 
 ## Acceptance criteria by phase
 
@@ -72,7 +72,7 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 ## Content requirements
 
 - Starter deck: begins with 30 words for the first slice, grows to 100–200 after review.
-- Words are chosen from an openly licensed high-frequency list (the New General Service List); licence terms and attribution are verified before release. No claim is made about how much everyday English the deck covers.
+- The first 30 are everyday A1–A2 words chosen by hand for the slice. Before the pilot they are cross-checked against an openly licensed high-frequency list (the New General Service List — licence terms and attribution verified then). No claim is made about how much everyday English the deck covers.
 - Example sentences are written for this project. Russian translations are drafted by the developer and **must be reviewed by a fluent speaker or teacher before the pilot**.
 
 ## Open questions

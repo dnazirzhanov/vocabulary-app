@@ -115,6 +115,15 @@
   height: 100%;
 }
 
+/* Words without a picture get their first letter, so rows keep one rhythm. */
+.initial {
+  place-self: center;
+  color: var(--color-primary-strong);
+  font-size: 1.5rem;
+  font-weight: var(--weight-display);
+  line-height: 1;
+}
+
 .wordText {
   flex: 1;
   display: flex;
@@ -146,7 +155,7 @@
   height: 18px;
 }
 
-.status[data-status='recognized'] {
+.status[data-status='clean'] {
   background: var(--color-success-tint);
   color: var(--color-success);
 }
@@ -159,6 +168,14 @@
 .actions {
   border-top: 1px solid var(--color-border);
   padding: var(--space-3) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+.error {
+  max-width: var(--width-column);
+  margin: 0 auto var(--space-2);
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+  text-align: center;
 }
 
 .actionsInner {
