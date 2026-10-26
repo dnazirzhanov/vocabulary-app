@@ -31,69 +31,7 @@
   font-weight: var(--weight-strong);
 }
 
-.months {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  color: var(--color-text-muted);
-  list-style: none;
-}
-
-.months strong {
-  color: var(--color-text);
-}
-
-.weeks {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
-.weeks summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-  font-weight: var(--weight-strong);
-}
-
-.weeks summary::-webkit-details-marker {
-  display: none;
-}
-
 /* A flex summary loses the native triangle; this one turns when the table is open. */
-.weeks summary::before {
-  content: '';
-  width: 0;
-  height: 0;
-  border-block: 5px solid transparent;
-  border-left: 7px solid currentColor;
-  transition: rotate var(--duration-state) var(--ease-out);
-}
-
-.weeks[open] summary::before {
-  rotate: 90deg;
-}
-
-.weeks table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.weeks th,
-.weeks td {
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
-  text-align: left;
-}
-
-.weeks td:not(:first-child),
-.weeks th:not(:first-child) {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .note {
   color: var(--color-text-muted);
   font-size: var(--text-meta);

@@ -81,3 +81,10 @@ export const TargetIcon = (props: IconProps) => (
     <circle cx="12" cy="12" r="0.8" fill="currentColor" />
   </svg>
 );
+
+export const FlagIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M6 21V4" />
+    <path d="M6 4h11l-2.5 4L17 12H6" fill="currentColor" />
+  </svg>
+);

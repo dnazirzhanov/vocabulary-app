@@ -45,10 +45,11 @@ certainty about the process (what, in which order, when you finish), never fluen
   first study day it falls due. Words met before today are treated as met today (never optimistic).
 - Weekly rows (with the ramp's lower targets), month-end totals, and a projection of the whole
   course at the same pace, labelled as such because the course is still being written.
-- The chart has one axis (words over calendar time), two validated series colours (`#fa5d19`,
-  `#2d6db5`: CVD ΔE 23.5), a legend plus direct labels, a crosshair tooltip on hover or arrow
-  keys, and the weekly table as its text alternative. The app has no dark theme yet, so neither
-  does the chart.
+- Shown as a month calendar (Monday first), only the weeks the plan covers. Each day shows the
+  words known by its end and the new words that day. Rest days are plain, and days after the last
+  new word are muted (only reviews). The finish day carries a flag, and the day everything is
+  well remembered carries a check. Every cell has a full text label for screen readers. The
+  calendar replaced an earlier line chart after owner feedback: people plan by dates, not curves.
 
 ## Consequences
 - All thresholds are pilot hypotheses; they live as named constants in one module with tests.
