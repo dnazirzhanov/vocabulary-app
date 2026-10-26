@@ -1,0 +1,43 @@
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.value strong {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+/* The unfilled track is a lighter step of the same hue, so the state reads across the bar. */
+.track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-option-edge);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.note {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.note[data-met] {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}

@@ -1,5 +1,5 @@
 import { syncWithServer } from './clock.ts';
-import type { AttemptResponse, AttemptResult, Deck, Session, Summary } from './types.ts';
+import type { AttemptResponse, AttemptResult, Deck, Progress, Session, Summary } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
 export class ApiError extends Error {
@@ -16,13 +16,18 @@ export class ApiError extends Error {
 }
 
 const TIMEOUT_MS = 15_000;
+// The server counts days (daily goal, streaks) in the learner's own time zone.
+const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: {
+        'X-Time-Zone': timeZone,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -49,6 +54,7 @@ export const api = {
   submitAttempt: (sessionId: string, exerciseId: string, response: AttemptResponse) =>
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
+  deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */

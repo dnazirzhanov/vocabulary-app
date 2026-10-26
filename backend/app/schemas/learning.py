@@ -1,7 +1,7 @@
 """API contracts for decks, sessions, attempts and summaries. Answer keys never appear in outputs
 until the learner has answered."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -167,3 +167,41 @@ class SummaryOut(BaseModel):
     words: list[SummaryWord]
     answers_total: int
     answers_correct: int
+    points: int
+    today_points: int
+    daily_goal: int
+
+
+class WordStages(BaseModel):
+    introduced: int
+    # Introduced but not yet well learned (stages 1-3).
+    reviewing: int
+    # "Currently well learned": stage >= 4 (ADR 0006).
+    well_learned: int
+    due: int
+
+
+class DayActivity(BaseModel):
+    date: date
+    points: int
+
+
+class RecallRate(BaseModel):
+    """Words recalled in scheduled reviews over the last `days`: delayed recall, not lesson
+    answers."""
+
+    recalled: int
+    reviewed: int
+    days: int
+
+
+class ProgressOut(BaseModel):
+    deck_id: str
+    words: WordStages
+    today: DayActivity
+    daily_goal: int
+    streak_days: int
+    # The last 7 local days, oldest first.
+    week: list[DayActivity]
+    recall: RecallRate
+    points_total: int

@@ -5,16 +5,58 @@
  */
 .screen {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   height: 100dvh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+  padding: max(var(--space-2), env(safe-area-inset-top)) var(--gutter) 0;
+}
+
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.streak svg {
+  color: var(--color-primary);
+}
+
+.progressLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  margin-right: calc(-1 * var(--space-2));
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.progressLink:hover {
+  background: rgb(38 38 38 / 0.06);
 }
 
 .main {
   display: flex;
   min-height: 0;
   overflow-y: auto;
-  padding: max(var(--space-4), env(safe-area-inset-top)) var(--gutter) var(--space-5);
+  padding: var(--space-2) var(--gutter) var(--space-5);
 }
 
 .layout {
@@ -175,7 +217,18 @@
   font-weight: var(--weight-display);
 }
 
+/* Very short screens (small phones with browser chrome): the cover gives way first. */
+@media (max-height: 600px) {
+  .stage {
+    min-height: 104px;
+  }
+}
+
 @media (min-width: 1024px) {
+  .topbar {
+    max-width: var(--width-lesson);
+  }
+
   .main {
     align-items: safe center;
     padding: var(--space-6) var(--gutter);

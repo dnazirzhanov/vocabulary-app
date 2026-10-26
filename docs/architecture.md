@@ -42,8 +42,7 @@ docs/                  brief, requirements, this file, ADRs
 | Vocabulary and decks | `services/content.py`, `models/content.py` | 2 |
 | Learning sessions and answer evaluation | `services/learning.py` (pure), `services/sessions.py` (DB) | 2 |
 | Review scheduling | `services/scheduling.py` (pure) | 3 |
-| Progress and statistics | `services/progress.py` | 2–3 |
-| Gamification | `services/points.py` | 3 |
+| Progress, points, goal and streaks | `services/progress.py` (pure rules + queries) | 3 |
 | Analytics | derived from `review_attempts` / `learning_sessions` first | 3+ |
 | Admin and content validation | `app/cli.py`, `services/content.py` | 2 |
 
@@ -61,7 +60,7 @@ All timestamps are `timestamptz`, stored and compared in UTC.
 | `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
 | `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count`, `stage`, `due_at`, `last_reviewed_at`, `review_count`, `lapses` | `PK(user_id, word_id)`; `stage BETWEEN 1 AND 5`; index `(user_id, due_at)` |
 | `learning_sessions` | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice` \| `review`), `plan jsonb`, `started_at`, `completed_at null` | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
-| `review_attempts` | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type`, `correct bool null`, `answered_at`, `stage_after null`, `due_after null` | `UNIQUE(session_id, exercise_id)`; `correct IS NULL` only for `introduce` |
+| `review_attempts` | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type`, `correct bool null`, `answered_at`, `stage_after null`, `due_after null`, `points` | `UNIQUE(session_id, exercise_id)`; `correct IS NULL` only for `introduce` |
 
 Scheduling state was added to `user_word_progress` by its own migration in Phase 3 (existing words got their first review the day after they were met).
 
@@ -96,7 +95,10 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/sessions` | `{kind: "new", deck_id}`, `{kind: "review", deck_id}` or `{kind: "practice", source_session_id}`; returns the open session if one exists; `409 deck_complete` / `409 nothing_due` |
 | `GET /api/sessions/{id}` | session with exercises and results so far |
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response}` → `{correct, answer}` |
-| `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, `deck_id` |
+| `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
+| `GET /api/decks/{id}/progress` | word stages (met, reviewing, well learned, due), today's points vs goal, streak, the last 7 local days, delayed-recall rate over 30 days, total points |
+
+Requests carry `X-Time-Zone` (the browser's IANA zone) so "today" and streaks follow the learner's calendar (ADR 0008).
 
 Every query is filtered by the authenticated user. A session that exists but belongs to someone else returns **404**, not 403, so identifiers cannot be probed. Request bodies are validated by Pydantic with explicit length limits (e.g. typed answers ≤ 100 characters).
 

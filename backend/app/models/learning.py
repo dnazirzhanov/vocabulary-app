@@ -93,3 +93,5 @@ class ReviewAttempt(Base):
     # Set on the attempt that (re)scheduled the word: introductions and a review's last exercise.
     stage_after: Mapped[int | None] = mapped_column(SmallInteger)
     due_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Awarded once, when the attempt is written (services/progress.py).
+    points: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))

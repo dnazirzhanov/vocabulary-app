@@ -121,6 +121,13 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
               {title}
             </h1>
             <p className={styles.lead}>{lead}</p>
+            <p className={styles.points}>
+              <strong>+{summary.points}</strong> {plural(summary.points, { one: 'очко', few: 'очка', many: 'очков' })}
+              <span aria-hidden="true"> · </span>
+              {summary.today_points >= summary.daily_goal
+                ? 'цель на сегодня выполнена'
+                : `до цели на сегодня ${summary.daily_goal - summary.today_points}`}
+            </p>
           </div>
 
           <div className={styles.recap}>

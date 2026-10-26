@@ -1,24 +1,14 @@
 from datetime import UTC, datetime
 from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import DeckWord, User, UserWordProgress
-from app.services.content import DeckContent
 
 START_NEW = {"kind": "new", "deck_id": "starter"}
 OTHER_USER = {"X-Dev-User": "other"}
-
-
-@pytest.fixture
-def answers(starter_content: DeckContent) -> dict[str, dict[str, str]]:
-    return {
-        "translation_of": {w.headword: w.translation for w in starter_content.words},
-        "headword_for": {w.translation: w.headword for w in starter_content.words},
-    }
 
 
 def response_for(

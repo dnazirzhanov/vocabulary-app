@@ -46,6 +46,28 @@ export const RepeatIcon = (props: IconProps) => (
   </svg>
 );
 
+export const ChartIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M5 20V12M12 20V5M19 20v-7" />
+  </svg>
+);
+
+export const BackIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+
+export const FlameIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path
+      d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-2.9 1.9-5 3.6-6.6.4 1.6 1.3 2.6 2.4 3 .1-3.1 1.6-5.6 3.9-7.2-.2 2.6.8 4.4 2.2 6 1.1 1.3 1.9 2.8 1.9 4.8 0 3.6-2.6 6.2-7.5 6.2z"
+      fill="currentColor"
+      stroke="none"
+    />
+  </svg>
+);
+
 export const AlertIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <path d="M12 7v6M12 17h.01" />

@@ -52,6 +52,17 @@
   outline: none;
 }
 
+.points {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.points strong {
+  color: var(--color-primary-strong);
+  font-weight: var(--weight-display);
+}
+
 .lead {
   margin-top: var(--space-2);
   color: var(--color-text-muted);
