@@ -92,6 +92,8 @@ try {
     });
     let headers = { 'X-Dev-User': `shots-${viewport.width}-${Date.now()}` };
     await context.setExtraHTTPHeaders(headers);
+    // Past the first-run screens with the default pace (5 a day); they have their own captures below.
+    await context.request.patch('/api/me', { data: { daily_target_words: 5 } });
     // Moves the server clock (development only) so the next day's reviews can be captured.
     const travelTo = async (moment) => {
       headers = { ...headers, 'X-Dev-Now': moment.toISOString() };
@@ -141,11 +143,11 @@ try {
 
     try {
       await page.goto('/');
-      await button('Начать урок').waitFor();
+      await button('Начать урок · 5 слов').waitFor();
       await page.evaluate(() => document.fonts.ready);
       await shot('01-home');
 
-      await button('Начать урок').click();
+      await button('Начать урок · 5 слов').click();
       await page.getByText('Новое слово').waitFor();
       await shot('02-introduce');
       await button('Дальше').click();
@@ -169,13 +171,13 @@ try {
         .waitFor();
       await shot('08-summary');
       await button('На главную').click();
-      await button('Новые слова').waitFor();
+      await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
       await shot('09-home-progress');
       await button('Прогресс').click();
       await page.getByRole('heading', { name: 'Прогресс' }).waitFor();
       await shot('09b-progress');
       await button('На главную').click();
-      await button('Новые слова').waitFor();
+      await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
 
       if (viewport.review) {
         // The next day: the five words met above are due.
@@ -201,14 +203,14 @@ try {
         await page.getByText('Вспомнили на повторениях').waitFor();
         await shot('15-progress-after-review');
         await button('На главную').click();
-        await button('Новые слова').waitFor();
+        await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).waitFor();
       }
 
       if (viewport.picture) {
         // Words 6–20 via the API; the next lesson's third new word ("key") has a picture.
         await fastForward(context.request, 3, answers, headers);
         await page.reload();
-        await button('Новые слова').click();
+        await page.getByRole('button', { name: /^(Новые слова|Ещё)/ }).click();
         while (!(await heading().filter({ hasText: /^key$/ }).isVisible())) await step();
         await shot('10-introduce-picture');
       }

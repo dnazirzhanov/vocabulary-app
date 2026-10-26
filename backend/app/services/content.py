@@ -49,6 +49,16 @@ class WordEntry(BaseModel):
         return self
 
 
+class CourseGoal(BaseModel):
+    """The promise shown to learners. Every number needs a source, so a claim is never invented."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_words: int = Field(ge=1, le=10_000)
+    coverage_percent: int = Field(ge=1, le=100)
+    source: Annotated[Text, StringConstraints(max_length=300)]
+
+
 class DeckEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -61,6 +71,7 @@ class DeckEntry(BaseModel):
     content_version: int = Field(ge=1)
     source: Text
     review_status: Literal["draft", "reviewed"]
+    course_goal: CourseGoal | None = None
     words: list[Slug] = Field(min_length=4)
 
 
@@ -150,7 +161,12 @@ def import_deck(db: Session, content: DeckContent) -> ImportStats:
             )
         )
 
-    deck_values = content.deck.model_dump(exclude={"words", "source", "review_status"})
+    deck_values = content.deck.model_dump(
+        exclude={"words", "source", "review_status", "course_goal"}
+    )
+    goal = content.deck.course_goal
+    deck_values["goal_words"] = goal.target_words if goal else None
+    deck_values["goal_coverage_percent"] = goal.coverage_percent if goal else None
     db.execute(
         insert(Deck)
         .values(**deck_values)

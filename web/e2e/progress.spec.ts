@@ -7,7 +7,7 @@ test('progress shows the goal, the streak and the words met', async ({ page }) =
   await expect(page.getByText('Появится после первого повторения')).toBeVisible();
   await button(page, 'На главную').click();
 
-  await button(page, 'Начать урок').click();
+  await button(page, 'Начать урок · 5 слов').click();
   for (let step = 0; step < 15; step += 1) await answer(page);
   await expect(page.getByText('+50 очков')).toBeVisible();
   await expect(page.getByText('цель на сегодня выполнена')).toBeVisible();

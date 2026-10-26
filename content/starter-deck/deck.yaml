@@ -12,6 +12,12 @@ source: >-
   Everyday A1–A2 words chosen by hand for the first slice; to be cross-checked against
   the New General Service List and reviewed by a fluent Russian speaker before the pilot.
 review_status: draft
+# The promise shown to learners. Only show numbers backed by a source (the validator requires one).
+# See docs/research/ngsl-coverage-2026-10.md for how 1,300 → 80% was computed.
+course_goal:
+  target_words: 1300
+  coverage_percent: 80
+  source: NGSL 1.2 frequency data — the 1,300 most frequent words cover 79.8% of running words.
 words:
   - house
   - water

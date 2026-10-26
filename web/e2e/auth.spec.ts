@@ -45,6 +45,8 @@ async function mockSupabase(page: Page) {
     if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204, headers: cors });
     return json(404, { message: 'not mocked' });
   });
+  // Past the first-run screens (e2e/goal.spec.ts covers them).
+  await page.request.patch('/api/me', { data: { daily_target_words: 5 }, headers: { 'x-dev-user': learner } });
   await page.route('**/api/**', async (route) => {
     apiRequests.push(route.request());
     await route.continue({ headers: { ...route.request().headers(), 'x-dev-user': learner } });

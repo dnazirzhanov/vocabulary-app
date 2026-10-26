@@ -14,6 +14,9 @@ class Deck(Base):
     explanation_language: Mapped[str] = mapped_column(String(8))
     status: Mapped[str] = mapped_column(String(16))
     content_version: Mapped[int]
+    # The course goal promised to learners (deck.yaml `course_goal`), only when it has a source.
+    goal_words: Mapped[int | None]
+    goal_coverage_percent: Mapped[int | None]
 
 
 class Word(Base):

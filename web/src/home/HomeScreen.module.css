@@ -33,6 +33,11 @@
   color: var(--color-primary);
 }
 
+.links {
+  display: flex;
+  gap: var(--space-1);
+}
+
 .progressLink {
   display: inline-flex;
   align-items: center;
@@ -50,6 +55,60 @@
 
 .progressLink:hover {
   background: rgb(38 38 38 / 0.06);
+}
+
+.progressLink + .progressLink {
+  margin-right: calc(-1 * var(--space-2));
+}
+
+.progressLink:first-child {
+  margin-right: 0;
+}
+
+.today {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.todayValue {
+  font-size: var(--text-option);
+}
+
+.todayValue strong {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.bonus {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.todayDots {
+  height: 8px;
+  margin-top: var(--space-2);
+  border-radius: 4px;
+  background: var(--color-track);
+  overflow: hidden;
+}
+
+.todayDots span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-success);
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.todayNote {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.suggestion {
+  margin-top: var(--space-4);
 }
 
 .main {

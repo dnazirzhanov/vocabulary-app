@@ -4,7 +4,7 @@ const DAY = 86_400_000;
 
 test('a learner returns the next day and reviews the words due', async ({ page, learner }) => {
   await page.goto('/');
-  await button(page, 'Начать урок').click();
+  await button(page, 'Начать урок · 5 слов').click();
   for (let step = 0; step < 15; step += 1) await answer(page);
   await expect(page.getByText('Первое повторение — завтра')).toBeVisible();
   await button(page, 'На главную').click();
@@ -27,5 +27,5 @@ test('a learner returns the next day and reviews the words due', async ({ page, 
 
   await button(page, 'На главную').click();
   await expect(page.getByText('Следующее повторение — завтра')).toBeVisible(); // "house" returns tomorrow
-  await expect(button(page, 'Новые слова')).toBeVisible();
+  await expect(button(page, 'Новые слова · 5')).toBeVisible();
 });

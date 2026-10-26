@@ -1,6 +1,6 @@
 import { accessToken } from './auth.ts';
 import { syncWithServer } from './clock.ts';
-import type { AttemptResponse, AttemptResult, Deck, Progress, Session, Summary } from './types.ts';
+import type { AttemptResponse, AttemptResult, Deck, Me, MeUpdate, Pace, Progress, Session, Summary } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
 export class ApiError extends Error {
@@ -20,7 +20,7 @@ const TIMEOUT_MS = 15_000;
 // The server counts days (daily goal, streaks) in the learner's own time zone.
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const token = await accessToken();
   let response: Response;
   try {
@@ -58,6 +58,10 @@ export const api = {
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
+  me: () => request<Me>('GET', '/me'),
+  updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
+  pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
+  dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
   /** Deletes the learner's account data on our server (sessions, answers, progress). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };

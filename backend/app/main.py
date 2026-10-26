@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import health, learning
+from app.api import health, learning, me
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging, log_requests
@@ -26,13 +26,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origins,
-            allow_methods=["GET", "POST", "DELETE"],
+            allow_methods=["GET", "POST", "PATCH", "DELETE"],
             allow_headers=["Content-Type", "Authorization"],
             expose_headers=["X-Server-Time"],
         )
     register_error_handlers(app)
     app.include_router(health.router, prefix="/api")
     app.include_router(learning.router, prefix="/api")
+    app.include_router(me.router, prefix="/api")
     if settings.web_dist:
         _serve_web_app(app, Path(settings.web_dist))
     return app

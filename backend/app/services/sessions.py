@@ -23,6 +23,7 @@ from app.schemas.learning import (
     AttemptResultOut,
     ChoiceResponse,
     ChooseMeaningExercise,
+    CourseGoalOut,
     DeckOut,
     ExerciseOut,
     IntroduceExercise,
@@ -42,6 +43,7 @@ from app.schemas.learning import (
     TypeWordExercise,
     WordOut,
 )
+from app.services import pace
 from app.services.learning import (
     CHOICE_TYPES,
     REVIEW_WORDS_PER_SESSION,
@@ -199,6 +201,11 @@ def list_decks(db: Session, user: User, now: datetime) -> list[DeckOut]:
             id=deck.id,
             title=deck.title,
             description=deck.description,
+            course_goal=CourseGoalOut(
+                target_words=deck.goal_words, coverage_percent=deck.goal_coverage_percent
+            )
+            if deck.goal_words and deck.goal_coverage_percent
+            else None,
             word_count=words,
             introduced_count=met,
             due_count=due_now,
@@ -228,9 +235,18 @@ def require_published_deck(db: Session, deck_id: str) -> Deck:
 
 
 def _new_session_plan(
-    db: Session, user: User, request: StartNewSession, session_id: UUID
+    db: Session,
+    user: User,
+    request: StartNewSession,
+    session_id: UUID,
+    now: datetime,
+    time_zone: ZoneInfo,
 ) -> tuple[str, list[PlannedExercise]]:
     deck = require_published_deck(db, request.deck_id)
+    # Sized by what is left of today's target, or a bonus lesson after it (ADR 0010).
+    today = pace.day_plan(db, user, deck.id, now, time_zone)
+    if today.blocked_by_reviews:
+        raise ApiError(409, "reviews_first", "Too many reviews are due: review before new words")
     pool = _deck_words(db, deck.id)
     introduced = set(
         db.scalars(
@@ -240,7 +256,7 @@ def _new_session_plan(
             )
         )
     )
-    new_ids = pick_new_words([w.id for w in pool], introduced)
+    new_ids = pick_new_words([w.id for w in pool], introduced, today.next_lesson_size)
     if not new_ids:
         raise ApiError(409, "deck_complete", "Every word in this deck has been introduced")
     by_id = {w.id: w for w in pool}
@@ -296,7 +312,9 @@ def _review_session_plan(
     return deck.id, plan_review_session([_facts(by_id[i]) for i in due_ids], facts, str(session_id))
 
 
-def start_session(db: Session, user: User, request: StartRequest, now: datetime) -> SessionOut:
+def start_session(
+    db: Session, user: User, request: StartRequest, now: datetime, time_zone: ZoneInfo
+) -> SessionOut:
     """Start a session, or return the learner's unfinished one so it can be resumed."""
     existing = _open_session(db, user)
     if existing is not None:
@@ -304,7 +322,7 @@ def start_session(db: Session, user: User, request: StartRequest, now: datetime)
 
     session_id = uuid4()
     if isinstance(request, StartNewSession):
-        deck_id, plan = _new_session_plan(db, user, request, session_id)
+        deck_id, plan = _new_session_plan(db, user, request, session_id, now, time_zone)
     elif isinstance(request, StartPracticeSession):
         deck_id, plan = _practice_session_plan(db, user, request, session_id)
     else:

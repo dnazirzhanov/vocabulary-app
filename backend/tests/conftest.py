@@ -48,7 +48,10 @@ def db(database: None) -> Iterator[Session]:
     # Learner data is wiped before each test; content stays loaded.
     with get_engine().begin() as connection:
         connection.execute(
-            text("TRUNCATE users, learning_sessions, review_attempts, user_word_progress CASCADE")
+            text(
+                "TRUNCATE users, learning_sessions, review_attempts, user_word_progress,"
+                " pace_dismissals CASCADE"
+            )
         )
     with get_sessionmaker()() as session:
         yield session

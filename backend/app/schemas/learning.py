@@ -22,10 +22,18 @@ class WordOut(BaseModel):
     illustration: str | None
 
 
+class CourseGoalOut(BaseModel):
+    """ "The N most frequent words cover about P% of running text" (sourced in the content)."""
+
+    target_words: int
+    coverage_percent: int
+
+
 class DeckOut(BaseModel):
     id: str
     title: str
     description: str
+    course_goal: CourseGoalOut | None
     word_count: int
     introduced_count: int
     due_count: int

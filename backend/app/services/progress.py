@@ -92,6 +92,21 @@ def session_points(db: Session, session_id: UUID) -> int:
     return int(total or 0)
 
 
+def recall_counts(db: Session, user: User, now: datetime) -> tuple[int, int]:
+    """(recalled, reviewed) in scheduled reviews over the last RECALL_RATE_DAYS."""
+    reviewed, recalled = db.execute(
+        select(func.count(), func.count().filter(ReviewAttempt.stage_after >= 2))
+        .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            LearningSession.kind == "review",
+            ReviewAttempt.stage_after.is_not(None),
+            ReviewAttempt.answered_at >= now - timedelta(days=RECALL_RATE_DAYS),
+        )
+    ).one()
+    return int(recalled), int(reviewed)
+
+
 def deck_progress(
     db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
 ) -> ProgressOut:
@@ -114,16 +129,7 @@ def deck_progress(
     by_day = _points_by_local_day(db, user, history_start, time_zone)
     week = [today - timedelta(days=n) for n in range(6, -1, -1)]
 
-    reviewed, recalled = db.execute(
-        select(func.count(), func.count().filter(ReviewAttempt.stage_after >= 2))
-        .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
-        .where(
-            ReviewAttempt.user_id == user.id,
-            LearningSession.kind == "review",
-            ReviewAttempt.stage_after.is_not(None),
-            ReviewAttempt.answered_at >= now - timedelta(days=RECALL_RATE_DAYS),
-        )
-    ).one()
+    recalled, reviewed = recall_counts(db, user, now)
     total = db.scalar(
         select(func.coalesce(func.sum(ReviewAttempt.points), 0)).where(
             ReviewAttempt.user_id == user.id

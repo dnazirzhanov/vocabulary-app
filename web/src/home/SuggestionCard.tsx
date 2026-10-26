@@ -1,0 +1,65 @@
+import type { PaceSuggestion } from '../lib/types.ts';
+import { wordsLabel } from '../lib/pace.ts';
+import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import styles from './SuggestionCard.module.css';
+
+interface SuggestionCardProps {
+  suggestion: PaceSuggestion;
+  target: number;
+  onAccept: (value: number) => Promise<void>;
+  onDismiss: () => Promise<void>;
+}
+
+function message(suggestion: PaceSuggestion): { title: string; body: string } {
+  const value = wordsLabel(suggestion.value);
+  if (suggestion.kind === 'raise') {
+    return {
+      title: 'Готовы к большему?',
+      body: `Вы выполняете цель почти каждый день и вспоминаете ${suggestion.recall_percent ?? 0}% слов на повторениях. Попробовать ${value} в день? Прежний темп можно вернуть в любой момент.`,
+    };
+  }
+  if (suggestion.reason === 'low_recall') {
+    return {
+      title: 'Чуть медленнее — и слова удержатся',
+      body: `На повторениях вы вспоминаете ${suggestion.recall_percent ?? 0}% слов. Обычно это значит, что новых слов многовато. Попробовать ${value} в день?`,
+    };
+  }
+  const achieved = Math.round(suggestion.achieved_per_day ?? suggestion.value);
+  return {
+    title: 'Подберём темп под вас?',
+    body: `Последние дни вы учили около ${wordsLabel(achieved)} в день — это хороший темп. С целью ${value} в день она будет выполняться, а не висеть над вами.`,
+  };
+}
+
+/** A pace suggestion from the server. Nothing changes until the learner accepts. */
+export function SuggestionCard({ suggestion, target, onAccept, onDismiss }: SuggestionCardProps) {
+  const { run, busy, error } = useAsyncAction();
+  const { title, body } = message(suggestion);
+  return (
+    <section className={styles.card} aria-labelledby="suggestion-title">
+      <h2 id="suggestion-title" className={styles.title}>
+        {title}
+      </h2>
+      <p className={styles.body}>{body}</p>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.accept}
+          disabled={busy}
+          onClick={() => run(() => onAccept(suggestion.value))}
+        >
+          {suggestion.kind === 'raise' ? `Да, ${suggestion.value} в день` : `Поставить ${suggestion.value}`}
+        </button>
+        <SecondaryButton type="button" className={styles.dismiss} disabled={busy} onClick={() => run(onDismiss)}>
+          {suggestion.kind === 'raise' ? 'Не сейчас' : `Оставить ${target}`}
+        </SecondaryButton>
+      </div>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}

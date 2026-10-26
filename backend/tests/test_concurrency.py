@@ -5,6 +5,7 @@ first read stale, instead of hoping real threads collide."""
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -62,7 +63,7 @@ def test_simultaneous_starts_open_one_session(
     monkeypatch.setattr(sessions, "_open_session", stale_once(sessions._open_session, None))
     user = db.scalars(select(User)).one()
     again = sessions.start_session(
-        db, user, StartNewSession(kind="new", deck_id="starter"), datetime.now(UTC)
+        db, user, StartNewSession(kind="new", deck_id="starter"), datetime.now(UTC), ZoneInfo("UTC")
     )
 
     assert str(again.id) == opened["id"]

@@ -42,6 +42,7 @@ def test_a_learner_completes_a_session_and_progress_persists(
         {
             "id": "starter",
             "title": "Первые слова",
+            "course_goal": {"target_words": 1300, "coverage_percent": 80},
             "description": decks[0]["description"],
             "word_count": 30,
             "introduced_count": 0,
