@@ -3,6 +3,7 @@ database constraint decides. These tests force that interleaving deterministical
 first read stale, instead of hoping real threads collide."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -43,6 +44,7 @@ def test_simultaneous_answers_to_one_exercise_count_once(
         user,
         session["id"],
         AttemptIn.model_validate({"exercise_id": intro["id"], "response": {"kind": "seen"}}),
+        datetime.now(UTC),
     )
 
     assert second.model_dump(mode="json") == first
@@ -59,7 +61,9 @@ def test_simultaneous_starts_open_one_session(
     # The second request did not see the first request's session yet.
     monkeypatch.setattr(sessions, "_open_session", stale_once(sessions._open_session, None))
     user = db.scalars(select(User)).one()
-    again = sessions.start_session(db, user, StartNewSession(kind="new", deck_id="starter"))
+    again = sessions.start_session(
+        db, user, StartNewSession(kind="new", deck_id="starter"), datetime.now(UTC)
+    )
 
     assert str(again.id) == opened["id"]
     assert db.scalar(select(func.count()).select_from(LearningSession)) == 1

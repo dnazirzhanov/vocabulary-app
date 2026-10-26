@@ -224,6 +224,11 @@
   text-align: center;
 }
 
+.recallHint {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
 .options {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -333,9 +338,14 @@
   }
 
   .options,
-  .answer {
+  .answer,
+  .recallHint {
     grid-area: options;
     align-self: start;
+  }
+
+  .recallHint {
+    text-align: left;
   }
 
   .options {

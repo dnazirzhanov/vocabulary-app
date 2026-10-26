@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { plural } from '../i18n/plural.ts';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
+import { relativeDay } from '../lib/relativeDay.ts';
 import type { Summary, Word } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CheckIcon, RepeatIcon } from '../ui/icons.tsx';
@@ -16,32 +17,53 @@ interface SessionSummaryProps {
   onHome: () => void;
 }
 
-// Copy describes what happened (met, practised) and never claims a word is learned.
-// A no-break space keeps each number on the same line as its noun.
-function describe(summary: Summary, perfect: boolean) {
+type Entry = { word: Word; mistakes: number; next_review_at: string };
+
+// Copy describes what happened (met, practised, recalled after a delay) and never claims a word
+// is learned. A no-break space keeps each number on the same line as its noun.
+function describe(summary: Summary, missed: Entry[]) {
   const total = summary.words.length;
+  const perfect = missed.length === 0;
+  const words = (n: number) => `${n}\u00a0${plural(n, { one: 'слово', few: 'слова', many: 'слов' })}`;
   if (summary.kind === 'new') {
     const met = `Вы познакомились с ${total}\u00a0${plural(total, { one: 'новым словом', few: 'новыми словами', many: 'новыми словами' })}`;
+    const first = summary.words[0] ? ` Первое повторение — ${relativeDay(summary.words[0].next_review_at)}.` : '';
     return {
       title: perfect ? 'Без единой ошибки!' : 'Урок пройден!',
-      lead: perfect ? `${met} — и ни разу не ошиблись.` : `${met}.`,
+      lead: (perfect ? `${met} — и ни разу не ошиблись.` : `${met}.`) + first,
     };
   }
-  const practised = `Вы повторили ${total}\u00a0${plural(total, { one: 'слово', few: 'слова', many: 'слов' })}`;
+  if (summary.kind === 'review') {
+    const recalled = total - missed.length;
+    return {
+      title: perfect ? 'Отличная память!' : 'Повторение пройдено',
+      lead: perfect
+        ? `Вы вспомнили все ${words(total)} спустя время.`
+        : `Вы вспомнили ${recalled} из ${words(total)} спустя время. Остальные вернутся завтра.`,
+    };
+  }
   return {
     title: perfect ? 'Ошибки исправлены!' : 'Повторение пройдено',
-    lead: perfect ? `${practised} без единой ошибки.` : `${practised}.`,
+    lead: perfect ? `Вы повторили ${words(total)} без единой ошибки.` : `Вы повторили ${words(total)}.`,
   };
 }
 
-function WordGroup({ title, words, status }: { title: string; words: Word[]; status: 'missed' | 'clean' }) {
+interface WordGroupProps {
+  title: string;
+  entries: Entry[];
+  status: 'missed' | 'clean';
+  /** Reviews show when each word comes back; after new words it is always tomorrow. */
+  showNextReview: boolean;
+}
+
+function WordGroup({ title, entries, status, showNextReview }: WordGroupProps) {
   return (
     <section className={styles.group}>
       <h2 className={styles.groupTitle}>
-        {title} <span className={styles.groupCount}>{words.length}</span>
+        {title} <span className={styles.groupCount}>{entries.length}</span>
       </h2>
       <ul className={styles.words}>
-        {words.map((word) => (
+        {entries.map(({ word, next_review_at }) => (
           <li key={word.id} className={styles.wordRow}>
             <span className={styles.thumb} data-art={isIllustrationId(word.illustration) || undefined}>
               {isIllustrationId(word.illustration) ? (
@@ -58,6 +80,12 @@ function WordGroup({ title, words, status }: { title: string; words: Word[]; sta
               </span>
               <span className={styles.translation}>{word.translation}</span>
             </span>
+            {showNextReview && (
+              <span className={styles.nextReview}>
+                <span className="visually-hidden">Следующее повторение </span>
+                {relativeDay(next_review_at)}
+              </span>
+            )}
             <span className={styles.status} data-status={status} aria-hidden="true">
               {status === 'missed' ? <RepeatIcon /> : <CheckIcon />}
             </span>
@@ -69,10 +97,11 @@ function WordGroup({ title, words, status }: { title: string; words: Word[]; sta
 }
 
 export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionSummaryProps) {
-  const missed = summary.words.filter((entry) => entry.mistakes > 0).map((entry) => entry.word);
-  const clean = summary.words.filter((entry) => entry.mistakes === 0).map((entry) => entry.word);
+  const missed = summary.words.filter((entry) => entry.mistakes > 0);
+  const clean = summary.words.filter((entry) => entry.mistakes === 0);
   const perfect = missed.length === 0;
-  const { title, lead } = describe(summary, perfect);
+  const review = summary.kind === 'review';
+  const { title, lead } = describe(summary, missed);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -95,8 +124,17 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
           </div>
 
           <div className={styles.recap}>
-            {missed.length > 0 && <WordGroup title="Стоит повторить" words={missed} status="missed" />}
-            {clean.length > 0 && <WordGroup title="Без ошибок" words={clean} status="clean" />}
+            {missed.length > 0 && (
+              <WordGroup title="Стоит повторить" entries={missed} status="missed" showNextReview={review} />
+            )}
+            {clean.length > 0 && (
+              <WordGroup
+                title={review ? 'Вспомнили' : 'Без ошибок'}
+                entries={clean}
+                status="clean"
+                showNextReview={review}
+              />
+            )}
           </div>
         </div>
       </main>
@@ -118,7 +156,7 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
             aria-busy={busy}
             onClick={() => run(perfect ? onNext : onPractice)}
           >
-            {busy ? 'Загружаем…' : perfect ? 'Следующие слова' : 'Повторить ошибки'}
+            {busy ? 'Загружаем…' : perfect ? 'Продолжить' : 'Повторить ошибки'}
           </PrimaryButton>
         </div>
       </footer>

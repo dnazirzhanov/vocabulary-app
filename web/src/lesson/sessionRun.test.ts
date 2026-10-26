@@ -122,3 +122,31 @@ test('resuming starts after the last answered exercise', () => {
   assert.equal(startRun(session([result('1', null)])).index, 1);
   assert.equal(startRun(session([result('1', null), result('2', true), result('3', true)])).phase, 'finishing');
 });
+
+test('a recall exercise reveals its options before anything can be chosen or sent', () => {
+  const recall: Exercise = {
+    id: '1',
+    type: 'recall_meaning',
+    word: { headword: 'house', pos: 'noun', example: 'A small house.' },
+    options: [
+      { id: 'house', label: 'дом' },
+      { id: 'door', label: 'дверь' },
+    ],
+  };
+  const reviewExercises = [recall];
+  const review: Session = { ...session(), kind: 'review', exercises: reviewExercises };
+  const go = (start: RunState, ...actions: RunAction[]) =>
+    actions.reduce((state, action) => reduceRun(state, action, reviewExercises), start);
+
+  const hidden = go(startRun(review), { type: 'choose', optionId: 'house' });
+  assert.equal(hidden.choice, null, 'options cannot be picked while hidden');
+  assert.equal(responseFor(recall, hidden), null);
+
+  const revealed = go(hidden, { type: 'submit' });
+  assert.equal(revealed.phase, 'answering', 'revealing sends nothing');
+  assert.equal(revealed.revealed, true);
+
+  const checking = go(revealed, { type: 'choose', optionId: 'house' }, { type: 'submit' });
+  assert.equal(checking.phase, 'checking');
+  assert.deepEqual(responseFor(recall, checking), { kind: 'choice', option_id: 'house' });
+});

@@ -31,7 +31,7 @@ Numbers are a baseline to learn from, not targets.
 - **Recognised** — chose the correct meaning among options. Weak evidence; never shown as "learned".
 - **Recalled** — produced the word or meaning without options (typed, or recall-before-reveal).
 - **Recalled after a delay** — recalled at least 24 hours after the previous exposure. The strongest evidence we measure.
-- **Currently well learned** — provisional: recalled after a delay on the last two scheduled reviews, with the latest interval ≥ 7 days. Never "mastered".
+- **Currently well learned** — provisional: recalled in three scheduled reviews in a row, the latest after an interval of at least 7 days (scheduler stage ≥ 4, ADR 0006). Never "mastered".
 
 ## Scope
 
@@ -42,14 +42,14 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 - **Interface language:** Russian copy, English learning content. Copy is kept in components for now; extraction into a message file happens only when a second interface language is actually needed.
 - **Platform:** mobile-first web app; PWA install later.
 
-## Current state vs P0 (after the Phase 2 slice)
+## Current state vs P0 (after Phase 3a: reviews)
 
 | P0 area | Today | Gap |
 |---|---|---|
 | A. Accounts and persistence | Server-side persistence with an auth seam (development user) | Auth provider and sign-up (Phase 4) |
 | B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import | Russian review; grow to 100–200 words |
-| C. Learning session | Introduce → choose meaning → type the word; server-checked; resumable; summary; practise mistakes | Reviews of earlier words and recall-before-reveal (Phase 3) |
-| D. Spaced repetition | None | Scheduler and due reviews (Phase 3) |
+| C. Learning session | New words: introduce → choose → type. Reviews: recall → type. Server-checked, resumable, summaries distinguish meeting a word from recalling it later | — |
+| D. Spaced repetition | Leitner scheduler (1/3/7/16/35 days); review sessions with recall-before-reveal; due words first | Validate intervals with pilot data |
 | E. Progress | Words met per deck, persisted server-side | Due reviews, activity, correct-answer rate (Phase 3) |
 | F. Gamification | Progress bar, completion badge | Points and daily goal (Phase 3) |
 | G. Responsive interface | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px | Real-device checks (iOS Safari, on-screen keyboard) |

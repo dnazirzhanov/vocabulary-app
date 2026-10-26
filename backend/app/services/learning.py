@@ -12,9 +12,11 @@ from typing import Literal
 
 from app.services.content import headword_pattern
 
-ExerciseType = Literal["introduce", "choose_meaning", "type_word"]
+ExerciseType = Literal["introduce", "choose_meaning", "recall_meaning", "type_word"]
+CHOICE_TYPES = ("choose_meaning", "recall_meaning")
 
 NEW_WORDS_PER_SESSION = 5
+REVIEW_WORDS_PER_SESSION = 8
 OPTIONS_PER_QUESTION = 4
 BLANK = "____"
 
@@ -35,7 +37,7 @@ class PlannedExercise:
     id: str
     type: ExerciseType
     word_id: str
-    # choose_meaning only: word ids in display order, including the answer.
+    # choose_meaning / recall_meaning only: word ids in display order, including the answer.
     options: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, object]:
@@ -113,6 +115,23 @@ def plan_practice_session(
     ]
     steps += [("type_word", word.id, ()) for word in words]
     return _number(steps)
+
+
+def plan_review_session(
+    words: Sequence[WordFacts], pool: Sequence[WordFacts], seed: str
+) -> list[PlannedExercise]:
+    """Due words: recall the meaning before options appear, then produce the word. A word counts
+    as recalled only if both are right."""
+    rng = _seeded(seed)
+    steps: list[tuple[ExerciseType, str, tuple[str, ...]]] = [
+        ("recall_meaning", word.id, tuple(pick_options(word, pool, rng))) for word in words
+    ]
+    steps += [("type_word", word.id, ()) for word in words]
+    return _number(steps)
+
+
+def is_last_step_for_word(plan: Sequence[PlannedExercise], step: PlannedExercise) -> bool:
+    return all(other.word_id != step.word_id for other in plan[plan.index(step) + 1 :])
 
 
 _APOSTROPHES = str.maketrans({"’": "'", "‘": "'", "`": "'"})

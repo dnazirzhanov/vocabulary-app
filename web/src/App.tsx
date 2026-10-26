@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
-import { api, ApiError } from './lib/api.ts';
+import { api } from './lib/api.ts';
 import type { Session, Summary } from './lib/types.ts';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 
@@ -24,13 +24,11 @@ export function App() {
         summary={summary}
         onPractice={async () => showSession(await api.startPracticeSession(summary.session_id))}
         onNext={async () => {
-          try {
-            showSession(await api.startNewSession(summary.deck_id));
-          } catch (error) {
-            // Every word in the deck has been met: home explains that.
-            if (error instanceof ApiError && error.code === 'deck_complete') goHome();
-            else throw error;
-          }
+          // Same priority as home: due reviews first, then new words, otherwise home explains.
+          const deck = (await api.listDecks()).find((candidate) => candidate.id === summary.deck_id);
+          if (deck && deck.due_count > 0) showSession(await api.startReviewSession(deck.id));
+          else if (deck && deck.introduced_count < deck.word_count) showSession(await api.startNewSession(deck.id));
+          else goHome();
         }}
         onHome={goHome}
       />

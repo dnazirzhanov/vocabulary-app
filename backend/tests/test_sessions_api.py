@@ -55,6 +55,8 @@ def test_a_learner_completes_a_session_and_progress_persists(
             "description": decks[0]["description"],
             "word_count": 30,
             "introduced_count": 0,
+            "due_count": 0,
+            "next_due_at": None,
         }
     ]
 
@@ -227,7 +229,9 @@ def test_a_finished_deck_offers_no_new_session(client: TestClient, db: Session) 
     now = datetime.now(UTC)
     for word_id in db.scalars(select(DeckWord.word_id).where(DeckWord.deck_id == "starter")):
         db.add(
-            UserWordProgress(user_id=user.id, word_id=word_id, introduced_at=now, last_seen_at=now)
+            UserWordProgress(
+                user_id=user.id, word_id=word_id, introduced_at=now, last_seen_at=now, due_at=now
+            )
         )
     db.commit()
 

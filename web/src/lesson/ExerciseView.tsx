@@ -1,13 +1,7 @@
 import type { ReactNode, Ref } from 'react';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
-import type {
-  AttemptResult,
-  ChooseMeaningExercise,
-  Exercise,
-  IntroduceExercise,
-  TypeWordExercise,
-} from '../lib/types.ts';
+import type { AttemptResult, ChoiceExercise, Exercise, IntroduceExercise, TypeWordExercise } from '../lib/types.ts';
 import { SpeakerIcon } from '../ui/icons.tsx';
 import { AnswerOption, type AnswerOptionState } from './AnswerOption.tsx';
 import type { RunState } from './sessionRun.ts';
@@ -113,15 +107,19 @@ function IntroduceView({ exercise, headingRef }: { exercise: IntroduceExercise; 
 }
 
 interface ChooseViewProps {
-  exercise: ChooseMeaningExercise;
+  exercise: ChoiceExercise;
   state: RunState;
   result: AttemptResult | undefined;
   onChoose: (optionId: string) => void;
   headingRef: Ref<HTMLHeadingElement>;
+  optionsRef: Ref<HTMLFieldSetElement>;
 }
 
-function ChooseView({ exercise, state, result, onChoose, headingRef }: ChooseViewProps) {
+/** Choose the meaning; in a review (recall_meaning) the options appear only after the learner
+ *  has tried to recall the meaning unaided. */
+function ChooseView({ exercise, state, result, onChoose, headingRef, optionsRef }: ChooseViewProps) {
   const locked = state.phase !== 'answering';
+  const hidden = exercise.type === 'recall_meaning' && !state.revealed;
   const optionState = (optionId: string): AnswerOptionState => {
     if (!result) return optionId === state.choice ? 'selected' : 'idle';
     if (optionId === result.correct_option_id) return 'correct';
@@ -130,7 +128,7 @@ function ChooseView({ exercise, state, result, onChoose, headingRef }: ChooseVie
   return (
     <>
       <div className={styles.prompt}>
-        <p className={styles.instruction}>Выберите перевод</p>
+        <p className={styles.instruction}>{hidden ? 'Вспомните перевод' : 'Выберите перевод'}</p>
         <WordHeading headword={exercise.word.headword} headingRef={headingRef} />
       </div>
       {/* The picture would let learners match image to meaning without reading the word,
@@ -142,20 +140,24 @@ function ChooseView({ exercise, state, result, onChoose, headingRef }: ChooseVie
           </p>
         </div>
       </Stage>
-      <fieldset className={styles.options} disabled={locked}>
-        <legend className="visually-hidden">Варианты ответа</legend>
-        {exercise.options.map((option, index) => (
-          <AnswerOption
-            key={option.id}
-            name={`answer-${exercise.id}`}
-            index={index}
-            label={option.label}
-            state={optionState(option.id)}
-            checked={option.id === state.choice}
-            onSelect={() => onChoose(option.id)}
-          />
-        ))}
-      </fieldset>
+      {hidden ? (
+        <p className={styles.recallHint}>Назовите перевод про себя, а потом откройте варианты и проверьте себя.</p>
+      ) : (
+        <fieldset ref={optionsRef} className={styles.options} disabled={locked}>
+          <legend className="visually-hidden">Варианты ответа</legend>
+          {exercise.options.map((option, index) => (
+            <AnswerOption
+              key={option.id}
+              name={`answer-${exercise.id}`}
+              index={index}
+              label={option.label}
+              state={optionState(option.id)}
+              checked={option.id === state.choice}
+              onSelect={() => onChoose(option.id)}
+            />
+          ))}
+        </fieldset>
+      )}
     </>
   );
 }
@@ -230,15 +232,33 @@ interface ExerciseViewProps {
   onInput: (text: string) => void;
   headingRef: Ref<HTMLHeadingElement>;
   inputRef: Ref<HTMLInputElement>;
+  optionsRef: Ref<HTMLFieldSetElement>;
 }
 
-export function ExerciseView({ exercise, state, result, onChoose, onInput, headingRef, inputRef }: ExerciseViewProps) {
+export function ExerciseView({
+  exercise,
+  state,
+  result,
+  onChoose,
+  onInput,
+  headingRef,
+  inputRef,
+  optionsRef,
+}: ExerciseViewProps) {
   switch (exercise.type) {
     case 'introduce':
       return <IntroduceView exercise={exercise} headingRef={headingRef} />;
     case 'choose_meaning':
+    case 'recall_meaning':
       return (
-        <ChooseView exercise={exercise} state={state} result={result} onChoose={onChoose} headingRef={headingRef} />
+        <ChooseView
+          exercise={exercise}
+          state={state}
+          result={result}
+          onChoose={onChoose}
+          headingRef={headingRef}
+          optionsRef={optionsRef}
+        />
       );
     case 'type_word':
       return <TypeView exercise={exercise} state={state} result={result} onInput={onInput} inputRef={inputRef} />;

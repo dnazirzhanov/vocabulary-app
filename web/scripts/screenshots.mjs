@@ -13,9 +13,9 @@ const wordsFile = fileURLToPath(new URL('../../content/starter-deck/words.yaml',
 
 const viewports = [
   { name: '320-small-mobile', width: 320, height: 568, mobile: true },
-  { name: '390-mobile', width: 390, height: 844, mobile: true, picture: true },
+  { name: '390-mobile', width: 390, height: 844, mobile: true, picture: true, review: true },
   { name: '768-tablet', width: 768, height: 1024, mobile: true },
-  { name: '1280-desktop', width: 1280, height: 800, picture: true },
+  { name: '1280-desktop', width: 1280, height: 800, picture: true, review: true },
   { name: '1440-desktop', width: 1440, height: 900 },
 ];
 
@@ -33,7 +33,7 @@ async function loadAnswers() {
 
 function correctResponse(exercise, answers) {
   if (exercise.type === 'introduce') return { kind: 'seen' };
-  if (exercise.type === 'choose_meaning') {
+  if (exercise.type === 'choose_meaning' || exercise.type === 'recall_meaning') {
     const right = answers.translationOf[exercise.word.headword];
     return { kind: 'choice', option_id: exercise.options.find((o) => o.label === right).id };
   }
@@ -41,16 +41,17 @@ function correctResponse(exercise, answers) {
 }
 
 // Plays whole lessons through the API (same user as the page) to reach later words quickly.
-async function fastForward(request, lessons, answers) {
+async function fastForward(request, lessons, answers, headers) {
   for (let n = 0; n < lessons; n += 1) {
-    const response = await request.post('/api/sessions', { data: { kind: 'new', deck_id: 'starter' } });
+    const response = await request.post('/api/sessions', { data: { kind: 'new', deck_id: 'starter' }, headers });
     const session = await response.json();
     for (const exercise of session.exercises) {
       await request.post(`/api/sessions/${session.id}/attempts`, {
         data: { exercise_id: exercise.id, response: correctResponse(exercise, answers) },
+        headers,
       });
     }
-    await request.post(`/api/sessions/${session.id}/complete`);
+    await request.post(`/api/sessions/${session.id}/complete`, { headers });
   }
 }
 
@@ -88,8 +89,14 @@ try {
       deviceScaleFactor: viewport.mobile ? 2 : 1,
       isMobile: viewport.mobile ?? false,
       hasTouch: viewport.mobile ?? false,
-      extraHTTPHeaders: { 'X-Dev-User': `shots-${viewport.width}-${Date.now()}` },
     });
+    let headers = { 'X-Dev-User': `shots-${viewport.width}-${Date.now()}` };
+    await context.setExtraHTTPHeaders(headers);
+    // Moves the server clock (development only) so the next day's reviews can be captured.
+    const travelTo = async (moment) => {
+      headers = { ...headers, 'X-Dev-Now': moment.toISOString() };
+      await context.setExtraHTTPHeaders(headers);
+    };
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -113,7 +120,8 @@ try {
         await page.waitForFunction((element) => !element.isConnected, card);
         return type;
       }
-      if (type === 'choose_meaning') {
+      if (type === 'recall_meaning') await button('Показать варианты').click();
+      if (type === 'choose_meaning' || type === 'recall_meaning') {
         const right = answers.translationOf[await heading().textContent()];
         const options = page.getByRole('radio');
         const labels = await options.evaluateAll((els) => els.map((el) => el.closest('label').textContent));
@@ -161,14 +169,37 @@ try {
         .waitFor();
       await shot('08-summary');
       await button('На главную').click();
-      await button('Следующие слова').waitFor();
+      await button('Новые слова').waitFor();
       await shot('09-home-progress');
+
+      if (viewport.review) {
+        // The next day: the five words met above are due.
+        await travelTo(new Date(Date.now() + 86_400_000 + 60_000));
+        await page.reload();
+        await page.getByText('Пора повторить').waitFor();
+        await shot('11-home-review');
+        await page.getByRole('button', { name: /Повторить слова/ }).click();
+        await page.getByText('Вспомните перевод').waitFor();
+        await shot('12-recall');
+        await button('Показать варианты').click();
+        await shot('13-recall-revealed');
+        await page.getByRole('radio').first().click();
+        await button('Проверить').click();
+        await button('Продолжить').click();
+        for (let i = 0; i < 9; i += 1) await step();
+        await heading()
+          .filter({ hasText: /Повторение пройдено|Отличная память/ })
+          .waitFor();
+        await shot('14-summary-review');
+        await button('На главную').click();
+        await button('Новые слова').waitFor();
+      }
 
       if (viewport.picture) {
         // Words 6–20 via the API; the next lesson's third new word ("key") has a picture.
-        await fastForward(context.request, 3, answers);
+        await fastForward(context.request, 3, answers, headers);
         await page.reload();
-        await button('Следующие слова').click();
+        await button('Новые слова').click();
         while (!(await heading().filter({ hasText: /^key$/ }).isVisible())) await step();
         await shot('10-introduce-picture');
       }

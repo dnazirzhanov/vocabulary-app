@@ -50,6 +50,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const optionsRef = useRef<HTMLFieldSetElement>(null);
   const inflight = useRef<string | null>(null);
 
   // Server round trips follow the phase. The ref keeps one request per step even when an
@@ -91,6 +92,10 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   useEffect(() => {
     if (state.phase === 'feedback' || state.phase === 'error') buttonRef.current?.focus();
   }, [state.phase]);
+  // Revealed recall options take focus, so the keyboard can go straight to choosing.
+  useEffect(() => {
+    if (state.revealed) optionsRef.current?.querySelector('input')?.focus();
+  }, [state.revealed]);
 
   // Keyboard: 1–4 pick an option; Enter checks or continues when focus is not on a control.
   useEffect(() => {
@@ -98,7 +103,8 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as Element;
       const position = Number(event.key);
-      if (exercise.type === 'choose_meaning' && Number.isInteger(position) && position >= 1) {
+      const choosing = exercise.type === 'choose_meaning' || exercise.type === 'recall_meaning';
+      if (choosing && Number.isInteger(position) && position >= 1) {
         const option = exercise.options[position - 1];
         if (option) dispatch({ type: 'choose', optionId: option.id });
       } else if (event.key === 'Enter' && !target.closest('button, input, a, select, textarea')) {
@@ -128,12 +134,13 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       onContinue: () => dispatch({ type: 'continue' }),
     };
   } else {
+    const revealing = exercise.type === 'recall_meaning' && !state.revealed;
     bar = {
       kind: 'submit',
-      label: exercise.type === 'introduce' ? 'Дальше' : 'Проверить',
+      label: exercise.type === 'introduce' ? 'Дальше' : revealing ? 'Показать варианты' : 'Проверить',
       // Nothing is being checked on an introduction; the label simply holds while it saves.
       busyLabel: exercise.type === 'introduce' ? 'Дальше' : 'Проверяем…',
-      disabled: !responseFor(exercise, state),
+      disabled: !revealing && !responseFor(exercise, state),
       busy: state.phase === 'checking' || state.phase === 'finishing',
     };
   }
@@ -160,6 +167,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               onInput={(text) => dispatch({ type: 'input', text })}
               headingRef={headingRef}
               inputRef={inputRef}
+              optionsRef={optionsRef}
             />
           </div>
         </main>
