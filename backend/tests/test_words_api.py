@@ -48,3 +48,9 @@ def test_another_learner_sees_only_their_own_status(client: TestClient, play: Pl
 
 def test_unknown_deck_is_404(client: TestClient) -> None:
     assert client.get("/api/decks/nope/words").status_code == 404
+
+
+def test_the_glossary_explains_every_example_word(client: TestClient) -> None:
+    glossary = client.get("/api/glossary").json()
+    assert glossary["lives"] == {"ru": "живёт", "lemma": "live", "note": None}
+    assert glossary["don't"]["note"] == "= do not"

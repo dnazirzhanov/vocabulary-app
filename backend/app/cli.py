@@ -7,7 +7,14 @@ from pathlib import Path
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.services.content import ContentError, import_deck, parse_deck
+from app.services.content import (
+    ContentError,
+    import_deck,
+    import_glossary,
+    missing_glossary_forms,
+    parse_deck,
+    parse_glossary,
+)
 from app.services.demo import seed_classmates
 
 
@@ -38,6 +45,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         content = parse_deck(args.directory)
+        # The glossary sits next to the deck directories and must cover every example word.
+        glossary = parse_glossary(args.directory.parent / "glossary.yaml")
+        missing = missing_glossary_forms(content, glossary)
+        if missing:
+            raise ContentError(missing)
     except ContentError as exc:
         print(f"{args.directory}: {len(exc.problems)} problem(s)", file=sys.stderr)
         for problem in exc.problems:
@@ -52,8 +64,10 @@ def main(argv: list[str] | None = None) -> int:
 
     with get_sessionmaker()() as db:
         stats = import_deck(db, content)
+        forms = import_glossary(db, glossary)
     print(
-        f"Imported deck {content.deck.id!r}: {stats.words} words, {stats.deck_words} in deck order"
+        f"Imported deck {content.deck.id!r}: {stats.words} words, {stats.deck_words} in deck order;"
+        f" glossary: {forms} word forms"
     )
     return 0
 

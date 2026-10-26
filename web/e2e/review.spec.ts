@@ -13,8 +13,8 @@ test('cards come back when they are due and are studied first', async ({ page, l
   await expect(page.getByText('Пора повторить 5 слов')).toBeVisible();
   await page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ }).click();
 
-  // Reviews first: the front asks to recall, there is no "new word" label.
-  await expect(page.getByText('Вспомните перевод')).toBeVisible();
+  // Reviews first: the first card is one of the five words met ten days ago.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
   await finishSession(page, { house: 'Снова' });
   await expect(page.getByText(/повторили — 5\sслов/)).toBeVisible();
   await expect(page.getByRole('heading', { name: /Трудные сейчас/ })).toBeVisible();

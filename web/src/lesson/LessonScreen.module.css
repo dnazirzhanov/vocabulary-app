@@ -100,13 +100,6 @@
   justify-content: center;
 }
 
-.cardLabel {
-  margin-bottom: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
 .wordRow {
   display: flex;
   align-items: center;
@@ -123,11 +116,6 @@
 
 .word:focus {
   outline: none;
-}
-
-.pos {
-  margin-top: var(--space-1);
-  color: var(--color-text-muted);
 }
 
 .listen {
@@ -187,14 +175,54 @@
   font-weight: var(--weight-strong);
 }
 
-.exampleEn .listen {
+.listenSmall {
   width: 36px;
   height: 36px;
 }
 
-.exampleEn .listen svg {
+.listenSmall svg {
   width: 18px;
   height: 18px;
+}
+
+/* Every word of the example is a button; it looks like text until hovered or focused. */
+.token {
+  padding: 0 1px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted var(--color-option-edge-hover);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.token:hover {
+  background: var(--color-primary-tint);
+}
+
+.tapHint {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.autoplay {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-strong);
+  cursor: pointer;
+}
+
+.autoplay[aria-pressed='false'] {
+  color: var(--color-text-muted);
 }
 
 .exampleRu {
@@ -202,11 +230,10 @@
   color: var(--color-text-muted);
 }
 
-.highlight {
+.token.highlight {
   padding: 0 2px;
-  border-radius: 4px;
   background: var(--color-highlight);
-  color: inherit;
+  text-decoration: none;
 }
 
 /* The action bar */

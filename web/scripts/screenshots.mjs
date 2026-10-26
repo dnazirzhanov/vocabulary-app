@@ -149,7 +149,7 @@ try {
         await page.getByText('Пора повторить').waitFor();
         await shot('07-home-review');
         await page.getByRole('button', { name: /^Учить/ }).click();
-        await page.getByText('Вспомните перевод').waitFor();
+        await button('Показать ответ').waitFor();
         await shot('08-review-front');
         await finish();
         await shot('09-summary-review');

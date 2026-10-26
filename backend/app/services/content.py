@@ -18,7 +18,7 @@ from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, Word
+from app.models import Deck, DeckWord, GlossaryForm, Word
 
 # Must match the registry in web/src/illustrations/index.tsx.
 ILLUSTRATIONS = ("umbrella", "kettle", "lighthouse", "backpack", "key")
@@ -73,6 +73,25 @@ class DeckEntry(BaseModel):
     review_status: Literal["draft", "reviewed"]
     course_goal: CourseGoal | None = None
     words: list[Slug] = Field(min_length=4)
+
+
+class GlossaryEntry(BaseModel):
+    """The meaning of one word form used in example sentences (content/glossary.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ru: Annotated[Text, StringConstraints(max_length=200)]
+    lemma: Annotated[Text, StringConstraints(max_length=64)] | None = None
+    note: Annotated[Text, StringConstraints(max_length=120)] | None = None
+
+
+# A word in an example sentence: letters (with accents, as in café) and an optional apostrophe part
+# (don't, it's). Must match web/src/lib/tokens.ts.
+TOKEN = re.compile(r"[A-Za-zÀ-ÿ]+(?:'[A-Za-zÀ-ÿ]+)?")
+
+
+def example_tokens(text: str) -> list[str]:
+    return [match.group(0).lower() for match in TOKEN.finditer(text)]
 
 
 class ContentError(Exception):
@@ -181,3 +200,48 @@ def import_deck(db: Session, content: DeckContent) -> ImportStats:
     )
     db.commit()
     return ImportStats(words=len(content.words), deck_words=len(content.deck.words))
+
+
+def parse_glossary(path: Path) -> dict[str, GlossaryEntry]:
+    """Parse and validate the glossary. Raises ContentError listing every problem."""
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ContentError([f"cannot read glossary: {exc}"]) from exc
+    if not isinstance(raw, dict):
+        raise ContentError(["glossary.yaml: must map word forms to entries"])
+    entries: dict[str, GlossaryEntry] = {}
+    problems: list[str] = []
+    for form, value in raw.items():
+        key = str(form)
+        if key != key.lower() or not TOKEN.fullmatch(key):
+            problems.append(f"glossary.yaml: {key!r} must be one lowercase word form")
+            continue
+        try:
+            entries[key] = GlossaryEntry.model_validate(value)
+        except ValidationError as exc:
+            problems += _describe(exc, f"glossary.yaml [{key}]")
+    if problems:
+        raise ContentError(problems)
+    return entries
+
+
+def missing_glossary_forms(content: DeckContent, glossary: dict[str, GlossaryEntry]) -> list[str]:
+    """Problems for every example word with no glossary entry: each word must be tappable."""
+    problems = []
+    for word in content.words:
+        for token in dict.fromkeys(example_tokens(word.example)):
+            if token not in glossary:
+                problems.append(f"glossary.yaml: no entry for {token!r} (example of {word.id!r})")
+    return problems
+
+
+def import_glossary(db: Session, glossary: dict[str, GlossaryEntry]) -> int:
+    """Replace the glossary table with the file's entries. One transaction; safe to re-run."""
+    db.execute(delete(GlossaryForm))
+    db.add_all(
+        GlossaryForm(form=form, ru=entry.ru, lemma=entry.lemma, note=entry.note)
+        for form, entry in glossary.items()
+    )
+    db.commit()
+    return len(glossary)

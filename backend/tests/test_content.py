@@ -3,7 +3,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from app.services.content import ContentError, DeckContent, parse_deck
+from app.services.content import (
+    ContentError,
+    DeckContent,
+    example_tokens,
+    missing_glossary_forms,
+    parse_deck,
+    parse_glossary,
+)
 
 DECK = {
     "id": "tiny",
@@ -86,3 +93,33 @@ def test_a_course_goal_needs_a_source(tmp_path: Path) -> None:
     sourced = goal | {"source": "NGSL"}
     content = parse_deck(write_deck(tmp_path, DECK | {"course_goal": sourced}, words))
     assert content.deck.course_goal is not None
+
+
+GLOSSARY = Path(__file__).resolve().parents[2] / "content" / "glossary.yaml"
+
+
+def test_every_example_word_of_the_starter_deck_can_be_tapped(starter_content: DeckContent) -> None:
+    assert missing_glossary_forms(starter_content, parse_glossary(GLOSSARY)) == []
+
+
+def test_example_words_keep_contractions_and_accents() -> None:
+    assert example_tokens("Don't forget the café, it's here!") == [
+        "don't",
+        "forget",
+        "the",
+        "café",
+        "it's",
+        "here",
+    ]
+
+
+def test_a_missing_or_malformed_glossary_entry_is_reported(tmp_path: Path) -> None:
+    # YAML reads a bare `on:` as true; the validator refuses any key that is not a word form.
+    (tmp_path / "glossary.yaml").write_text(
+        "Bad Key: {ru: x}\nok: {nope: 1}\non: {ru: на}\n", "utf-8"
+    )
+    with pytest.raises(ContentError) as raised:
+        parse_glossary(tmp_path / "glossary.yaml")
+    assert len(raised.value.problems) == 4  # bad key, missing ru, unknown field, unquoted `on`
+    content = parse_deck(write_deck(tmp_path, DECK, [word(i) for i in "abcd"]))
+    assert "no entry for 'this'" in missing_glossary_forms(content, {})[0]

@@ -1,0 +1,116 @@
+# Every word form that appears in an example sentence, so each one can be tapped for its meaning.
+# Draft: to be reviewed by a fluent Russian speaker together with the decks.
+#
+#   form (lowercase, as written in the example):
+#     ru      the Russian meaning in this kind of sentence
+#     lemma   the dictionary form, when the form differs (lives → live)
+#     note    optional: a short grammar hint shown under the meaning
+#
+# The content validator fails if any word of any example is missing here.
+
+a: {ru: "неопределённый артикль: «один», «какой-то»", note: "перед согласным звуком"}
+after: {ru: "после"}
+are: {ru: "есть, являешься (форма be)", lemma: be}
+ask: {ru: "спросить, задать (вопрос)"}
+at: {ru: "в, на (место)"}
+bank: {ru: "банк"}
+best: {ru: "лучший", lemma: good, note: "превосходная степень от good"}
+big: {ru: "большой"}
+biggest: {ru: "самый большой", lemma: big}
+bishkek: {ru: "Бишкек"}
+book: {ru: "книга"}
+books: {ru: "книги", lemma: book}
+bread: {ru: "хлеб"}
+busy: {ru: "занятый"}
+buy: {ru: "покупать, купить"}
+café: {ru: "кафе"}
+can: {ru: "мочь, уметь"}
+"can't": {ru: "не может, не могу", lemma: can, note: "= cannot"}
+car: {ru: "машина, автомобиль"}
+cheap: {ru: "дешёвый"}
+city: {ru: "город"}
+close: {ru: "закрывать, закрыть"}
+delicious: {ru: "очень вкусный"}
+"don't": {ru: "не (отрицание)", lemma: do, note: "= do not"}
+door: {ru: "дверь"}
+drink: {ru: "пить"}
+eat: {ru: "есть, кушать"}
+empty: {ru: "пустой"}
+enough: {ru: "достаточно"}
+every: {ru: "каждый"}
+expensive: {ru: "дорогой"}
+family: {ru: "семья"}
+find: {ru: "находить, найти"}
+food: {ru: "еда"}
+for: {ru: "для, на, за"}
+forget: {ru: "забывать, забыть"}
+fridge: {ru: "холодильник"}
+friend: {ru: "друг, подруга"}
+glass: {ru: "стакан"}
+has: {ru: "имеет, есть (у него/неё)", lemma: have}
+have: {ru: "иметь, есть (у меня)"}
+help: {ru: "помогать, помочь"}
+here: {ru: "здесь, тут"}
+his: {ru: "его"}
+homework: {ru: "домашнее задание"}
+hot: {ru: "жаркий, горячий"}
+house: {ru: "дом"}
+hungry: {ru: "голодный"}
+i: {ru: "я"}
+"i'm": {ru: "я (есть)", lemma: be, note: "= I am"}
+in: {ru: "в"}
+interesting: {ru: "интересный"}
+is: {ru: "есть, является (форма be)", lemma: be}
+"it's": {ru: "это (есть)", lemma: be, note: "= it is"}
+jacket: {ru: "куртка"}
+job: {ru: "работа, должность"}
+key: {ru: "ключ"}
+kyrgyzstan: {ru: "Кыргызстан"}
+"let's": {ru: "давай(те)", lemma: let, note: "= let us"}
+library: {ru: "библиотека"}
+live: {ru: "жить"}
+lives: {ru: "живёт", lemma: live}
+me: {ru: "меня, мне"}
+money: {ru: "деньги"}
+morning: {ru: "утро"}
+my: {ru: "мой, моя, моё"}
+name: {ru: "имя"}
+near: {ru: "рядом, возле"}
+need: {ru: "нуждаться; нужно"}
+new: {ru: "новый"}
+nice: {ru: "хороший, приятный"}
+of: {ru: "(передаёт родительный падеж: стакан воды)"}
+"on": {ru: "на"}
+open: {ru: "открывать, открыть"}
+our: {ru: "наш"}
+phone: {ru: "телефон"}
+please: {ru: "пожалуйста"}
+question: {ru: "вопрос"}
+quiet: {ru: "тихий"}
+remember: {ru: "помнить"}
+river: {ru: "река"}
+school: {ru: "школа"}
+she: {ru: "она"}
+small: {ru: "маленький"}
+some: {ru: "немного, несколько"}
+street: {ru: "улица"}
+taxi: {ru: "такси"}
+tea: {ru: "чай"}
+the: {ru: "определённый артикль: «этот», «тот самый»"}
+they: {ru: "они"}
+this: {ru: "этот, эта, это"}
+tired: {ru: "уставший"}
+to: {ru: "к, в; частица перед глаголом (to buy — купить)"}
+today: {ru: "сегодня"}
+too: {ru: "слишком; тоже"}
+umbrella: {ru: "зонт"}
+very: {ru: "очень"}
+wait: {ru: "ждать, подождать"}
+water: {ru: "вода"}
+weather: {ru: "погода"}
+where: {ru: "где, куда"}
+window: {ru: "окно"}
+with: {ru: "с"}
+work: {ru: "работа; работать"}
+you: {ru: "ты, вы"}
+your: {ru: "твой, ваш"}
