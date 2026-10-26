@@ -148,3 +148,12 @@ export interface Pace {
   seconds_per_exercise: number;
   suggestion: PaceSuggestion | null;
 }
+
+export type WordStatus = 'not_started' | 'new' | 'learning' | 'well_learned';
+
+export interface DeckWord {
+  position: number;
+  word: Word;
+  status: WordStatus;
+  next_review_at: string | null;
+}

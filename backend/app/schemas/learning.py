@@ -213,3 +213,14 @@ class ProgressOut(BaseModel):
     week: list[DayActivity]
     recall: RecallRate
     points_total: int
+
+
+class DeckWordOut(BaseModel):
+    """One row of the word list: every word of the deck, with where the learner stands on it."""
+
+    position: int
+    word: WordOut
+    # not_started: not met yet · new: met, no review yet · learning: in review (stages 1-3)
+    # · well_learned: stage >= 4 ("currently well learned", ADR 0006).
+    status: Literal["not_started", "new", "learning", "well_learned"]
+    next_review_at: datetime | None

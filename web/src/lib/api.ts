@@ -1,6 +1,17 @@
 import { accessToken } from './auth.ts';
 import { syncWithServer } from './clock.ts';
-import type { AttemptResponse, AttemptResult, Deck, Me, MeUpdate, Pace, Progress, Session, Summary } from './types.ts';
+import type {
+  AttemptResponse,
+  AttemptResult,
+  Deck,
+  DeckWord,
+  Me,
+  MeUpdate,
+  Pace,
+  Progress,
+  Session,
+  Summary,
+} from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
 export class ApiError extends Error {
@@ -58,6 +69,7 @@ export const api = {
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
+  deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),
   me: () => request<Me>('GET', '/me'),
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),

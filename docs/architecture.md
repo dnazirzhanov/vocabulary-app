@@ -97,6 +97,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response}` → `{correct, answer}` |
 | `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
 | `GET /api/decks/{id}/progress` | word stages (met, reviewing, well learned, due), today's points vs goal, streak, the last 7 local days, delayed-recall rate over 30 days, total points |
+| `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
 | `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
 | `GET /api/me/pace?deck_id=` | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion |
 | `POST /api/me/pace/dismiss` | `{kind: "lower" \| "raise"}`: that suggestion stays quiet for 7 days |

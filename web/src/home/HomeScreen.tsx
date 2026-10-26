@@ -19,6 +19,7 @@ interface HomeScreenProps {
   onSession: (session: Session) => void;
   onProgress: (deckId: string) => void;
   onGoal: () => void;
+  onWords: () => void;
 }
 
 /** Decorative cover for the deck: a few everyday objects in the house illustration style. */
@@ -32,7 +33,7 @@ function DeckArt() {
   );
 }
 
-export function HomeScreen({ onSession, onProgress, onGoal }: HomeScreenProps) {
+export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -173,6 +174,9 @@ export function HomeScreen({ onSession, onProgress, onGoal }: HomeScreenProps) {
               {deck.title}
             </h1>
             <p className={styles.description}>{deck.description}</p>
+            <button type="button" className={styles.wordsLink} onClick={onWords}>
+              Все слова колоды · {deck.word_count}
+            </button>
           </div>
           <section className={styles.progress} aria-labelledby="deck-progress">
             {pace && newLeft && <TodayPlan pace={pace} />}
