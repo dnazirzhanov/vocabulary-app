@@ -37,6 +37,10 @@
   --color-series-met: #fa5d19;
   --color-series-firm: #2d6db5;
 
+  /* The path scene: calm water, so orange stays for the current stone and the action. */
+  --color-water: #e3f0f9;
+  --color-water-wave: #c9e0f1;
+
   /* Illustration palette — keep every illustration inside it */
   --illo-line: #262626;
   --illo-accent: #fa5d19;
