@@ -1,7 +1,9 @@
 /*
  * Design tokens. Components read these instead of hard-coding values.
  * Contrast ratios are WCAG 2.x, measured against the background named.
+ * Hand-aligned so the contrast notes read as a table; Prettier leaves it alone.
  */
+/* prettier-ignore */
 :root {
   /* Brand */
   --color-primary: #fa5d19;          /* fills only: 3.0:1 on paper, never body text */

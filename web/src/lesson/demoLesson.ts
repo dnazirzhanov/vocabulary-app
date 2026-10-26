@@ -10,7 +10,12 @@ export const demoLesson: ChoiceExercise[] = [
     word: 'umbrella',
     illustration: 'umbrella',
     illustrationAlt: 'An open umbrella with rain falling around it',
-    options: [option('hat', 'шляпа'), option('boots', 'резиновые сапоги'), option('umbrella', 'зонт'), option('raincoat', 'плащ')],
+    options: [
+      option('hat', 'шляпа'),
+      option('boots', 'резиновые сапоги'),
+      option('umbrella', 'зонт'),
+      option('raincoat', 'плащ'),
+    ],
     answerId: 'umbrella',
   },
   {
@@ -18,7 +23,12 @@ export const demoLesson: ChoiceExercise[] = [
     word: 'kettle',
     illustration: 'kettle',
     illustrationAlt: 'A kettle with steam rising from its spout',
-    options: [option('kettle', 'чайник'), option('pot', 'кастрюля'), option('mug', 'кружка'), option('pan', 'сковорода')],
+    options: [
+      option('kettle', 'чайник'),
+      option('pot', 'кастрюля'),
+      option('mug', 'кружка'),
+      option('pan', 'сковорода'),
+    ],
     answerId: 'kettle',
   },
   {
@@ -26,7 +36,12 @@ export const demoLesson: ChoiceExercise[] = [
     word: 'lighthouse',
     illustration: 'lighthouse',
     illustrationAlt: 'A striped tower on a small island shining beams of light',
-    options: [option('tower', 'башня'), option('lighthouse', 'маяк'), option('bridge', 'мост'), option('pier', 'причал')],
+    options: [
+      option('tower', 'башня'),
+      option('lighthouse', 'маяк'),
+      option('bridge', 'мост'),
+      option('pier', 'причал'),
+    ],
     answerId: 'lighthouse',
   },
   {
@@ -34,7 +49,12 @@ export const demoLesson: ChoiceExercise[] = [
     word: 'backpack',
     illustration: 'backpack',
     illustrationAlt: 'A bag with a top handle, a flap and a front pocket',
-    options: [option('suitcase', 'чемодан'), option('wallet', 'кошелёк'), option('bag', 'сумка'), option('backpack', 'рюкзак')],
+    options: [
+      option('suitcase', 'чемодан'),
+      option('wallet', 'кошелёк'),
+      option('bag', 'сумка'),
+      option('backpack', 'рюкзак'),
+    ],
     answerId: 'backpack',
   },
   {

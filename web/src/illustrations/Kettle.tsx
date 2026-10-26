@@ -17,7 +17,15 @@ export function Kettle() {
       <path d="M82 150 L52 116" stroke="var(--illo-accent)" strokeWidth={13} />
       <path d="M88 96 C86 38 154 38 152 96" fill="none" strokeWidth={10} />
       <path d={body} fill="var(--illo-accent)" />
-      <rect x="40" y="164" width="160" height="14" fill="var(--illo-peach)" strokeWidth={4} clipPath={`url(#${clip})`} />
+      <rect
+        x="40"
+        y="164"
+        width="160"
+        height="14"
+        fill="var(--illo-peach)"
+        strokeWidth={4}
+        clipPath={`url(#${clip})`}
+      />
       <path d={body} fill="none" />
       <path d="M94 90 C100 72 140 72 146 90 Z" fill="var(--illo-peach)" />
       <circle cx="120" cy="70" r="7" fill="var(--illo-line)" />

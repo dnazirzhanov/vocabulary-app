@@ -85,6 +85,9 @@ test('completes after the last exercise and can restart', () => {
     { type: 'continue' },
   );
   assert.equal(done.phase, 'complete');
-  assert.deepEqual(done.results.map((r) => r.correct), [true, false]);
+  assert.deepEqual(
+    done.results.map((r) => r.correct),
+    [true, false],
+  );
   assert.deepEqual(reduceLesson(done, { type: 'restart' }, exercises), createLessonState());
 });
