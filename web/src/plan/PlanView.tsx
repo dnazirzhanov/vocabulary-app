@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { plural } from '../i18n/plural.ts';
-import { buildRoadmap, calendarMonths, milestones, type RoadmapInput } from '../lib/roadmap.ts';
-import { MonthCalendar } from './MonthCalendar.tsx';
+import { buildRoadmap, calendarWeeks, milestones, type RoadmapInput } from '../lib/roadmap.ts';
+import { PlanCalendar } from './PlanCalendar.tsx';
 import styles from './Plan.module.css';
 
 const dayMonth = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' });
@@ -39,7 +39,7 @@ export function PlanView({ input, deckWords, controls }: PlanViewProps) {
         </p>
       </div>
       {controls}
-      {roadmap.finish && <MonthCalendar months={calendarMonths(roadmap, marks)} />}
+      {roadmap.finish && <PlanCalendar weeks={calendarWeeks(roadmap, marks)} />}
       {marks.length > 1 && (
         <section className={styles.milestonesBlock} aria-labelledby="milestones-title">
           <h3 id="milestones-title" className={styles.subTitle}>

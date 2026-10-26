@@ -94,6 +94,47 @@
   background: var(--color-stage);
 }
 
+.controlsToggle {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .controls {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .controlsToggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: var(--weight-strong);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .toggleAction {
+    flex: none;
+    color: var(--color-primary-strong);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .controls:not([data-open]) [data-body] {
+    display: none;
+  }
+
+  .controls[data-open] {
+    padding-bottom: var(--space-4);
+  }
+}
+
 .control {
   display: flex;
   flex-wrap: wrap;
@@ -291,12 +332,24 @@
   box-shadow: inset 0 0 0 var(--border-control) var(--color-text);
 }
 
-.cell[data-milestone] {
-  background: var(--color-success-tint);
+.cellMonth {
+  font-weight: var(--weight-display);
+  color: var(--color-text);
 }
 
-.cell[data-milestone] .cellTotal {
-  color: var(--color-success);
+/* A round number reached that day: a green dot; the milestones list names it. */
+.cellMilestone,
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.cellMilestone {
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
 
 .cell[data-finish] {
@@ -316,6 +369,20 @@
   height: 14px;
 }
 
+/* Narrow phones: four-digit totals need the whole cell; the orange fill marks the goal day. */
+@media (max-width: 374px) {
+  .cellFlag,
+  .cellMilestone {
+    top: auto;
+    bottom: 2px;
+    right: 2px;
+  }
+
+  .cellFlag {
+    display: none;
+  }
+}
+
 .calendarFoot {
   display: flex;
   flex-wrap: wrap;
@@ -328,6 +395,30 @@
 
 .calendarFoot p {
   flex: 1 1 100%;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-meta);
+}
+
+.legendDot {
+  display: inline-block;
+}
+
+.legendFlag {
+  width: 14px;
+  height: 14px;
+  margin-left: var(--space-2);
+}
+
+.jumps {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
 }
 
 .calendarFoot strong {
@@ -422,6 +513,12 @@
 
 .saveInner > :last-child {
   flex: 1;
+}
+
+.saveInner button {
+  padding: 0 var(--space-3);
+  font-size: var(--text-body);
+  white-space: nowrap;
 }
 
 @media (min-width: 1024px) {

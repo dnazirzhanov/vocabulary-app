@@ -176,7 +176,7 @@ export function courseFinish(input: RoadmapInput, courseWords: number): Date | n
 
 export interface CalendarDay {
   date: Date;
-  /** before: earlier this month · plan: from today to the finish · after: past the finish. */
+  /** before: earlier this week · plan: from today to the finish · after: past the finish. */
   kind: 'before' | 'plan' | 'after';
   study: boolean;
   /** Words known by the end of this day, at this pace (plan days only). */
@@ -185,13 +185,6 @@ export interface CalendarDay {
   finish: boolean;
   /** A round number of words first reached this day (100, 500, …), if any. */
   milestone: number | null;
-}
-
-export interface CalendarMonth {
-  year: number;
-  month: number;
-  /** Monday-first weeks of the whole month; null pads the days outside it. */
-  weeks: (CalendarDay | null)[][];
 }
 
 export const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500];
@@ -218,8 +211,11 @@ export function milestones(roadmap: Roadmap, goalWords: number, start: number): 
   return result;
 }
 
-/** Month grids from this month to the finish month: one number per day, the words known by then. */
-export function calendarMonths(roadmap: Roadmap, marks: Milestone[] = []): CalendarMonth[] {
+/**
+ * Monday-first weeks from this week to the finish week. Each plan day carries one number: the
+ * words known by its end if the pace holds. Days before today and after the finish are empty.
+ */
+export function calendarWeeks(roadmap: Roadmap, marks: Milestone[] = []): CalendarDay[][] {
   const first = roadmap.days[0];
   if (!first) return [];
   const end = roadmap.finish ?? roadmap.days[roadmap.days.length - 1].date;
@@ -227,13 +223,11 @@ export function calendarMonths(roadmap: Roadmap, marks: Milestone[] = []): Calen
   const markOn = new Map(
     marks.filter((mark) => !mark.goal).map((mark) => [startOfDay(mark.date).getTime(), mark.words]),
   );
-  const months: CalendarMonth[] = [];
-  for (let cursor = new Date(first.date.getFullYear(), first.date.getMonth(), 1); cursor <= end;) {
-    const year = cursor.getFullYear();
-    const month = cursor.getMonth();
-    const weeks: (CalendarDay | null)[][] = [];
-    let week: (CalendarDay | null)[] = Array((cursor.getDay() + 6) % 7).fill(null);
-    for (let date = cursor; date.getMonth() === month; date = addDays(date, 1)) {
+  const weeks: CalendarDay[][] = [];
+  for (let monday = addDays(first.date, -((first.date.getDay() + 6) % 7)); monday <= end; monday = addDays(monday, 7)) {
+    const week: CalendarDay[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const date = addDays(monday, offset);
       const planned = date <= end ? byDay.get(date.getTime()) : undefined;
       week.push({
         date,
@@ -244,14 +238,8 @@ export function calendarMonths(roadmap: Roadmap, marks: Milestone[] = []): Calen
         finish: roadmap.finish !== null && sameDay(date, roadmap.finish),
         milestone: markOn.get(date.getTime()) ?? null,
       });
-      if (week.length === 7) {
-        weeks.push(week);
-        week = [];
-      }
     }
-    if (week.length > 0) weeks.push([...week, ...Array<null>(7 - week.length).fill(null)]);
-    months.push({ year, month, weeks });
-    cursor = new Date(year, month + 1, 1);
+    weeks.push(week);
   }
-  return months;
+  return weeks;
 }

@@ -7,7 +7,9 @@ const webUrl = ci ? 'http://localhost:4173' : 'http://localhost:5173';
 
 // The sign-in screen only exists in a build made with Supabase auth, so it gets its own web server.
 // Supabase itself is replaced by mocked network responses (e2e/auth.spec.ts); nothing listens on this URL.
-const authUrl = ci ? 'http://localhost:4174' : 'http://localhost:5174';
+// Uncommon ports, and --strictPort: another project's dev server on a common port must never be
+// mistaken for this one.
+const authUrl = ci ? 'http://localhost:4174' : 'http://localhost:5199';
 const authEnv = {
   VITE_AUTH_MODE: 'supabase',
   VITE_SUPABASE_URL: 'http://localhost:54321',
@@ -40,7 +42,7 @@ export default defineConfig({
     {
       command: ci
         ? 'npx vite build --outDir dist-auth && npx vite preview --port 4174 --outDir dist-auth'
-        : 'npx vite --port 5174',
+        : 'npx vite --port 5199 --strictPort',
       env: authEnv,
       url: authUrl,
       reuseExistingServer: !ci,

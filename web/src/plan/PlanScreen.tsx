@@ -41,9 +41,12 @@ export function PlanScreen({
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    // Fresh counts: the plan starts from what the learner knows right now.
+    // Fresh counts: the plan starts from what the learner knows right now. A response that
+    // arrives after this screen has moved on (or after the learner started editing) is ignored.
+    let current = true;
     void Promise.all([api.listDecks(), api.me(), api.pace(deckId).catch(() => null)]).then(
       ([decks, me, pace]) => {
+        if (!current) return;
         const deck = decks.find((candidate) => candidate.id === deckId);
         if (!deck) return setError('Колода не найдена.');
         setLoaded({
@@ -52,10 +55,13 @@ export function PlanScreen({
           metToday: pace?.new_words_today ?? 0,
           seconds: pace?.seconds_per_exercise ?? DEFAULT_SECONDS_PER_EXERCISE,
         });
-        setChoice(choiceOf(me));
+        setChoice((editing) => editing ?? choiceOf(me));
       },
-      (caught: unknown) => setError(describeError(caught)),
+      (caught: unknown) => current && setError(describeError(caught)),
     );
+    return () => {
+      current = false;
+    };
   }, [deckId]);
   useEffect(() => {
     if (loaded) headingRef.current?.focus();
@@ -124,7 +130,7 @@ export function PlanScreen({
                 })
               }
             >
-              {busy ? 'Сохраняем…' : `Сохранить: ${choice.words} в день`}
+              {busy ? 'Сохраняем…' : 'Сохранить темп'}
             </PrimaryButton>
           </div>
         </footer>

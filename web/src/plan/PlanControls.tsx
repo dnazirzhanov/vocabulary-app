@@ -1,5 +1,13 @@
-import { useId } from 'react';
-import { dailyMinutes, formatMinutes, MAX_TARGET, MIN_TARGET, PRESETS, RAMP_MIN_TARGET } from '../lib/pace.ts';
+import { useId, useState } from 'react';
+import {
+  dailyMinutes,
+  formatMinutes,
+  MAX_TARGET,
+  MIN_TARGET,
+  PRESETS,
+  RAMP_MIN_TARGET,
+  wordsLabel,
+} from '../lib/pace.ts';
 import type { PaceChoice } from './planInput.ts';
 import styles from './Plan.module.css';
 
@@ -18,9 +26,17 @@ interface PlanControlsProps {
 export function PlanControls({ value, onChange, secondsPerExercise }: PlanControlsProps) {
   const id = useId();
   const set = (changes: Partial<PaceChoice>) => onChange({ ...value, ...changes });
+  // Phones: one summary line, so the calendar stays in view; desktop always shows the controls.
+  const [open, setOpen] = useState(false);
   return (
-    <div className={styles.controls}>
-      <div className={styles.control}>
+    <div className={styles.controls} data-open={open || undefined}>
+      <button type="button" className={styles.controlsToggle} aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>
+          {wordsLabel(value.words)} в день · {value.days}&nbsp;дней в неделю
+        </span>
+        <span className={styles.toggleAction}>{open ? 'Готово' : 'Изменить'}</span>
+      </button>
+      <div className={styles.control} data-body>
         <span id={`${id}-words`} className={styles.controlLabel}>
           Новых слов в день
         </span>
@@ -57,7 +73,7 @@ export function PlanControls({ value, onChange, secondsPerExercise }: PlanContro
           ))}
         </div>
       </div>
-      <div className={styles.control}>
+      <div className={styles.control} data-body>
         <span id={`${id}-days`} className={styles.controlLabel}>
           Дней в неделю
         </span>
@@ -76,12 +92,12 @@ export function PlanControls({ value, onChange, secondsPerExercise }: PlanContro
         </div>
       </div>
       {value.words >= RAMP_MIN_TARGET && (
-        <label className={styles.check}>
+        <label className={styles.check} data-body>
           <input type="checkbox" checked={value.ramp} onChange={(event) => set({ ramp: event.target.checked })} />
           Разогрев: первая неделя — половина, вторая — три четверти
         </label>
       )}
-      <p className={styles.minutes}>
+      <p className={styles.minutes} data-body>
         {formatMinutes(dailyMinutes(value.words, secondsPerExercise))} в день, когда наберутся повторения
       </p>
     </div>
