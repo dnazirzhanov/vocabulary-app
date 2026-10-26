@@ -176,48 +176,73 @@ export function courseFinish(input: RoadmapInput, courseWords: number): Date | n
 
 export interface CalendarDay {
   date: Date;
-  /** before: earlier this month, no plan yet · plan: a day of the plan · after: past its end. */
+  /** before: earlier this month · plan: from today to the finish · after: past the finish. */
   kind: 'before' | 'plan' | 'after';
   study: boolean;
-  newWords: number;
-  /** Words met by the end of this day (plan days only). */
-  met: number;
+  /** Words known by the end of this day, at this pace (plan days only). */
+  total: number;
   today: boolean;
   finish: boolean;
-  allFirm: boolean;
+  /** A round number of words first reached this day (100, 500, …), if any. */
+  milestone: number | null;
 }
 
 export interface CalendarMonth {
   year: number;
   month: number;
-  /** Monday-first weeks that hold plan days; null pads the days outside the month. */
+  /** Monday-first weeks of the whole month; null pads the days outside it. */
   weeks: (CalendarDay | null)[][];
 }
 
-/** The plan laid out as month calendars, from this month to the month the last word is firm. */
-export function calendarMonths(roadmap: Roadmap): CalendarMonth[] {
+export const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500];
+
+export interface Milestone {
+  words: number;
+  date: Date;
+  /** The goal itself (the finish), not a round number on the way. */
+  goal: boolean;
+}
+
+/** The days a round number of words is first reached, then the finish. */
+export function milestones(roadmap: Roadmap, goalWords: number, start: number): Milestone[] {
+  const result: Milestone[] = [];
+  let previous = start;
+  for (const day of roadmap.days) {
+    for (const words of MILESTONES) {
+      if (words < goalWords && previous < words && day.met >= words)
+        result.push({ words, date: day.date, goal: false });
+    }
+    previous = day.met;
+  }
+  if (roadmap.finish) result.push({ words: goalWords, date: roadmap.finish, goal: true });
+  return result;
+}
+
+/** Month grids from this month to the finish month: one number per day, the words known by then. */
+export function calendarMonths(roadmap: Roadmap, marks: Milestone[] = []): CalendarMonth[] {
   const first = roadmap.days[0];
   if (!first) return [];
+  const end = roadmap.finish ?? roadmap.days[roadmap.days.length - 1].date;
   const byDay = new Map(roadmap.days.map((day) => [startOfDay(day.date).getTime(), day]));
-  const lastPlanned = roadmap.days[roadmap.days.length - 1].date;
+  const markOn = new Map(
+    marks.filter((mark) => !mark.goal).map((mark) => [startOfDay(mark.date).getTime(), mark.words]),
+  );
   const months: CalendarMonth[] = [];
-  let cursor = new Date(first.date.getFullYear(), first.date.getMonth(), 1);
-  while (cursor <= lastPlanned) {
+  for (let cursor = new Date(first.date.getFullYear(), first.date.getMonth(), 1); cursor <= end;) {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
     const weeks: (CalendarDay | null)[][] = [];
     let week: (CalendarDay | null)[] = Array((cursor.getDay() + 6) % 7).fill(null);
     for (let date = cursor; date.getMonth() === month; date = addDays(date, 1)) {
-      const planned = byDay.get(date.getTime());
+      const planned = date <= end ? byDay.get(date.getTime()) : undefined;
       week.push({
         date,
         kind: planned ? 'plan' : date < first.date ? 'before' : 'after',
         study: planned?.study ?? false,
-        newWords: planned?.newWords ?? 0,
-        met: planned?.met ?? 0,
+        total: planned?.met ?? 0,
         today: sameDay(date, first.date),
         finish: roadmap.finish !== null && sameDay(date, roadmap.finish),
-        allFirm: roadmap.allFirm !== null && sameDay(date, roadmap.allFirm),
+        milestone: markOn.get(date.getTime()) ?? null,
       });
       if (week.length === 7) {
         weeks.push(week);
@@ -225,9 +250,7 @@ export function calendarMonths(roadmap: Roadmap): CalendarMonth[] {
       }
     }
     if (week.length > 0) weeks.push([...week, ...Array<null>(7 - week.length).fill(null)]);
-    // Only weeks that hold part of the plan: no rows of empty days before today or after the end.
-    const planned = weeks.filter((cells) => cells.some((cell) => cell?.kind === 'plan'));
-    if (planned.length > 0) months.push({ year, month, weeks: planned });
+    months.push({ year, month, weeks });
     cursor = new Date(year, month + 1, 1);
   }
   return months;

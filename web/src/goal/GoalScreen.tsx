@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { serverNow } from '../lib/clock.ts';
 import { api } from '../lib/api.ts';
 import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
-import { startOfDay, type RoadmapInput } from '../lib/roadmap.ts';
 import type { Deck, Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { RoadmapView } from '../roadmap/RoadmapView.tsx';
+import { planInput } from '../plan/planInput.ts';
+import { PlanView } from '../plan/PlanView.tsx';
 import { CoverageSentence } from './CoverageSentence.tsx';
 import { PacePicker, type PaceChoice } from './PacePicker.tsx';
 import styles from './GoalScreen.module.css';
@@ -84,9 +83,6 @@ function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }
 type Step = 'promise' | 'pace' | 'plan';
 const STEPS: Step[] = ['promise', 'pace', 'plan'];
 
-// API timestamps are UTC instants; the ramp counts the learner's local calendar days.
-const localDay = (iso: string | null) => (iso ? startOfDay(new Date(iso)) : null);
-
 export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: GoalScreenProps) {
   const [step, setStep] = useState<Step>(mode === 'onboarding' ? 'promise' : 'pace');
   // "Моя цель" is opened after lessons: fresh counts make the plan start from today's real position.
@@ -131,17 +127,9 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
     );
 
   const back = mode === 'onboarding' && step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : onBack;
-  const roadmapInput: RoadmapInput = {
-    today: startOfDay(serverNow()),
-    totalWords: deck.word_count,
-    introduced: deck.introduced_count,
-    metToday: today.metToday,
-    wordsPerDay: choice.words,
-    studyDaysPerWeek: choice.days,
-    ramp: choice.ramp,
-    rampStartedOn: localDay(me.onboarded_at) ?? startOfDay(serverNow()),
-  };
-  const plan = <RoadmapView input={roadmapInput} courseWords={deck.course_goal?.target_words ?? null} />;
+  const plan = (
+    <PlanView input={planInput(deck, choice, today.metToday, me.onboarded_at)} deckWords={deck.word_count} />
+  );
 
   return (
     <div className={styles.screen}>
