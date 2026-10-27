@@ -27,12 +27,12 @@ ZONE = ZoneInfo("Asia/Bishkek")
 # Nickname and new words per day, Monday to Sunday (None: no study that day).
 CLASSMATES: list[tuple[str, int, int, list[int | None]]] = [
     # (nickname, words a day, days a week promised, new words met each day Monday to Sunday)
-    ("Быстрый Барсук", 20, 4, [20, 25, None, 20, None, None, None]),
-    ("Тихий Лис", 3, 5, [3, 3, 3, 3, 3, None, None]),
-    ("Весёлый Кот", 5, 3, [5, None, 5, 5, None, None, None]),
-    ("Смелый Ёж", 10, 6, [None, 10, None, None, None, None, None]),
-    ("Ранний Орёл", 4, 5, [4, 4, 4, None, None, None, None]),
-    ("Сонный Панда", 5, 3, [None, None, None, None, None, None, None]),
+    ("Парвиз", 20, 4, [20, 25, None, 20, None, None, None]),
+    ("Искандер", 3, 5, [3, 3, 3, 3, 3, None, None]),
+    ("Ахмед", 5, 3, [5, None, 5, 5, None, None, None]),
+    ("Али", 10, 6, [None, 10, None, None, None, None, None]),
+    ("Рашид", 4, 5, [4, 4, 4, None, None, None, None]),
+    ("Тимур", 5, 3, [None, None, None, None, None, None, None]),
 ]
 
 
