@@ -9,7 +9,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import DeckWord, Group, GroupMember, LearningSession, ReviewAttempt, User
-from app.services.groups import new_invite_code, week_of
+from app.services.groups import new_invite_code
+from app.services.plan_days import week_of
 from app.services.progress import INTRODUCED_POINTS
 from app.services.scheduling import local_date
 

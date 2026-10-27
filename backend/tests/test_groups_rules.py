@@ -14,8 +14,8 @@ from app.services.groups import (
     new_invite_code,
     normalize_code,
     rank,
-    week_of,
 )
+from app.services.plan_days import week_of
 
 
 @pytest.mark.parametrize(
