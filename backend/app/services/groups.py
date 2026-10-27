@@ -98,7 +98,7 @@ def _group_out(db: Session, group: Group, member: GroupMember) -> GroupOut:
     )
 
 
-def _membership(db: Session, user: User, group_id: UUID) -> tuple[Group, GroupMember]:
+def membership(db: Session, user: User, group_id: UUID) -> tuple[Group, GroupMember]:
     # Someone else's group is indistinguishable from a missing one.
     row = db.execute(
         select(Group, GroupMember)
@@ -215,13 +215,13 @@ def _leave(db: Session, group: Group, member: GroupMember) -> None:
 
 
 def leave(db: Session, user: User, group_id: UUID) -> None:
-    group, member = _membership(db, user, group_id)
+    group, member = membership(db, user, group_id)
     _leave(db, group, member)
     db.commit()
 
 
 def remove_member(db: Session, user: User, group_id: UUID, member_id: UUID) -> None:
-    group, me = _membership(db, user, group_id)
+    group, me = membership(db, user, group_id)
     if me.role != "owner":
         raise ApiError(403, "not_owner", "Only the group's owner can remove members")
     target = db.scalar(
@@ -270,7 +270,7 @@ def rank(rows: list[BoardRow], active: set[UUID]) -> list[BoardRow]:
 
 
 def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
-    group, me = _membership(db, user, group_id)
+    group, me = membership(db, user, group_id)
     members = db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)

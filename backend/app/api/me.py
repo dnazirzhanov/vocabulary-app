@@ -7,7 +7,8 @@ from fastapi import APIRouter, Query, Response
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.schemas.me import DismissIn, MeOut, MeUpdate, PaceOut
-from app.services import pace, sessions
+from app.schemas.profile import ProfileOut
+from app.services import pace, profile, sessions
 from app.services.me import me_out, remember_time_zone, update_me
 
 router = APIRouter(tags=["me"])
@@ -21,6 +22,11 @@ def get_me(user: CurrentUser) -> MeOut:
 @router.patch("/me")
 def patch_me(changes: MeUpdate, user: CurrentUser, db: DbSession, now: Now) -> MeOut:
     return update_me(db, user, changes, now)
+
+
+@router.get("/me/profile")
+def get_profile(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> ProfileOut:
+    return profile.own_profile(db, user, now, time_zone)
 
 
 @router.get("/me/pace")

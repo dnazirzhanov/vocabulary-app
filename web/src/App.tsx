@@ -7,6 +7,7 @@ import { JoinScreen } from './groups/JoinScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
+import { ProfileDialog, type ProfileTarget } from './profile/ProfileDialog.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import { currentDeck } from './lib/today.ts';
@@ -126,6 +127,8 @@ function Learning({ email }: { email: string | null }) {
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
   // Bumped when the groups change, so the navigation's line about them refreshes.
   const [navVersion, setNavVersion] = useState(0);
+  // The profile window, over whichever screen is showing (ADR 0015).
+  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
 
   if (error) {
     return (
@@ -200,8 +203,14 @@ function Learning({ email }: { email: string | null }) {
     else setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' });
   };
   return (
-    <NavShell tab={tabOf(screen)} version={navVersion} onNavigate={navigate}>
+    <NavShell
+      tab={tabOf(screen)}
+      version={navVersion}
+      onNavigate={navigate}
+      onProfile={() => setProfileTarget({ kind: 'me' })}
+    >
       {tabScreen()}
+      <ProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} />
     </NavShell>
   );
 
@@ -223,6 +232,9 @@ function Learning({ email }: { email: string | null }) {
           key={screen.groupId}
           groupId={screen.groupId}
           inviteOnOpen={screen.invite}
+          onOpenProfile={(memberId, nickname) =>
+            setProfileTarget({ kind: 'member', groupId: screen.groupId, memberId, nickname })
+          }
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
             refreshNav();

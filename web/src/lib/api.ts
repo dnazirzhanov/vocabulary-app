@@ -11,6 +11,7 @@ import type {
   Me,
   MeUpdate,
   Pace,
+  Profile,
   Progress,
   Rating,
   Session,
@@ -78,6 +79,9 @@ export const api = {
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),
+  myProfile: () => request<Profile>('GET', '/me/profile'),
+  memberProfile: (groupId: string, memberId: string) =>
+    request<Profile>('GET', `/groups/${groupId}/members/${memberId}/profile`),
   deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),

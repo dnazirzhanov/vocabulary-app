@@ -210,6 +210,26 @@ export interface BoardRow {
   streak_weeks: number;
 }
 
+/** A learner's week against their own promise (ADR 0015); mirrors backend/app/schemas/profile.py. */
+export interface Profile {
+  /** The nickname in the group it was opened from; null for one's own profile. */
+  nickname: string | null;
+  is_me: boolean;
+  week_start: string;
+  week_end: string;
+  words_per_day: number;
+  promised_days: number;
+  plan_days: number;
+  /** Monday … Sunday: was the plan done? */
+  week: boolean[];
+  today_index: number;
+  planned_words: number;
+  streak_weeks: number;
+  words_total: number;
+  /** Learning beyond the plan: recognised here, never on the board. */
+  extra: { new_words: number; practice_answers: number };
+}
+
 export interface Board {
   group: Group;
   week_start: string;

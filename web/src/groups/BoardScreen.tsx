@@ -24,12 +24,14 @@ interface BoardScreenProps {
   groupId: string;
   /** Open the invitation straight away: the group has just been created. */
   inviteOnOpen?: boolean;
+  /** A tap on a member opens their profile window (ADR 0015). */
+  onOpenProfile: (memberId: string, nickname: string) => void;
   onBack: () => void;
   onLeft: () => void;
 }
 
 /** This week in the group: places by days practised, a shared goal, and a button to invite friends. */
-export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: BoardScreenProps) {
+export function BoardScreen({ groupId, inviteOnOpen = false, onOpenProfile, onBack, onLeft }: BoardScreenProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
@@ -83,36 +85,44 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: B
   const plannedShare = elapsedDays / 7;
   const plannedByToday = Math.round(board.goal.target * plannedShare);
 
+  // A row opens that member's profile (ADR 0015); inside a button only phrasing content is allowed,
+  // so its parts are spans laid out by CSS.
   const rowView = (row: BoardRow) => (
     <li key={row.member_id} className={styles.boardRow} data-me={row.is_me || undefined}>
-      <span className={styles.rank} data-top={row.rank !== null && row.rank <= 3 ? row.rank : undefined}>
-        {row.rank}
-      </span>
-      <div className={styles.who}>
-        <p className={styles.nick}>
-          {row.nickname}
-          {row.is_me && <span className={styles.meTag}>вы</span>}
-          {row.streak_weeks >= 2 && (
-            <span
-              className={styles.streak}
-              title={`Обещание держится ${row.streak_weeks} ${weeksWord(row.streak_weeks)} подряд`}
-            >
-              <FlameIcon aria-hidden="true" />
-              {row.streak_weeks}
-            </span>
-          )}
-        </p>
-        <p className={styles.weekDots} aria-label={`План выполнен: ${days(row.plan_days)} на этой неделе`}>
-          {row.week.map((met, index) => (
-            <i key={index} data-on={met || undefined} title={WEEKDAYS[index]} aria-hidden="true" />
-          ))}
-        </p>
-      </div>
-      <div className={styles.score}>
-        <strong>
-          {row.plan_days} из {row.promised_days}&nbsp;{daysAfterOf(row.promised_days)}
-        </strong>
-      </div>
+      <button type="button" className={styles.rowButton} onClick={() => onOpenProfile(row.member_id, row.nickname)}>
+        <span className={styles.rank} data-top={row.rank !== null && row.rank <= 3 ? row.rank : undefined}>
+          {row.rank}
+        </span>
+        <span className={styles.who}>
+          <span className={styles.nick}>
+            {row.nickname}
+            {row.is_me && <span className={styles.meTag}>вы</span>}
+            {row.streak_weeks >= 2 && (
+              <span
+                className={styles.streak}
+                title={`Обещание держится ${row.streak_weeks} ${weeksWord(row.streak_weeks)} подряд`}
+              >
+                <FlameIcon aria-hidden="true" />
+                {row.streak_weeks}
+              </span>
+            )}
+          </span>
+          <span
+            className={styles.weekDots}
+            role="img"
+            aria-label={`План выполнен: ${days(row.plan_days)} на этой неделе`}
+          >
+            {row.week.map((met, index) => (
+              <i key={index} data-on={met || undefined} title={WEEKDAYS[index]} aria-hidden="true" />
+            ))}
+          </span>
+        </span>
+        <span className={styles.score}>
+          <strong>
+            {row.plan_days} из {row.promised_days}&nbsp;{daysAfterOf(row.promised_days)}
+          </strong>
+        </span>
+      </button>
       {managing && owner && !row.is_me && (
         <RemoveButton
           confirming={confirm === row.member_id}
@@ -181,7 +191,7 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: B
             </section>
 
             <h2 className={styles.sectionTitle}>Эта неделя</h2>
-            <p className={styles.hint}>Место — по тому, сколько обещанных дней выполнен свой план.</p>
+            <p className={styles.hint}>Место — по доле обещанных дней, в которые выполнен план.</p>
             {ranked.length === 0 ? (
               <p className={styles.empty}>Пока никто не занимался на этой неделе. Начните первым!</p>
             ) : (
@@ -203,10 +213,14 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: B
                 <ul className={styles.board}>
                   {resting.map((row) => (
                     <li key={row.member_id} className={styles.restingRow}>
-                      <span>
+                      <button
+                        type="button"
+                        className={styles.restingButton}
+                        onClick={() => onOpenProfile(row.member_id, row.nickname)}
+                      >
                         {row.nickname}
                         {row.is_me && <span className={styles.meTag}>вы</span>}
-                      </span>
+                      </button>
                       {managing && owner && !row.is_me && (
                         <RemoveButton
                           confirming={confirm === row.member_id}
