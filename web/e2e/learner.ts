@@ -47,12 +47,16 @@ export async function study(page: Page, rating: RatingLabel = 'Хорошо') {
 /** Studies every card until the summary, rating each card's first showing as given (by headword). */
 export async function finishSession(page: Page, ratings: Record<string, RatingLabel> = {}) {
   const seen = new Set<string>();
+  // The lesson first: the screen it was started from may have its own «На главную».
+  await expect(page.getByRole('button', { name: 'Выйти из урока' })).toBeVisible();
   const summary = page.getByRole('button', { name: 'На главную' });
+  const card = page.locator('[data-card]');
   while (!(await summary.isVisible())) {
-    const word = page.getByRole('heading', { level: 1 });
-    await expect(word.or(summary).first()).toBeVisible();
+    // The next card's front or the summary. The last answered card lingers for a moment while the
+    // session is completed, so a card alone does not mean there is something left to answer.
+    await expect(button(page, 'Показать ответ').or(summary)).toBeVisible();
     if (await summary.isVisible()) break;
-    const headword = (await word.textContent())!;
+    const headword = (await card.getByRole('heading', { level: 1 }).textContent())!;
     await study(page, seen.has(headword) ? 'Хорошо' : (ratings[headword] ?? 'Хорошо'));
     seen.add(headword);
   }

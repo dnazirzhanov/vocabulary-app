@@ -6,16 +6,27 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await finishSession(page);
   await button(page, 'На главную').click();
 
-  await page.getByRole('button', { name: /Учитесь с друзьями/ }).click();
+  await button(page, 'Друзья').click();
   await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
   await page.getByLabel('Название').fill('7Б английский');
   await page.getByLabel('Или своё').fill('Ёжик');
   await button(page, 'Создать и пригласить').click();
 
-  await expect(page.getByRole('heading', { name: '7Б английский' })).toBeFocused();
-  await expect(page.getByRole('img', { name: /QR-код/ })).toBeVisible();
-  const link = await page.getByLabel('Ссылка-приглашение').inputValue();
+  await expect(page.getByRole('heading', { name: '7Б английский' })).toBeVisible();
+  // A new group opens its invitation straight away, in a window over the board (focus is in it).
+  const invitation = page.getByRole('dialog', { name: 'Пригласить друзей' });
+  await expect(invitation.getByRole('img', { name: /QR-код/ })).toBeVisible();
+  const link = await invitation.getByLabel('Ссылка-приглашение').inputValue();
   expect(link).toMatch(/\/join\/[A-Z2-9]{8}$/);
+  // Closing it leaves the board, and the button on the board brings it back.
+  await invitation.getByRole('button', { name: 'Закрыть' }).click();
+  await expect(invitation).toHaveCount(0);
+  await expect(page.getByRole('img', { name: /QR-код/ })).toHaveCount(0);
+  await button(page, 'Пригласить друзей').click();
+  await expect(invitation.getByRole('img', { name: /QR-код/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(invitation).toHaveCount(0);
+  await expect(button(page, 'Пригласить друзей')).toBeFocused();
   const me = page.getByRole('listitem').filter({ hasText: 'Ёжик' });
   await expect(me).toContainText('вы');
   await expect(me).toContainText('1 день');
@@ -40,7 +51,9 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await expect(friend.getByRole('listitem').filter({ hasText: 'Лис' })).toContainText('вы');
   await friendContext.close();
 
-  // Back on home, the friends card shows the place.
-  await button(page, 'Назад').click();
-  await expect(page.getByRole('button', { name: /7Б английский/ })).toContainText('вы на 1-м месте из 2');
+  // With a single group, «Друзья» opens its board; the place is on the board, not in the navigation.
+  await button(page, 'Сегодня').click();
+  await button(page, 'Друзья').click();
+  await expect(page.getByRole('heading', { name: '7Б английский' })).toBeFocused();
+  await expect(button(page, 'Друзья')).toHaveAccessibleDescription('');
 });

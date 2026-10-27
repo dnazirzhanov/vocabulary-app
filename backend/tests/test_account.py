@@ -11,7 +11,7 @@ from app.main import create_app
 from app.models import LearningSession, ReviewAttempt, User, UserWordProgress
 from tests.support import Play
 
-START_NEW = {"kind": "study", "deck_id": "starter"}
+START_NEW = {"kind": "study", "deck_id": "a1-a2"}
 
 
 def count(db: Session, model: type) -> int:

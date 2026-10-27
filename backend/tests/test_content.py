@@ -6,6 +6,7 @@ import yaml
 from app.services.content import (
     ContentError,
     DeckContent,
+    duplicate_words,
     example_tokens,
     missing_glossary_forms,
     parse_deck,
@@ -44,14 +45,16 @@ def write_deck(directory: Path, deck: dict[str, object], words: list[dict[str, o
     return directory
 
 
-def test_starter_deck_is_valid(starter_content: DeckContent) -> None:
-    assert starter_content.deck.id == "starter"
-    assert len(starter_content.deck.words) == 30
-    # Every part of speech used needs enough words to supply same-kind distractors.
-    by_pos: dict[str, int] = {}
-    for entry in starter_content.words:
-        by_pos[entry.pos] = by_pos.get(entry.pos, 0) + 1
-    assert min(by_pos.values()) >= 4
+LEVELS = {"a1-a2": ("A1–A2", 1), "b1-b2": ("B1–B2", 2), "c1": ("C1", 3)}
+CONTENT = Path(__file__).resolve().parents[2] / "content"
+
+
+def test_the_three_levels_have_100_words_each_and_no_word_twice() -> None:
+    decks = [parse_deck(CONTENT / level) for level in LEVELS]
+    for content in decks:
+        assert len(content.deck.words) == 100
+        assert (content.deck.level, content.deck.level_order) == LEVELS[content.deck.id]
+    assert duplicate_words(decks) == []
 
 
 def test_valid_tiny_deck(tmp_path: Path) -> None:
@@ -98,8 +101,16 @@ def test_a_course_goal_needs_a_source(tmp_path: Path) -> None:
 GLOSSARY = Path(__file__).resolve().parents[2] / "content" / "glossary.yaml"
 
 
-def test_every_example_word_of_the_starter_deck_can_be_tapped(starter_content: DeckContent) -> None:
-    assert missing_glossary_forms(starter_content, parse_glossary(GLOSSARY)) == []
+def test_every_example_word_of_every_level_can_be_tapped() -> None:
+    glossary = parse_glossary(GLOSSARY)
+    for level in LEVELS:
+        assert missing_glossary_forms(parse_deck(CONTENT / level), glossary) == []
+
+
+def test_a_word_in_two_decks_is_refused(tmp_path: Path) -> None:
+    first = parse_deck(write_deck(tmp_path, DECK, [word(i) for i in "abcd"]))
+    second = DeckContent(deck=first.deck.model_copy(update={"id": "other"}), words=first.words)
+    assert duplicate_words([first, second])[0] == "word 'a' is in both 'tiny' and 'other'"
 
 
 def test_example_words_keep_contractions_and_accents() -> None:

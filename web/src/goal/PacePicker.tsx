@@ -110,7 +110,9 @@ export function PacePicker({ value, onChange, secondsPerExercise }: PacePickerPr
             </label>
           ))}
         </div>
-        <p className={styles.hint}>Честный ответ делает дату финиша точнее. Выходные — это нормально.</p>
+        <p className={styles.hint}>
+          Это ваша цель на неделю: она показана на странице «Прогресс». Выходные — это нормально.
+        </p>
       </fieldset>
     </div>
   );

@@ -1,27 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
-import type { Deck, Me } from '../lib/types.ts';
+import type { Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { planInput } from '../plan/planInput.ts';
-import { PlanView } from '../plan/PlanView.tsx';
+import type { Course } from '../lib/course.ts';
 import { CoverageSentence } from './CoverageSentence.tsx';
 import { PacePicker, type PaceChoice } from './PacePicker.tsx';
 import styles from './GoalScreen.module.css';
 
-/** First run: the promise, the pace, then the plan. Later changes happen on «План» (PlanScreen). */
+/** First run: the promise, then the pace. */
 interface GoalScreenProps {
-  deck: Deck;
+  course: Course;
   me: Me;
   onDone: (me: Me) => void;
 }
 
 const thousands = (n: number) => n.toLocaleString('ru-RU');
 
-function CoursePromise({ deck }: { deck: Deck }) {
-  const goal = deck.course_goal;
+function CoursePromise({ course }: { course: Course }) {
+  const goal = course.course_goal;
   return (
     <>
       <p className={styles.eyebrow}>Ваша цель</p>
@@ -49,13 +48,14 @@ function CoursePromise({ deck }: { deck: Deck }) {
         <li>
           <CheckIcon aria-hidden="true" />
           <span>
-            <strong>Вы знаете дату финиша.</strong> Свой темп, понятный план и никакого чувства вины.
+            <strong>Темп выбираете вы.</strong> Сколько слов в день — решать вам, и никакого чувства вины за пропущенный
+            день.
           </span>
         </li>
       </ul>
       {goal && (
         <p className={styles.source}>
-          По частотному списку NGSL. Сейчас доступно {deck.word_count} из {thousands(goal.target_words)} слов — новые
+          По частотному списку NGSL. Сейчас доступно {course.word_count} из {thousands(goal.target_words)} слов — новые
           добавляются.
         </p>
       )}
@@ -78,10 +78,10 @@ function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }
   );
 }
 
-type Step = 'promise' | 'pace' | 'plan';
-const STEPS: Step[] = ['promise', 'pace', 'plan'];
+type Step = 'promise' | 'pace';
+const STEPS: Step[] = ['promise', 'pace'];
 
-export function GoalScreen({ deck, me, onDone }: GoalScreenProps) {
+export function GoalScreen({ course, me, onDone }: GoalScreenProps) {
   const [step, setStep] = useState<Step>('promise');
   const seconds = DEFAULT_SECONDS_PER_EXERCISE; // a new learner has no answering time to measure yet
   const [choice, setChoice] = useState<PaceChoice>({
@@ -139,13 +139,13 @@ export function GoalScreen({ deck, me, onDone }: GoalScreenProps) {
         <div className={styles.layout} data-step={step}>
           <div className={styles.stage} data-step={step}>
             {step === 'promise' ? (
-              <CoverageSentence percent={deck.course_goal?.coverage_percent ?? null} />
+              <CoverageSentence percent={course.course_goal?.coverage_percent ?? null} />
             ) : (
               <DaySummary choice={choice} seconds={seconds} />
             )}
           </div>
           <div className={styles.content}>
-            {step === 'promise' && <CoursePromise deck={deck} />}
+            {step === 'promise' && <CoursePromise course={course} />}
             {step === 'pace' && (
               <>
                 <h1 className={styles.heading} tabIndex={-1} data-autofocus>
@@ -156,18 +156,6 @@ export function GoalScreen({ deck, me, onDone }: GoalScreenProps) {
                   медленным, приложение подскажет.
                 </p>
                 <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
-              </>
-            )}
-            {step === 'plan' && (
-              <>
-                <h1 className={styles.heading} tabIndex={-1} data-autofocus>
-                  Ваш план
-                </h1>
-                <p className={styles.lead}>
-                  {wordsLabel(choice.words)} в день, {choice.days}&nbsp;дней в неделю. Темп можно поменять в любой
-                  момент в разделе «План» — даты пересчитаются.
-                </p>
-                <PlanView input={planInput(deck, choice, 0, me.onboarded_at)} deckWords={deck.word_count} />
               </>
             )}
           </div>
@@ -192,11 +180,6 @@ export function GoalScreen({ deck, me, onDone }: GoalScreenProps) {
             </PrimaryButton>
           )}
           {step === 'pace' && (
-            <PrimaryButton type="button" className={styles.action} onClick={() => setStep('plan')}>
-              Дальше: мой план
-            </PrimaryButton>
-          )}
-          {step === 'plan' && (
             <PrimaryButton type="button" className={styles.action} disabled={busy} aria-busy={busy} onClick={save}>
               {busy ? 'Сохраняем…' : 'Начать'}
             </PrimaryButton>

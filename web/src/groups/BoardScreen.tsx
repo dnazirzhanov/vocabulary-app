@@ -5,10 +5,10 @@ import { serverNow } from '../lib/clock.ts';
 import { visibleLines } from '../lib/board.ts';
 import type { Board, BoardRow } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { BackIcon, FlameIcon } from '../ui/icons.tsx';
+import { BackIcon, FlameIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
-import { InvitePanel } from './InvitePanel.tsx';
+import { InviteDialog } from './InviteDialog.tsx';
 import styles from './Groups.module.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -23,15 +23,18 @@ const members = (n: number) => `${n}\u00a0${plural(n, { one: 'участник',
 
 interface BoardScreenProps {
   groupId: string;
+  /** Open the invitation straight away: the group has just been created. */
+  inviteOnOpen?: boolean;
   onBack: () => void;
   onLeft: () => void;
 }
 
-/** This week in the group: places by days practised, a shared goal, and a way to invite friends. */
-export function BoardScreen({ groupId, onBack, onLeft }: BoardScreenProps) {
+/** This week in the group: places by days practised, a shared goal, and a button to invite friends. */
+export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: BoardScreenProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
+  const [inviting, setInviting] = useState(inviteOnOpen);
   const [confirm, setConfirm] = useState<string | null>(null); // a member id, or 'leave'
   const { run, busy, error: actionError } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -135,14 +138,21 @@ export function BoardScreen({ groupId, onBack, onLeft }: BoardScreenProps) {
       <main className={styles.main}>
         <div className={styles.boardLayout}>
           <div className={styles.boardMain}>
-            <p className={styles.eyebrow}>Группа</p>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              {group.name}
-            </h1>
-            <p className={styles.meta}>
-              {members(group.member_count)} · неделя {dayMonth.format(localDate(board.week_start))} –{' '}
-              {dayMonth.format(localDate(board.week_end))}
-            </p>
+            <div className={styles.boardHead}>
+              <div className={styles.boardTitle}>
+                <p className={styles.eyebrow}>Группа</p>
+                <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+                  {group.name}
+                </h1>
+                <p className={styles.meta}>
+                  {members(group.member_count)} · неделя {dayMonth.format(localDate(board.week_start))} –{' '}
+                  {dayMonth.format(localDate(board.week_end))}
+                </p>
+              </div>
+              <PrimaryButton type="button" className={styles.inviteButton} onClick={() => setInviting(true)}>
+                <PersonPlusIcon aria-hidden="true" /> Пригласить друзей
+              </PrimaryButton>
+            </div>
 
             <section className={styles.goal} aria-labelledby="goal-title">
               <h2 id="goal-title" className={styles.goalTitle}>
@@ -252,11 +262,14 @@ export function BoardScreen({ groupId, onBack, onLeft }: BoardScreenProps) {
               )}
             </div>
           </div>
-          <aside className={styles.boardAside}>
-            <InvitePanel code={group.invite_code} groupName={group.name} />
-          </aside>
         </div>
       </main>
+      <InviteDialog
+        code={group.invite_code}
+        groupName={group.name}
+        open={inviting}
+        onClose={() => setInviting(false)}
+      />
     </div>
   );
 }

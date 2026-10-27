@@ -9,7 +9,7 @@ from tests.support import at, rate
 
 # Thursday 5 November 2026, 09:00 UTC; the group's week is Monday 2 – Sunday 8 November.
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
-NEW = {"kind": "study", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "a1-a2"}
 
 
 def as_(name: str, moment: datetime = THURSDAY, zone: str = "UTC") -> dict[str, str]:
@@ -140,7 +140,7 @@ def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClien
     late_sunday = datetime(2026, 11, 1, 23, 30, tzinfo=UTC)
     client.patch("/api/me", json={"daily_target_words": 3}, headers=as_("aibek", late_sunday))
     client.get(
-        "/api/me/pace", params={"deck_id": "starter"}, headers=as_("aibek", zone="Asia/Bishkek")
+        "/api/me/pace", params={"deck_id": "a1-a2"}, headers=as_("aibek", zone="Asia/Bishkek")
     )
     session = client.post("/api/sessions", json=NEW, headers=as_("aibek", late_sunday)).json()
     play_as(client, "aibek", session, late_sunday)

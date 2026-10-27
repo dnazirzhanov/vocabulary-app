@@ -40,7 +40,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy .
-      - run: uv run python -m app.cli validate-content ../content/starter-deck
+      - run: uv run python -m app.cli validate-content ../content/a1-a2 ../content/b1-b2 ../content/c1
       - run: uv run alembic upgrade head
       - run: uv run alembic check # models and migrations must not drift apart
       - run: uv run pytest
@@ -105,7 +105,7 @@ jobs:
         run: |
           uv sync --locked
           uv run alembic upgrade head
-          uv run python -m app.cli load-content ../content/starter-deck
+          uv run python -m app.cli load-content ../content/a1-a2 ../content/b1-b2 ../content/c1
       - name: Install web dependencies
         working-directory: web
         run: npm ci

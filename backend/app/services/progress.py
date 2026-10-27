@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
+from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
 from app.schemas.learning import DayActivity, ProgressOut, RecallRate, WordStages
 from app.services.scheduling import AGAIN, REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
@@ -119,13 +119,13 @@ def recall_counts(db: Session, user: User, now: datetime) -> tuple[int, int]:
     return int(recalled), int(reviewed)
 
 
-def deck_progress(
-    db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
-) -> ProgressOut:
+def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> ProgressOut:
+    # Words of every published level (a retired deck may still list words that moved to another).
     mine = (
         select(UserWordProgress)
         .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
-        .where(DeckWord.deck_id == deck_id, UserWordProgress.user_id == user.id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(Deck.status == "published", UserWordProgress.user_id == user.id)
         .subquery()
     )
     introduced, well_learned, due = db.execute(
@@ -141,17 +141,9 @@ def deck_progress(
     today = local_date(now, time_zone)
     history_start, _ = local_day_bounds(today - timedelta(days=STREAK_HISTORY_DAYS), time_zone)
     by_day = _points_by_local_day(db, user, history_start, time_zone)
-    week = [today - timedelta(days=n) for n in range(6, -1, -1)]
-
     recalled, reviewed = recall_counts(db, user, now)
-    total = db.scalar(
-        select(func.coalesce(func.sum(ReviewAttempt.points), 0)).where(
-            ReviewAttempt.user_id == user.id
-        )
-    )
 
     return ProgressOut(
-        deck_id=deck_id,
         words=WordStages(
             introduced=introduced,
             reviewing=introduced - well_learned,
@@ -163,7 +155,9 @@ def deck_progress(
         streak_days=streak(
             (day for day, points in by_day.items() if points >= DAILY_GOAL_POINTS), today
         ),
-        week=[DayActivity(date=day, points=by_day.get(day, 0)) for day in week],
+        activity=[
+            DayActivity(date=day, points=points) for day, points in sorted(by_day.items()) if points
+        ],
+        study_days_per_week=user.study_days_per_week,
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
-        points_total=int(total or 0),
     )

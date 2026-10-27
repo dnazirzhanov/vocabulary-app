@@ -1,12 +1,13 @@
 /*
- * Home is the path: where the learner is (level, stone, today's plan) above the stones on mobile,
- * beside them on desktop; the one primary action sits in the bottom bar.
+ * Home answers "what now?": today's three numbers lead, the decks follow with their own counts,
+ * and the one primary action sits centred in the bottom bar. Screens fill the navigation shell's
+ * content area (NavShell).
  */
 .screen {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  height: 100vh;
-  height: 100dvh;
+  grid-template-columns: minmax(0, 1fr); /* never wider than the viewport */
+  height: 100%;
 }
 
 .topbar {
@@ -33,161 +34,27 @@
   color: var(--color-primary);
 }
 
-.links {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.progressLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  margin-right: calc(-1 * var(--space-2));
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text);
-  font-weight: var(--weight-strong);
-  cursor: pointer;
-}
-
-.progressLink:hover {
-  background: rgb(38 38 38 / 0.06);
-}
-
-.progressLink + .progressLink {
-  margin-right: calc(-1 * var(--space-2));
-}
-
-.progressLink:first-child {
-  margin-right: 0;
-}
-
-/* Narrow phones: icons only (the label stays for screen readers), so a streak still fits. */
-@media (max-width: 374px) {
-  .linkLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .progressLink {
-    min-width: 44px;
-    justify-content: center;
-    padding: 0 var(--space-2);
-  }
-}
-
-.today {
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.todayValue {
-  font-size: var(--text-option);
-}
-
-.todayValue strong {
-  font-size: var(--text-title);
-  font-weight: var(--weight-display);
-}
-
-.bonus {
-  color: var(--color-success);
-  font-weight: var(--weight-strong);
-}
-
-.todayDots {
-  height: 8px;
-  margin-top: var(--space-2);
-  border-radius: 4px;
-  background: var(--color-track);
-  overflow: hidden;
-}
-
-.todayDots span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-success);
-  transition: width var(--duration-progress) var(--ease-out);
-}
-
-.todayNote {
-  margin-top: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
-.planCard,
-.friends {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  width: 100%;
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-control) solid var(--color-option-edge);
-  border-radius: var(--radius-md);
-  box-shadow: 0 3px 0 var(--color-option-edge);
-  background: var(--color-surface);
-  text-align: left;
-  cursor: pointer;
-}
-
-.planCard strong,
-.friends strong {
-  font-size: var(--text-option);
-  font-weight: var(--weight-display);
-}
-
-.planCard span,
-.friends span {
-  color: var(--color-text-muted);
-}
-
-.planCard .planEyebrow {
-  color: var(--color-primary-strong);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.suggestion {
-  margin-top: var(--space-4);
-}
-
 .main {
   display: flex;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--space-2) var(--gutter) var(--space-5);
+  padding: var(--space-3) var(--gutter) var(--space-6);
 }
 
 .layout {
   display: flex;
   flex-direction: column;
-  justify-content: safe center;
-  gap: var(--space-5);
+  gap: var(--space-6);
   width: 100%;
   max-width: var(--width-column);
   margin: 0 auto;
 }
 
-.eyebrow {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
+/* --- Today ------------------------------------------------------------------------------ */
 
 .title {
-  font-size: var(--text-display);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-title);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);
 }
@@ -196,28 +63,191 @@
   outline: none;
 }
 
-.wordsLink {
-  min-height: 44px;
-  margin: var(--space-1) 0 0 calc(-1 * var(--space-2));
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-primary-strong);
-  font-weight: var(--weight-strong);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
+.target {
+  margin-top: var(--space-5);
 }
 
-.wordsLink:hover {
-  background: var(--color-primary-tint);
+.targetValue {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.targetValue strong {
+  color: var(--color-text);
+  font-weight: var(--weight-display);
+}
+
+.bonus {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.targetBar {
+  height: 8px;
+  margin-top: var(--space-2);
+  border-radius: 4px;
+  background: var(--color-track);
+  overflow: hidden;
+}
+
+.targetBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-success);
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.targetNote {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
 }
 
 .note {
-  margin-top: var(--space-3);
+  margin-top: var(--space-4);
   color: var(--color-text-muted);
 }
+
+.suggestion {
+  margin-top: var(--space-4);
+}
+
+/* --- Decks: one panel, a row per deck; the header and rows share the same columns --------- */
+
+.deckGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 2.5rem) 20px;
+  column-gap: var(--space-2);
+  align-items: center;
+}
+
+.decks > .deckGrid {
+  margin-bottom: var(--space-2);
+  /* The column names line up with the rows' numbers: their padding plus the panel's border. */
+  padding-right: calc(var(--space-4) + var(--border-control));
+}
+
+.sectionTitle {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.colHead {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.deckList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  box-shadow: 0 3px 0 var(--color-option-edge);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.deckList li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.deckRow {
+  width: 100%;
+  min-height: 68px;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deckRow:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.04);
+}
+
+/* A locked level is not pressable; while a lesson loads, none is. */
+.deckRow:disabled {
+  cursor: default;
+}
+
+/* The panel clips its corners, so the focus ring is drawn inside the row. */
+.deckRow:focus-visible {
+  outline-offset: -3px;
+}
+
+.deckName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deckName strong {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.deckMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.deckRow[data-locked] strong {
+  color: var(--color-text-muted);
+}
+
+.deckRow[data-locked] .deckName {
+  grid-column: 1 / 4;
+}
+
+.count {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.fresh {
+  color: var(--color-count-new);
+}
+
+.learning {
+  color: var(--color-count-learning);
+}
+
+.review {
+  color: var(--color-count-review);
+}
+
+.count[data-zero] {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+}
+
+.locked {
+  grid-column: 4;
+  justify-self: center;
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
+.locked svg {
+  width: 20px;
+  height: 20px;
+}
+
+.chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+}
+
+/* --- The action bar and messages ------------------------------------------------------------ */
 
 .actions {
   padding: var(--space-3) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
@@ -235,10 +265,6 @@
   width: 100%;
 }
 
-.actionsInner .secondary {
-  min-height: 44px;
-}
-
 .error {
   max-width: var(--width-column);
   margin: 0 auto var(--space-2);
@@ -248,8 +274,7 @@
 }
 
 .message {
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -267,50 +292,39 @@
   font-weight: var(--weight-display);
 }
 
-.titleOf {
-  color: var(--color-text-muted);
-  font-size: var(--text-title);
-  font-weight: var(--weight-strong);
-}
-
-.position {
-  margin: var(--space-1) 0 var(--space-4);
-  color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
-}
-
-.pathColumn {
-  min-width: 0;
-}
-
-@media (min-width: 1024px) {
-  .topbar {
-    max-width: var(--width-lesson);
+/* Narrow phones: tighter deck columns. */
+@media (max-width: 374px) {
+  .deckGrid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 2.25rem) 16px;
+    column-gap: var(--space-1);
   }
 
+  .colHead {
+    font-size: 0.8125rem;
+  }
+
+  .deckRow {
+    padding-inline: var(--space-3);
+  }
+
+  .decks > .deckGrid {
+    padding-right: calc(var(--space-3) + var(--border-control));
+  }
+}
+
+/* Desktop: the same single column, centred, with more air; the action centred under it. */
+@media (min-width: 1024px) {
   .main {
-    padding: var(--space-4) var(--gutter) var(--space-6);
+    padding: var(--space-6) var(--gutter);
   }
 
   .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(340px, var(--width-prompt));
-    grid-template-areas: 'path intro';
-    column-gap: var(--space-8);
-    align-items: start;
-    max-width: var(--width-lesson);
+    gap: var(--space-7);
   }
 
-  .pathColumn {
-    grid-area: path;
-  }
-
-  /* The details stay in view while the path scrolls past. */
-  .intro {
-    grid-area: intro;
-    position: sticky;
-    top: 0;
-    padding-top: var(--space-5);
+  .title {
+    font-size: var(--text-display);
+    margin-bottom: var(--space-5);
   }
 
   .actions {
@@ -318,18 +332,11 @@
   }
 
   .actionsInner {
-    flex-direction: row;
-    justify-content: flex-end;
-    gap: var(--space-3);
-    max-width: var(--width-lesson);
-  }
-
-  .actionsInner .secondary {
-    min-height: 52px;
+    align-items: center;
   }
 
   .action {
     width: auto;
-    min-width: 220px;
+    min-width: 320px;
   }
 }

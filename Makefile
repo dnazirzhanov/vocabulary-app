@@ -11,8 +11,8 @@ setup: ## Install backend and web dependencies
 db-migrate: ## Apply migrations to DATABASE_URL (from .env)
 	cd backend && uv run alembic upgrade head
 
-content-load: ## Validate the starter deck and import it into DATABASE_URL
-	cd backend && uv run python -m app.cli load-content ../content/starter-deck
+content-load: ## Validate the three level decks and import them into DATABASE_URL
+	cd backend && uv run python -m app.cli load-content ../content/a1-a2 ../content/b1-b2 ../content/c1
 
 seed-classmates: ## Development only: a demo group of made-up classmates for the local dev user
 	cd backend && uv run python -m app.cli seed-classmates

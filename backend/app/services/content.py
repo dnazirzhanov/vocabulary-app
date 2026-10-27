@@ -71,6 +71,9 @@ class DeckEntry(BaseModel):
     content_version: int = Field(ge=1)
     source: Text
     review_status: Literal["draft", "reviewed"]
+    # The course level this deck is ("A1–A2"), and its place in the sequence of levels.
+    level: Annotated[Text, StringConstraints(max_length=16)] | None = None
+    level_order: int = Field(default=0, ge=0)
     course_goal: CourseGoal | None = None
     words: list[Slug] = Field(min_length=4)
 
@@ -224,6 +227,20 @@ def parse_glossary(path: Path) -> dict[str, GlossaryEntry]:
     if problems:
         raise ContentError(problems)
     return entries
+
+
+def duplicate_words(decks: list[DeckContent]) -> list[str]:
+    """A word belongs to one deck: progress is per word, so it could only be met once anyway."""
+    owner: dict[str, str] = {}
+    problems = []
+    for content in decks:
+        for word_id in content.deck.words:
+            if word_id in owner:
+                problems.append(
+                    f"word {word_id!r} is in both {owner[word_id]!r} and {content.deck.id!r}"
+                )
+            owner.setdefault(word_id, content.deck.id)
+    return problems
 
 
 def missing_glossary_forms(content: DeckContent, glossary: dict[str, GlossaryEntry]) -> list[str]:

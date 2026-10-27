@@ -8,6 +8,7 @@ passed in, never read here.
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -46,7 +47,7 @@ from app.services.learning import (
     requeue,
 )
 from app.services.progress import DAILY_GOAL_POINTS, card_points, points_today, session_points
-from app.services.scheduling import AGAIN, CardState, previews, review
+from app.services.scheduling import AGAIN, LEARNING, RELEARNING, CardState, previews, review
 
 # --- reading ---------------------------------------------------------------------------------
 
@@ -174,7 +175,8 @@ def present_session(db: Session, user: User, session: LearningSession, now: date
     )
 
 
-def list_decks(db: Session, user: User, now: datetime) -> list[DeckOut]:
+def _course_rows(db: Session, user: User, now: datetime) -> list[Any]:
+    """Published decks in level order, with the learner's counts on each."""
     word_count = (
         select(func.count()).where(DeckWord.deck_id == Deck.id).correlate(Deck).scalar_subquery()
     )
@@ -187,17 +189,47 @@ def list_decks(db: Session, user: User, now: datetime) -> list[DeckOut]:
     )
     introduced = select(func.count()).select_from(mine).scalar_subquery()
     due = select(func.count()).select_from(mine).where(mine.c.due_at <= now).scalar_subquery()
-    next_due = select(func.min(mine.c.due_at)).where(mine.c.due_at > now).scalar_subquery()
-    rows = db.execute(
-        select(Deck, word_count, introduced, due, next_due)
-        .where(Deck.status == "published")
-        .order_by(Deck.id)
+    # Anki's "Learn" column: due cards still in short learning or relearning steps.
+    learning = (
+        select(func.count())
+        .select_from(mine)
+        .where(mine.c.due_at <= now, mine.c.fsrs_state.in_((LEARNING, RELEARNING)))
+        .scalar_subquery()
     )
+    next_due = select(func.min(mine.c.due_at)).where(mine.c.due_at > now).scalar_subquery()
+    return list(
+        db.execute(
+            select(Deck, word_count, introduced, due, learning, next_due)
+            .where(Deck.status == "published")
+            .order_by(Deck.level_order, Deck.id)
+        )
+    )
+
+
+def _current_index(rows: list[Any]) -> int:
+    """The level the learner is on: the first with words still to meet (the last when all are
+    met). Later levels are locked until it is done (ADR 0014)."""
+    for index, (_, words, met, *_) in enumerate(rows):
+        if met < words:
+            return index
+    return max(0, len(rows) - 1)
+
+
+def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> list[DeckOut]:
+    rows = _course_rows(db, user, now)
+    if not rows:
+        return []
+    current = _current_index(rows)
+    today = pace.day_plan(db, user, rows[current][0].id, now, time_zone)
+    allowance = 0 if today.blocked_by_reviews else today.remaining
     return [
         DeckOut(
             id=deck.id,
             title=deck.title,
             description=deck.description,
+            level=deck.level,
+            level_order=deck.level_order,
+            locked=index > current,
             course_goal=CourseGoalOut(
                 target_words=deck.goal_words, coverage_percent=deck.goal_coverage_percent
             )
@@ -206,9 +238,12 @@ def list_decks(db: Session, user: User, now: datetime) -> list[DeckOut]:
             word_count=words,
             introduced_count=met,
             due_count=due_now,
+            learning_count=learning,
+            review_count=due_now - learning,
+            new_today=min(allowance, words - met) if index == current else 0,
             next_due_at=upcoming,
         )
-        for deck, words, met, due_now, upcoming in rows
+        for index, (deck, words, met, due_now, learning, upcoming) in enumerate(rows)
     ]
 
 
@@ -233,16 +268,33 @@ def require_published_deck(db: Session, deck_id: str) -> Deck:
 
 def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
-) -> list[PlannedExercise]:
-    """Due cards from every deck (old levels keep coming back), most overdue first; then new
-    words of this deck, as many as today's pace allows (ADR 0010)."""
-    deck = require_published_deck(db, request.deck_id)
+) -> tuple[str, list[PlannedExercise]]:
+    """One deck: its due cards, most overdue first, then its new words as today's pace allows
+    (ADR 0010). No deck («Продолжить»): due cards of every level, then the current level's new
+    words, so earlier levels keep coming back (ADR 0014)."""
+    rows = _course_rows(db, user, now)
+    current = _current_index(rows)
+    if request.deck_id is None:
+        if not rows:
+            raise ApiError(404, "deck_not_found", "No decks are published")
+        deck = rows[current][0]
+    else:
+        deck = require_published_deck(db, request.deck_id)
+        position = next((i for i, row in enumerate(rows) if row[0].id == deck.id), current)
+        if position > current:
+            raise ApiError(409, "deck_locked", "Finish the previous level first")
+    due_query = select(UserWordProgress.word_id).where(
+        UserWordProgress.user_id == user.id, UserWordProgress.due_at <= now
+    )
+    if request.deck_id is not None:
+        due_query = due_query.join(DeckWord, DeckWord.word_id == UserWordProgress.word_id).where(
+            DeckWord.deck_id == deck.id
+        )
     due = list(
         db.scalars(
-            select(UserWordProgress.word_id)
-            .where(UserWordProgress.user_id == user.id, UserWordProgress.due_at <= now)
-            .order_by(UserWordProgress.due_at, UserWordProgress.word_id)
-            .limit(REVIEW_CARDS_PER_SESSION)
+            due_query.order_by(UserWordProgress.due_at, UserWordProgress.word_id).limit(
+                REVIEW_CARDS_PER_SESSION
+            )
         )
     )
     today = pace.day_plan(db, user, deck.id, now, time_zone)
@@ -257,7 +309,7 @@ def _study_plan(
         if today.blocked_by_reviews:
             raise ApiError(409, "reviews_first", "Too many reviews are due: review first")
         raise ApiError(409, "nothing_to_study", "Nothing is due and no new words are left")
-    return plan_cards(due, new)
+    return deck.id, plan_cards(due, new)
 
 
 def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[PlannedExercise]:
@@ -290,13 +342,13 @@ def start_session(
         return present_session(db, user, existing, now)
 
     if isinstance(request, StartStudySession):
-        plan = _study_plan(db, user, request, now, time_zone)
+        deck_id, plan = _study_plan(db, user, request, now, time_zone)
     else:
-        plan = _hard_plan(db, user, request)
+        deck_id, plan = request.deck_id, _hard_plan(db, user, request)
     session = LearningSession(
         id=uuid4(),
         user_id=user.id,
-        deck_id=request.deck_id,
+        deck_id=deck_id,
         kind=request.kind,
         plan=[step.to_json() for step in plan],
         started_at=now,

@@ -2,8 +2,7 @@
 .screen {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
 }
 
 .topbar {

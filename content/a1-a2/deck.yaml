@@ -1,0 +1,124 @@
+# Level 1 of the course. Word order below is the order new words are introduced.
+id: a1-a2
+title: Основа
+description: Самые нужные слова на каждый день — дома, на улице, на работе и в учёбе.
+level: A1–A2
+level_order: 1
+learning_language: en
+explanation_language: ru
+status: published
+# Bump when words change in a way learners should notice (new words, changed meanings).
+content_version: 2
+# Provenance, so nobody mistakes a draft for reviewed content.
+source: >-
+  The first 30 words were chosen by hand; the other 70 are A1/A2 words of the CEFR-J
+  Vocabulary Profile 1.5 (Tono Laboratory, TUFS; free use with citation), ordered by NGSL
+  frequency. Translations and examples are original drafts for review by a fluent Russian speaker.
+review_status: draft
+# The promise shown to learners. Only show numbers backed by a source (the validator requires one).
+# See docs/research/ngsl-coverage-2026-10.md for how 1,300 → 80% was computed.
+course_goal:
+  target_words: 1300
+  coverage_percent: 80
+  source: NGSL 1.2 frequency data — the 1,300 most frequent words cover 79.8% of running words.
+words:
+  - house
+  - water
+  - friend
+  - buy
+  - cheap
+  - money
+  - city
+  - wait
+  - busy
+  - morning
+  - door
+  - open
+  - tired
+  - window
+  - book
+  - forget
+  - hungry
+  - food
+  - job
+  - help
+  - expensive
+  - weather
+  - key
+  - find
+  - empty
+  - family
+  - street
+  - remember
+  - quiet
+  - question
+  - time
+  - people
+  - year
+  - day
+  - child
+  - life
+  - man
+  - woman
+  - country
+  - school
+  - week
+  - month
+  - world
+  - hand
+  - name
+  - word
+  - home
+  - room
+  - car
+  - phone
+  - problem
+  - place
+  - number
+  - night
+  - eye
+  - head
+  - go
+  - know
+  - think
+  - see
+  - take
+  - come
+  - want
+  - give
+  - tell
+  - write
+  - leave
+  - ask
+  - meet
+  - talk
+  - live
+  - read
+  - understand
+  - learn
+  - work
+  - play
+  - like
+  - eat
+  - drink
+  - sleep
+  - speak
+  - good
+  - new
+  - old
+  - big
+  - small
+  - long
+  - young
+  - important
+  - different
+  - early
+  - late
+  - happy
+  - hot
+  - cold
+  - beautiful
+  - easy
+  - difficult
+  - always
+  - never

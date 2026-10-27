@@ -4,11 +4,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.models import DeckWord, User, UserWordProgress
 from tests.support import Play, at, rate
 
 DAY_1 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-NEW = {"kind": "study", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "a1-a2"}
 
 
 def new_word_count(session: dict[str, Any]) -> int:
@@ -49,12 +52,12 @@ def test_lessons_follow_the_daily_target_and_then_offer_bonus_words(
     client: TestClient, play: Play
 ) -> None:
     client.patch("/api/me", json={"daily_target_words": 3}, headers=at(DAY_1))
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(DAY_1)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(DAY_1)).json()
     assert (pace["target"], pace["remaining_today"], pace["next_lesson_size"]) == (3, 3, 3)
 
     summary = play(NEW, DAY_1)
     assert len(summary["words"]) == 3
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(DAY_1)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(DAY_1)).json()
     assert (pace["new_words_today"], pace["remaining_today"], pace["bonus"]) == (3, 0, True)
 
     bonus = play(NEW, DAY_1 + timedelta(minutes=10))
@@ -63,13 +66,13 @@ def test_lessons_follow_the_daily_target_and_then_offer_bonus_words(
 
 def test_a_large_target_warms_up_and_splits_into_lessons(client: TestClient) -> None:
     client.patch("/api/me", json={"daily_target_words": 30}, headers=at(DAY_1))
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(DAY_1)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(DAY_1)).json()
     assert (pace["ramp_week"], pace["effective_target"], pace["next_lesson_size"]) == (0, 15, 10)
     session = client.post("/api/sessions", json=NEW, headers=at(DAY_1)).json()
     assert new_word_count(session) == 10
 
     week_3 = DAY_1 + timedelta(days=15)
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(week_3)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(week_3)).json()
     assert (pace["ramp_week"], pace["effective_target"]) == (None, 30)
 
 
@@ -79,7 +82,7 @@ def test_new_words_wait_while_too_many_reviews_are_due(client: TestClient, play:
         play(NEW, DAY_1 + timedelta(minutes=30 * n))
 
     later = DAY_1 + timedelta(days=5)
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(later)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(later)).json()
     assert pace["blocked_by_reviews"] is True
     assert (pace["due_count"], pace["review_debt_limit"]) == (22, 20)
     # A session still starts, with reviews only: new words wait.
@@ -112,7 +115,7 @@ def test_a_dismissed_suggestion_stays_quiet_for_a_week(client: TestClient, play:
     forget_every_review(client, DAY_1 + timedelta(days=5))
 
     today = DAY_1 + timedelta(days=6)
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(today)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(today)).json()
     assert pace["suggestion"] == {
         "kind": "lower",
         "value": 14,
@@ -123,10 +126,10 @@ def test_a_dismissed_suggestion_stays_quiet_for_a_week(client: TestClient, play:
 
     dismissed = client.post("/api/me/pace/dismiss", json={"kind": "lower"}, headers=at(today))
     assert dismissed.status_code == 204
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(today)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(today)).json()
     assert pace["suggestion"] is None
     in_8_days = today + timedelta(days=8)
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(in_8_days)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(in_8_days)).json()
     assert pace["suggestion"]["kind"] == "lower"
 
 
@@ -134,10 +137,33 @@ def test_pace_is_only_for_published_decks(client: TestClient) -> None:
     assert client.get("/api/me/pace", params={"deck_id": "nope"}).status_code == 404
 
 
-def test_no_suggestion_once_the_deck_has_no_new_words(client: TestClient, play: Play) -> None:
+def test_no_suggestion_once_the_course_has_no_new_words(
+    client: TestClient, play: Play, db: Session
+) -> None:
     client.patch("/api/me", json={"daily_target_words": 20}, headers=at(DAY_1 - timedelta(days=30)))
-    for n in range(3):  # 3 × 10 words: the whole deck, each day below the target
+    for n in range(3):  # one lesson of 10 words a day: below the target, a "lower" case
         play(NEW, DAY_1 + timedelta(days=n))
     today = DAY_1 + timedelta(days=3)
-    pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(today)).json()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(today)).json()
+    assert pace["suggestion"]["kind"] == "lower"
+
+    # Every word of every level met: a pace has nothing left to adjust.
+    user = db.scalars(select(User)).one()
+    met = set(db.scalars(select(UserWordProgress.word_id)))
+    for word_id in db.scalars(select(DeckWord.word_id)):
+        if word_id not in met:
+            db.add(
+                UserWordProgress(
+                    user_id=user.id,
+                    word_id=word_id,
+                    introduced_at=today,
+                    last_seen_at=today,
+                    fsrs_state=2,
+                    stability=30.0,
+                    difficulty=5.0,
+                    due_at=today + timedelta(days=30),
+                )
+            )
+    db.commit()
+    pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(today)).json()
     assert pace["suggestion"] is None

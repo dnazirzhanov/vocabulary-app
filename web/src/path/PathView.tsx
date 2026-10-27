@@ -34,17 +34,20 @@ function caption(stone: Stone): string {
 function stoneLabel(stone: Stone, total: number): string {
   const where = stone.state === 'current' ? ', вы здесь' : '';
   const due = stone.due > 0 ? `, ${stone.due} к повторению` : '';
-  return `Камень ${stone.number} из ${total}, уровень ${stone.level}: ${caption(stone)}${where}${due}. Показать слова`;
+  return `Камень ${stone.number} из ${total}, этап ${stone.level}: ${caption(stone)}${where}${due}. Показать слова`;
 }
 
 interface PathViewProps {
   path: DeckPath;
-  courseWords: number | null;
   deckWords: number;
+  /** What comes after this deck's finish: the next level, or more of the course later. */
+  finishNote: string | null;
+  /** Scroll the current stone into view on arrival (off where the path sits below other content). */
+  follow?: boolean;
 }
 
 /** The deck as stones across water. The frog stands on the current stone and hops forward. */
-export function PathView({ path, courseWords, deckWords }: PathViewProps) {
+export function PathView({ path, deckWords, finishNote, follow = true }: PathViewProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const frogRef = useRef<HTMLDivElement>(null);
   const stoneRefs = useRef(new Map<number, HTMLButtonElement>());
@@ -93,7 +96,7 @@ export function PathView({ path, courseWords, deckWords }: PathViewProps) {
     }
     // Announced after this frame: a live region only speaks changes made after it is on the page.
     const frame = requestAnimationFrame(() =>
-      setAnnouncement(`Вы перешли на камень ${current}.${finishedLevel ? ` Уровень ${finishedLevel} пройден!` : ''}`),
+      setAnnouncement(`Вы перешли на камень ${current}.${finishedLevel ? ` Этап ${finishedLevel} пройден!` : ''}`),
     );
     if (reducedMotion()) {
       place(current);
@@ -145,8 +148,8 @@ export function PathView({ path, courseWords, deckWords }: PathViewProps) {
 
   // Bring the current stone into view on arrival without jumping past the header above the path.
   useEffect(() => {
-    if (current !== null) stoneRefs.current.get(current)?.scrollIntoView({ block: 'nearest' });
-  }, [current]);
+    if (follow && current !== null) stoneRefs.current.get(current)?.scrollIntoView({ block: 'nearest' });
+  }, [current, follow]);
 
   return (
     <section className={styles.scene} aria-labelledby="path-title">
@@ -164,7 +167,7 @@ export function PathView({ path, courseWords, deckWords }: PathViewProps) {
             return (
               <li key={level.number} className={styles.level}>
                 <p className={styles.levelMark} data-state={state}>
-                  <span>Уровень {level.number}</span>
+                  <span>Этап {level.number}</span>
                   <small>{state === 'done' ? 'пройден' : state === 'current' ? 'сейчас' : 'впереди'}</small>
                 </p>
                 <ol className={styles.stones}>
@@ -250,11 +253,7 @@ export function PathView({ path, courseWords, deckWords }: PathViewProps) {
             />
           </svg>
           <p className={styles.finishTitle}>Финиш колоды · {wordsLabel(deckWords)}</p>
-          {courseWords && courseWords > deckWords && (
-            <p className={styles.finishNote}>
-              Дальше — следующие слова курса из {courseWords.toLocaleString('ru-RU')}. Они скоро появятся.
-            </p>
-          )}
+          {finishNote && <p className={styles.finishNote}>{finishNote}</p>}
         </div>
         {current !== null && (
           <div ref={frogRef} className={styles.frog} aria-hidden="true">
@@ -265,7 +264,7 @@ export function PathView({ path, courseWords, deckWords }: PathViewProps) {
       {banner !== null && (
         <div className={styles.banner} aria-hidden="true">
           <span className={styles.splash} />
-          Уровень {banner} пройден!
+          Этап {banner} пройден!
         </div>
       )}
       <p className="visually-hidden" aria-live="polite">

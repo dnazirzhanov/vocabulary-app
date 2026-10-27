@@ -23,4 +23,4 @@ USER app
 ENV ENVIRONMENT=production AUTH_MODE=jwt WEB_DIST=/app/web-dist PATH="/app/backend/.venv/bin:$PATH"
 EXPOSE 8000
 # Migrations run before the server starts; both need DATABASE_URL and AUTH_ISSUER at runtime.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.cli load-content /app/content/starter-deck && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1 && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

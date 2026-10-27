@@ -2,7 +2,7 @@ import { button, expect, finishSession, study, test } from './learner.ts';
 
 test('a new learner studies five flashcards and the progress survives a reload', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('0 из 30 слов')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('0 из 100');
   // Each new card says its word by itself, from the recorded file.
   const spoken = page.waitForRequest(/\/audio\/words\/house\.mp3$/);
   await button(page, 'Начать урок · 5 слов').click();
@@ -24,7 +24,7 @@ test('a new learner studies five flashcards and the progress survives a reload',
   await button(page, 'На главную').click();
 
   await page.reload();
-  await expect(page.getByText('5 из 30 слов')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('5 из 100');
   await expect(button(page, 'Ещё 5 слов')).toBeVisible(); // the daily target is met: a bonus lesson
 });
 
