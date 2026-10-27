@@ -79,6 +79,8 @@ class LearningSession(Base):
     # when no new words were possible) and the days a week promised. NULL for practice.
     day_target: Mapped[int | None] = mapped_column(SmallInteger)
     promised_days: Mapped[int | None] = mapped_column(SmallInteger)
+    # Words in the lesson's spelling section (ADR 0016); NULL before spelling existed.
+    spelling_words: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReviewAttempt(Base):
@@ -115,3 +117,21 @@ class ReviewAttempt(Base):
     due_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Awarded once, when the attempt is written (services/progress.py).
     points: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    # Spelling: the learner asked to see the word, so the answer is never counted as recalled.
+    hint_used: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+
+
+class UserWordSpelling(Base):
+    """When a word comes back for spelling recall (ADR 0016): a schedule of its own, apart from
+    the flashcard memory. Created at the word's first spelling recall."""
+
+    __tablename__ = "user_word_spelling"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    # First-try recalls in a row (capped); 0 after a miss.
+    stage: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

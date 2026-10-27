@@ -69,20 +69,66 @@ class CardExercise(BaseModel):
     previews: list[IntervalPreview]
 
 
-ExerciseOut = CardExercise
+class SpellGuidedExercise(BaseModel):
+    """Build the word while looking at it (ADR 0016)."""
+
+    id: str
+    type: Literal["spell_guided"] = "spell_guided"
+    word: WordOut
+    # Letter tiles in display order; the client gives each its own identity by position.
+    tiles: list[str]
+
+
+class SpellingPrompt(BaseModel):
+    """What a recall shows: the meaning, never the English word (no id, example or audio)."""
+
+    translation: str
+    pos: str
+    # The Russian example, for context when a meaning has several English words.
+    example_ru: str
+
+
+class SpellRecallExercise(BaseModel):
+    """Build the word from its meaning, from memory (ADR 0016)."""
+
+    id: str
+    type: Literal["spell_recall"] = "spell_recall"
+    prompt: SpellingPrompt
+    # Letters in the word: the empty slots.
+    slots: int
+    tiles: list[str]
+    # The one retry after a miss earlier in this lesson.
+    retry: bool
+
+
+ExerciseOut = Annotated[
+    CardExercise | SpellGuidedExercise | SpellRecallExercise, Field(discriminator="type")
+]
+
+
+class InsertedExercise(BaseModel):
+    """An exercise added to the lesson by an answer, and its position in the exercise list."""
+
+    index: int
+    exercise: ExerciseOut
+
 
 SessionKind = Literal["study", "hard"]
 
 
 class AttemptResultOut(BaseModel):
     exercise_id: str
-    rating: int
-    # When the card is due next (practice sessions leave the schedule as it was).
-    next_due_at: datetime
-    # Another showing of the same card later in this session, when it is due again soon, and its
-    # position in the session's exercise list.
-    appended: CardExercise | None = None
-    appended_index: int | None = None
+    # Cards: the rating and when the card is due next (practice leaves the schedule as it was).
+    rating: int | None = None
+    next_due_at: datetime | None = None
+    # Spelling: whether the word was built right, whether it was shown first, and the word
+    # itself (a recall reveals it only once answered).
+    correct: bool | None = None
+    hint_used: bool = False
+    answer: str | None = None
+    # Exercises this answer added later in the lesson: another showing of a card due again soon;
+    # after a missed recall, guided practice and one retry.
+    inserted: list[InsertedExercise] = []
 
 
 class SessionOut(BaseModel):
@@ -124,9 +170,17 @@ class RatingResponse(_Input):
     rating: Annotated[int, Field(ge=1, le=4)]
 
 
+class SpellingResponse(_Input):
+    kind: Literal["spelling"]
+    # The letters of the tiles chosen, in order; checked and discarded, never stored.
+    answer: Annotated[str, StringConstraints(max_length=64)]
+    # «Показать слово» was used: never counted as recalled.
+    hint_used: bool = False
+
+
 class AttemptIn(_Input):
     exercise_id: Annotated[str, StringConstraints(max_length=8)]
-    response: RatingResponse
+    response: Annotated[RatingResponse | SpellingResponse, Field(discriminator="kind")]
 
 
 class SummaryWord(BaseModel):
@@ -155,6 +209,16 @@ class SummaryOut(BaseModel):
     ratings: RatingCounts
     # Today's plan once this session is done (ADR 0015); practice sessions are never part of it.
     today: "TodayPlanOut"
+    spelling: "SpellingSummaryOut | None" = None
+
+
+class SpellingSummaryOut(BaseModel):
+    """The lesson's spelling section (ADR 0016): words practised, recalled at the first try
+    without seeing the word, and those that need another review."""
+
+    words: int
+    first_try: int
+    needs_practice: int
 
 
 class WordStages(BaseModel):
@@ -206,6 +270,15 @@ class ProgressOut(BaseModel):
     # This week's promise: days with the plan done.
     promised_days: int
     recall: RecallRate
+    spelling_today: "SpellingTodayOut"
+
+
+class SpellingTodayOut(BaseModel):
+    """Today's spelling section (ADR 0016): words in it, and words finished (every exercise of
+    the word answered, mistakes or not)."""
+
+    words: int
+    done: int
 
 
 class DeckWordOut(BaseModel):

@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from tests.support import at, rate
+from tests.support import at, finish
 
 # Thursday 5 November 2026, 09:00 UTC; the group's week is Monday 2 – Sunday 8 November.
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -121,19 +121,8 @@ def test_the_board_ranks_by_the_share_of_one_s_own_promise_kept(client: TestClie
 
 
 def play_as(client: TestClient, user: str, session: dict[str, Any], moment: datetime) -> None:
-    """Rates every card «Хорошо», including the extra showings the server inserts."""
-    cards, index = session["exercises"], 0
-    while index < len(cards):
-        result = client.post(
-            f"/api/sessions/{session['id']}/attempts",
-            json={"exercise_id": cards[index]["id"], "response": rate(3)},
-            headers=as_(user, moment),
-        ).json()
-        if result.get("appended"):
-            cards = client.get(f"/api/sessions/{session['id']}", headers=as_(user, moment)).json()[
-                "exercises"
-            ]
-        index += 1
+    """Rates every card «Хорошо» and builds every word right, extra showings included."""
+    finish(client, session, as_(user, moment))
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_(user, moment))
 
 

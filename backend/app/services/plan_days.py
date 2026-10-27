@@ -1,10 +1,10 @@
 """Plan days (ADR 0015): consistency measured against each learner's own promise.
 
 A learner promises a pace: so many new words a day, so many days a week. A day counts when that
-day's plan was done: at least the day's target of new words met in study (or, on a day the app
-allowed no new words, a finished study session). The week counts the days done against the days
-promised; extra days, extra words and practice never raise a place. Extra learning is reported
-separately, for the learner's profile.
+day's plan was done: at least the day's target of new words met in study, with the lesson
+finished, spelling included (ADR 0016); on a day the app allowed no new words, a finished study
+session. The week counts the days done against the days promised; extra days, extra words and
+practice never raise a place. Extra learning is reported separately, for the learner's profile.
 
 The day's target is the one recorded on that day's study sessions (the smallest, if it changed);
 sessions from before it was recorded fall back to the learner's current settings.
@@ -46,10 +46,12 @@ class PlanDay:
 
     @property
     def plan_done(self) -> bool:
-        if not self.practised:
+        # The plan is the whole lesson, its spelling section included (ADR 0016), so a day
+        # counts once a study session was finished. On a day with no new word possible, that
+        # finished lesson of reviews is the plan.
+        if not self.practised or not self.completed_study:
             return False
-        # No new word was possible that day: the plan was the reviews, so a finished session.
-        return self.new_words >= self.target if self.target > 0 else self.completed_study
+        return self.new_words >= self.target
 
     @property
     def planned_new(self) -> int:

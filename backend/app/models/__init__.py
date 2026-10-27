@@ -2,7 +2,7 @@
 
 from app.models.content import Deck, DeckWord, GlossaryForm, Word
 from app.models.groups import Group, GroupMember
-from app.models.learning import LearningSession, ReviewAttempt, UserWordProgress
+from app.models.learning import LearningSession, ReviewAttempt, UserWordProgress, UserWordSpelling
 from app.models.user import PaceDismissal, User
 
 __all__ = [
@@ -16,5 +16,6 @@ __all__ = [
     "ReviewAttempt",
     "User",
     "UserWordProgress",
+    "UserWordSpelling",
     "Word",
 ]

@@ -57,9 +57,14 @@ def get_session(session_id: UUID, user: CurrentUser, db: DbSession, now: Now) ->
 
 @router.post("/sessions/{session_id}/attempts", dependencies=[Depends(limit_attempts)])
 def submit_attempt(
-    session_id: UUID, attempt: AttemptIn, user: CurrentUser, db: DbSession, now: Now
+    session_id: UUID,
+    attempt: AttemptIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
 ) -> AttemptResultOut:
-    return sessions.submit_attempt(db, user, session_id, attempt, now)
+    return sessions.submit_attempt(db, user, session_id, attempt, now, time_zone)
 
 
 @router.post("/sessions/{session_id}/complete")
