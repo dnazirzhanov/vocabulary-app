@@ -63,39 +63,71 @@
   outline: none;
 }
 
-.target {
+/* Today's plan: two rows, a tick and words for what is done. */
+.plan {
   margin-top: var(--space-5);
 }
 
-.targetValue {
+.planTitle {
+  margin-bottom: var(--space-2);
   color: var(--color-text-muted);
+  font-size: var(--text-meta);
   font-weight: var(--weight-strong);
 }
 
-.targetValue strong {
-  color: var(--color-text);
+.planList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planList li {
+  display: grid;
+  grid-template-columns: 24px auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.planMark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: var(--border-control) solid var(--color-option-edge-hover);
+  border-radius: 50%;
+  color: var(--color-surface);
+}
+
+.planList li[data-done] .planMark {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.planMark svg {
+  width: 14px;
+  height: 14px;
+}
+
+.planName {
   font-weight: var(--weight-display);
+}
+
+.planValue {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  text-align: right;
+}
+
+.planValue strong {
+  color: var(--color-text);
 }
 
 .bonus {
   color: var(--color-success);
   font-weight: var(--weight-strong);
-}
-
-.targetBar {
-  height: 8px;
-  margin-top: var(--space-2);
-  border-radius: 4px;
-  background: var(--color-track);
-  overflow: hidden;
-}
-
-.targetBar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-success);
-  transition: width var(--duration-progress) var(--ease-out);
 }
 
 .targetNote {

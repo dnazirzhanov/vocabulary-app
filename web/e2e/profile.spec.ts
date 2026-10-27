@@ -11,7 +11,7 @@ test('the profile shows the week against the promise, and extra learning apart',
   await expect(page.getByText('+5 слов сверх плана')).toBeVisible();
   await button(page, 'На главную').click();
   // Home has loaded (it moves focus to its heading then), so the window opens over a settled page.
-  await expect(page.getByRole('heading', { name: 'На сегодня всё' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'На сегодня всё', exact: true })).toBeFocused();
 
   const opener = button(page, 'Профиль');
   await opener.click();

@@ -77,6 +77,12 @@ export const api = {
       exercise_id: exerciseId,
       response: { kind: 'rating', rating },
     }),
+  /** A word built with letter tiles; the server checks it (the word of a recall stays there). */
+  spell: (sessionId: string, exerciseId: string, answer: string, hintUsed: boolean) =>
+    request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, {
+      exercise_id: exerciseId,
+      response: { kind: 'spelling', answer, hint_used: hintUsed },
+    }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),
   myProfile: () => request<Profile>('GET', '/me/profile'),

@@ -4,7 +4,9 @@ import { button, expect, finishSession, test } from './learner.ts';
 /** The big figure with its unit beside it, e.g. «1 из 6 дней на этой неделе». */
 const figure = (page: Page, unit: string) => page.getByText(unit).locator('..');
 
-test('progress answers two questions: how many words, and how steadily', async ({ page }) => {
+test('progress answers two questions: how many words, and how steadily', async ({ page, learner }) => {
+  // A Monday: the whole week is still ahead, so the weekly nudge has room to show.
+  await learner.travelTo(new Date('2026-11-02T09:00:00Z'));
   await page.goto('/');
   await button(page, 'Прогресс').click();
   await expect(page.getByRole('heading', { name: 'Прогресс' })).toBeFocused();

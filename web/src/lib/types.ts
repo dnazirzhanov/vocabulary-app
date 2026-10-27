@@ -51,17 +51,43 @@ export interface CardExercise {
   previews: { rating: Rating; seconds: number }[];
 }
 
-export type Exercise = CardExercise;
+/** Build the word with letter tiles while looking at it (ADR 0016). */
+export interface SpellGuidedExercise {
+  id: string;
+  type: 'spell_guided';
+  word: Word;
+  /** Letter tiles in display order; a tile is known by its position. */
+  tiles: string[];
+}
+
+/** Build the word from its meaning: the English word is never sent until answered. */
+export interface SpellRecallExercise {
+  id: string;
+  type: 'spell_recall';
+  prompt: { translation: string; pos: string; example_ru: string };
+  /** Letters in the word. */
+  slots: number;
+  tiles: string[];
+  /** The one retry after a miss earlier in this lesson. */
+  retry: boolean;
+}
+
+export type SpellingExercise = SpellGuidedExercise | SpellRecallExercise;
+export type Exercise = CardExercise | SpellingExercise;
 
 export type SessionKind = 'study' | 'hard';
 
 export interface AttemptResult {
   exercise_id: string;
-  rating: Rating;
-  next_due_at: string;
-  /** Another showing of the card later in this session, and where it goes. */
-  appended: CardExercise | null;
-  appended_index: number | null;
+  /** Cards: the rating and when the card is due next. */
+  rating: Rating | null;
+  next_due_at: string | null;
+  /** Spelling: built right, whether the word was shown first, and the word itself. */
+  correct: boolean | null;
+  hint_used: boolean;
+  answer: string | null;
+  /** Exercises this answer added later in the lesson, and where they go. */
+  inserted: { index: number; exercise: Exercise }[];
 }
 
 export interface Session {
@@ -69,7 +95,7 @@ export interface Session {
   kind: SessionKind;
   deck_id: string;
   completed: boolean;
-  exercises: CardExercise[];
+  exercises: Exercise[];
   results: AttemptResult[];
 }
 
@@ -92,6 +118,8 @@ export interface Summary {
   ratings: { again: number; hard: number; good: number; easy: number };
   /** Today's plan once this session is done (ADR 0015); practice is never part of it. */
   today: TodayPlan;
+  /** The lesson's spelling section (ADR 0016), or null when it had none. */
+  spelling: { words: number; first_try: number; needs_practice: number } | null;
 }
 
 export interface TodayPlan {
@@ -127,6 +155,8 @@ export interface Progress {
   promised_days: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
+  /** Today's spelling sections: words in them, and words finished. */
+  spelling_today: { words: number; done: number };
 }
 
 // Mirrors backend/app/schemas/me.py.

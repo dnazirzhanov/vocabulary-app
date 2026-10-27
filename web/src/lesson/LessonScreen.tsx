@@ -6,8 +6,9 @@ import { tokenize } from '../lib/tokens.ts';
 import type { CardExercise, GlossaryEntry, Rating, Session, Summary } from '../lib/types.ts';
 import { AlertIcon, CloseIcon, MuteIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { formatInterval, reduceCardRun, remaining, startCardRun } from './cardRun.ts';
+import { formatInterval, reduceLesson, remaining, startLesson } from './lessonRun.ts';
 import { LessonProgress } from './LessonProgress.tsx';
+import { SpellingExercise } from './SpellingExercise.tsx';
 import styles from './LessonScreen.module.css';
 import { WordPopover } from './WordPopover.tsx';
 
@@ -87,7 +88,9 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
       </div>
       {revealed && (
         <div className={styles.back}>
-          <p className={styles.translation}>{word.translation}</p>
+          <p className={styles.translation} data-translation>
+            {word.translation}
+          </p>
           {isIllustrationId(word.illustration) && <Illustration id={word.illustration} className={styles.art} />}
           <div className={styles.example}>
             <p lang="en" className={styles.exampleEn}>
@@ -114,10 +117,11 @@ let glossaryRequest: Promise<Record<string, GlossaryEntry>> | null = null;
 const loadGlossary = () => (glossaryRequest ??= api.glossary().catch(() => ((glossaryRequest = null), {})));
 
 export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps) {
-  const [state, dispatch] = useReducer(reduceCardRun, session, startCardRun);
-  // While finishing, the last card stays on screen.
-  const shownIndex = Math.min(state.index, state.cards.length - 1);
-  const card = state.cards[shownIndex];
+  const [state, dispatch] = useReducer(reduceLesson, session, startLesson);
+  // While finishing, the last exercise stays on screen.
+  const shownIndex = Math.min(state.index, state.exercises.length - 1);
+  const exercise = state.exercises[shownIndex];
+  const card = exercise.type === 'card' ? exercise : null;
   const revealed = state.phase !== 'front';
   const mainRef = useRef<HTMLElement>(null);
   const inflight = useRef<string | null>(null);
@@ -131,23 +135,28 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
 
   // Each new card says its word, as soon as it appears (the learner can turn this off); the next
   // card's word is loaded meanwhile so it plays without a delay.
+  // Spelling never plays the word: a recall would give it away.
   useEffect(() => {
-    if (state.phase !== 'front') return;
+    if (state.phase !== 'front' || !card) return;
     if (autoplay) void playAudio('words', card.word.id, card.word.headword);
-    const next = state.cards[state.index + 1];
-    if (next) preloadAudio('words', next.word.id);
-  }, [card.id, state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+    const next = state.exercises[state.index + 1];
+    if (next?.type === 'card') preloadAudio('words', next.word.id);
+  }, [exercise.id, state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Server round trips follow the phase; the ref keeps one request per step even when an effect
   // runs twice. The server's one-rating-per-showing rule is the real guarantee.
   useEffect(() => {
-    if (state.phase === 'saving' && state.rating) {
-      const current = state.cards[state.index];
-      const key = `rate:${current.id}`;
+    if (state.phase === 'saving' && state.pending) {
+      const current = state.exercises[state.index];
+      const key = `answer:${current.id}`;
       if (inflight.current === key) return;
       inflight.current = key;
-      api
-        .rateCard(session.id, current.id, state.rating)
+      const pending = state.pending;
+      const request =
+        pending.kind === 'rating'
+          ? api.rateCard(session.id, current.id, pending.rating)
+          : api.spell(session.id, current.id, pending.answer, pending.hintUsed);
+      request
         .then(
           (result) => dispatch({ type: 'saved', result }),
           (error: unknown) => dispatch({ type: 'failed', message: describeError(error) }),
@@ -167,7 +176,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     }
   }, [state, session.id, onComplete]);
 
-  // Focus follows the flow: each new card's word, then the «Хорошо» button once revealed.
+  // Focus follows the flow: each new exercise's heading, then the «Хорошо» button once revealed.
   useEffect(() => {
     if (state.phase === 'front') mainRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
     if (state.phase === 'back') mainRef.current?.closest('div')?.querySelector<HTMLElement>('[data-default]')?.focus();
@@ -176,6 +185,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   // Keyboard as in Anki: Space shows the answer, then Space means «Хорошо»; 1–4 rate.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!card) return; // spelling handles its own keys
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if ((event.target as Element).closest('input, textarea, select, [role="dialog"]')) return;
       const number = Number(event.key);
@@ -191,10 +201,10 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.phase]);
+  }, [state.phase, card]);
 
   const left = remaining(state);
-  const previews = new Map(card.previews.map((preview) => [preview.rating, preview.seconds]));
+  const previews = new Map(card?.previews.map((preview) => [preview.rating, preview.seconds]));
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
@@ -202,7 +212,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
           <button type="button" className={styles.exit} onClick={onExit} aria-label="Выйти из урока">
             <CloseIcon />
           </button>
-          <LessonProgress answered={state.results.length} total={state.cards.length} />
+          <LessonProgress answered={state.results.length} total={state.exercises.length} />
           <button
             type="button"
             className={styles.autoplay}
@@ -216,20 +226,42 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
           >
             {autoplay ? <SpeakerIcon /> : <MuteIcon />}
           </button>
-          <p className={styles.counters} aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}`}>
-            <span className={styles.countNew}>
-              <strong>{left.fresh}</strong> нов.
-            </span>
-            <span className={styles.countReview}>
-              <strong>{left.review}</strong> повт.
-            </span>
+          <p
+            className={styles.counters}
+            aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}, правописание ${left.spelling}`}
+          >
+            {card ? (
+              <>
+                <span className={styles.countNew}>
+                  <strong>{left.fresh}</strong> нов.
+                </span>
+                <span className={styles.countReview}>
+                  <strong>{left.review}</strong> повт.
+                </span>
+              </>
+            ) : (
+              <span className={styles.countSpelling}>
+                <strong>{left.spelling}</strong> букв.
+              </span>
+            )}
           </p>
         </div>
       </header>
 
       <main ref={mainRef} className={styles.main}>
-        <div key={card.id} className={styles.cardWrap}>
-          <Card card={card} revealed={revealed} onTap={setTapped} />
+        <div key={exercise.id} className={styles.cardWrap}>
+          {exercise.type === 'card' ? (
+            <Card card={exercise} revealed={revealed} onTap={setTapped} />
+          ) : (
+            <SpellingExercise
+              exercise={exercise}
+              storageKey={`spelling:${session.id}:${exercise.id}`}
+              busy={state.phase === 'saving' || state.phase === 'finishing'}
+              result={state.phase === 'feedback' ? state.last : null}
+              onSubmit={(answer, hintUsed) => dispatch({ type: 'spell', answer, hintUsed })}
+              onContinue={() => dispatch({ type: 'continue' })}
+            />
+          )}
         </div>
       </main>
 
@@ -243,7 +275,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
         />
       )}
 
-      <footer className={styles.bar}>
+      <footer className={styles.bar} hidden={!card && state.phase !== 'error'}>
         <div className={styles.barInner}>
           {state.phase === 'error' ? (
             <div className={styles.problem} role="alert">
@@ -253,7 +285,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
                 Повторить
               </PrimaryButton>
             </div>
-          ) : state.phase === 'front' ? (
+          ) : !card ? null : state.phase === 'front' ? (
             <PrimaryButton type="button" className={styles.reveal} onClick={() => dispatch({ type: 'reveal' })}>
               Показать ответ
             </PrimaryButton>
@@ -267,7 +299,9 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
                   data-tone={tone}
                   data-default={rating === 3 || undefined}
                   disabled={state.phase !== 'back'}
-                  aria-busy={state.phase === 'saving' && state.rating === rating}
+                  aria-busy={
+                    state.phase === 'saving' && state.pending?.kind === 'rating' && state.pending.rating === rating
+                  }
                   onClick={() => dispatch({ type: 'rate', rating })}
                 >
                   <span className={styles.rateLabel}>{label}</span>

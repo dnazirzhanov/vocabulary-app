@@ -320,3 +320,9 @@
   background: #e9f1fa;
   color: var(--color-series-firm);
 }
+
+.spelling {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}

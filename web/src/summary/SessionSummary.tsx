@@ -117,6 +117,12 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
             </h1>
             <p className={styles.lead}>{lead}</p>
             <TodayPlanLine summary={summary} />
+            {summary.spelling && (
+              <p className={styles.spelling}>
+                Правописание: {wordsLabel(summary.spelling.words)} · {summary.spelling.first_try} верно с первого раза
+                {summary.spelling.needs_practice > 0 && ` · ${summary.spelling.needs_practice} повторим ещё`}
+              </p>
+            )}
             <ul className={styles.ratings} aria-label="Ваши оценки">
               <li data-tone="again">Снова {again}</li>
               <li data-tone="hard">Трудно {hardCount}</li>

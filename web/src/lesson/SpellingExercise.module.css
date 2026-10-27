@@ -1,0 +1,288 @@
+/*
+ * A spelling exercise: the prompt as a vocabulary card, the answer slots under it, the letter
+ * tiles (an alphabetical grid; a used tile leaves its place empty) and one primary action.
+ */
+.exercise {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.eyebrow {
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--color-border),
+    0 4px 0 var(--color-option-edge);
+  text-align: center;
+}
+
+.meaning {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.word {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.meaning:focus,
+.word:focus {
+  outline: none;
+}
+
+.context {
+  color: var(--color-text-muted);
+}
+
+/* --- answer slots ------------------------------------------------------------------------- */
+
+.slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: grid;
+  place-items: center;
+  width: clamp(36px, 10vw, 46px);
+  height: clamp(44px, 12vw, 54px);
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid var(--color-text);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--color-primary-tint);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.slot[data-empty] {
+  border-bottom-color: var(--color-option-edge-hover);
+  background: transparent;
+  cursor: default;
+}
+
+/* --- the tile bank ------------------------------------------------------------------------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(var(--tap-min), 1fr));
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.tile {
+  min-height: var(--tap-min);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  box-shadow: 0 3px 0 var(--color-option-edge);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.tile:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-option-edge);
+}
+
+/* A used tile leaves an empty place, so the others never move. */
+.tile[data-used] {
+  border-style: dashed;
+  box-shadow: none;
+  background: transparent;
+  cursor: default;
+}
+
+.tile:disabled:not([data-used]) {
+  cursor: default;
+}
+
+.edit {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.editButton {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.editButton:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.06);
+}
+
+.editButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.fixHint {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* --- feedback ----------------------------------------------------------------------------- */
+
+.feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-stage);
+  text-align: center;
+}
+
+.feedback[data-tone='right'] {
+  background: var(--color-success-tint);
+}
+
+.feedback[data-tone='wrong'] {
+  background: var(--color-error-tint);
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.feedback[data-tone='right'] .verdict {
+  color: var(--color-success);
+}
+
+.verdict svg {
+  width: 24px;
+  height: 24px;
+}
+
+.answer {
+  font-size: var(--text-title);
+  font-weight: var(--weight-strong);
+}
+
+.compare {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.compare div {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.compare dt {
+  min-width: 6.5em;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: right;
+}
+
+.compare dd {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+/* A letter that differs: underlined and bold, not colour alone. */
+.differs {
+  background: none;
+  color: var(--color-error);
+  font-weight: var(--weight-display);
+  text-decoration: underline 3px;
+  text-underline-offset: 4px;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* --- actions ------------------------------------------------------------------------------- */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.primary {
+  width: 100%;
+  max-width: var(--width-prompt);
+}
+
+.showWord {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Wider screens: the same five columns, at a fixed comfortable size, centred. */
+@media (min-width: 640px) {
+  .tiles {
+    grid-template-columns: repeat(5, 64px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}
