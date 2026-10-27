@@ -1,13 +1,13 @@
-import type { DayActivity } from './types.ts';
+import type { PlanDay } from './types.ts';
 
 /**
- * Consistency, as the progress screen shows it: a calendar of days practised and a weekly
- * commitment. A day counts when the daily goal is met (the same rule as streaks and the friends
- * board); a day with less is shown lightly, never as a miss. Dates are the learner's local days as
- * the server reports them ("2026-11-02"), so everything here is plain calendar arithmetic.
+ * Consistency, as the progress screen shows it: a calendar of days and the week against the days
+ * promised. A day counts when the learner's own plan was done (ADR 0015, the same rule as the
+ * friends board); a day with some learning is shown lightly, never as a miss. Dates are the
+ * learner's local days as the server reports them ("2026-11-02"): plain calendar arithmetic.
  */
 
-/** 0: nothing · 1: practised, below the goal · 2: goal met. */
+/** 0: nothing · 1: some learning, plan not done · 2: plan done. */
 export type Level = 0 | 1 | 2;
 
 export interface Cell {
@@ -25,30 +25,30 @@ const addDays = (day: string, days: number) => toDay(toTime(day) + days * DAY_MS
 const weekdayIndex = (day: string) => (new Date(toTime(day)).getUTCDay() + 6) % 7;
 const mondayOf = (day: string) => addDays(day, -weekdayIndex(day));
 
-export const levelOf = (points: number, goal: number): Level => (points >= goal ? 2 : points > 0 ? 1 : 0);
+export const levelOf = (day: PlanDay | undefined): Level => (day?.plan_done ? 2 : day?.active ? 1 : 0);
 
-const pointsByDay = (activity: DayActivity[]) => new Map(activity.map((entry) => [entry.date, entry.points]));
+const byDate = (activity: PlanDay[]) => new Map(activity.map((day) => [day.date, day]));
 
-function cellsFrom(first: string, count: number, activity: DayActivity[], goal: number, today: string): Cell[] {
-  const points = pointsByDay(activity);
+function cellsFrom(first: string, count: number, activity: PlanDay[], today: string): Cell[] {
+  const days = byDate(activity);
   return Array.from({ length: count }, (_, index) => {
     const date = addDays(first, index);
-    return { date, level: levelOf(points.get(date) ?? 0, goal), future: date > today };
+    return { date, level: levelOf(days.get(date)), future: date > today };
   });
 }
 
 export interface WeekProgress {
   /** Monday to Sunday. */
   days: Cell[];
-  /** Days with the goal met so far this week. */
+  /** Days with the plan done so far this week. */
   done: number;
   target: number;
   /** The index of today in `days`. */
   todayIndex: number;
 }
 
-export function weekProgress(activity: DayActivity[], goal: number, today: string, target: number): WeekProgress {
-  const days = cellsFrom(mondayOf(today), 7, activity, goal, today);
+export function weekProgress(activity: PlanDay[], today: string, target: number): WeekProgress {
+  const days = cellsFrom(mondayOf(today), 7, activity, today);
   return {
     days,
     done: days.filter((day) => day.level === 2).length,
@@ -62,16 +62,16 @@ export interface Calendar {
   weeks: Cell[][];
   /** Where a month begins: the index of its first week and its name. Sparse, so labels never touch. */
   months: { week: number; label: string }[];
-  /** Days with the goal met in the whole calendar. */
+  /** Days with the plan done in the whole calendar. */
   goalDays: number;
 }
 
 const MIN_WEEKS_BETWEEN_LABELS = 3;
 const monthName = new Intl.DateTimeFormat('ru', { month: 'short', timeZone: 'UTC' });
 
-export function buildCalendar(activity: DayActivity[], goal: number, today: string, weekCount: number): Calendar {
+export function buildCalendar(activity: PlanDay[], today: string, weekCount: number): Calendar {
   const first = addDays(mondayOf(today), -7 * (weekCount - 1));
-  const cells = cellsFrom(first, 7 * weekCount, activity, goal, today);
+  const cells = cellsFrom(first, 7 * weekCount, activity, today);
   const weeks = Array.from({ length: weekCount }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 
   const months: Calendar['months'] = [];

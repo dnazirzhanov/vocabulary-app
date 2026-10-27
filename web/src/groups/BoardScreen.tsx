@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { plural } from '../i18n/plural.ts';
+import { daysAfterOf, plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { serverNow } from '../lib/clock.ts';
 import { visibleLines } from '../lib/board.ts';
@@ -18,7 +18,6 @@ const localDate = (iso: string) => {
   return new Date(year, month - 1, day);
 };
 const days = (n: number) => `${n}\u00a0${plural(n, { one: 'день', few: 'дня', many: 'дней' })}`;
-const points = (n: number) => `${n}\u00a0${plural(n, { one: 'очко', few: 'очка', many: 'очков' })}`;
 const members = (n: number) => `${n}\u00a0${plural(n, { one: 'участник', few: 'участника', many: 'участников' })}`;
 
 interface BoardScreenProps {
@@ -93,22 +92,26 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: B
         <p className={styles.nick}>
           {row.nickname}
           {row.is_me && <span className={styles.meTag}>вы</span>}
-          {row.streak_days >= 2 && (
-            <span className={styles.streak} title={`Серия: ${days(row.streak_days)}`}>
+          {row.streak_weeks >= 2 && (
+            <span
+              className={styles.streak}
+              title={`Обещание держится ${row.streak_weeks} ${weeksWord(row.streak_weeks)} подряд`}
+            >
               <FlameIcon aria-hidden="true" />
-              {row.streak_days}
+              {row.streak_weeks}
             </span>
           )}
         </p>
-        <p className={styles.weekDots} aria-label={`Цель выполнена: ${days(row.days_practised)} на этой неделе`}>
+        <p className={styles.weekDots} aria-label={`План выполнен: ${days(row.plan_days)} на этой неделе`}>
           {row.week.map((met, index) => (
             <i key={index} data-on={met || undefined} title={WEEKDAYS[index]} aria-hidden="true" />
           ))}
         </p>
       </div>
       <div className={styles.score}>
-        <strong>{days(row.days_practised)}</strong>
-        <span>{points(row.points)}</span>
+        <strong>
+          {row.plan_days} из {row.promised_days}&nbsp;{daysAfterOf(row.promised_days)}
+        </strong>
       </div>
       {managing && owner && !row.is_me && (
         <RemoveButton
@@ -173,12 +176,12 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onBack, onLeft }: B
                 <i className={styles.goalPlanned} style={{ left: `${plannedShare * 100}%` }} aria-hidden="true" />
               </div>
               <p className={styles.goalNote}>
-                По плану к концу сегодняшнего дня — {plannedByToday}. Каждый урок любого участника двигает полосу.
+                По плану к концу сегодняшнего дня — {plannedByToday}. Считаются слова по плану, без лишних.
               </p>
             </section>
 
             <h2 className={styles.sectionTitle}>Эта неделя</h2>
-            <p className={styles.hint}>Место — по дням, когда выполнена дневная цель, при равенстве — по очкам.</p>
+            <p className={styles.hint}>Место — по тому, сколько обещанных дней выполнен свой план.</p>
             {ranked.length === 0 ? (
               <p className={styles.empty}>Пока никто не занимался на этой неделе. Начните первым!</p>
             ) : (

@@ -90,27 +90,41 @@ export interface Summary {
   new_words: number;
   reviewed_words: number;
   ratings: { again: number; hard: number; good: number; easy: number };
-  points: number;
-  today_points: number;
-  daily_goal: number;
+  /** Today's plan once this session is done (ADR 0015); practice is never part of it. */
+  today: TodayPlan;
 }
 
-export interface DayActivity {
+export interface TodayPlan {
+  new_words: number;
+  target: number;
+  plan_done: boolean;
+  /** New words beyond today's target: extra, never part of the plan. */
+  extra_new: number;
+}
+
+/** One local day (ADR 0015). */
+export interface PlanDay {
   /** Local calendar date, YYYY-MM-DD */
   date: string;
-  points: number;
+  /** Any answers that day, practice included. */
+  active: boolean;
+  /** The day's own plan was done. */
+  plan_done: boolean;
+  new_words: number;
+  /** New words the plan asked for (0: no new word was possible; the reviews were the plan). */
+  target: number;
 }
 
 /** The whole course (every published level). */
 export interface Progress {
   words: { introduced: number; reviewing: number; well_learned: number; due: number };
-  today: DayActivity;
-  daily_goal: number;
-  streak_days: number;
-  /** Days with any points in the last year, oldest first; days without practice are absent. */
-  activity: DayActivity[];
-  /** The weekly commitment: days per week with the daily goal met. */
-  study_days_per_week: number;
+  today: PlanDay;
+  /** Weeks in a row with the promise kept. */
+  streak_weeks: number;
+  /** Days with answers in the last year, oldest first; days without any are absent. */
+  activity: PlanDay[];
+  /** This week's promise: days with the plan done. */
+  promised_days: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
 }
@@ -185,13 +199,15 @@ export interface BoardRow {
   nickname: string;
   role: 'owner' | 'member';
   is_me: boolean;
-  /** Null for members with no points yet this week. */
+  /** Null for members with no answers yet this week. */
   rank: number | null;
-  days_practised: number;
-  /** Monday … Sunday: was the daily goal met? */
+  /** Days this week with the member's own plan done, against the days promised (ADR 0015). */
+  plan_days: number;
+  promised_days: number;
+  /** Monday … Sunday: was the plan done? */
   week: boolean[];
-  points: number;
-  streak_days: number;
+  /** Weeks in a row with the promise kept. */
+  streak_weeks: number;
 }
 
 export interface Board {

@@ -52,15 +52,27 @@
   outline: none;
 }
 
-.points {
+.plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
   margin-top: var(--space-3);
   color: var(--color-text-muted);
   font-weight: var(--weight-strong);
 }
 
-.points strong {
+.plan[data-done] {
+  color: var(--color-success);
+}
+
+.plan svg {
+  width: 20px;
+  height: 20px;
+}
+
+.extra {
   color: var(--color-primary-strong);
-  font-weight: var(--weight-display);
 }
 
 .lead {

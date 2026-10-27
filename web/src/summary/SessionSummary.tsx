@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { plural } from '../i18n/plural.ts';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
+import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import type { Summary, SummaryWord } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -115,13 +116,7 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
               {title}
             </h1>
             <p className={styles.lead}>{lead}</p>
-            <p className={styles.points}>
-              <strong>+{summary.points}</strong> {plural(summary.points, { one: 'очко', few: 'очка', many: 'очков' })}
-              <span aria-hidden="true"> · </span>
-              {summary.today_points >= summary.daily_goal
-                ? 'цель на сегодня выполнена'
-                : `до цели на сегодня ${summary.daily_goal - summary.today_points}`}
-            </p>
+            <TodayPlanLine summary={summary} />
             <ul className={styles.ratings} aria-label="Ваши оценки">
               <li data-tone="again">Снова {again}</li>
               <li data-tone="hard">Трудно {hardCount}</li>
@@ -159,5 +154,25 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
         </div>
       </footer>
     </div>
+  );
+}
+
+/** Where today's plan stands after this session (ADR 0015): done, how far, or practice as extra. */
+function TodayPlanLine({ summary }: { summary: Summary }) {
+  const { today } = summary;
+  let text: string;
+  if (summary.kind === 'hard') text = 'Тренировка — сверх плана';
+  else if (today.plan_done) text = 'План на сегодня выполнен';
+  else if (today.target > today.new_words)
+    text = `До плана на сегодня ещё ${wordsLabel(today.target - today.new_words)}`;
+  else text = 'План на сегодня — повторения';
+  return (
+    <p className={styles.plan} data-done={today.plan_done || undefined}>
+      {today.plan_done && summary.kind !== 'hard' && <CheckIcon aria-hidden="true" />}
+      {text}
+      {today.extra_new > 0 && summary.kind !== 'hard' && (
+        <span className={styles.extra}> · +{wordsLabel(today.extra_new)} сверх плана</span>
+      )}
+    </p>
   );
 }

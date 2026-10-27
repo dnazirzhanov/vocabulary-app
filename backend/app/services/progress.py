@@ -1,25 +1,20 @@
-"""Points, the daily goal and streaks: pure rules (ADR 0008, revised by ADR 0012).
+"""Attempt points, introductions, local days and recall: the base rules others build on.
 
-Points reward studying, not self-assessment: a new word and a review card earn points whatever the
-rating, practice earns nothing, and each showing has exactly one stored rating, so nothing can be
-counted twice or farmed.
+Points are stored per attempt (ADR 0008, revised by ADR 0012) and recognise an introduction; they
+are no longer shown or used for a day's result, which is the plan (ADR 0015, services/plan_days).
 """
 
-from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
-from app.schemas.learning import DayActivity, ProgressOut, RecallRate, WordStages
-from app.services.scheduling import AGAIN, REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
+from app.models import LearningSession, ReviewAttempt, User
+from app.services.scheduling import AGAIN
 
 INTRODUCED_POINTS = 10  # a new word's first showing
 REVIEWED_POINTS = 5  # a review card, whatever the rating: self-rating is never rewarded
-DAILY_GOAL_POINTS = 30  # roughly one lesson or a short review; a pilot hypothesis
 RECALL_RATE_DAYS = 30
 
 
@@ -51,55 +46,7 @@ def local_day_bounds(day: date, time_zone: ZoneInfo) -> tuple[datetime, datetime
     return start, end
 
 
-def streak(goal_days: Iterable[date], today: date) -> int:
-    """Consecutive days on which the goal was met, ending today — or yesterday, so a streak is not
-    shown as broken before today's practice has happened."""
-    met = set(goal_days)
-    day = today if today in met else today - timedelta(days=1)
-    count = 0
-    while day in met:
-        count += 1
-        day -= timedelta(days=1)
-    return count
-
-
 # --- database-backed views ------------------------------------------------------------------
-
-STREAK_HISTORY_DAYS = 366
-
-
-def _points_by_local_day(
-    db: Session, user: User, since: datetime, time_zone: ZoneInfo
-) -> dict[date, int]:
-    # PostgreSQL converts each instant to the learner's wall clock, DST included.
-    local_day = func.date(func.timezone(time_zone.key, ReviewAttempt.answered_at))
-    rows = db.execute(
-        select(local_day, func.sum(ReviewAttempt.points))
-        .where(ReviewAttempt.user_id == user.id, ReviewAttempt.answered_at >= since)
-        .group_by(local_day)
-    )
-    return {day: int(total) for day, total in rows}
-
-
-def points_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> int:
-    start, end = local_day_bounds(local_date(now, time_zone), time_zone)
-    total = db.scalar(
-        select(func.coalesce(func.sum(ReviewAttempt.points), 0)).where(
-            ReviewAttempt.user_id == user.id,
-            ReviewAttempt.answered_at >= start,
-            ReviewAttempt.answered_at < end,
-        )
-    )
-    return int(total or 0)
-
-
-def session_points(db: Session, session_id: UUID) -> int:
-    total = db.scalar(
-        select(func.coalesce(func.sum(ReviewAttempt.points), 0)).where(
-            ReviewAttempt.session_id == session_id
-        )
-    )
-    return int(total or 0)
 
 
 def recall_counts(db: Session, user: User, now: datetime) -> tuple[int, int]:
@@ -117,47 +64,3 @@ def recall_counts(db: Session, user: User, now: datetime) -> tuple[int, int]:
         )
     ).one()
     return int(recalled), int(reviewed)
-
-
-def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> ProgressOut:
-    # Words of every published level (a retired deck may still list words that moved to another).
-    mine = (
-        select(UserWordProgress)
-        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
-        .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(Deck.status == "published", UserWordProgress.user_id == user.id)
-        .subquery()
-    )
-    introduced, well_learned, due = db.execute(
-        select(
-            func.count(),
-            func.count().filter(
-                (mine.c.fsrs_state == REVIEW) & (mine.c.stability >= WELL_LEARNED_STABILITY_DAYS)
-            ),
-            func.count().filter(mine.c.due_at <= now),
-        ).select_from(mine)
-    ).one()
-
-    today = local_date(now, time_zone)
-    history_start, _ = local_day_bounds(today - timedelta(days=STREAK_HISTORY_DAYS), time_zone)
-    by_day = _points_by_local_day(db, user, history_start, time_zone)
-    recalled, reviewed = recall_counts(db, user, now)
-
-    return ProgressOut(
-        words=WordStages(
-            introduced=introduced,
-            reviewing=introduced - well_learned,
-            well_learned=well_learned,
-            due=due,
-        ),
-        today=DayActivity(date=today, points=by_day.get(today, 0)),
-        daily_goal=DAILY_GOAL_POINTS,
-        streak_days=streak(
-            (day for day, points in by_day.items() if points >= DAILY_GOAL_POINTS), today
-        ),
-        activity=[
-            DayActivity(date=day, points=points) for day, points in sorted(by_day.items()) if points
-        ],
-        study_days_per_week=user.study_days_per_week,
-        recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
-    )

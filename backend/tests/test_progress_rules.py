@@ -6,7 +6,6 @@ from app.services.progress import (
     REVIEWED_POINTS,
     card_points,
     local_day_bounds,
-    streak,
 )
 
 TODAY = date(2026, 11, 10)
@@ -18,23 +17,6 @@ def test_points_reward_studying_never_the_rating() -> None:
     # Extra showings while learning, and all practice, earn nothing.
     assert card_points(practice=False, first_showing=False, was_review=False) == 0
     assert card_points(practice=True, first_showing=True, was_review=False) == 0
-
-
-def test_streak_counts_back_from_today() -> None:
-    days = {TODAY - timedelta(days=n) for n in range(3)}
-    assert streak(days, TODAY) == 3
-
-
-def test_streak_is_kept_until_today_is_over() -> None:
-    days = {TODAY - timedelta(days=n) for n in range(1, 5)}
-    assert streak(days, TODAY) == 4
-
-
-def test_a_missed_day_breaks_the_streak() -> None:
-    days = {TODAY, TODAY - timedelta(days=1), TODAY - timedelta(days=3)}
-    assert streak(days, TODAY) == 2
-    assert streak(set(), TODAY) == 0
-    assert streak({TODAY - timedelta(days=2)}, TODAY) == 0
 
 
 def test_local_days_follow_the_learners_time_zone() -> None:
