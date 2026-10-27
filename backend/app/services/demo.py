@@ -16,13 +16,14 @@ from app.services.scheduling import local_date
 DEMO_GROUP = "Демо-группа"
 ZONE = ZoneInfo("Asia/Bishkek")
 # Nickname and new words per day, Monday to Sunday (None: no study that day).
-CLASSMATES: list[tuple[str, list[int | None]]] = [
-    ("Быстрый Барсук", [20, 25, None, 20, None, None, None]),
-    ("Тихий Лис", [3, 3, 3, 3, 3, None, None]),
-    ("Весёлый Кот", [5, None, 5, 5, None, None, None]),
-    ("Смелый Ёж", [None, 10, None, None, None, None, None]),
-    ("Ранний Орёл", [4, 4, 4, None, None, None, None]),
-    ("Сонный Панда", [None, None, None, None, None, None, None]),
+CLASSMATES: list[tuple[str, int, int, list[int | None]]] = [
+    # (nickname, words a day, days a week promised, new words met each day Monday to Sunday)
+    ("Быстрый Барсук", 20, 4, [20, 25, None, 20, None, None, None]),
+    ("Тихий Лис", 3, 5, [3, 3, 3, 3, 3, None, None]),
+    ("Весёлый Кот", 5, 3, [5, None, 5, 5, None, None, None]),
+    ("Смелый Ёж", 10, 6, [None, 10, None, None, None, None, None]),
+    ("Ранний Орёл", 4, 5, [4, 4, 4, None, None, None, None]),
+    ("Сонный Панда", 5, 3, [None, None, None, None, None, None, None]),
 ]
 
 
@@ -56,17 +57,16 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
 
     words = list(
         db.scalars(
-            select(DeckWord.word_id)
-            .where(DeckWord.deck_id == "starter")
-            .order_by(DeckWord.position)
+            select(DeckWord.word_id).where(DeckWord.deck_id == "a1-a2").order_by(DeckWord.position)
         )
     )
     days = week_of(local_date(now, ZONE))
-    for number, (nickname, plan) in enumerate(CLASSMATES, start=1):
+    for number, (nickname, target, promised, plan) in enumerate(CLASSMATES, start=1):
         classmate = User(
             auth_subject=f"dev|classmate-{number}",
             time_zone=ZONE.key,
-            daily_target_words=max(n or 0 for n in plan) or 5,
+            daily_target_words=target,
+            study_days_per_week=promised,
         )
         db.add(classmate)
         db.flush()
@@ -88,11 +88,13 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             session = LearningSession(
                 id=uuid4(),
                 user_id=classmate.id,
-                deck_id="starter",
-                kind="new",
+                deck_id="a1-a2",
+                kind="study",
                 plan=[],
                 started_at=moment,
                 completed_at=moment,
+                day_target=target,
+                promised_days=promised,
             )
             db.add(session)
             db.flush()

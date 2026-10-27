@@ -56,6 +56,8 @@ class LearningSession(Base):
     __table_args__ = (
         # study and hard are flashcard sessions (ADR 0012); the others are kept for history.
         CheckConstraint("kind IN ('new', 'practice', 'review', 'study', 'hard')", name="kind"),
+        CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
+        CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
         # A learner has at most one unfinished session; starting again resumes it.
         Index(
             "uq_learning_sessions_open_per_user",
@@ -73,6 +75,10 @@ class LearningSession(Base):
     plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The plan in force when a study session started (ADR 0015): the day's new-word target (0
+    # when no new words were possible) and the days a week promised. NULL for practice.
+    day_target: Mapped[int | None] = mapped_column(SmallInteger)
+    promised_days: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReviewAttempt(Base):

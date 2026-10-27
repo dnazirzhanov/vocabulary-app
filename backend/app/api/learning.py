@@ -21,6 +21,7 @@ from app.schemas.learning import (
     SummaryOut,
 )
 from app.services import progress, sessions, words
+from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["learning"])
 
@@ -44,6 +45,8 @@ def start_session(
     now: Now,
     time_zone: TimeZone,
 ) -> SessionOut:
+    # The plan recorded on the session is counted in this zone later, on boards too.
+    remember_time_zone(db, user, time_zone)
     return sessions.start_session(db, user, request, now, time_zone)
 
 

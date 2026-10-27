@@ -175,6 +175,15 @@ def suggest(
 # --- database-backed views ------------------------------------------------------------------
 
 
+def recorded_target(plan: DayPlan, left: int) -> int:
+    """The day's plan as a study session records it (ADR 0015): the effective target, a bonus
+    lesson included; fewer when the course has fewer words left; 0 when no new word is possible
+    today (too many reviews due, or every word met)."""
+    if plan.blocked_by_reviews:
+        return 0
+    return min(plan.effective_target, plan.new_today + left)
+
+
 def target_of(user: User) -> int:
     return user.daily_target_words or DEFAULT_TARGET
 
@@ -217,7 +226,7 @@ def _answer_gaps(db: Session, user: User, since: datetime) -> list[float]:
     return [float(gap) for gap in db.scalars(select(gaps.c.gap).where(gaps.c.gap.is_not(None)))]
 
 
-def _words_left(db: Session, user: User) -> int:
+def words_left(db: Session, user: User) -> int:
     """New words still to meet in the whole course (every published level)."""
     introduced = (
         select(UserWordProgress.word_id)
@@ -269,7 +278,7 @@ def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: Z
     ]
     # A pace is about new words: once the deck has none left, there is nothing to adjust.
     suggestion = None
-    if _words_left(db, user) > 0:
+    if words_left(db, user) > 0:
         suggestion = suggest(
             plan.target,
             history,

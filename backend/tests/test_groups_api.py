@@ -142,7 +142,10 @@ def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClien
     client.get(
         "/api/me/pace", params={"deck_id": "a1-a2"}, headers=as_("aibek", zone="Asia/Bishkek")
     )
-    session = client.post("/api/sessions", json=NEW, headers=as_("aibek", late_sunday)).json()
+    # Every request from Aibek's browser carries his zone, starting a session too.
+    session = client.post(
+        "/api/sessions", json=NEW, headers=as_("aibek", late_sunday, "Asia/Bishkek")
+    ).json()
     play_as(client, "aibek", session, late_sunday)
 
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
