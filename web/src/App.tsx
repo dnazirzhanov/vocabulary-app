@@ -173,6 +173,7 @@ function Learning({ email }: { email: string | null }) {
             else throw error;
           }
         }}
+        onSpelling={async () => showSession(await api.startSpellingSession())}
         onHome={goHome}
       />
     );

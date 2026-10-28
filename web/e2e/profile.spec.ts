@@ -1,10 +1,11 @@
-import { button, expect, finishSession, test } from './learner.ts';
+import { button, expect, finishSession, spellToday, test } from './learner.ts';
 
 test('the profile shows the week against the promise, and extra learning apart', async ({ page }) => {
   // The learner promised 6 days a week, 5 words a day (e2e/learner.ts).
   await page.goto('/');
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
+  await spellToday(page); // the day's plan: the cards, then their spelling
   await button(page, 'На главную').click();
   await button(page, 'Ещё 5 слов').click(); // a bonus lesson: beyond the plan
   await finishSession(page);

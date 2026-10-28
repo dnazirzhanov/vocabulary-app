@@ -70,6 +70,8 @@ export const api = {
   startStudySession: (deckId: string | null) =>
     request<Session>('POST', '/sessions', deckId ? { kind: 'study', deck_id: deckId } : { kind: 'study' }),
   /** Extra practice on the learner's hardest words; the schedule is not changed. */
+  /** A spelling card for each word learned today (ADR 0016); may be repeated for practice. */
+  startSpellingSession: () => request<Session>('POST', '/sessions', { kind: 'spelling' }),
   startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),
   // Safe to retry: the server keeps exactly one rating per showing.
   rateCard: (sessionId: string, exerciseId: string, rating: Rating) =>
@@ -77,11 +79,11 @@ export const api = {
       exercise_id: exerciseId,
       response: { kind: 'rating', rating },
     }),
-  /** A word built with letter tiles; the server checks it (the word of a recall stays there). */
-  spell: (sessionId: string, exerciseId: string, answer: string, hintUsed: boolean) =>
+  /** A word built with letter tiles; the server checks it (the word stays there until then). */
+  spell: (sessionId: string, exerciseId: string, answer: string) =>
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, {
       exercise_id: exerciseId,
-      response: { kind: 'spelling', answer, hint_used: hintUsed },
+      response: { kind: 'spelling', answer },
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),

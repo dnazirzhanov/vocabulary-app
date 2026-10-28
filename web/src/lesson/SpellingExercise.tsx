@@ -20,45 +20,37 @@ interface SpellingExerciseProps {
   storageKey: string;
   /** Checking with the server: the tiles wait. */
   busy: boolean;
-  /** The checked answer, once the server has it: the exercise explains it. */
+  /** The checked first try, once the server has it: the card explains it. */
   result: AttemptResult | null;
-  onSubmit: (answer: string, hintUsed: boolean) => void;
+  onSubmit: (answer: string) => void;
   onContinue: () => void;
 }
 
 /**
- * Build a word with letter tiles (ADR 0016). Guided shows the English word; recall shows only its
- * meaning. Tiles are buttons, so the phone's keyboard never opens; a physical keyboard can type
- * the letters too. After a guided mistake the word is built right before moving on.
+ * A spelling card (ADR 0016): the Russian meaning, empty slots, and letter tiles to build the
+ * English word. Tiles are buttons, so the phone's keyboard never opens; a physical keyboard can
+ * type the letters too. The first try is checked by the server; after a mistake the word is shown
+ * and the card may be built again until it is right (checked here), or left.
  */
 export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit, onContinue }: SpellingExerciseProps) {
-  const guided = exercise.type === 'spell_guided';
-  const word = guided ? exercise.word.headword : null;
-  const slots = guided ? exercise.word.headword.length : exercise.slots;
   const [picked, setPicked] = useState(() => savedPicks(storageKey));
-  // A guided word built wrong is built again, right, before moving on (checked here: it is visible).
-  const [fixing, setFixing] = useState(false);
+  // After a mistake: building the word again, checked on the device against the shown word.
+  const [again, setAgain] = useState(false);
   const answer = answerOf(exercise.tiles, picked);
-  const full = picked.length === slots;
-  const feedback = result !== null && !fixing;
-  const editable = !busy && (!feedback || fixing);
-  const fixedRight = fixing && word !== null && answer === word;
+  const full = picked.length === exercise.slots;
+  const word = result?.answer ?? null;
+  const builtRight = again && full && answer === word;
+  const feedback = result !== null && (!again || builtRight);
+  const editable = !busy && (result === null || (again && !builtRight));
 
-  useEffect(() => savePicks(storageKey, feedback ? [] : picked), [storageKey, picked, feedback]);
+  useEffect(() => savePicks(storageKey, result ? [] : picked), [storageKey, picked, result]);
 
   const check = () => {
-    if (!full || busy) return;
-    if (fixing) {
-      if (fixedRight) onContinue();
-      return;
-    }
-    onSubmit(answer, false);
+    if (full && !busy && result === null) onSubmit(answer);
   };
-  const next = () => {
-    if (guided && result && !result.correct) {
-      setFixing(true);
-      setPicked([]);
-    } else onContinue();
+  const buildAgain = () => {
+    setAgain(true);
+    setPicked([]);
   };
 
   // A physical keyboard: letters pick tiles, Backspace takes the last one back, Enter checks.
@@ -69,7 +61,7 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
       if (event.key === 'Enter') {
         if ((event.target as Element).closest('button')) return; // the button handles it
         event.preventDefault();
-        if (feedback) next();
+        if (feedback) onContinue();
         else check();
         return;
       }
@@ -80,7 +72,7 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
         return;
       }
       const tile = tileForKey(exercise.tiles, picked, event.key);
-      if (tile !== null) setPicked((current) => pick(current, tile, slots));
+      if (tile !== null) setPicked((current) => pick(current, tile, exercise.slots));
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -88,31 +80,21 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
 
   return (
     <article className={styles.exercise} data-spelling={exercise.id}>
-      <p className={styles.eyebrow}>
-        Правописание · {guided ? 'соберите слово' : exercise.retry ? 'ещё раз, по памяти' : 'по памяти'}
-      </p>
+      <p className={styles.eyebrow}>Правописание</p>
       <div className={styles.prompt}>
-        {guided ? (
-          <>
-            <p className={styles.meaning} data-translation>
-              {exercise.word.translation}
-            </p>
-            <h1 className={styles.word} lang="en" tabIndex={-1} data-autofocus>
-              {exercise.word.headword}
-            </h1>
-          </>
-        ) : (
-          <>
-            <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
-              {exercise.prompt.translation}
-            </h1>
-            <p className={styles.context}>{exercise.prompt.example_ru}</p>
-          </>
+        <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
+          {exercise.prompt.translation}
+        </h1>
+        <p className={styles.context}>{exercise.prompt.example_ru}</p>
+        {again && word && (
+          <p className={styles.word} lang="en">
+            {word}
+          </p>
         )}
       </div>
 
-      <ol className={styles.slots} aria-label={`Ответ: ${picked.length} из ${slots} букв`}>
-        {Array.from({ length: slots }, (_, slot) => {
+      <ol className={styles.slots} aria-label={`Ответ: ${picked.length} из ${exercise.slots} букв`}>
+        {Array.from({ length: exercise.slots }, (_, slot) => {
           const tile = picked[slot];
           const letter = tile === undefined ? null : exercise.tiles[tile];
           return (
@@ -135,8 +117,8 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
         })}
       </ol>
 
-      {feedback ? (
-        <Feedback result={result} built={answer} guided={guided} />
+      {feedback && result ? (
+        <Feedback right={Boolean(result.correct) || builtRight} built={answer} word={word ?? ''} />
       ) : (
         <>
           <div className={styles.tiles} role="group" aria-label="Буквы">
@@ -149,7 +131,7 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
                   className={styles.tile}
                   data-used={used || undefined}
                   disabled={used || !editable}
-                  onClick={() => setPicked((current) => pick(current, tile, slots))}
+                  onClick={() => setPicked((current) => pick(current, tile, exercise.slots))}
                   aria-label={used ? `${letter}, уже в ответе` : letter}
                 >
                   {used ? '' : letter}
@@ -175,7 +157,7 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
               Очистить
             </button>
           </div>
-          {fixing && full && !fixedRight && (
+          {again && full && !builtRight && (
             <p className={styles.fixHint} role="status">
               Сверьтесь со словом вверху и поправьте буквы.
             </p>
@@ -184,28 +166,24 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
       )}
 
       <div className={styles.actions}>
-        {feedback ? (
-          <PrimaryButton type="button" className={styles.primary} onClick={next}>
-            {guided && !result.correct
-              ? 'Собрать правильно'
-              : !guided && (!result.correct || result.hint_used)
-                ? 'Потренировать написание'
-                : 'Дальше'}
-          </PrimaryButton>
-        ) : (
+        {result === null ? (
           <PrimaryButton
             type="button"
             className={styles.primary}
-            disabled={!full || busy || (fixing && !fixedRight)}
+            disabled={!full || busy}
             aria-busy={busy}
             onClick={check}
           >
-            {busy ? 'Проверяем…' : fixing ? 'Дальше' : 'Проверить'}
+            {busy ? 'Проверяем…' : 'Проверить'}
+          </PrimaryButton>
+        ) : (
+          <PrimaryButton type="button" className={styles.primary} onClick={onContinue}>
+            Дальше
           </PrimaryButton>
         )}
-        {!guided && !feedback && (
-          <button type="button" className={styles.showWord} disabled={busy} onClick={() => onSubmit(answer, true)}>
-            Показать слово
+        {result && !result.correct && !again && (
+          <button type="button" className={styles.showWord} onClick={buildAgain}>
+            Собрать ещё раз
           </button>
         )}
       </div>
@@ -213,21 +191,9 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
   );
 }
 
-/** What the server said about the built word: right, shown, or which letters differ. */
-function Feedback({ result, built, guided }: { result: AttemptResult; built: string; guided: boolean }) {
-  const word = result.answer ?? '';
-  if (result.hint_used) {
-    return (
-      <div className={styles.feedback} role="status">
-        <p className={styles.verdict}>Слово</p>
-        <p className={styles.answer} lang="en">
-          {word}
-        </p>
-        <p className={styles.note}>Сейчас соберём его вместе, а позже — ещё раз по памяти.</p>
-      </div>
-    );
-  }
-  if (result.correct) {
+/** Right, or which letters differ from the word (underlined and bold, not colour alone). */
+function Feedback({ right, built, word }: { right: boolean; built: string; word: string }) {
+  if (right) {
     return (
       <div className={styles.feedback} data-tone="right" role="status">
         <p className={styles.verdict}>
@@ -262,7 +228,6 @@ function Feedback({ result, built, guided }: { result: AttemptResult; built: str
           <dd lang="en">{word}</dd>
         </div>
       </dl>
-      {!guided && <p className={styles.note}>Соберём слово вместе, а позже — ещё раз по памяти.</p>}
     </div>
   );
 }

@@ -54,32 +54,34 @@ export async function study(page: Page, rating: RatingLabel = 'Хорошо') {
 }
 
 /**
- * Builds the word of the spelling exercise on screen (typed: letters pick tiles), checks it and
- * moves on. Guided shows the word; a recall's word is known from earlier in the test. `answer`
- * builds something else instead (a recall the learner gets wrong).
+ * Builds the word of the spelling card on screen (typed: letters pick tiles), checks it and moves
+ * on. The card shows only the meaning; the word is known from the flashcards earlier in the test.
+ * `answer` builds something else instead (a mistake).
  */
 export async function spell(page: Page, answer?: string) {
   const exercise = page.locator('[data-spelling]');
   const id = await exercise.getAttribute('data-spelling');
   const meaning = (await exercise.locator('[data-translation]').textContent())!.trim();
-  const shown = exercise.locator('h1[lang="en"]');
-  const word = (await shown.count()) ? (await shown.textContent())! : meanings(page).get(meaning);
+  const word = meanings(page).get(meaning);
   if (!word) throw new Error(`no word known for «${meaning}»`);
-  meanings(page).set(meaning, word);
   await page.keyboard.type(answer ?? word);
   await button(page, 'Проверить').click();
-  const next = page.getByRole('button', { name: /^(Дальше|Потренировать написание|Собрать правильно)$/ });
-  if ((await next.textContent()) === 'Собрать правильно') {
-    await next.click();
-    await page.keyboard.type(word);
-  }
-  await page.getByRole('button', { name: /^(Дальше|Потренировать написание)$/ }).click();
+  await button(page, 'Дальше').click();
   await expect(page.locator(`[data-spelling="${id}"]`)).toHaveCount(0);
 }
 
+/** Today's spelling (ADR 0016), from the button on home or on a lesson's summary, to its end. */
+export async function spellToday(page: Page, misspell: Record<string, string> = {}) {
+  await page
+    .getByRole('button', { name: /^Правописание · / })
+    .first()
+    .click();
+  await finishSession(page, {}, misspell);
+}
+
 /**
- * Finishes the lesson: each card's first showing rated as given (by headword, default «Хорошо»),
- * then the spelling built right — or, for a word in `misspell`, its first recall built that way.
+ * Finishes the session: each card's first showing rated as given (by headword, default
+ * «Хорошо»); each spelling card built right — or, for a word in `misspell`, built that way.
  */
 export async function finishSession(
   page: Page,
@@ -87,7 +89,6 @@ export async function finishSession(
   misspell: Record<string, string> = {},
 ) {
   const seen = new Set<string>();
-  const recalled = new Set<string>();
   // The lesson first: the screen it was started from may have its own «На главную».
   await expect(page.getByRole('button', { name: 'Выйти из урока' })).toBeVisible();
   const summary = page.getByRole('button', { name: 'На главную' });
@@ -101,10 +102,7 @@ export async function finishSession(
     if (await spelling.count()) {
       const meaning = (await spelling.locator('[data-translation]').textContent())!.trim();
       const word = meanings(page).get(meaning);
-      const isRecall = (await spelling.locator('h1[lang="en"]').count()) === 0;
-      const wrong = word && isRecall && !recalled.has(word) ? misspell[word] : undefined;
-      if (word && isRecall) recalled.add(word);
-      await spell(page, wrong);
+      await spell(page, word ? misspell[word] : undefined);
       continue;
     }
     const headword = (await card.getByRole('heading', { level: 1 }).textContent())!;

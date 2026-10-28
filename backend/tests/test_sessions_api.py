@@ -84,8 +84,14 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
 ) -> None:
     summary = play(STUDY, DAY0, ratings={"water": 4, "friend": 1})
     assert (summary["new_words"], summary["reviewed_words"]) == (5, 0)
-    # Five new words: today's plan of five is done, nothing extra (ADR 0015).
-    assert summary["today"] == {"new_words": 5, "target": 5, "plan_done": True, "extra_new": 0}
+    # Five new words, nothing extra (ADR 0015); the plan waits for their spelling (ADR 0016).
+    assert summary["today"] == {
+        "new_words": 5,
+        "target": 5,
+        "plan_done": False,
+        "extra_new": 0,
+        "spelling": {"words": 5, "done": 0},
+    }
     assert summary["ratings"]["easy"] == 1
     by_word = {row["word"]["headword"]: row for row in summary["words"]}
     # «Легко» graduates at once; the others needed a second showing, «Снова» a third.
@@ -171,7 +177,7 @@ def test_completion_rules(client: TestClient, play: Play) -> None:
     session = start(client).json()
     early = client.post(f"/api/sessions/{session['id']}/complete")
     assert (early.status_code, early.json()["error"]["code"]) == (409, "session_incomplete")
-    summary = play(STUDY, DAY0)  # resumes and finishes the open session
+    summary = play(STUDY, DAY0, spell=False)  # resumes and finishes the open session
     again = client.post(f"/api/sessions/{summary['session_id']}/complete", headers=at(DAY0))
     assert again.json()["today"] == summary["today"]
 

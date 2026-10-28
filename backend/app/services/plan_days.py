@@ -1,8 +1,8 @@
 """Plan days (ADR 0015): consistency measured against each learner's own promise.
 
 A learner promises a pace: so many new words a day, so many days a week. A day counts when that
-day's plan was done: at least the day's target of new words met in study, with the lesson
-finished, spelling included (ADR 0016); on a day the app allowed no new words, a finished study
+day's plan was done: at least the day's target of new words met in study, the lesson finished,
+and those words spelled once (ADR 0016); on a day the app allowed no new words, a finished study
 session. The week counts the days done against the days promised; extra days, extra words and
 practice never raise a place. Extra learning is reported separately, for the learner's profile.
 
@@ -25,8 +25,10 @@ from app.services.pace import effective_target, ramp_week, target_of
 from app.services.progress import INTRODUCTION
 from app.services.scheduling import local_date
 
-# Practice («Трудные слова») is extra by definition; every other kind of session is study.
+# Practice («Трудные слова») is extra by definition; spelling has its own part of the plan; every
+# other kind of session is study.
 PRACTICE = "hard"
+SPELLING = "spelling"
 # How far back days are read: a year, enough for any weekly streak shown.
 HISTORY_DAYS = 366
 
@@ -39,6 +41,13 @@ class PlanDay:
     practice_answers: int
     target: int
     completed_study: bool
+    # Words covered by a finished spelling session that day (ADR 0016).
+    spelled: int = 0
+
+    @property
+    def spelling_needed(self) -> int:
+        """The planned new words of the day, each to be spelled once."""
+        return min(self.new_words, self.target)
 
     @property
     def practised(self) -> bool:
@@ -51,7 +60,7 @@ class PlanDay:
         # finished lesson of reviews is the plan.
         if not self.practised or not self.completed_study:
             return False
-        return self.new_words >= self.target
+        return self.new_words >= self.target and self.spelled >= self.spelling_needed
 
     @property
     def planned_new(self) -> int:
@@ -88,7 +97,8 @@ def days_by_user(
         return {}
     zone = literal(time_zone.key) if time_zone else func.coalesce(User.time_zone, "UTC")
     local_day = func.date(func.timezone(zone, ReviewAttempt.answered_at))
-    study = LearningSession.kind != PRACTICE
+    study = LearningSession.kind.not_in((PRACTICE, SPELLING))
+    spelled = and_(LearningSession.kind == SPELLING, LearningSession.completed_at.is_not(None))
     rows = db.execute(
         select(
             ReviewAttempt.user_id,
@@ -98,6 +108,7 @@ def days_by_user(
             func.count().filter(LearningSession.kind == PRACTICE),
             func.min(LearningSession.day_target).filter(study),
             func.bool_or(and_(study, LearningSession.completed_at.is_not(None))),
+            func.max(LearningSession.spelling_words).filter(spelled),
         )
         .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
         .join(User, User.id == ReviewAttempt.user_id)
@@ -109,7 +120,16 @@ def days_by_user(
     )
     by_id = {user.id: user for user in users}
     result: dict[UUID, dict[date, PlanDay]] = {user.id: {} for user in users}
-    for user_id, day, study_answers, new_words, practice, recorded, completed in rows:
+    for (
+        user_id,
+        day,
+        study_answers,
+        new_words,
+        practice,
+        recorded,
+        completed,
+        spelled_words,
+    ) in rows:
         user = by_id[user_id]
         target = (
             recorded
@@ -123,6 +143,7 @@ def days_by_user(
             practice_answers=int(practice),
             target=int(target),
             completed_study=bool(completed),
+            spelled=int(spelled_words or 0),
         )
     return result
 

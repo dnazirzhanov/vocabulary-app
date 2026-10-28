@@ -29,9 +29,9 @@ def cards(session: dict[str, Any]) -> list[dict[str, Any]]:
     return [exercise for exercise in session["exercises"] if exercise["type"] == "card"]
 
 
-def spell(answer: str, hint_used: bool = False) -> dict[str, object]:
+def spell(answer: str) -> dict[str, object]:
     """A word built with letter tiles (ADR 0016)."""
-    return {"kind": "spelling", "answer": answer, "hint_used": hint_used}
+    return {"kind": "spelling", "answer": answer}
 
 
 def finish(
@@ -42,12 +42,10 @@ def finish(
     spellings: Spellings | None = None,
 ) -> None:
     """Answers every exercise in order: each card's first showing with its rating in `ratings`
-    (default «Хорошо», repeats «Хорошо»); guided spelling built right; each word's first recall
-    as given in `spellings` (default right), retries right. A recall hides the word, so the
-    headword is read from the stored plan, as a learner who knows it would."""
+    (default «Хорошо», repeats «Хорошо»); each spelling card as given in `spellings` (default
+    built right). A spelling card hides the word, so it is read from the stored plan."""
     exercises = list(session["exercises"])
     seen: set[str] = set()
-    recalled: set[str] = set()
     index = 0
     while index < len(exercises):
         exercise = exercises[index]
@@ -58,11 +56,7 @@ def finish(
             response = rate(rating)
         else:
             headword = headword_of(session["id"], exercise["id"])
-            answer = headword
-            if exercise["type"] == "spell_recall" and headword not in recalled:
-                answer = (spellings or {}).get(headword, headword)
-                recalled.add(headword)
-            response = spell(answer)
+            response = spell((spellings or {}).get(headword, headword))
         result = client.post(
             f"/api/sessions/{session['id']}/attempts",
             json={"exercise_id": exercise["id"], "response": response},
@@ -79,3 +73,19 @@ def headword_of(session_id: str, exercise_id: str) -> str:
         session = db.get_one(LearningSession, session_id)
         word_id = next(step["word_id"] for step in session.plan if step["id"] == exercise_id)
         return db.get_one(Word, word_id).headword
+
+
+def spell_today(
+    client: TestClient, headers: dict[str, str], spellings: Spellings | None = None
+) -> dict[str, Any] | None:
+    """Spells today's new words (ADR 0016), the second part of the day's plan; returns the
+    summary, or None when no word was learned today."""
+    started = client.post("/api/sessions", json={"kind": "spelling"}, headers=headers)
+    if started.status_code == 409:
+        return None
+    session = started.json()
+    finish(client, session, headers, spellings=spellings)
+    summary: dict[str, Any] = client.post(
+        f"/api/sessions/{session['id']}/complete", headers=headers
+    ).json()
+    return summary

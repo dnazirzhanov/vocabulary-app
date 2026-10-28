@@ -58,6 +58,13 @@ export const HomeIcon = (props: IconProps) => (
   </svg>
 );
 
+export const PencilIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z" />
+    <path d="M13.5 7l3 3" />
+  </svg>
+);
+
 export const PersonIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <circle cx="12" cy="8" r="4" />

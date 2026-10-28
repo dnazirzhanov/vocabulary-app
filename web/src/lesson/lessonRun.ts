@@ -3,15 +3,15 @@ import type { AttemptResult, Exercise, Rating, Session } from '../lib/types.ts';
 /**
  * A card:     front → back → saving → (next) …                         (ADR 0012)
  * Spelling:   front (building) → saving → feedback → (next) …          (ADR 0016)
+ *             (after a mistake the card may be built again on the device before moving on)
  * … → finishing. A failed request goes to error and back (retry) with the same answer.
  * The learner recalls from a card's front, reveals the back, then rates it; a spelling exercise
- * is built with tiles, checked by the server, then explained before moving on. Exercises an
- * answer adds (a card shown again, practice and a retry after a missed recall) are inserted where
- * the server put them.
+ * is built with tiles, checked by the server, then explained before moving on. A card shown
+ * again later is inserted where the server put it.
  */
 export type LessonPhase = 'front' | 'back' | 'saving' | 'feedback' | 'error' | 'finishing';
 
-export type Answer = { kind: 'rating'; rating: Rating } | { kind: 'spelling'; answer: string; hintUsed: boolean };
+export type Answer = { kind: 'rating'; rating: Rating } | { kind: 'spelling'; answer: string };
 
 export interface LessonState {
   exercises: Exercise[];
@@ -29,7 +29,7 @@ export interface LessonState {
 export type LessonAction =
   | { type: 'reveal' }
   | { type: 'rate'; rating: Rating }
-  | { type: 'spell'; answer: string; hintUsed: boolean }
+  | { type: 'spell'; answer: string }
   | { type: 'saved'; result: AttemptResult }
   | { type: 'continue' }
   | { type: 'failed'; message: string }
@@ -76,7 +76,7 @@ export function reduceLesson(state: LessonState, action: LessonAction): LessonSt
         : state;
     case 'spell':
       return state.phase === 'front' && !isCard
-        ? { ...state, phase: 'saving', pending: { kind: 'spelling', answer: action.answer, hintUsed: action.hintUsed } }
+        ? { ...state, phase: 'saving', pending: { kind: 'spelling', answer: action.answer } }
         : state;
     case 'saved': {
       if (state.phase !== 'saving' || action.result.exercise_id !== current?.id) return state;

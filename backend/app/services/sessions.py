@@ -8,7 +8,7 @@ passed in, never read here.
 
 import random
 from collections.abc import Callable, Iterable, Sequence
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -26,7 +26,6 @@ from app.models import (
     ReviewAttempt,
     User,
     UserWordProgress,
-    UserWordSpelling,
     Word,
 )
 from app.schemas.learning import (
@@ -42,13 +41,13 @@ from app.schemas.learning import (
     RatingCounts,
     RatingResponse,
     SessionOut,
-    SpellGuidedExercise,
+    SpellingExercise,
     SpellingPrompt,
     SpellingResponse,
     SpellingSummaryOut,
-    SpellRecallExercise,
     StartHardSession,
     StartRequest,
+    StartSpellingSession,
     StartStudySession,
     SummaryOut,
     SummaryWord,
@@ -60,13 +59,12 @@ from app.services.learning import (
     REQUEUE_WITHIN_SECONDS,
     REVIEW_CARDS_PER_SESSION,
     PlannedExercise,
-    after_miss,
     pick_new_words,
     plan_cards,
     plan_spelling,
     requeue,
 )
-from app.services.progress import card_points
+from app.services.progress import INTRODUCTION, card_points, local_day_bounds
 from app.services.progress_view import today_plan
 from app.services.scheduling import (
     AGAIN,
@@ -178,18 +176,15 @@ def _card_out(
 def _exercise_out(
     step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
 ) -> ExerciseOut:
-    if step.type == "spell_guided":
-        return SpellGuidedExercise(id=step.id, word=_word_out(word), tiles=list(step.tiles))
-    if step.type == "spell_recall":
+    if step.spelling:
         # The meaning only: no headword, id, example or audio can give the answer away.
-        return SpellRecallExercise(
+        return SpellingExercise(
             id=step.id,
             prompt=SpellingPrompt(
                 translation=word.translation, pos=word.pos, example_ru=word.example_ru
             ),
             slots=len(word.headword),
             tiles=list(step.tiles),
-            retry=step.retry,
         )
     return _card_out(step, word, progress, now)
 
@@ -208,7 +203,6 @@ def _result_out(
     return AttemptResultOut(
         exercise_id=attempt.exercise_id,
         correct=attempt.correct,
-        hint_used=attempt.hint_used,
         answer=headword,
         inserted=list(inserted),
     )
@@ -330,12 +324,11 @@ def require_published_deck(db: Session, deck_id: str) -> Deck:
 
 def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
-) -> tuple[str, list[PlannedExercise], int, int]:
+) -> tuple[str, list[PlannedExercise], int]:
     """One deck: its due cards, most overdue first, then its new words as today's pace allows
     (ADR 0010). No deck («Продолжить»): due cards of every level, then the current level's new
-    words, so earlier levels keep coming back (ADR 0014). After the cards, spelling: today's new
-    words, guided then recalled, and the spelling reviews due (ADR 0016). Also returns the day's
-    plan to record (pace.recorded_target) and the words in the spelling section."""
+    words, so earlier levels keep coming back (ADR 0014). Also returns the day's plan to record
+    (pace.recorded_target)."""
     rows = _course_rows(db, user, now)
     current = _current_index(rows)
     if request.deck_id is None:
@@ -369,25 +362,37 @@ def _study_plan(
         )
         order = [word.id for word in _deck_words(db, deck.id)]
         new = pick_new_words(order, introduced, today.next_lesson_size)
-    reviews = _spelling_due(db, user, now, exclude=set(new))
-    if not due and not new and not reviews:
+    if not due and not new:
         if today.blocked_by_reviews:
             raise ApiError(409, "reviews_first", "Too many reviews are due: review first")
         raise ApiError(409, "nothing_to_study", "Nothing is due and no new words are left")
-    cards = plan_cards(due, new)
-    steps = cards + plan_spelling(new, reviews, len(cards) + 1, _tile_maker(db, user, now))
-    target = pace.recorded_target(today, pace.words_left(db, user))
-    return deck.id, steps, target, len(set(new) | set(reviews))
+    return deck.id, plan_cards(due, new), pace.recorded_target(today, pace.words_left(db, user))
 
 
-def _spelling_due(db: Session, user: User, now: datetime, exclude: set[str]) -> list[str]:
-    """Words due for a spelling recall on a later day, most overdue first."""
-    rows = db.scalars(
-        select(UserWordSpelling.word_id)
-        .where(UserWordSpelling.user_id == user.id, UserWordSpelling.due_at <= now)
-        .order_by(UserWordSpelling.due_at, UserWordSpelling.word_id)
-    )
-    return [word_id for word_id in rows if word_id not in exclude][: spelling.REVIEWS_PER_SESSION]
+def _spelling_plan(
+    db: Session, user: User, now: datetime, time_zone: ZoneInfo
+) -> tuple[str, list[PlannedExercise]]:
+    """A spelling card for each word learned today, in the order learned (ADR 0016)."""
+    start, end = local_day_bounds(local_date(now, time_zone), time_zone)
+    # Answers are stored in the order given, so the first answer's id is the learning order.
+    first = func.min(ReviewAttempt.id)
+    learned = db.execute(
+        select(ReviewAttempt.word_id, first)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            INTRODUCTION,
+            ReviewAttempt.answered_at >= start,
+            ReviewAttempt.answered_at < end,
+        )
+        .group_by(ReviewAttempt.word_id)
+        .order_by(first)
+    ).all()
+    words = [word_id for word_id, _ in learned]
+    if not words:
+        raise ApiError(409, "nothing_to_spell", "No new words learned today yet")
+    deck = db.scalar(select(DeckWord.deck_id).where(DeckWord.word_id == words[0]).limit(1))
+    assert deck is not None
+    return deck, plan_spelling(words, _tile_maker(db, user, now))
 
 
 def _tile_maker(db: Session, user: User, now: datetime) -> "TileMaker":
@@ -438,8 +443,11 @@ def start_session(
     promised_days: int | None = None
     spelling_words: int | None = None
     if isinstance(request, StartStudySession):
-        deck_id, plan, day_target, spelling_words = _study_plan(db, user, request, now, time_zone)
+        deck_id, plan, day_target = _study_plan(db, user, request, now, time_zone)
         promised_days = user.study_days_per_week
+    elif isinstance(request, StartSpellingSession):
+        deck_id, plan = _spelling_plan(db, user, now, time_zone)
+        spelling_words = len(plan)
     else:
         deck_id, plan = request.deck_id, _hard_plan(db, user, request)
     session = LearningSession(
@@ -543,7 +551,8 @@ def submit_attempt(
 
     try:
         if isinstance(response, SpellingResponse):
-            stored, inserted = _spell(db, user, session, plan, step, word, response, now, time_zone)
+            stored = _spell(db, user, session, step, word, response, now)
+            inserted: list[InsertedExercise] = []
         else:
             stored, inserted = _rate(db, user, session, plan, step, word, response, attempts, now)
         db.commit()
@@ -624,70 +633,27 @@ def _spell(
     db: Session,
     user: User,
     session: LearningSession,
-    plan: list[PlannedExercise],
     step: PlannedExercise,
     word: Word,
     response: SpellingResponse,
     now: datetime,
-    time_zone: ZoneInfo,
-) -> tuple[ReviewAttempt, list[InsertedExercise]]:
-    """Check a built word on the server (the answer is discarded, ADR 0003). A recall counts only
-    when right at the first try without seeing the word; it moves the word's spelling schedule
-    once per lesson. A miss brings guided practice now and one retry later (ADR 0016)."""
-    correct = spelling.is_correct(response.answer, word.headword)
-    recall = step.type == "spell_recall"
-    hint = recall and response.hint_used
+) -> ReviewAttempt:
+    """Check a built word on the server (the answer itself is discarded, ADR 0003). Only the first
+    try is stored; after a mistake the word is shown, so building it again is checked on the
+    device."""
     stored = ReviewAttempt(
         session_id=session.id,
         user_id=user.id,
         word_id=step.word_id,
         exercise_id=step.id,
-        exercise_type=step.type,
-        correct=correct,
-        hint_used=hint,
+        exercise_type="spelling",
+        correct=spelling.is_correct(response.answer, word.headword),
         answered_at=now,
         points=0,  # spelling never earns points or a place on the board
     )
     db.add(stored)
     db.flush()
-    inserted: list[InsertedExercise] = []
-    if not recall:
-        return stored, inserted
-    recalled = correct and not hint
-    if not step.retry:  # the word's first recall in this lesson
-        _save_spelling(db, user, step.word_id, recalled, local_date(now, time_zone), time_zone, now)
-    if not recalled:
-        new_plan, added = after_miss(
-            plan, plan.index(step), step, _tile_maker(db, user, now), spelling.RECALL_GAP
-        )
-        session.plan = [planned.to_json() for planned in new_plan]
-        db.flush()
-        inserted = [
-            InsertedExercise(index=index, exercise=_exercise_out(extra, word, None, now))
-            for index, extra in added
-        ]
-    return stored, inserted
-
-
-def _save_spelling(
-    db: Session,
-    user: User,
-    word_id: str,
-    recalled: bool,
-    today: date,
-    time_zone: ZoneInfo,
-    now: datetime,
-) -> None:
-    row = db.get(UserWordSpelling, (user.id, word_id))
-    stage, due_at = spelling.next_review(row.stage if row else 0, recalled, today, time_zone)
-    if row is None:
-        db.add(
-            UserWordSpelling(
-                user_id=user.id, word_id=word_id, stage=stage, due_at=due_at, updated_at=now
-            )
-        )
-    else:
-        row.stage, row.due_at, row.updated_at = stage, due_at, now
+    return stored
 
 
 # --- completing ------------------------------------------------------------------------------
@@ -743,15 +709,14 @@ def complete_session(
 def _spelling_summary(
     plan: list[PlannedExercise], attempts: dict[str, ReviewAttempt]
 ) -> SpellingSummaryOut | None:
-    """Each word's first recall in the lesson decides: right without seeing the word, or not."""
-    first: dict[str, ReviewAttempt] = {}
-    for step in plan:
-        if step.type == "spell_recall" and not step.retry:
-            first.setdefault(step.word_id, attempts[step.id])
-    if not first:
+    """A spelling session's words, built right at the first try or after a mistake."""
+    spelled = [attempts[step.id] for step in plan if step.spelling]
+    if not spelled:
         return None
-    right = sum(1 for attempt in first.values() if attempt.correct and not attempt.hint_used)
-    return SpellingSummaryOut(words=len(first), first_try=right, needs_practice=len(first) - right)
+    right = sum(1 for attempt in spelled if attempt.correct)
+    return SpellingSummaryOut(
+        words=len(spelled), first_try=right, needs_practice=len(spelled) - right
+    )
 
 
 # --- account ---------------------------------------------------------------------------------

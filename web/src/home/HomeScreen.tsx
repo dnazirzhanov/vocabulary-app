@@ -7,7 +7,7 @@ import { courseCounts, currentDeck, newInSession, nextDueAt, studyLabel } from '
 import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CardCounts } from '../today/CardCounts.tsx';
-import { CheckIcon, FlameIcon } from '../ui/icons.tsx';
+import { CheckIcon, FlameIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { DeckList } from './DeckList.tsx';
 import { SuggestionCard } from './SuggestionCard.tsx';
@@ -105,6 +105,18 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   const label = active ? 'Продолжить урок' : studyLabel({ due, fresh, started, bonus });
   // One session for everything due on every level, then the current level's new words.
   const study = async () => onSession(active ?? (await api.startStudySession(null)), null);
+  // Spelling (ADR 0016): a card for each word learned today; required once, then free practice.
+  const learnedToday = progress?.today.new_words ?? 0;
+  const spellingToday = progress?.spelling_today ?? { words: 0, done: 0 };
+  const spellingLabel =
+    learnedToday === 0
+      ? null
+      : spellingToday.done < spellingToday.words
+        ? `Правописание · ${wordsLabel(learnedToday)}`
+        : 'Правописание · ещё раз';
+  const spell = async () => onSession(active ?? (await api.startSpellingSession()), null);
+  // The lesson comes first; once nothing is left to study, spelling takes the main button.
+  const primary = label ? { text: label, run: study } : spellingLabel ? { text: spellingLabel, run: spell } : null;
   const upcoming = nextDueAt(decks);
   const nextReview = upcoming ? `Следующее повторение — ${relativeDay(upcoming)}.` : null;
   const nothingLeft = counts.fresh + due === 0;
@@ -149,6 +161,12 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
             </h1>
             <CardCounts counts={counts} />
             {pace && newLeft && <TodayPlan pace={pace} spelling={progress?.spelling_today ?? null} />}
+            {label && spellingLabel && (
+              <button type="button" className={styles.spellButton} disabled={busy} onClick={() => run(spell)}>
+                <PencilIcon aria-hidden="true" />
+                {spellingLabel}
+              </button>
+            )}
             {note && <p className={styles.note}>{note}</p>}
             {pace?.suggestion && !active && (
               <div className={styles.suggestion}>
@@ -174,23 +192,23 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
           />
         </div>
       </main>
-      {(label || error) && (
+      {(primary || error) && (
         <footer className={styles.actions}>
           {error && (
             <p className={styles.error} role="alert">
               {error}
             </p>
           )}
-          {label && (
+          {primary && (
             <div className={styles.actionsInner}>
               <PrimaryButton
                 type="button"
                 className={styles.action}
                 disabled={busy}
                 aria-busy={busy}
-                onClick={() => run(study)}
+                onClick={() => run(primary.run)}
               >
-                {busy ? 'Загружаем…' : label}
+                {busy ? 'Загружаем…' : primary.text}
               </PrimaryButton>
             </div>
           )}
@@ -201,7 +219,7 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
 }
 
 /**
- * Today's plan in two parts of one lesson (ADR 0016): the new words on cards, then their spelling.
+ * Today's plan in two parts (ADR 0016): the new words on cards, then their spelling.
  * Done is marked by a tick and words, not colour alone. The warm-up is named so a lower number
  * never looks like a cut.
  */

@@ -1,9 +1,8 @@
 """Spelling with letter tiles (ADR 0016): pure rules. No database or HTTP here.
 
-Two exercises use the same tiles. *Guided*: the English word is shown and the learner builds it,
-to look closely at its spelling. *Recall*: only the Russian meaning is shown and the learner
-builds the word from memory. Only a recall built right at the first try, without asking to see
-the word, counts as recalled; guided practice never does.
+A spelling card shows a word's Russian meaning; the learner builds the English word from letter
+tiles. Each of the day's new words gets one card; a word built right at the first try counts as
+spelled right, and after a mistake the learner may build it again until it is right.
 
 The tile bank holds one tile for every letter of the word (apple has two p tiles) and a few
 letters that are not in it, arranged alphabetically so a letter is easy to find. The word may
@@ -14,19 +13,10 @@ shuffled instead.
 import random
 import string
 import unicodedata
-from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
 # Tiles in a bank: at least this many, and always room for this many letters not in the word.
 MIN_TILES = 15
 MIN_DISTRACTORS = 4
-# Recall of a word comes after at least this many other exercises when the lesson allows.
-RECALL_GAP = 2
-# Spelling reviews due on a later day, at most this many per lesson.
-REVIEWS_PER_SESSION = 10
-# Days until the next spelling review after each first-try success; a miss starts over.
-INTERVALS = (1, 3, 7, 14, 30)
-
 LETTERS = string.ascii_lowercase
 
 
@@ -51,14 +41,3 @@ def tiles(target: str, rng: random.Random) -> list[str]:
             return bank
         rng.shuffle(bank)
     raise ValueError(f"no tile order hides {spelled!r}")
-
-
-def next_review(
-    stage: int, recalled: bool, today: date, time_zone: ZoneInfo
-) -> tuple[int, datetime]:
-    """(next stage, when the word is due for spelling again): the start of a local day, so a
-    review set for tomorrow is due from tomorrow morning, whatever time it was learned."""
-    # The stage counts first-try successes in a row (capped): 1 → 1 day, 2 → 3 days … 5+ → 30.
-    stage = min(stage + 1, len(INTERVALS)) if recalled else 0
-    days = INTERVALS[stage - 1] if recalled else INTERVALS[0]
-    return stage, datetime.combine(today + timedelta(days=days), time.min, tzinfo=time_zone)

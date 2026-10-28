@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
+from app.models import Deck, DeckWord, User, UserWordProgress
 from app.schemas.learning import (
     PlanDayOut,
     ProgressOut,
@@ -15,7 +15,6 @@ from app.schemas.learning import (
     TodayPlanOut,
     WordStages,
 )
-from app.services.learning import SPELLING_TYPES
 from app.services.plan_days import (
     HISTORY_DAYS,
     PlanDay,
@@ -90,39 +89,16 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
         activity=[_day_out(day) for _, day in sorted(days.items())],
         promised_days=promises.get(monday, user.study_days_per_week),
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
-        spelling_today=spelling_today(db, user, now, time_zone),
+        spelling_today=_spelling_out(days.get(today)),
     )
 
 
-def spelling_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> SpellingTodayOut:
-    """The spelling sections of today's lessons: their words, and those finished."""
-    start, end = local_day_bounds(local_date(now, time_zone), time_zone)
-    sessions = db.scalars(
-        select(LearningSession).where(
-            LearningSession.user_id == user.id,
-            LearningSession.kind != "hard",
-            LearningSession.started_at >= start,
-            LearningSession.started_at < end,
-        )
-    ).all()
-    answered = {
-        (session_id, exercise_id)
-        for session_id, exercise_id in db.execute(
-            select(ReviewAttempt.session_id, ReviewAttempt.exercise_id).where(
-                ReviewAttempt.session_id.in_([session.id for session in sessions])
-            )
-        )
-    }
-    words: set[str] = set()
-    unfinished: set[str] = set()
-    for session in sessions:
-        for step in session.plan:
-            if step.get("type") not in SPELLING_TYPES:
-                continue
-            words.add(step["word_id"])
-            if (session.id, step["id"]) not in answered:
-                unfinished.add(step["word_id"])
-    return SpellingTodayOut(words=len(words), done=len(words - unfinished))
+def _spelling_out(day: PlanDay | None) -> SpellingTodayOut:
+    """Today's planned new words to spell, and how many a finished spelling session covered."""
+    if day is None:
+        return SpellingTodayOut(words=0, done=0)
+    needed = day.spelling_needed
+    return SpellingTodayOut(words=needed, done=min(day.spelled, needed))
 
 
 def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> TodayPlanOut:
@@ -131,10 +107,13 @@ def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> T
     day = days_by_user(db, [user], start, time_zone)[user.id].get(today)
     if day is None:
         target = fallback_target(user, today, time_zone)
-        return TodayPlanOut(new_words=0, target=target, plan_done=False, extra_new=0)
+        return TodayPlanOut(
+            new_words=0, target=target, plan_done=False, extra_new=0, spelling=_spelling_out(None)
+        )
     return TodayPlanOut(
         new_words=day.new_words,
         target=day.target,
         plan_done=day.plan_done,
         extra_new=day.extra_new,
+        spelling=_spelling_out(day),
     )

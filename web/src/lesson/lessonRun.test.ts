@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { AttemptResult, CardExercise, Exercise, Session, SpellRecallExercise } from '../lib/types.ts';
+import type { AttemptResult, CardExercise, Exercise, Session, SpellingExercise } from '../lib/types.ts';
 import { formatInterval, reduceLesson, remaining, startLesson, type LessonState } from './lessonRun.ts';
 
 const card = (id: string, isNew = true): CardExercise => ({
@@ -10,13 +10,12 @@ const card = (id: string, isNew = true): CardExercise => ({
   previews: [],
   word: { id, headword: id, pos: 'noun', translation: 't', example: 'e', example_ru: 'e', illustration: null },
 });
-const recall = (id: string): SpellRecallExercise => ({
+const spelling = (id: string): SpellingExercise => ({
   id,
-  type: 'spell_recall',
+  type: 'spelling',
   prompt: { translation: 'дом', pos: 'noun', example_ru: 'e' },
   slots: 5,
   tiles: [],
-  retry: false,
 });
 const session = (cards: Exercise[], results: AttemptResult[] = []): Session => ({
   id: 's',
@@ -31,7 +30,6 @@ const result = (id: string, inserted: AttemptResult['inserted'] = []): AttemptRe
   rating: 3,
   next_due_at: '2026-11-03T09:00:00Z',
   correct: null,
-  hint_used: false,
   answer: null,
   inserted,
 });
@@ -86,18 +84,14 @@ test('intervals read like Anki', () => {
 });
 
 test('a spelling answer is checked, then explained before moving on', () => {
-  let state = startLesson(session([recall('s1'), recall('s2')]));
+  let state = startLesson(session([spelling('s1'), spelling('s2')]));
   state = run(state, { type: 'reveal' }, { type: 'rate', rating: 3 });
   assert.equal(state.phase, 'front', 'no reveal or rating for spelling');
-  state = run(state, { type: 'spell', answer: 'huose', hintUsed: false });
+  state = run(state, { type: 'spell', answer: 'huose' });
+  assert.deepEqual(state.pending, { kind: 'spelling', answer: 'huose' });
   const missed = { ...result('s1'), rating: null, correct: false, answer: 'house' };
-  const guided = { ...recall('s3'), type: 'spell_guided' as const, word: card('house').word };
-  state = run(state, { type: 'saved', result: { ...missed, inserted: [{ index: 1, exercise: guided }] } });
+  state = run(state, { type: 'saved', result: missed });
   assert.deepEqual([state.phase, state.index, state.last?.answer], ['feedback', 0, 'house']);
-  assert.deepEqual(
-    state.exercises.map((e) => e.id),
-    ['s1', 's3', 's2'],
-  );
   state = run(state, { type: 'continue' });
   assert.deepEqual([state.phase, state.index], ['front', 1]);
 });
