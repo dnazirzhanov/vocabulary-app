@@ -183,9 +183,7 @@ def _exercise_out(
         # The meaning only: no headword, id, example or audio can give the answer away.
         return SpellingExercise(
             id=step.id,
-            prompt=SpellingPrompt(
-                translation=word.translation, pos=word.pos, example_ru=word.example_ru
-            ),
+            prompt=SpellingPrompt(translation=word.translation, pos=word.pos),
             slots=len(word.headword),
             tiles=list(step.tiles),
             hint=_hint_out(step, word),

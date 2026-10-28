@@ -74,8 +74,6 @@ class SpellingPrompt(BaseModel):
 
     translation: str
     pos: str
-    # The Russian example, for context when a meaning has several English words.
-    example_ru: str
 
 
 class SpellingExercise(BaseModel):

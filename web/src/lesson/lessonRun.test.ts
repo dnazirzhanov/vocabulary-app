@@ -13,7 +13,7 @@ const card = (id: string, isNew = true): CardExercise => ({
 const spelling = (id: string): SpellingExercise => ({
   id,
   type: 'spelling',
-  prompt: { translation: 'дом', pos: 'noun', example_ru: 'e' },
+  prompt: { translation: 'дом', pos: 'noun' },
   slots: 5,
   tiles: [],
   hint: null,

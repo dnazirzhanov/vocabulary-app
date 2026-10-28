@@ -49,10 +49,6 @@
   outline: none;
 }
 
-.context {
-  color: var(--color-text-muted);
-}
-
 /* --- answer slots ------------------------------------------------------------------------- */
 
 .slots {

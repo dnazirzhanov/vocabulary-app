@@ -55,7 +55,7 @@ export interface CardExercise {
 export interface SpellingExercise {
   id: string;
   type: 'spelling';
-  prompt: { translation: string; pos: string; example_ru: string };
+  prompt: { translation: string; pos: string };
   /** Letters in the word. */
   slots: number;
   /** Letter tiles in display order; a tile is known by its position. */

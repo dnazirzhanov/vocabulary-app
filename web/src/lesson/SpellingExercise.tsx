@@ -123,7 +123,6 @@ export function SpellingExercise({
         <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
           {exercise.prompt.translation}
         </h1>
-        <p className={styles.context}>{exercise.prompt.example_ru}</p>
         {again && word && (
           <p className={styles.word} lang="en">
             {word}

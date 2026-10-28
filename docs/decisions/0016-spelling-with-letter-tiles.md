@@ -12,9 +12,8 @@ feedback gave fifth-graders better later spelling than copying. It does not say 
 is best, so those choices are product defaults.
 
 ## Decision
-- **One exercise, one card per word.** A spelling card shows a word's Russian meaning (and its
-  Russian example, for context when a meaning has several English words), empty slots and letter
-  tiles; the learner builds the English word. Nothing else: no guided step, no reviews.
+- **One exercise, one card per word.** A spelling card shows a word's Russian meaning, empty
+  slots and letter tiles; the learner builds the English word. Nothing else: no guided step, no reviews.
 - **Its own session and button.** The lesson stays flashcards only. «Правописание» starts a
   spelling session with a card for every word learned today, in the order learned. Once the cards
   are done it is home's main button and the next step on the lesson's summary; afterwards
@@ -42,5 +41,5 @@ is best, so those choices are product defaults.
 - Days from before this rule whose words were never spelled no longer count toward the plan.
 - Spelling covers single plain words today (every headword is `^[a-z]+$`); spaces, hyphens and
   apostrophes as fixed separators come with content that needs them.
-- A few meanings stand for more than one course word (дом: house, home); the Russian example is
-  shown for context, and a mistake shows the intended word.
+- A few meanings stand for more than one course word (дом: house, home); the number of slots
+  narrows it down, and a mistake shows the intended word.
