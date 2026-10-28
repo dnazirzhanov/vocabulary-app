@@ -16,6 +16,7 @@ const spelling = (id: string): SpellingExercise => ({
   prompt: { translation: 'дом', pos: 'noun', example_ru: 'e' },
   slots: 5,
   tiles: [],
+  hint: null,
 });
 const session = (cards: Exercise[], results: AttemptResult[] = []): Session => ({
   id: 's',

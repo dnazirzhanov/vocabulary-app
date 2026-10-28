@@ -14,7 +14,7 @@ is best, so those choices are product defaults.
 ## Decision
 - **One exercise, one card per word.** A spelling card shows a word's Russian meaning (and its
   Russian example, for context when a meaning has several English words), empty slots and letter
-  tiles; the learner builds the English word. Nothing else: no guided step, no hint, no reviews.
+  tiles; the learner builds the English word. Nothing else: no guided step, no reviews.
 - **Its own session and button.** The lesson stays flashcards only. «Правописание» starts a
   spelling session with a card for every word learned today, in the order learned. Once the cards
   are done it is home's main button and the next step on the lesson's summary; afterwards
@@ -27,6 +27,11 @@ is best, so those choices are product defaults.
   shuffle that does not. Generated when the session is planned and stored with it, so a restart
   shows the same bank. Tiles are buttons: no text field, so a phone's keyboard never opens; a
   physical keyboard can type letters into tiles. A half-built word survives a reload.
+- **One hint per card.** «Подсказка» asks the server for the letter of the next empty slot and
+  places that tile there (marked as a hint). One per card: asking again for the same slot returns
+  the same letter, any other slot is refused, so the word can never be drawn out letter by letter;
+  the hint is kept with the session, so a reload does not give a second one. A hinted answer is
+  still checked like any other.
 - **The word is never sent before it is answered.** The server checks the first try and discards
   the built word (ADR 0003): case and surrounding spaces are forgiven, misspellings never. Only
   the first try is stored. After a mistake the word is shown, with the differing letters marked

@@ -31,6 +31,8 @@ class PlannedExercise:
     new: bool = False
     # Spelling: the letter bank in display order, fixed when planned so it survives a restart.
     tiles: tuple[str, ...] = ()
+    # Spelling: the one slot whose letter was given as a hint, once asked for.
+    hint: int | None = None
 
     @property
     def spelling(self) -> bool:
@@ -45,6 +47,8 @@ class PlannedExercise:
         }
         if self.spelling:
             data["tiles"] = list(self.tiles)
+            if self.hint is not None:
+                data["hint"] = self.hint
         return data
 
     @classmethod
@@ -56,6 +60,7 @@ class PlannedExercise:
             word_id=str(data["word_id"]),
             new=bool(data.get("new", False)),
             tiles=tuple(data.get("tiles", ())),
+            hint=data.get("hint"),
         )
 
 

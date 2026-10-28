@@ -60,6 +60,13 @@ export interface SpellingExercise {
   slots: number;
   /** Letter tiles in display order; a tile is known by its position. */
   tiles: string[];
+  /** The card's one hint, once given: a slot and its letter. */
+  hint: Hint | null;
+}
+
+export interface Hint {
+  position: number;
+  letter: string;
 }
 
 export type Exercise = CardExercise | SpellingExercise;

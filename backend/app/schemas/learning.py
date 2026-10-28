@@ -88,6 +88,19 @@ class SpellingExercise(BaseModel):
     slots: int
     # Letter tiles in display order; the client gives each its own identity by position.
     tiles: list[str]
+    # The one hint of this card, once given: a slot and its letter.
+    hint: "HintOut | None" = None
+
+
+class HintIn(_Input):
+    """Ask for the letter of the next empty slot (ADR 0016): one per card."""
+
+    position: Annotated[int, Field(ge=0, le=63)]
+
+
+class HintOut(BaseModel):
+    position: int
+    letter: str
 
 
 ExerciseOut = Annotated[CardExercise | SpellingExercise, Field(discriminator="type")]

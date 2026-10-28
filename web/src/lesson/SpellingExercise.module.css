@@ -82,6 +82,12 @@
   cursor: pointer;
 }
 
+/* A letter given as a hint: a dotted line and a lighter tint, besides its spoken label. */
+.slot[data-hinted] {
+  border-bottom-style: dotted;
+  background: var(--color-stage);
+}
+
 .slot[data-empty] {
   border-bottom-color: var(--color-option-edge-hover);
   background: transparent;
@@ -130,8 +136,9 @@
 
 .edit {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
 }
 
 .editButton {
@@ -148,6 +155,35 @@
 
 .editButton:hover:not(:disabled) {
   background: rgb(38 38 38 / 0.06);
+}
+
+.hintButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.hintButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hintButton:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+}
+
+.hintButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .editButton:disabled {

@@ -9,8 +9,9 @@ import {
   savedPicks,
   tileForKey,
 } from '../lib/spelling.ts';
-import type { AttemptResult, SpellingExercise as Exercise } from '../lib/types.ts';
-import { CheckIcon } from '../ui/icons.tsx';
+import { describeError } from '../lib/api.ts';
+import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
+import { BulbIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
 
@@ -24,6 +25,8 @@ interface SpellingExerciseProps {
   result: AttemptResult | null;
   onSubmit: (answer: string) => void;
   onContinue: () => void;
+  /** The letter of one slot, from the server (the word stays there): one per card. */
+  onHint: (position: number) => Promise<Hint>;
 }
 
 /**
@@ -32,10 +35,22 @@ interface SpellingExerciseProps {
  * type the letters too. The first try is checked by the server; after a mistake the word is shown
  * and the card may be built again until it is right (checked here), or left.
  */
-export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit, onContinue }: SpellingExerciseProps) {
+export function SpellingExercise({
+  exercise,
+  storageKey,
+  busy,
+  result,
+  onSubmit,
+  onContinue,
+  onHint,
+}: SpellingExerciseProps) {
   const [picked, setPicked] = useState(() => savedPicks(storageKey));
   // After a mistake: building the word again, checked on the device against the shown word.
   const [again, setAgain] = useState(false);
+  // One hint per card: the letter of the next empty slot (kept by the server across a reload).
+  const [hint, setHint] = useState<Hint | null>(exercise.hint);
+  const [hinting, setHinting] = useState(false);
+  const [hintNote, setHintNote] = useState<string | null>(null);
   const answer = answerOf(exercise.tiles, picked);
   const full = picked.length === exercise.slots;
   const word = result?.answer ?? null;
@@ -52,6 +67,29 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
     setAgain(true);
     setPicked([]);
   };
+  const askHint = async () => {
+    const position = picked.length;
+    setHinting(true);
+    setHintNote(null);
+    try {
+      const given = await onHint(position);
+      setHint(given);
+      // The tile with that letter goes into the slot; if every such tile is already used
+      // elsewhere, the letter is named instead.
+      const tile = tileForKey(exercise.tiles, picked, given.letter);
+      if (tile !== null && picked.length === given.position)
+        setPicked((current) => pick(current, tile, exercise.slots));
+      else setHintNote(`Буква ${given.position + 1} — «${given.letter}».`);
+    } catch (error) {
+      setHintNote(describeError(error));
+    } finally {
+      setHinting(false);
+    }
+  };
+  const hintedSlot =
+    hint !== null && picked[hint.position] !== undefined && exercise.tiles[picked[hint.position]] === hint.letter
+      ? hint.position
+      : null;
 
   // A physical keyboard: letters pick tiles, Backspace takes the last one back, Enter checks.
   useEffect(() => {
@@ -105,9 +143,10 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
                 <button
                   type="button"
                   className={styles.slot}
+                  data-hinted={slot === hintedSlot || undefined}
                   disabled={!editable}
                   onClick={() => setPicked((current) => removeAt(current, slot))}
-                  aria-label={`Буква ${slot + 1}: ${letter}, убрать`}
+                  aria-label={`Буква ${slot + 1}: ${letter}${slot === hintedSlot ? ' (подсказка)' : ''}, убрать`}
                 >
                   {letter}
                 </button>
@@ -156,7 +195,24 @@ export function SpellingExercise({ exercise, storageKey, busy, result, onSubmit,
             >
               Очистить
             </button>
+            {!again && (
+              <button
+                type="button"
+                className={styles.hintButton}
+                disabled={!editable || hint !== null || hinting || full}
+                aria-busy={hinting}
+                onClick={() => void askHint()}
+              >
+                <BulbIcon aria-hidden="true" />
+                {hint ? 'Подсказка использована' : 'Подсказка'}
+              </button>
+            )}
           </div>
+          {hintNote && (
+            <p className={styles.fixHint} role="status">
+              {hintNote}
+            </p>
+          )}
           {again && full && !builtRight && (
             <p className={styles.fixHint} role="status">
               Сверьтесь со словом вверху и поправьте буквы.

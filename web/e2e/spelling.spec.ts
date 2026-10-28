@@ -85,3 +85,23 @@ test('the day waits for spelling; it can be repeated and a half-built word survi
   await expect(page.getByRole('heading', { name: 'Без единой ошибки!' })).toBeVisible();
   await expect(button(page, 'Ещё раз')).toBeVisible();
 });
+
+test('one hint per card fills the next letter, and only that one', async ({ page }) => {
+  await lesson(page);
+  await button(page, 'Правописание · 5 слов').click();
+  await expect(page.locator('[data-spelling] h1')).toHaveText('дом');
+  await tile(page, 'h').click();
+  await tile(page, 'o').click();
+  const hint = page.getByRole('button', { name: 'Подсказка' });
+  await hint.click();
+  // The third slot gets its letter; the word's other letters stay hidden.
+  await expect(page.getByRole('button', { name: 'Буква 3: u (подсказка), убрать' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Ответ: 3 из 5 букв' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
+  await expect(page.locator('main')).not.toContainText('house');
+
+  // Still one hint after a reload.
+  await page.reload();
+  await button(page, 'Продолжить урок').click();
+  await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
+});

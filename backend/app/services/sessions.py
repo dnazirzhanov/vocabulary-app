@@ -8,6 +8,7 @@ passed in, never read here.
 
 import random
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -36,6 +37,8 @@ from app.schemas.learning import (
     CourseGoalOut,
     DeckOut,
     ExerciseOut,
+    HintIn,
+    HintOut,
     InsertedExercise,
     IntervalPreview,
     RatingCounts,
@@ -185,8 +188,15 @@ def _exercise_out(
             ),
             slots=len(word.headword),
             tiles=list(step.tiles),
+            hint=_hint_out(step, word),
         )
     return _card_out(step, word, progress, now)
+
+
+def _hint_out(step: PlannedExercise, word: Word) -> HintOut | None:
+    if step.hint is None:
+        return None
+    return HintOut(position=step.hint, letter=word.headword[step.hint])
 
 
 def _result_out(
@@ -654,6 +664,34 @@ def _spell(
     db.add(stored)
     db.flush()
     return stored
+
+
+def give_hint(db: Session, user: User, session_id: UUID, exercise_id: str, hint: HintIn) -> HintOut:
+    """The letter of one slot of a spelling card (ADR 0016). One hint per card: asking again for
+    the same slot returns the same letter, any other slot is refused, so a word can never be
+    drawn out letter by letter. Not once the card is answered."""
+    session = _owned_session(db, user, session_id)
+    plan = _plan(session)
+    step = next((planned for planned in plan if planned.id == exercise_id), None)
+    if step is None or not step.spelling:
+        raise ApiError(404, "exercise_not_found", "No spelling card with this id in this session")
+    word = db.get_one(Word, step.word_id)
+    if step.hint is not None:
+        if step.hint != hint.position:
+            raise ApiError(409, "hint_used", "This card's hint has already been used")
+        return HintOut(position=step.hint, letter=word.headword[step.hint])
+    if session.completed_at is not None or step.id in _attempts(db, session.id):
+        raise ApiError(409, "already_answered", "This card is already answered")
+    if hint.position >= len(word.headword):
+        raise ApiError(422, "no_such_letter", "The word has no letter there")
+    session.plan = [
+        replace(planned, hint=hint.position).to_json()
+        if planned.id == step.id
+        else planned.to_json()
+        for planned in plan
+    ]
+    db.commit()
+    return HintOut(position=hint.position, letter=word.headword[hint.position])
 
 
 # --- completing ------------------------------------------------------------------------------

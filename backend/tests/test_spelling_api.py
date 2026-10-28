@@ -44,7 +44,8 @@ def test_the_lesson_is_cards_only_and_spelling_is_a_session_of_its_own(
     assert [e["type"] for e in session["exercises"]] == ["spelling"] * 5
     first = session["exercises"][0]
     # The meaning only: no headword, word id, example or audio.
-    assert set(first) == {"id", "type", "prompt", "slots", "tiles"}
+    assert set(first) == {"id", "type", "prompt", "slots", "tiles", "hint"}
+    assert first["hint"] is None
     assert (first["prompt"]["translation"], first["slots"]) == ("дом", 5)
     assert "house" not in str(first)
     assert all(letter in first["tiles"] for letter in "house")
@@ -124,3 +125,43 @@ def test_a_bonus_lesson_adds_words_to_spell_but_not_to_the_plan(
     assert len(session["exercises"]) == 10
     report = progress(client)
     assert report["today"]["plan_done"] is True  # the plan was five words, spelled already
+
+
+def hint(client: TestClient, session: dict[str, Any], exercise_id: str, position: int) -> Any:
+    return client.post(
+        f"/api/sessions/{session['id']}/exercises/{exercise_id}/hint",
+        json={"position": position},
+        headers=at(DAY0),
+    )
+
+
+def test_one_hint_per_card_gives_one_letter_and_never_more(client: TestClient, play: Play) -> None:
+    play(STUDY, DAY0, spell=False)
+    session = start_spelling(client).json()
+    house = session["exercises"][0]["id"]
+    # Five letters, two built: the hint is the third letter of "house".
+    assert hint(client, session, house, 2).json() == {"position": 2, "letter": "u"}
+    assert hint(client, session, house, 2).json() == {"position": 2, "letter": "u"}  # same slot
+    second = hint(client, session, house, 3)
+    assert (second.status_code, second.json()["error"]["code"]) == (409, "hint_used")
+    # The card remembers its hint after a reload, and still hides the rest of the word.
+    resumed = client.get("/api/sessions/active", headers=at(DAY0)).json()["session"]
+    card = resumed["exercises"][0]
+    assert card["hint"] == {"position": 2, "letter": "u"}
+    assert "house" not in str(card)
+    # Another card has its own hint; past the end of a word there is no letter.
+    water = session["exercises"][1]["id"]
+    beyond = hint(client, session, water, 5)
+    assert (beyond.status_code, beyond.json()["error"]["code"]) == (422, "no_such_letter")
+
+
+def test_no_hint_once_a_card_is_answered_or_for_flashcards(client: TestClient, play: Play) -> None:
+    lesson = client.post("/api/sessions", json=STUDY, headers=at(DAY0)).json()
+    flashcard = hint(client, lesson, cards(lesson)[0]["id"], 0)
+    assert (flashcard.status_code, flashcard.json()["error"]["code"]) == (404, "exercise_not_found")
+    play(STUDY, DAY0, spell=False)  # finishes the open lesson
+    session = start_spelling(client).json()
+    house = session["exercises"][0]["id"]
+    answer(client, session, house, "house")
+    late = hint(client, session, house, 0)
+    assert (late.status_code, late.json()["error"]["code"]) == (409, "already_answered")

@@ -6,6 +6,7 @@ import type {
   Deck,
   DeckWord,
   GlossaryEntry,
+  Hint,
   Group,
   GroupPreview,
   Me,
@@ -70,6 +71,9 @@ export const api = {
   startStudySession: (deckId: string | null) =>
     request<Session>('POST', '/sessions', deckId ? { kind: 'study', deck_id: deckId } : { kind: 'study' }),
   /** Extra practice on the learner's hardest words; the schedule is not changed. */
+  /** The letter of the next empty slot of a spelling card: one hint per card (ADR 0016). */
+  hint: (sessionId: string, exerciseId: string, position: number) =>
+    request<Hint>('POST', `/sessions/${sessionId}/exercises/${exerciseId}/hint`, { position }),
   /** A spelling card for each word learned today (ADR 0016); may be repeated for practice. */
   startSpellingSession: () => request<Session>('POST', '/sessions', { kind: 'spelling' }),
   startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),

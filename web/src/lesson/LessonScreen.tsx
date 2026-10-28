@@ -259,6 +259,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               busy={state.phase === 'saving' || state.phase === 'finishing'}
               result={state.phase === 'feedback' ? state.last : null}
               onSubmit={(answer) => dispatch({ type: 'spell', answer })}
+              onHint={(position) => api.hint(session.id, exercise.id, position)}
               onContinue={() => dispatch({ type: 'continue' })}
             />
           )}
