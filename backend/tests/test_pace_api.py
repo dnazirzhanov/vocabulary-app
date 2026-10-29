@@ -5,14 +5,14 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from tests.support import Answers, Play, at, respond
+from tests.support import Play, at, rate
 
 DAY_1 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-NEW = {"kind": "new", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "starter"}
 
 
 def new_word_count(session: dict[str, Any]) -> int:
-    return sum(1 for exercise in session["exercises"] if exercise["type"] == "introduce")
+    return sum(1 for exercise in session["exercises"] if exercise["new"])
 
 
 def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> None:
@@ -76,43 +76,42 @@ def test_a_large_target_warms_up_and_splits_into_lessons(client: TestClient) -> 
 def test_new_words_wait_while_too_many_reviews_are_due(client: TestClient, play: Play) -> None:
     client.patch("/api/me", json={"daily_target_words": 2, "ramp_enabled": False})
     for n in range(5):  # the target (2 words), then four bonus lessons: 22 words in review
-        play(NEW, DAY_1 + timedelta(minutes=5 * n))
+        play(NEW, DAY_1 + timedelta(minutes=30 * n))
 
-    later = DAY_1 + timedelta(days=2)
+    later = DAY_1 + timedelta(days=5)
     pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(later)).json()
     assert pace["blocked_by_reviews"] is True
     assert (pace["due_count"], pace["review_debt_limit"]) == (22, 20)
-    refused = client.post("/api/sessions", json=NEW, headers=at(later))
-    assert refused.status_code == 409
-    assert refused.json()["error"]["code"] == "reviews_first"
-    review = client.post(
-        "/api/sessions", json={"kind": "review", "deck_id": "starter"}, headers=at(later)
-    )
-    assert review.status_code == 200
+    # A session still starts, with reviews only: new words wait.
+    session = client.post("/api/sessions", json=NEW, headers=at(later)).json()
+    assert len(session["exercises"]) == 22
+    assert new_word_count(session) == 0
 
 
-def review_everything_wrongly(client: TestClient, answers: Answers, moment: datetime) -> None:
-    start = {"kind": "review", "deck_id": "starter"}
-    while (response := client.post("/api/sessions", json=start, headers=at(moment))).is_success:
-        session = response.json()
-        for exercise in session["exercises"]:
-            client.post(
-                f"/api/sessions/{session['id']}/attempts",
-                json={"exercise_id": exercise["id"], "response": respond(exercise, answers, False)},
-                headers=at(moment),
-            )
-        client.post(f"/api/sessions/{session['id']}/complete", headers=at(moment))
+def forget_every_review(client: TestClient, moment: datetime) -> None:
+    """Rates every due review card «Снова», then leaves before the session's new words."""
+    session = client.post("/api/sessions", json=NEW, headers=at(moment)).json()
+    cards, index = session["exercises"], 0
+    while index < len(cards) and not cards[index]["new"]:
+        result = client.post(
+            f"/api/sessions/{session['id']}/attempts",
+            json={"exercise_id": cards[index]["id"], "response": rate(1)},
+            headers=at(moment),
+        ).json()
+        if result.get("appended"):
+            cards = client.get(f"/api/sessions/{session['id']}", headers=at(moment)).json()[
+                "exercises"
+            ]
+        index += 1
 
 
-def test_a_dismissed_suggestion_stays_quiet_for_a_week(
-    client: TestClient, play: Play, answers: Answers
-) -> None:
+def test_a_dismissed_suggestion_stays_quiet_for_a_week(client: TestClient, play: Play) -> None:
     client.patch("/api/me", json={"daily_target_words": 20}, headers=at(DAY_1 - timedelta(days=30)))
     play(NEW, DAY_1)
-    play(NEW, DAY_1 + timedelta(minutes=10))  # 20 words: the target is met
-    review_everything_wrongly(client, answers, DAY_1 + timedelta(days=1, hours=1))
+    play(NEW, DAY_1 + timedelta(minutes=30))  # 20 words: the target is met
+    forget_every_review(client, DAY_1 + timedelta(days=5))
 
-    today = DAY_1 + timedelta(days=2)
+    today = DAY_1 + timedelta(days=6)
     pace = client.get("/api/me/pace", params={"deck_id": "starter"}, headers=at(today)).json()
     assert pace["suggestion"] == {
         "kind": "lower",

@@ -103,8 +103,9 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                         user_id=classmate.id,
                         word_id=words[index % len(words)],
                         exercise_id=f"demo-{index}",
-                        exercise_type="introduce",
+                        exercise_type="card",
                         correct=None,
+                        rating=3,
                         answered_at=moment,
                         points=INTRODUCED_POINTS,
                     )

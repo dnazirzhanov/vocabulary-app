@@ -1,18 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
-
-const wordsFile = fileURLToPath(new URL('../../content/starter-deck/words.yaml', import.meta.url));
-
-// The deck format is ours, so headword and translation can be read without a YAML parser.
-const translationOf: Record<string, string> = {};
-for (const entry of readFileSync(wordsFile, 'utf8')
-  .split(/^- id: /m)
-  .slice(1)) {
-  const headword = entry.match(/^ {2}headword: (.+)$/m)![1].trim();
-  translationOf[headword] = entry.match(/^ {2}translation: (.+)$/m)![1].trim();
-}
-const headwordFor = Object.fromEntries(Object.entries(translationOf).map(([h, t]) => [t, h]));
 
 interface Learner {
   /** Moves the server clock (development only) so "come back tomorrow" needs no waiting. */
@@ -46,33 +32,28 @@ export { expect };
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
-/** Answers whatever exercise is on screen, correctly unless told otherwise, and moves on. */
-export async function answer(page: Page, { correct = true, stopOnFeedback = false } = {}) {
-  const card = page.locator('[data-type]');
-  const type = await card.getAttribute('data-type');
-  const heading = page.getByRole('heading', { level: 1 });
-  if (type === 'introduce') {
-    // The card stays until the server acknowledges it; wait until the next exercise replaces it.
-    const current = await card.elementHandle();
-    await button(page, 'Дальше').click();
-    await page.waitForFunction((element) => !element?.isConnected, current);
-    return;
+export type RatingLabel = 'Снова' | 'Трудно' | 'Хорошо' | 'Легко';
+
+/** Studies the card on screen: shows the answer, rates it, and waits for the next card. */
+export async function study(page: Page, rating: RatingLabel = 'Хорошо') {
+  const card = page.locator('[data-card]');
+  const id = await card.getAttribute('data-card');
+  await button(page, 'Показать ответ').click();
+  await page.getByRole('button', { name: new RegExp(`^${rating}`) }).click();
+  // The next card replaces this one, or the summary appears.
+  await expect(page.locator(`[data-card="${id}"]`)).toHaveCount(0);
+}
+
+/** Studies every card until the summary, rating each card's first showing as given (by headword). */
+export async function finishSession(page: Page, ratings: Record<string, RatingLabel> = {}) {
+  const seen = new Set<string>();
+  const summary = page.getByRole('button', { name: 'На главную' });
+  while (!(await summary.isVisible())) {
+    const word = page.getByRole('heading', { level: 1 });
+    await expect(word.or(summary).first()).toBeVisible();
+    if (await summary.isVisible()) break;
+    const headword = (await word.textContent())!;
+    await study(page, seen.has(headword) ? 'Хорошо' : (ratings[headword] ?? 'Хорошо'));
+    seen.add(headword);
   }
-  if (type === 'recall_meaning') {
-    await expect(page.getByText('Вспомните перевод')).toBeVisible();
-    await button(page, 'Показать варианты').click();
-  }
-  if (type === 'choose_meaning' || type === 'recall_meaning') {
-    const right = translationOf[(await heading.textContent())!];
-    const option = page.getByRole('radio', { name: correct ? right : undefined });
-    if (correct) await option.click();
-    else await page.locator('label', { hasNotText: right }).first().click();
-  } else {
-    const translation = (await heading.textContent())!.replace(/\s*(сущ|гл|прил|нар)\.$/, '').trim();
-    const word = headwordFor[translation];
-    await page.getByRole('textbox').fill(correct ? word : `${word}x`);
-  }
-  await button(page, 'Проверить').click();
-  await expect(button(page, 'Продолжить')).toBeVisible();
-  if (!stopOnFeedback) await button(page, 'Продолжить').click();
 }

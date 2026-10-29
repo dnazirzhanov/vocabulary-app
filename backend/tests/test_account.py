@@ -11,7 +11,7 @@ from app.main import create_app
 from app.models import LearningSession, ReviewAttempt, User, UserWordProgress
 from tests.support import Play
 
-START_NEW = {"kind": "new", "deck_id": "starter"}
+START_NEW = {"kind": "study", "deck_id": "starter"}
 
 
 def count(db: Session, model: type) -> int:
@@ -48,7 +48,7 @@ def test_answer_floods_are_rate_limited(db: Session) -> None:
     with TestClient(app) as client:
         session = client.post("/api/sessions", json=START_NEW).json()
         path = f"/api/sessions/{session['id']}/attempts"
-        body = {"exercise_id": "1", "response": {"kind": "seen"}}
+        body = {"exercise_id": "c1", "response": {"kind": "rating", "rating": 4}}
         assert [client.post(path, json=body).status_code for _ in range(3)] == [200] * 3
         blocked = client.post(path, json=body)
         assert (blocked.status_code, blocked.json()["error"]["code"]) == (429, "rate_limited")

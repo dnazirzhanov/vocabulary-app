@@ -1,40 +1,48 @@
-"""Spaced repetition: a Leitner-style schedule (ADR 0006).
+"""Spaced repetition with FSRS, the model behind Anki's modern scheduler (ADR 0012).
 
-A word climbs one stage each time it is recalled in a review and drops back to stage 1 when it is
-not. Each stage has a fixed interval. The intervals are hypotheses for the pilot to test, not
-constants from research. All arithmetic is in UTC: an interval is an exact number of 24-hour days,
-so daylight-saving changes in the learner's time zone never shift a schedule; time zones matter
-only when deciding which local calendar day a moment falls on.
+Each card keeps three numbers: difficulty (how hard this word is for this learner), stability (how
+many days until recall probability falls to 90%) and the time of the last review. After every
+rating («Снова / Трудно / Хорошо / Легко») FSRS updates them and schedules the next review for
+when the learner is about to forget. New and forgotten cards first go through short learning steps
+(1 and 10 minutes), as in Anki.
+
+The maintained `fsrs` library (MIT) does the maths; this module only translates between it and
+our tables. Times are aware datetimes; FSRS works in UTC.
 """
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-INTERVALS: dict[int, timedelta] = {
-    1: timedelta(days=1),
-    2: timedelta(days=3),
-    3: timedelta(days=7),
-    4: timedelta(days=16),
-    5: timedelta(days=35),
-}
-TOP_STAGE = max(INTERVALS)
-# "Currently well learned" (docs/product-requirements.md): three delayed recalls in a row, the
-# latest after an interval of at least 7 days.
-WELL_LEARNED_STAGE = 4
+from fsrs import Card, Rating, Scheduler, State
+
+# Fuzzing (randomly spreading due dates) is off so schedules are reproducible and testable.
+SCHEDULER = Scheduler(desired_retention=0.9, enable_fuzzing=False)
+RATINGS = (1, 2, 3, 4)  # Снова, Трудно, Хорошо, Легко
+AGAIN = 1
+# "Помню хорошо": in review, and likely to be recalled three weeks from the last review.
+WELL_LEARNED_STABILITY_DAYS = 21.0
+
+LEARNING = State.Learning.value
+REVIEW = State.Review.value
+RELEARNING = State.Relearning.value
 
 
 @dataclass(frozen=True)
-class Schedule:
-    stage: int
+class CardState:
+    """A word's schedule as stored in user_word_progress."""
+
+    state: int
+    step: int | None
+    stability: float | None
+    difficulty: float | None
     due_at: datetime
+    last_reviewed_at: datetime | None
 
-
-def _utc(moment: datetime) -> datetime:
-    """Python adds timedeltas to aware datetimes in wall-clock time, so a day added across a DST
-    change would be 23 or 25 hours. Converting to UTC first keeps every interval exact."""
-    _require_aware(moment)
-    return moment.astimezone(UTC)
+    @property
+    def is_review(self) -> bool:
+        """In review or relearning: the learner has graduated the card at least once."""
+        return self.state in (REVIEW, RELEARNING)
 
 
 def _require_aware(moment: datetime) -> None:
@@ -42,27 +50,43 @@ def _require_aware(moment: datetime) -> None:
         raise ValueError("scheduling needs timezone-aware datetimes")
 
 
-def first_schedule(introduced_at: datetime) -> Schedule:
-    """A newly met word is first reviewed the next day."""
-    return Schedule(stage=1, due_at=_utc(introduced_at) + INTERVALS[1])
+def _to_fsrs(card: CardState | None, now: datetime) -> Card:
+    if card is None:  # a word met for the first time
+        return Card(state=State.Learning, step=0, due=now.astimezone(UTC))
+    return Card(
+        state=State(card.state),
+        step=card.step,
+        stability=card.stability,
+        difficulty=card.difficulty,
+        due=card.due_at.astimezone(UTC),
+        last_review=card.last_reviewed_at.astimezone(UTC) if card.last_reviewed_at else None,
+    )
 
 
-def after_review(stage: int, recalled: bool, reviewed_at: datetime) -> Schedule:
-    if stage not in INTERVALS:
-        raise ValueError(f"unknown stage {stage}")
-    next_stage = min(stage + 1, TOP_STAGE) if recalled else 1
-    return Schedule(stage=next_stage, due_at=_utc(reviewed_at) + INTERVALS[next_stage])
-
-
-def is_due(due_at: datetime, now: datetime) -> bool:
-    """Due from the scheduled moment on (inclusive)."""
-    _require_aware(due_at)
+def review(card: CardState | None, rating: int, now: datetime) -> CardState:
+    """The schedule after rating a card at `now`. `card` is None for a new word."""
     _require_aware(now)
-    return due_at <= now
+    if rating not in RATINGS:
+        raise ValueError(f"unknown rating {rating}")
+    after, _ = SCHEDULER.review_card(_to_fsrs(card, now), Rating(rating), now.astimezone(UTC))
+    assert after.due is not None
+    return CardState(
+        state=after.state.value,
+        step=after.step,
+        stability=after.stability,
+        difficulty=after.difficulty,
+        due_at=after.due,
+        last_reviewed_at=after.last_review,
+    )
 
 
-def is_well_learned(stage: int) -> bool:
-    return stage >= WELL_LEARNED_STAGE
+def previews(card: CardState | None, now: datetime) -> dict[int, timedelta]:
+    """How long until the card comes back for each rating, shown under the buttons as in Anki."""
+    return {rating: review(card, rating, now).due_at - now for rating in RATINGS}
+
+
+def is_well_learned(state: int, stability: float | None) -> bool:
+    return state == REVIEW and (stability or 0) >= WELL_LEARNED_STABILITY_DAYS
 
 
 def local_date(moment: datetime, time_zone: ZoneInfo) -> date:

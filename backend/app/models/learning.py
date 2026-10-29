@@ -4,8 +4,10 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Identity,
     Index,
@@ -25,7 +27,7 @@ class UserWordProgress(Base):
 
     __tablename__ = "user_word_progress"
     __table_args__ = (
-        CheckConstraint("stage BETWEEN 1 AND 5", name="stage_range"),
+        CheckConstraint("fsrs_state BETWEEN 1 AND 3", name="fsrs_state_range"),
         Index("ix_user_word_progress_user_due", "user_id", "due_at"),
     )
 
@@ -37,8 +39,12 @@ class UserWordProgress(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     correct_count: Mapped[int] = mapped_column(server_default=text("0"))
     incorrect_count: Mapped[int] = mapped_column(server_default=text("0"))
-    # Scheduling: the Leitner stage and when the word is next due for review.
-    stage: Mapped[int] = mapped_column(SmallInteger, server_default=text("1"))
+    # FSRS schedule (ADR 0012): learning / review / relearning, the learning step, and the
+    # memory model's stability (days) and difficulty (1–10) for this learner and word.
+    fsrs_state: Mapped[int] = mapped_column(SmallInteger, server_default=text("1"))
+    fsrs_step: Mapped[int | None] = mapped_column(SmallInteger)
+    stability: Mapped[float | None] = mapped_column(Float)
+    difficulty: Mapped[float | None] = mapped_column(Float)
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_count: Mapped[int] = mapped_column(server_default=text("0"))
@@ -48,7 +54,8 @@ class UserWordProgress(Base):
 class LearningSession(Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (
-        CheckConstraint("kind IN ('new', 'practice', 'review')", name="kind"),
+        # study and hard are flashcard sessions (ADR 0012); the others are kept for history.
+        CheckConstraint("kind IN ('new', 'practice', 'review', 'study', 'hard')", name="kind"),
         # A learner has at most one unfinished session; starting again resumes it.
         Index(
             "uq_learning_sessions_open_per_user",
@@ -74,8 +81,11 @@ class ReviewAttempt(Base):
         # Exactly one attempt per exercise: retries and double submits return the stored result.
         UniqueConstraint("session_id", "exercise_id"),
         CheckConstraint(
-            "(exercise_type = 'introduce') = (correct IS NULL)", name="correct_only_for_answers"
+            "(exercise_type IN ('introduce', 'card')) = (correct IS NULL)",
+            name="correct_only_for_answers",
         ),
+        CheckConstraint("(exercise_type = 'card') = (rating IS NOT NULL)", name="rating_for_cards"),
+        CheckConstraint("rating BETWEEN 1 AND 4", name="rating_range"),
         Index("ix_review_attempts_user_answered", "user_id", "answered_at"),
     )
 
@@ -90,6 +100,10 @@ class ReviewAttempt(Base):
     # Typed text is evaluated and discarded; only the outcome is kept (privacy requirement).
     correct: Mapped[bool | None]
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Flashcards: the learner's rating (1 Снова … 4 Легко), and whether the card was already in
+    # review (not new or still in learning steps) when rated — the basis of the recall rate.
+    rating: Mapped[int | None] = mapped_column(SmallInteger)
+    was_review: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     # Set on the attempt that (re)scheduled the word: introductions and a review's last exercise.
     stage_after: Mapped[int | None] = mapped_column(SmallInteger)
     due_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

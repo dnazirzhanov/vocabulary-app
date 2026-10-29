@@ -1,7 +1,6 @@
 import { accessToken } from './auth.ts';
 import { syncWithServer } from './clock.ts';
 import type {
-  AttemptResponse,
   AttemptResult,
   Board,
   Deck,
@@ -12,6 +11,7 @@ import type {
   MeUpdate,
   Pace,
   Progress,
+  Rating,
   Session,
   Summary,
 } from './types.ts';
@@ -63,13 +63,16 @@ async function request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: str
 export const api = {
   listDecks: () => request<Deck[]>('GET', '/decks'),
   activeSession: () => request<{ session: Session | null }>('GET', '/sessions/active'),
-  startNewSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'new', deck_id: deckId }),
-  startReviewSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'review', deck_id: deckId }),
-  startPracticeSession: (sourceSessionId: string) =>
-    request<Session>('POST', '/sessions', { kind: 'practice', source_session_id: sourceSessionId }),
-  // Safe to retry: the server keeps exactly one attempt per exercise.
-  submitAttempt: (sessionId: string, exerciseId: string, response: AttemptResponse) =>
-    request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, { exercise_id: exerciseId, response }),
+  /** Due cards from every level, then today's new words of this deck (resumes an open session). */
+  startStudySession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'study', deck_id: deckId }),
+  /** Extra practice on the learner's hardest words; the schedule is not changed. */
+  startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),
+  // Safe to retry: the server keeps exactly one rating per showing.
+  rateCard: (sessionId: string, exerciseId: string, rating: Rating) =>
+    request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, {
+      exercise_id: exerciseId,
+      response: { kind: 'rating', rating },
+    }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
   deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),

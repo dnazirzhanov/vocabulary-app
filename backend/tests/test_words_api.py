@@ -7,8 +7,7 @@ from fastapi.testclient import TestClient
 from tests.support import Play, at
 
 DAY_1 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-NEW = {"kind": "new", "deck_id": "starter"}
-REVIEW = {"kind": "review", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "starter"}
 
 
 def statuses(client: TestClient, moment: datetime) -> dict[str, str]:
@@ -27,12 +26,18 @@ def test_every_word_is_listed_in_deck_order_with_nothing_hidden(client: TestClie
 
 
 def test_status_follows_learning(client: TestClient, play: Play) -> None:
-    play(NEW, DAY_1)
-    after_lesson = statuses(client, DAY_1)
-    assert [after_lesson[w] for w in ("house", "water", "city")] == ["new", "new", "not_started"]
+    session = client.post("/api/sessions", json=NEW, headers=at(DAY_1)).json()
+    client.post(
+        f"/api/sessions/{session['id']}/attempts",
+        json={"exercise_id": "c1", "response": {"kind": "rating", "rating": 3}},
+        headers=at(DAY_1),
+    )
+    # Rated once: still in its learning steps.
+    assert statuses(client, DAY_1)["house"] == "new"
 
-    play(REVIEW, DAY_1 + timedelta(days=1, hours=1))
-    assert statuses(client, DAY_1 + timedelta(days=1, hours=2))["house"] == "learning"
+    play(NEW, DAY_1 + timedelta(minutes=15))  # finishes the session: words graduate to review
+    after = statuses(client, DAY_1)
+    assert [after[w] for w in ("house", "water", "city")] == ["learning", "learning", "not_started"]
 
 
 def test_another_learner_sees_only_their_own_status(client: TestClient, play: Play) -> None:

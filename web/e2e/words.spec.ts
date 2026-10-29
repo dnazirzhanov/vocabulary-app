@@ -1,9 +1,9 @@
-import { answer, button, expect, test } from './learner.ts';
+import { button, expect, finishSession, test } from './learner.ts';
 
 test('every deck word can be browsed, filtered and searched', async ({ page }) => {
   await page.goto('/');
   await button(page, 'Начать урок · 5 слов').click();
-  for (let step = 0; step < 15; step += 1) await answer(page);
+  await finishSession(page);
   await button(page, 'На главную').click();
 
   await button(page, 'Все слова колоды · 30').click();
@@ -13,9 +13,11 @@ test('every deck word can be browsed, filtered and searched', async ({ page }) =
   const city = page.getByRole('listitem').filter({ hasText: 'city' });
   await expect(city).toContainText('город');
   await expect(city).toContainText('Впереди');
-  await expect(page.getByRole('listitem').filter({ hasText: 'house' })).toContainText('повтор завтра');
+  await expect(page.getByRole('listitem').filter({ hasText: 'house' })).toContainText(
+    /повтор (завтра|послезавтра|через \d+ дн)/,
+  );
 
-  await page.getByRole('button', { name: /^Новое/ }).click();
+  await page.getByRole('button', { name: /^Учу/ }).click();
   await expect(page.getByRole('listitem')).toHaveCount(5);
   await page.getByRole('button', { name: /^Все/ }).click();
 

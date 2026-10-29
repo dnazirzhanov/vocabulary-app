@@ -1,8 +1,9 @@
-"""Learning sessions backed by the database: start, resume, answer, complete.
+"""Flashcard sessions backed by the database: start, resume, rate, complete (ADR 0012).
 
-Every state change happens in one transaction, and uniqueness constraints make retries and
-concurrent requests safe (ADR 0003). Learning rules live in services/learning.py and scheduling in
-services/scheduling.py. The current time is always passed in, never read here.
+Every state change happens in one transaction, and a uniqueness constraint keeps exactly one rating
+per showing, so retries and double taps are harmless (ADR 0003). Scheduling lives in
+services/scheduling.py (FSRS), queue rules in services/learning.py. The current time is always
+passed in, never read here.
 """
 
 from collections.abc import Iterable
@@ -10,7 +11,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,55 +22,33 @@ from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
     AttemptResultOut,
-    ChoiceResponse,
-    ChooseMeaningExercise,
+    CardExercise,
     CourseGoalOut,
     DeckOut,
-    ExerciseOut,
-    IntroduceExercise,
-    OptionOut,
-    PromptWord,
-    RecallMeaningExercise,
-    SeenResponse,
+    IntervalPreview,
+    RatingCounts,
     SessionOut,
-    StartNewSession,
-    StartPracticeSession,
+    StartHardSession,
     StartRequest,
-    StartReviewSession,
+    StartStudySession,
     SummaryOut,
     SummaryWord,
-    TextResponse,
-    TypePrompt,
-    TypeWordExercise,
     WordOut,
 )
 from app.services import groups, pace
 from app.services.learning import (
-    CHOICE_TYPES,
-    REVIEW_WORDS_PER_SESSION,
+    HARD_CARDS_PER_SESSION,
+    REQUEUE_WITHIN_SECONDS,
+    REVIEW_CARDS_PER_SESSION,
     PlannedExercise,
-    WordFacts,
-    cloze,
-    is_last_step_for_word,
-    is_typed_answer_correct,
     pick_new_words,
-    plan_new_session,
-    plan_practice_session,
-    plan_review_session,
+    plan_cards,
+    requeue,
 )
-from app.services.progress import (
-    DAILY_GOAL_POINTS,
-    points_for,
-    points_today,
-    session_points,
-)
-from app.services.scheduling import Schedule, after_review, first_schedule
+from app.services.progress import DAILY_GOAL_POINTS, card_points, points_today, session_points
+from app.services.scheduling import AGAIN, CardState, previews, review
 
 # --- reading ---------------------------------------------------------------------------------
-
-
-def _facts(word: Word) -> WordFacts:
-    return WordFacts(word.id, word.headword, word.pos, word.translation, tuple(word.also_accept))
 
 
 def _word_out(word: Word) -> WordOut:
@@ -108,6 +87,28 @@ def _attempts(db: Session, session_id: UUID) -> dict[str, ReviewAttempt]:
     return {attempt.exercise_id: attempt for attempt in attempts}
 
 
+def _progress(db: Session, user: User, word_ids: Iterable[str]) -> dict[str, UserWordProgress]:
+    rows = db.scalars(
+        select(UserWordProgress).where(
+            UserWordProgress.user_id == user.id, UserWordProgress.word_id.in_(set(word_ids))
+        )
+    )
+    return {row.word_id: row for row in rows}
+
+
+def _card_state(progress: UserWordProgress | None) -> CardState | None:
+    if progress is None:
+        return None
+    return CardState(
+        state=progress.fsrs_state,
+        step=progress.fsrs_step,
+        stability=progress.stability,
+        difficulty=progress.difficulty,
+        due_at=progress.due_at,
+        last_reviewed_at=progress.last_reviewed_at,
+    )
+
+
 def _owned_session(db: Session, user: User, session_id: UUID) -> LearningSession:
     # Someone else's session is indistinguishable from a missing one (no id probing).
     session = db.scalar(
@@ -128,52 +129,48 @@ def _open_session(db: Session, user: User) -> LearningSession | None:
     )
 
 
-def _exercise_out(step: PlannedExercise, words: dict[str, Word]) -> ExerciseOut:
-    word = words[step.word_id]
-    if step.type == "introduce":
-        return IntroduceExercise(id=step.id, word=_word_out(word))
-    if step.type in CHOICE_TYPES:
-        model = ChooseMeaningExercise if step.type == "choose_meaning" else RecallMeaningExercise
-        return model(
-            id=step.id,
-            word=PromptWord(headword=word.headword, pos=word.pos, example=word.example),
-            options=[OptionOut(id=o, label=words[o].translation) for o in step.options],
-        )
-    return TypeWordExercise(
+def _card_out(
+    step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
+) -> CardExercise:
+    return CardExercise(
         id=step.id,
-        prompt=TypePrompt(
-            translation=word.translation,
-            pos=word.pos,
-            cloze=cloze(word.example, word.headword),
-            example_ru=word.example_ru,
-        ),
+        word=_word_out(word),
+        new=step.new,
+        previews=[
+            IntervalPreview(rating=rating, seconds=round(delay.total_seconds()))
+            for rating, delay in previews(_card_state(progress), now).items()
+        ],
     )
 
 
-def _result_out(step: PlannedExercise, correct: bool | None, word: Word) -> AttemptResultOut:
+def _result_out(
+    attempt: ReviewAttempt, appended: CardExercise | None = None, index: int | None = None
+) -> AttemptResultOut:
+    assert attempt.rating is not None and attempt.due_after is not None
     return AttemptResultOut(
-        exercise_id=step.id,
-        correct=correct,
-        correct_option_id=step.word_id if step.type in CHOICE_TYPES else None,
-        answer=_word_out(word),
+        exercise_id=attempt.exercise_id,
+        rating=attempt.rating,
+        next_due_at=attempt.due_after,
+        appended=appended,
+        appended_index=index,
     )
 
 
-def present_session(db: Session, session: LearningSession) -> SessionOut:
+def present_session(db: Session, user: User, session: LearningSession, now: datetime) -> SessionOut:
     plan = _plan(session)
-    words = _words_by_id(db, [s.word_id for s in plan] + [o for s in plan for o in s.options])
+    word_ids = [step.word_id for step in plan]
+    words = _words_by_id(db, word_ids)
+    progress = _progress(db, user, word_ids)
     attempts = _attempts(db, session.id)
     return SessionOut(
         id=session.id,
         kind=session.kind,
         deck_id=session.deck_id,
         completed=session.completed_at is not None,
-        exercises=[_exercise_out(step, words) for step in plan],
-        results=[
-            _result_out(step, attempts[step.id].correct, words[step.word_id])
-            for step in plan
-            if step.id in attempts
+        exercises=[
+            _card_out(step, words[step.word_id], progress.get(step.word_id), now) for step in plan
         ],
+        results=[_result_out(attempts[step.id]) for step in plan if step.id in attempts],
     )
 
 
@@ -215,13 +212,13 @@ def list_decks(db: Session, user: User, now: datetime) -> list[DeckOut]:
     ]
 
 
-def active_session(db: Session, user: User) -> ActiveSessionOut:
+def active_session(db: Session, user: User, now: datetime) -> ActiveSessionOut:
     session = _open_session(db, user)
-    return ActiveSessionOut(session=present_session(db, session) if session else None)
+    return ActiveSessionOut(session=present_session(db, user, session, now) if session else None)
 
 
-def get_session(db: Session, user: User, session_id: UUID) -> SessionOut:
-    return present_session(db, _owned_session(db, user, session_id))
+def get_session(db: Session, user: User, session_id: UUID, now: datetime) -> SessionOut:
+    return present_session(db, user, _owned_session(db, user, session_id), now)
 
 
 # --- starting --------------------------------------------------------------------------------
@@ -234,82 +231,54 @@ def require_published_deck(db: Session, deck_id: str) -> Deck:
     return deck
 
 
-def _new_session_plan(
-    db: Session,
-    user: User,
-    request: StartNewSession,
-    session_id: UUID,
-    now: datetime,
-    time_zone: ZoneInfo,
-) -> tuple[str, list[PlannedExercise]]:
+def _study_plan(
+    db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
+) -> list[PlannedExercise]:
+    """Due cards from every deck (old levels keep coming back), most overdue first; then new
+    words of this deck, as many as today's pace allows (ADR 0010)."""
     deck = require_published_deck(db, request.deck_id)
-    # Sized by what is left of today's target, or a bonus lesson after it (ADR 0010).
-    today = pace.day_plan(db, user, deck.id, now, time_zone)
-    if today.blocked_by_reviews:
-        raise ApiError(409, "reviews_first", "Too many reviews are due: review before new words")
-    pool = _deck_words(db, deck.id)
-    introduced = set(
+    due = list(
         db.scalars(
-            select(UserWordProgress.word_id).where(
-                UserWordProgress.user_id == user.id,
-                UserWordProgress.word_id.in_([w.id for w in pool]),
-            )
+            select(UserWordProgress.word_id)
+            .where(UserWordProgress.user_id == user.id, UserWordProgress.due_at <= now)
+            .order_by(UserWordProgress.due_at, UserWordProgress.word_id)
+            .limit(REVIEW_CARDS_PER_SESSION)
         )
     )
-    new_ids = pick_new_words([w.id for w in pool], introduced, today.next_lesson_size)
-    if not new_ids:
-        raise ApiError(409, "deck_complete", "Every word in this deck has been introduced")
-    by_id = {w.id: w for w in pool}
-    facts = [_facts(w) for w in pool]
-    return deck.id, plan_new_session([_facts(by_id[i]) for i in new_ids], facts, str(session_id))
+    today = pace.day_plan(db, user, deck.id, now, time_zone)
+    new: list[str] = []
+    if not today.blocked_by_reviews:
+        introduced = set(
+            db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
+        )
+        order = [word.id for word in _deck_words(db, deck.id)]
+        new = pick_new_words(order, introduced, today.next_lesson_size)
+    if not due and not new:
+        if today.blocked_by_reviews:
+            raise ApiError(409, "reviews_first", "Too many reviews are due: review first")
+        raise ApiError(409, "nothing_to_study", "Nothing is due and no new words are left")
+    return plan_cards(due, new)
 
 
-def _practice_session_plan(
-    db: Session, user: User, request: StartPracticeSession, session_id: UUID
-) -> tuple[str, list[PlannedExercise]]:
-    source = _owned_session(db, user, request.source_session_id)
-    if source.completed_at is None:
-        raise ApiError(409, "session_incomplete", "Finish the session before practising it")
-    attempts = _attempts(db, source.id)
-    missed: list[str] = []
-    for step in _plan(source):
-        attempt = attempts.get(step.id)
-        if attempt and attempt.correct is False and step.word_id not in missed:
-            missed.append(step.word_id)
-    if not missed:
-        raise ApiError(409, "nothing_to_practice", "That session had no mistakes")
-    pool = _deck_words(db, source.deck_id)
-    by_id = {w.id: w for w in pool}
-    facts = [_facts(w) for w in pool]
-    return source.deck_id, plan_practice_session(
-        [_facts(by_id[i]) for i in missed], facts, str(session_id)
-    )
-
-
-def _review_session_plan(
-    db: Session, user: User, request: StartReviewSession, session_id: UUID, now: datetime
-) -> tuple[str, list[PlannedExercise]]:
+def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[PlannedExercise]:
+    """The learner's own hardest words of this deck: highest FSRS difficulty, then most lapses."""
     deck = require_published_deck(db, request.deck_id)
-    due_ids = list(
+    hardest = list(
         db.scalars(
             select(UserWordProgress.word_id)
             .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
-            .where(
-                DeckWord.deck_id == deck.id,
-                UserWordProgress.user_id == user.id,
-                UserWordProgress.due_at <= now,
+            .where(DeckWord.deck_id == deck.id, UserWordProgress.user_id == user.id)
+            .order_by(
+                UserWordProgress.difficulty.desc().nulls_last(),
+                UserWordProgress.lapses.desc(),
+                DeckWord.position,
             )
-            # Most overdue first; deck order breaks ties so plans are reproducible.
-            .order_by(UserWordProgress.due_at, DeckWord.position)
-            .limit(REVIEW_WORDS_PER_SESSION)
+            .limit(HARD_CARDS_PER_SESSION)
         )
     )
-    if not due_ids:
-        raise ApiError(409, "nothing_due", "No words are due for review yet")
-    pool = _deck_words(db, deck.id)
-    by_id = {w.id: w for w in pool}
-    facts = [_facts(w) for w in pool]
-    return deck.id, plan_review_session([_facts(by_id[i]) for i in due_ids], facts, str(session_id))
+    if not hardest:
+        raise ApiError(409, "nothing_to_practice", "No words met yet")
+    return plan_cards(hardest, [])
 
 
 def start_session(
@@ -318,20 +287,16 @@ def start_session(
     """Start a session, or return the learner's unfinished one so it can be resumed."""
     existing = _open_session(db, user)
     if existing is not None:
-        return present_session(db, existing)
+        return present_session(db, user, existing, now)
 
-    session_id = uuid4()
-    if isinstance(request, StartNewSession):
-        deck_id, plan = _new_session_plan(db, user, request, session_id, now, time_zone)
-    elif isinstance(request, StartPracticeSession):
-        deck_id, plan = _practice_session_plan(db, user, request, session_id)
+    if isinstance(request, StartStudySession):
+        plan = _study_plan(db, user, request, now, time_zone)
     else:
-        deck_id, plan = _review_session_plan(db, user, request, session_id, now)
-
+        plan = _hard_plan(db, user, request)
     session = LearningSession(
-        id=session_id,
+        id=uuid4(),
         user_id=user.id,
-        deck_id=deck_id,
+        deck_id=request.deck_id,
         kind=request.kind,
         plan=[step.to_json() for step in plan],
         started_at=now,
@@ -345,81 +310,55 @@ def start_session(
         existing = _open_session(db, user)
         if existing is None:
             raise
-        return present_session(db, existing)
-    return present_session(db, session)
+        return present_session(db, user, existing, now)
+    return present_session(db, user, session, now)
 
 
-# --- answering -------------------------------------------------------------------------------
+# --- rating ----------------------------------------------------------------------------------
 
 
-def _evaluate(step: PlannedExercise, attempt: AttemptIn, word: Word) -> bool | None:
-    response = attempt.response
-    if step.type == "introduce" and isinstance(response, SeenResponse):
-        return None
-    if step.type in CHOICE_TYPES and isinstance(response, ChoiceResponse):
-        if response.option_id not in step.options:
-            raise ApiError(422, "invalid_option", "That option is not part of this exercise")
-        return response.option_id == step.word_id
-    if step.type == "type_word" and isinstance(response, TextResponse):
-        return is_typed_answer_correct(response.text, _facts(word))
-    raise ApiError(422, "invalid_response", f"Wrong response kind for a {step.type} exercise")
-
-
-def _record_progress(
-    db: Session, user: User, word_id: str, correct: bool | None, now: datetime
-) -> None:
-    """Counters on every answer. The row itself, and the first review, are created when the word
-    is introduced."""
-    first = first_schedule(now)
-    stmt = insert(UserWordProgress).values(
-        user_id=user.id,
-        word_id=word_id,
-        introduced_at=now,
-        last_seen_at=now,
-        correct_count=int(correct is True),
-        incorrect_count=int(correct is False),
-        stage=first.stage,
-        due_at=first.due_at,
-    )
-    db.execute(
-        stmt.on_conflict_do_update(
-            index_elements=[UserWordProgress.user_id, UserWordProgress.word_id],
-            set_={
-                "last_seen_at": now,
-                "correct_count": UserWordProgress.correct_count + stmt.excluded.correct_count,
-                "incorrect_count": UserWordProgress.incorrect_count + stmt.excluded.incorrect_count,
-            },
-        )
-    )
-
-
-def _review_outcome(
+def _save_schedule(
     db: Session,
     user: User,
-    session: LearningSession,
-    plan: list[PlannedExercise],
-    step: PlannedExercise,
-    correct: bool | None,
-    attempts: dict[str, ReviewAttempt],
+    word_id: str,
+    before: UserWordProgress | None,
+    after: CardState,
+    rating: int,
     now: datetime,
-) -> tuple[Schedule, bool] | None:
-    """The new schedule when this attempt finishes a word in a review session; None otherwise.
-    New words are scheduled on introduction; practice sessions never touch the schedule."""
-    if session.kind != "review" or not is_last_step_for_word(plan, step):
-        return None
-    earlier = [
-        attempts[other.id].correct
-        for other in plan
-        if other.word_id == step.word_id and other.id in attempts
-    ]
-    recalled = correct is True and all(earlier)
-    stage = db.scalar(
-        select(UserWordProgress.stage).where(
-            UserWordProgress.user_id == user.id, UserWordProgress.word_id == step.word_id
+) -> None:
+    values = {
+        "fsrs_state": after.state,
+        "fsrs_step": after.step,
+        "stability": after.stability,
+        "difficulty": after.difficulty,
+        "due_at": after.due_at,
+        "last_reviewed_at": after.last_reviewed_at,
+        "last_seen_at": now,
+    }
+    if before is None:  # the word's first showing: it is introduced now
+        db.execute(
+            insert(UserWordProgress).values(
+                user_id=user.id,
+                word_id=word_id,
+                introduced_at=now,
+                correct_count=int(rating != AGAIN),
+                incorrect_count=int(rating == AGAIN),
+                **values,
+            )
         )
-    )
-    assert stage is not None  # a reviewed word was introduced before
-    return after_review(stage, recalled, now), recalled
+        return
+    lapsed = rating == AGAIN and before.fsrs_state != 1
+    before.fsrs_state = after.state
+    before.fsrs_step = after.step
+    before.stability = after.stability
+    before.difficulty = after.difficulty
+    before.due_at = after.due_at
+    before.last_reviewed_at = after.last_reviewed_at
+    before.last_seen_at = now
+    before.review_count += 1
+    before.lapses += int(lapsed)
+    before.correct_count += int(rating != AGAIN)
+    before.incorrect_count += int(rating == AGAIN)
 
 
 def submit_attempt(
@@ -431,66 +370,71 @@ def submit_attempt(
     if attempt.exercise_id not in position:
         raise ApiError(404, "exercise_not_found", "Exercise not found in this session")
     step = plan[position[attempt.exercise_id]]
-    word = db.get_one(Word, step.word_id)
 
     attempts = _attempts(db, session.id)
     if step.id in attempts:
-        # Retry, double tap or second device: the first answer stands.
-        return _result_out(step, attempts[step.id].correct, word)
+        # Retry, double tap or second device: the first rating stands.
+        return _result_out(attempts[step.id])
     if session.completed_at is not None:
         raise ApiError(409, "session_completed", "This session is already complete")
     if position[step.id] != len(attempts):
-        raise ApiError(409, "out_of_order", "Answer the exercises in order")
+        raise ApiError(409, "out_of_order", "Rate the cards in order")
 
-    correct = _evaluate(step, attempt, word)
-    reviewed = _review_outcome(db, user, session, plan, step, correct, attempts, now)
-    if step.type == "introduce":
-        schedule: Schedule | None = first_schedule(now)
-    else:
-        schedule = reviewed[0] if reviewed else None
+    rating = attempt.response.rating
+    progress = _progress(db, user, [step.word_id]).get(step.word_id)
+    before = _card_state(progress)
+    # Only a card's first showing in a session counts as a review (points, recall rate); the
+    # extra showings of a forgotten card are part of relearning it.
+    repeat = any(earlier.word_id == step.word_id for earlier in attempts.values())
+    was_review = before is not None and before.is_review and not repeat
+    practice = session.kind == "hard"
+    after = before if practice and before else review(before, rating, now)
+    assert after is not None
     try:
-        db.add(
-            ReviewAttempt(
-                session_id=session.id,
-                user_id=user.id,
-                word_id=step.word_id,
-                exercise_id=step.id,
-                exercise_type=step.type,
-                correct=correct,
-                answered_at=now,
-                stage_after=schedule.stage if schedule else None,
-                due_after=schedule.due_at if schedule else None,
-                points=points_for(step.type, reviewed[1] if reviewed else None),
-            )
+        stored = ReviewAttempt(
+            session_id=session.id,
+            user_id=user.id,
+            word_id=step.word_id,
+            exercise_id=step.id,
+            exercise_type="card",
+            correct=None,
+            rating=rating,
+            was_review=was_review,
+            answered_at=now,
+            due_after=after.due_at,
+            points=card_points(
+                practice=practice, first_showing=step.new and before is None, was_review=was_review
+            ),
         )
-        # Flush first: if another device answered this exercise a moment ago, the unique
-        # constraint fails here, before progress is touched.
+        db.add(stored)
+        # Flush first: if another device rated this showing a moment ago, the unique constraint
+        # fails here, before the schedule is touched.
         db.flush()
-        _record_progress(db, user, step.word_id, correct, now)
-        if reviewed:
-            new_schedule, recalled = reviewed
-            db.execute(
-                update(UserWordProgress)
-                .where(
-                    UserWordProgress.user_id == user.id,
-                    UserWordProgress.word_id == step.word_id,
-                )
-                .values(
-                    stage=new_schedule.stage,
-                    due_at=new_schedule.due_at,
-                    last_reviewed_at=now,
-                    review_count=UserWordProgress.review_count + 1,
-                    lapses=UserWordProgress.lapses + int(not recalled),
-                )
-            )
+        appended: CardExercise | None = None
+        appended_index: int | None = None
+        if not practice:
+            _save_schedule(db, user, step.word_id, progress, after, rating, now)
+        # Due again within minutes (learning steps): show it again later in this session. In
+        # practice the schedule stands still, so only a forgotten card comes round again.
+        soon = (after.due_at - now).total_seconds() <= REQUEUE_WITHIN_SECONDS
+        if (rating == AGAIN) if practice else soon:
+            requeued = requeue(plan, position[step.id], step.word_id)
+            if requeued:
+                new_plan, again = requeued
+                session.plan = [planned.to_json() for planned in new_plan]
+                db.flush()
+                word = db.get_one(Word, step.word_id)
+                fresh = _progress(db, user, [step.word_id]).get(step.word_id)
+                appended = _card_out(again, word, fresh, now)
+                appended_index = new_plan.index(again)
         db.commit()
     except IntegrityError:
         db.rollback()
-        stored = _attempts(db, session.id).get(step.id)
-        if stored is None:
+        existing = _attempts(db, session.id).get(step.id)
+        if existing is None:
             raise
-        return _result_out(step, stored.correct, word)
-    return _result_out(step, correct, word)
+        return _result_out(existing)
+    return _result_out(stored, appended, appended_index)
 
 
 # --- completing ------------------------------------------------------------------------------
@@ -503,39 +447,40 @@ def complete_session(
     plan = _plan(session)
     attempts = _attempts(db, session.id)
     if len(attempts) < len(plan):
-        raise ApiError(409, "session_incomplete", "Some exercises have not been answered")
+        raise ApiError(409, "session_incomplete", "Some cards have not been rated")
     if session.completed_at is None:
         session.completed_at = now
         db.commit()
 
     word_ids = list(dict.fromkeys(step.word_id for step in plan))
     words = _words_by_id(db, word_ids)
-    answers = [a for a in attempts.values() if a.correct is not None]
-    mistakes = {word_id: 0 for word_id in word_ids}
-    for answer in answers:
-        if answer.correct is False:
-            mistakes[answer.word_id] += 1
-    # Built explicitly: dict() on a Result would treat it as a mapping because it has .keys().
-    next_review = {
-        word_id: due_at
-        for word_id, due_at in db.execute(
-            select(UserWordProgress.word_id, UserWordProgress.due_at).where(
-                UserWordProgress.user_id == user.id, UserWordProgress.word_id.in_(word_ids)
-            )
-        )
-    }
+    progress = _progress(db, user, word_ids)
+    rated = [attempts[step.id] for step in plan]
+    last_rating = {attempt.word_id: attempt.rating or 0 for attempt in rated}
+    lowest = {word_id: 4 for word_id in word_ids}
+    for attempt in rated:
+        lowest[attempt.word_id] = min(lowest[attempt.word_id], attempt.rating or 4)
+    showings = {word_id: 0 for word_id in word_ids}
+    for attempt in rated:
+        showings[attempt.word_id] += 1
+    counts = [sum(1 for attempt in rated if attempt.rating == r) for r in (1, 2, 3, 4)]
     return SummaryOut(
         session_id=session.id,
         kind=session.kind,
         deck_id=session.deck_id,
         words=[
             SummaryWord(
-                word=_word_out(words[i]), mistakes=mistakes[i], next_review_at=next_review[i]
+                word=_word_out(words[i]),
+                rating=last_rating[i],
+                lowest_rating=lowest[i],
+                showings=showings[i],
+                next_review_at=progress[i].due_at,
             )
             for i in word_ids
         ],
-        answers_total=len(answers),
-        answers_correct=sum(1 for a in answers if a.correct),
+        new_words=sum(1 for step in plan if step.new),
+        reviewed_words=len({attempt.word_id for attempt in rated if attempt.was_review}),
+        ratings=RatingCounts(again=counts[0], hard=counts[1], good=counts[2], easy=counts[3]),
         points=session_points(db, session.id),
         today_points=points_today(db, user, now, time_zone),
         daily_goal=DAILY_GOAL_POINTS,

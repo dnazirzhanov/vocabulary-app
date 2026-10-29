@@ -3,25 +3,21 @@ from zoneinfo import ZoneInfo
 
 from app.services.progress import (
     INTRODUCED_POINTS,
-    MISSED_REVIEW_POINTS,
-    RECALLED_POINTS,
+    REVIEWED_POINTS,
+    card_points,
     local_day_bounds,
-    points_for,
     streak,
 )
 
 TODAY = date(2026, 11, 10)
 
 
-def test_points_reward_evidence_not_activity() -> None:
-    assert points_for("introduce", None) == INTRODUCED_POINTS
-    assert points_for("type_word", True) == RECALLED_POINTS
-    assert points_for("type_word", False) == MISSED_REVIEW_POINTS
-    # Answers that do not finish a review word (lessons, practice, a review's first step) earn
-    # nothing.
-    assert points_for("choose_meaning", None) == 0
-    assert points_for("recall_meaning", None) == 0
-    assert RECALLED_POINTS > INTRODUCED_POINTS > MISSED_REVIEW_POINTS
+def test_points_reward_studying_never_the_rating() -> None:
+    assert card_points(practice=False, first_showing=True, was_review=False) == INTRODUCED_POINTS
+    assert card_points(practice=False, first_showing=False, was_review=True) == REVIEWED_POINTS
+    # Extra showings while learning, and all practice, earn nothing.
+    assert card_points(practice=False, first_showing=False, was_review=False) == 0
+    assert card_points(practice=True, first_showing=True, was_review=False) == 0
 
 
 def test_streak_counts_back_from_today() -> None:

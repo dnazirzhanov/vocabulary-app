@@ -275,3 +275,36 @@
     min-width: 200px;
   }
 }
+
+/* The four ratings of the session, in the same colours as the buttons, each with its word. */
+.ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.ratings li {
+  padding: 2px var(--space-2);
+  border-radius: 6px;
+  background: var(--color-track);
+}
+
+.ratings li[data-tone='again'] {
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+.ratings li[data-tone='good'] {
+  background: var(--color-success-tint);
+  color: var(--color-success);
+}
+
+.ratings li[data-tone='easy'] {
+  background: #e9f1fa;
+  color: var(--color-series-firm);
+}

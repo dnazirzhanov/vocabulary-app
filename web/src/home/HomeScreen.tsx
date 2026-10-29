@@ -9,7 +9,6 @@ import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CalendarIcon, ChartIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { PathView } from '../path/PathView.tsx';
 import styles from './HomeScreen.module.css';
 import { FriendsCard } from './FriendsCard.tsx';
@@ -107,28 +106,24 @@ export function HomeScreen({ onSession, onProgress, onPlan, onWords, onFriends }
   const bonus = pace?.bonus ?? false;
   // Too many reviews due: new words wait, so what was learned is not forgotten.
   const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
-  const startNew: Action = {
-    label:
-      met === 0
-        ? `Начать урок · ${wordsLabel(lessonSize)}`
-        : bonus
-          ? `Ещё ${wordsLabel(lessonSize)}`
-          : `Новые слова · ${lessonSize}`,
-    run: async () => onSession(await api.startNewSession(deck.id)),
-  };
-  // Due reviews come first; new words stay one tap away unless the review backlog is too big.
-  let primary: Action | null = newLeft ? startNew : null;
-  let secondary: Action | null = null;
-  if (active) {
-    primary = { label: 'Продолжить урок', run: async () => onSession(active) };
-  } else if (due > 0) {
+  // One study session holds both (ADR 0012): due cards first, then today's new words.
+  const study = async () => onSession(await api.startStudySession(deck.id));
+  const newInSession = newLeft && !blocked ? lessonSize : 0;
+  let primary: Action | null = null;
+  if (active) primary = { label: 'Продолжить урок', run: async () => onSession(active) };
+  else if (due > 0)
     primary = {
-      label: `Повторить слова · ${due}`,
-      run: async () => onSession(await api.startReviewSession(deck.id)),
+      label: newInSession > 0 ? `Учить · ${due} повт. + ${newInSession} нов.` : `Повторить · ${wordsLabel(due)}`,
+      run: study,
     };
-    secondary = newLeft && !blocked ? startNew : null;
-  }
-
+  else if (newLeft)
+    primary = {
+      label:
+        met === 0
+          ? `Начать урок · ${wordsLabel(lessonSize)}`
+          : `${bonus ? 'Ещё' : 'Новые слова ·'} ${wordsLabel(lessonSize)}`,
+      run: study,
+    };
   const nextReview = deck.next_due_at ? `Следующее повторение — ${relativeDay(deck.next_due_at)}.` : null;
   let note: string;
   if (active) note = 'Урок не закончен — продолжите с того же места.';
@@ -141,7 +136,8 @@ export function HomeScreen({ onSession, onProgress, onPlan, onWords, onFriends }
   else if (bonus)
     note = `Цель на сегодня выполнена.${nextReview ? ` ${nextReview}` : ''} Можно взять ещё слов — бонусом.`;
   else if (nextReview) note = `${nextReview} А пока можно взять новые слова.`;
-  else note = `В уроке ${wordsLabel(lessonSize)}: знакомство, выбор перевода и написание.`;
+  else
+    note = `В уроке ${wordsLabel(lessonSize)} на карточках: вспомните перевод, откройте ответ и оцените, насколько легко было.`;
 
   const reload = async () => {
     await load();
@@ -222,16 +218,6 @@ export function HomeScreen({ onSession, onProgress, onPlan, onWords, onFriends }
             </p>
           )}
           <div className={styles.actionsInner}>
-            {secondary && (
-              <SecondaryButton
-                type="button"
-                className={`${styles.action} ${styles.secondary}`}
-                disabled={busy}
-                onClick={() => run(secondary.run)}
-              >
-                {secondary.label}
-              </SecondaryButton>
-            )}
             <PrimaryButton
               type="button"
               className={styles.action}

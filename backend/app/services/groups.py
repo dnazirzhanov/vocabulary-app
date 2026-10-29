@@ -20,7 +20,7 @@ from app.core.errors import ApiError
 from app.models import Group, GroupMember, ReviewAttempt, User
 from app.schemas.groups import BoardOut, BoardRow, GroupGoal, GroupOut, GroupPreviewOut
 from app.services.pace import target_of
-from app.services.progress import DAILY_GOAL_POINTS, STREAK_HISTORY_DAYS, streak
+from app.services.progress import DAILY_GOAL_POINTS, INTRODUCTION, STREAK_HISTORY_DAYS, streak
 from app.services.scheduling import local_date
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
@@ -279,7 +279,7 @@ def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
             ReviewAttempt.user_id,
             local_day,
             func.sum(ReviewAttempt.points),
-            func.count().filter(ReviewAttempt.exercise_type == "introduce"),
+            func.count().filter(INTRODUCTION),
         )
         .join(User, User.id == ReviewAttempt.user_id)
         .where(
