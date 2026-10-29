@@ -47,6 +47,12 @@
   --color-activity-none: #ebe7e2;
   --color-activity-some: #ffc9a8;
   --color-activity-goal: #fa5d19;
+  /* The learning heatmap: more cards a day, deeper orange; even steps of lightness, so the scale
+     reads without telling hues apart, and every day is named on hover or tap. */
+  --color-heat-1: #ffd9c2;
+  --color-heat-2: #ffad80;
+  --color-heat-3: #fa7a3c;
+  --color-heat-4: #c2410c;
 
   /* The path scene: calm water, so orange stays for the current stone and the action. */
   --color-water: #e3f0f9;

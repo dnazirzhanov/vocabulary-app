@@ -70,6 +70,7 @@ def _day_out(day: PlanDay) -> PlanDayOut:
         plan_done=day.plan_done,
         new_words=day.new_words,
         target=day.target,
+        cards=day.answers,
     )
 
 

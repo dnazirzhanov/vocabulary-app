@@ -28,78 +28,6 @@
   font-weight: var(--weight-strong);
 }
 
-/* --- Words ------------------------------------------------------------------------------- */
-
-.bar {
-  position: relative;
-  height: 12px;
-  margin-top: var(--space-4);
-  border-radius: 6px;
-  background: var(--color-activity-none);
-  overflow: hidden;
-}
-
-.barMet,
-.barKnown {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  transition: width var(--duration-progress) var(--ease-out);
-}
-
-.barMet {
-  background: var(--color-activity-some);
-}
-
-.barKnown {
-  background: var(--color-activity-goal);
-}
-
-.figures {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin: var(--space-5) 0 0;
-}
-
-/* The number first, its caption under it; the markup keeps caption → number for screen readers. */
-.figures > div {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-.figures dd {
-  margin: 0;
-  font-size: var(--text-title);
-  font-weight: var(--weight-display);
-  font-variant-numeric: tabular-nums;
-}
-
-.figures dt {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.dotKnown,
-.dotMet {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 6px;
-  border-radius: 50%;
-}
-
-.dotKnown {
-  background: var(--color-activity-goal);
-}
-
-.dotMet {
-  background: var(--color-activity-some);
-}
-
 /* --- Consistency: this week ---------------------------------------------------------------- */
 
 .week {
@@ -179,13 +107,52 @@
   color: var(--color-success);
 }
 
-/* --- Consistency: the calendar ------------------------------------------------------------- */
+/* --- Consistency: the learning heatmap ---------------------------------------------------- */
+
+/* Its own small heading with the scale beside it, as heatmaps are read: «меньше ▢▢▢▢ больше». */
+.heatHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.heatTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+
+.scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.scale .cell {
+  width: 12px;
+}
+
+.scale span:first-child {
+  margin-right: var(--space-1);
+}
+
+.scale span:last-child {
+  margin-left: var(--space-1);
+}
 
 .calendar {
   display: grid;
   grid-template-rows: auto repeat(7, auto);
   gap: 3px;
   align-items: center;
+  /* Room for today's and the picked day's outline at the edge. */
+  padding: 0 3px 3px 0;
 }
 
 .month,
@@ -197,8 +164,11 @@
   white-space: nowrap;
 }
 
+/* A month spans exactly its weeks, so its name can never spill into the next or off the edge. */
 .month {
   grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
   padding-bottom: var(--space-1);
 }
 
@@ -215,12 +185,20 @@
   background: var(--color-activity-none);
 }
 
-.cell[data-level='1'] {
-  background: var(--color-activity-some);
+.cell[data-shade='1'] {
+  background: var(--color-heat-1);
 }
 
-.cell[data-level='2'] {
-  background: var(--color-activity-goal);
+.cell[data-shade='2'] {
+  background: var(--color-heat-2);
+}
+
+.cell[data-shade='3'] {
+  background: var(--color-heat-3);
+}
+
+.cell[data-shade='4'] {
+  background: var(--color-heat-4);
 }
 
 .cell[data-future] {
@@ -232,24 +210,21 @@
   outline-offset: 1px;
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
+.calendar .cell:not([data-future]) {
+  cursor: pointer;
+}
+
+.cell[data-picked] {
+  outline: 2px solid var(--color-primary-strong);
+  outline-offset: 1px;
+}
+
+/* The picked day, or the whole period: one line under the grid, the same height either way. */
+.heatCaption {
+  min-height: 1.5em;
   margin: var(--space-3) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
   font-weight: var(--weight-strong);
-}
-
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.legend .cell {
-  width: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .footnote {

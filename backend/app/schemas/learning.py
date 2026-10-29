@@ -275,6 +275,8 @@ class PlanDayOut(BaseModel):
     new_words: int
     # New words the plan asked for that day (0: no new word was possible; reviews were the plan).
     target: int
+    # Cards answered that day, practice and spelling included (the calendar's shade).
+    cards: int = 0
 
 
 class TodayPlanOut(BaseModel):

@@ -33,6 +33,7 @@ def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
         "plan_done": False,
         "new_words": 0,
         "target": 5,
+        "cards": 0,
     }
     assert report["streak_weeks"] == 0
     assert report["activity"] == []  # only days with answers are listed
@@ -45,7 +46,14 @@ def test_a_lesson_does_today_s_plan(client: TestClient, play: Play) -> None:
     play(START, DAY0)
     report = progress(client, DAY0)
     assert report["words"] == {"introduced": 5, "reviewing": 5, "well_learned": 0, "due": 0}
-    today = {"date": "2026-11-02", "active": True, "plan_done": True, "new_words": 5, "target": 5}
+    today = {
+        "date": "2026-11-02",
+        "active": True,
+        "plan_done": True,
+        "new_words": 5,
+        "target": 5,
+        "cards": 15,
+    }
     assert report["today"] == today
     assert report["activity"] == [today]
 

@@ -10,9 +10,13 @@ import type { PlanDay } from './types.ts';
 /** 0: nothing · 1: some learning, plan not done · 2: plan done. */
 export type Level = 0 | 1 | 2;
 
+/** The calendar's shade: 0 no cards, 1–4 more cards, relative to the learner's own busy days. */
+export type Shade = 0 | 1 | 2 | 3 | 4;
+
 export interface Cell {
   date: string;
   level: Level;
+  cards: number;
   /** Later than today: drawn empty, never as a miss. */
   future: boolean;
 }
@@ -33,7 +37,8 @@ function cellsFrom(first: string, count: number, activity: PlanDay[], today: str
   const days = byDate(activity);
   return Array.from({ length: count }, (_, index) => {
     const date = addDays(first, index);
-    return { date, level: levelOf(days.get(date)), future: date > today };
+    const day = days.get(date);
+    return { date, level: levelOf(day), cards: day?.cards ?? 0, future: date > today };
   });
 }
 
@@ -57,33 +62,65 @@ export function weekProgress(activity: PlanDay[], today: string, target: number)
   };
 }
 
-export interface Calendar {
-  /** Oldest week first; each week is Monday to Sunday and the last one holds today. */
-  weeks: Cell[][];
-  /** Where a month begins: the index of its first week and its name. Sparse, so labels never touch. */
-  months: { week: number; label: string }[];
-  /** Days with the plan done in the whole calendar. */
-  goalDays: number;
+export interface CalendarCell extends Cell {
+  shade: Shade;
 }
 
-const MIN_WEEKS_BETWEEN_LABELS = 3;
+export interface Calendar {
+  /** Oldest week first; each week is Monday to Sunday and the last one holds today. */
+  weeks: CalendarCell[][];
+  /** A month named over the first week that starts in it, spanning the weeks until the next one. */
+  months: { week: number; span: number; label: string }[];
+  /** Days with any learning, days with the plan done, and cards answered, over the calendar. */
+  activeDays: number;
+  goalDays: number;
+  cards: number;
+}
+
 const monthName = new Intl.DateTimeFormat('ru', { month: 'short', timeZone: 'UTC' });
+/** A label needs two weeks of room, so short names never run into the next one or off the edge. */
+const MIN_LABEL_WEEKS = 2;
+
+/**
+ * Shades relative to the learner's own busy days (the 90th percentile, so one marathon day does
+ * not wash out the rest): a beginner's and a heavy learner's calendars both use the whole scale.
+ */
+export function shadeOf(cards: number, busy: number): Shade {
+  if (cards <= 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil((4 * cards) / Math.max(busy, 1)))) as Shade;
+}
+
+function busyDay(cells: Cell[]): number {
+  const counts = cells
+    .map((cell) => cell.cards)
+    .filter((cards) => cards > 0)
+    .sort((a, b) => a - b);
+  return counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.9))] : 1;
+}
 
 export function buildCalendar(activity: PlanDay[], today: string, weekCount: number): Calendar {
   const first = addDays(mondayOf(today), -7 * (weekCount - 1));
-  const cells = cellsFrom(first, 7 * weekCount, activity, today);
+  const plain = cellsFrom(first, 7 * weekCount, activity, today);
+  const busy = busyDay(plain);
+  const cells = plain.map((cell) => ({ ...cell, shade: shadeOf(cell.cards, busy) }));
   const weeks = Array.from({ length: weekCount }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 
-  const months: Calendar['months'] = [];
+  // A week belongs to the month of its Monday; a month is named where its weeks begin.
+  const starts: { week: number; label: string }[] = [];
   weeks.forEach((week, index) => {
-    // A month is named over the week that contains its first day (not the first week at all:
-    // the calendar starts mid-month).
-    const start = week.find((cell) => cell.date.endsWith('-01'));
-    if (!start) return;
-    const last = months.at(-1);
-    if (last && index - last.week < MIN_WEEKS_BETWEEN_LABELS) return;
-    months.push({ week: index, label: monthName.format(toTime(start.date)).replace('.', '') });
+    const month = week[0].date.slice(0, 7);
+    if (index > 0 && weeks[index - 1][0].date.slice(0, 7) === month) return;
+    starts.push({ week: index, label: monthName.format(toTime(week[0].date)).replace('.', '') });
   });
+  const months = starts
+    .map((start, index) => ({ ...start, span: (starts[index + 1]?.week ?? weekCount) - start.week }))
+    .filter((month) => month.span >= MIN_LABEL_WEEKS);
 
-  return { weeks, months, goalDays: cells.filter((cell) => cell.level === 2).length };
+  return {
+    weeks,
+    months,
+    activeDays: cells.filter((cell) => cell.level > 0).length,
+    goalDays: cells.filter((cell) => cell.level === 2).length,
+    cards: cells.reduce((sum, cell) => sum + cell.cards, 0),
+  };
 }

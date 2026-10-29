@@ -48,6 +48,8 @@ class PlanDay:
     # A finished study lesson that day left no review due (ADR 0022); sessions from before that
     # was recorded count as done.
     reviews_cleared: bool = True
+    # Every card answered that day, practice and spelling included: the heatmap's shade.
+    answers: int = 0
 
     @property
     def spelling_needed(self) -> int:
@@ -120,6 +122,7 @@ def days_by_user(
                     func.coalesce(LearningSession.reviews_left, 0) == 0,
                 )
             ),
+            func.count(),
         )
         .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
         .join(User, User.id == ReviewAttempt.user_id)
@@ -141,6 +144,7 @@ def days_by_user(
         completed,
         spelled_words,
         cleared,
+        answers,
     ) in rows:
         user = by_id[user_id]
         target = (
@@ -157,6 +161,7 @@ def days_by_user(
             completed_study=bool(completed),
             spelled=int(spelled_words or 0),
             reviews_cleared=bool(cleared),
+            answers=int(answers),
         )
     return result
 

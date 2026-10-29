@@ -111,7 +111,11 @@ def test_spelling_can_be_repeated_and_extra_practice_changes_nothing(
     again = spell_today(client, at(DAY0 + timedelta(minutes=5)))
     assert again is not None and again["spelling"]["words"] == 5
     after = progress(client)
-    assert after["today"] == before["today"] and after["spelling_today"] == {"words": 5, "done": 5}
+    # The plan is unchanged; the heatmap counts the extra cards as the day's work.
+    plan = ("new_words", "target", "plan_done")
+    assert [after["today"][key] for key in plan] == [before["today"][key] for key in plan]
+    assert after["today"]["cards"] == before["today"]["cards"] + 5
+    assert after["spelling_today"] == {"words": 5, "done": 5}
 
 
 def test_a_bonus_lesson_adds_words_to_spell_but_not_to_the_plan(

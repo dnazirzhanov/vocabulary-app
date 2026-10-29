@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildCalendar, levelOf, weekProgress } from './consistency.ts';
+import { buildCalendar, levelOf, shadeOf, weekProgress } from './consistency.ts';
 import type { PlanDay } from './types.ts';
 
-const day = (date: string, plan_done: boolean): PlanDay => ({
+const day = (date: string, plan_done: boolean, cards = 20): PlanDay => ({
   date,
   active: true,
   plan_done,
   new_words: plan_done ? 5 : 2,
   target: 5,
+  cards,
 });
 // Thursday 5 November 2026: its week is Monday 2 – Sunday 8 November.
 const TODAY = '2026-11-05';
@@ -61,14 +62,34 @@ test('the calendar ends with the current week and fills the gaps with empty days
   assert.equal(calendar.weeks.flat().filter((cell) => cell.future).length, 3);
 });
 
-test('month names sit over the week with the first of the month and never crowd each other', () => {
-  const calendar = buildCalendar([], TODAY, 12); // 17 Aug to 8 Nov
+test('a month is named over the first week that starts in it, never running off the edge', () => {
+  const calendar = buildCalendar([], TODAY, 12); // Mondays 17 Aug … 2 Nov
   assert.deepEqual(
-    calendar.months.map((month) => month.week),
-    [2, 6, 10], // 1 Sep (Tue), 1 Oct (Thu), 1 Nov (Sun)
+    calendar.months.map((month) => [month.label, month.week, month.span]),
+    [
+      ['авг', 0, 3], // 17, 24, 31 Aug
+      ['сент', 3, 4], // 7 Sep …
+      ['окт', 7, 4], // 5 Oct …
+      // 2 Nov: one week of room — left unnamed rather than cut off at the edge.
+    ],
   );
-  assert.equal(calendar.months.length, 3);
-  // Two firsts a week apart: only the earlier one is named.
-  const tight = buildCalendar([], '2026-03-01', 2); // 23 Feb – 1 Mar: both inside two weeks
-  assert.ok(tight.months.length <= 1);
+});
+
+test('shades follow the cards answered, relative to the learner’s busy days', () => {
+  assert.equal(shadeOf(0, 40), 0);
+  assert.deepEqual(
+    [1, 10, 11, 20, 30, 40, 200].map((cards) => shadeOf(cards, 40)),
+    [1, 1, 2, 2, 3, 4, 4],
+  );
+  const calendar = buildCalendar(
+    [day('2026-11-02', true, 40), day('2026-11-03', false, 5), day('2026-11-04', true, 400)],
+    TODAY,
+    1,
+  );
+  // Too few days for a marathon to be an outlier: 400 sets the scale here.
+  assert.deepEqual(
+    calendar.weeks[0].slice(0, 3).map((cell) => cell.shade),
+    [1, 1, 4],
+  );
+  assert.deepEqual([calendar.activeDays, calendar.goalDays, calendar.cards], [3, 2, 445]);
 });

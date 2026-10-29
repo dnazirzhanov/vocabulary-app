@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { daysAfterOf, plural } from '../i18n/plural.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { buildCalendar, weekProgress, type Cell, type Level } from '../lib/consistency.ts';
@@ -13,6 +13,14 @@ const LEVEL_NAME: Record<Level, string> = { 0: 'без занятий', 1: 'бы
 const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const dayWord = (n: number) => plural(n, { one: 'день', few: 'дня', many: 'дней' });
 const describe = (cell: Cell) => `${dayName.format(Date.parse(`${cell.date}T00:00:00Z`))}: ${LEVEL_NAME[cell.level]}`;
+const cardsWord = (n: number) => plural(n, { one: 'карточка', few: 'карточки', many: 'карточек' });
+const number = new Intl.NumberFormat('ru');
+/** One day of the heatmap in words: its date, cards answered, and whether the plan was done. */
+const dayLine = (cell: Cell) => {
+  const date = dayName.format(Date.parse(`${cell.date}T00:00:00Z`));
+  if (cell.cards === 0) return `${date}: без занятий`;
+  return `${date}: ${number.format(cell.cards)} ${cardsWord(cell.cards)}${cell.level === 2 ? ' · план выполнен' : ''}`;
+};
 
 const WIDE = '(min-width: 640px)';
 const subscribe = (notify: () => void) => {
@@ -33,6 +41,12 @@ export function Consistency({ progress }: { progress: Progress }) {
   const week = weekProgress(progress.activity, today, progress.promised_days);
   const calendar = buildCalendar(progress.activity, today, useWeekCount());
   const left = week.target - week.done;
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedCell = calendar.weeks.flat().find((cell) => cell.date === picked);
+  const pick = (target: EventTarget) => {
+    const date = (target as HTMLElement).dataset.date;
+    if (date) setPicked(date);
+  };
 
   return (
     <section aria-labelledby="consistency-heading">
@@ -75,14 +89,33 @@ export function Consistency({ progress }: { progress: Progress }) {
         )}
       </p>
 
+      <div className={styles.heatHead}>
+        <h3 className={styles.heatTitle}>Карточки по дням</h3>
+        <p className={styles.scale} aria-hidden="true">
+          <span>меньше</span>
+          {([0, 1, 2, 3, 4] as const).map((shade) => (
+            <i key={shade} className={styles.cell} data-shade={shade} />
+          ))}
+          <span>больше</span>
+        </p>
+      </div>
+      {/* Hover or tap a day to read it under the grid; the grid itself is one image for screen
+          readers, summarised in its label and in the line below. */}
       <div
         className={styles.calendar}
         role="img"
-        aria-label={`${calendar.goalDays} ${dayWord(calendar.goalDays)} с выполненным планом за ${calendar.weeks.length} недель`}
+        aria-label={`${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями за ${calendar.weeks.length} недель, из них ${calendar.goalDays} с выполненным планом`}
         style={{ gridTemplateColumns: `auto repeat(${calendar.weeks.length}, minmax(0, 1fr))` }}
+        onPointerOver={(event) => pick(event.target)}
+        onPointerLeave={(event) => event.pointerType === 'mouse' && setPicked(null)}
+        onClick={(event) => pick(event.target)}
       >
         {calendar.months.map((month) => (
-          <span key={month.week} className={styles.month} style={{ gridColumn: `${month.week + 2} / span 3` }}>
+          <span
+            key={month.week}
+            className={styles.month}
+            style={{ gridColumn: `${month.week + 2} / span ${month.span}` }}
+          >
             {month.label}
           </span>
         ))}
@@ -96,22 +129,21 @@ export function Consistency({ progress }: { progress: Progress }) {
             <i
               key={cell.date}
               className={styles.cell}
-              data-level={cell.level}
+              data-shade={cell.shade}
+              data-date={cell.future ? undefined : cell.date}
               data-future={cell.future || undefined}
               data-today={cell.date === today || undefined}
-              title={cell.future ? undefined : describe(cell)}
+              data-picked={cell.date === picked || undefined}
+              title={cell.future ? undefined : dayLine(cell)}
               style={{ gridColumn: column + 2, gridRow: row + 2 }}
             />
           )),
         )}
       </div>
-      <p className={styles.legend}>
-        <span>
-          <i className={styles.cell} data-level="1" aria-hidden="true" /> были занятия
-        </span>
-        <span>
-          <i className={styles.cell} data-level="2" aria-hidden="true" /> план выполнен
-        </span>
+      <p className={styles.heatCaption} aria-live="polite">
+        {pickedCell
+          ? dayLine(pickedCell)
+          : `${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями · ${number.format(calendar.cards)} ${cardsWord(calendar.cards)}`}
       </p>
       <p className={styles.footnote}>
         {target > 0

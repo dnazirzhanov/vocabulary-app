@@ -146,6 +146,8 @@ export interface PlanDay {
   new_words: number;
   /** New words the plan asked for (0: no new word was possible; the reviews were the plan). */
   target: number;
+  /** Cards answered that day, practice and spelling included: the calendar's shade. */
+  cards: number;
 }
 
 /** The whole course (every published level). */

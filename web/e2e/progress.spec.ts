@@ -36,7 +36,11 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   // Today counts toward the week and the calendar; the week is a commitment, not a streak.
   await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^1\s*из 6 дней/);
   await expect(page.getByRole('listitem', { name: /план выполнен/ })).toHaveAttribute('aria-current', 'date');
-  await expect(page.getByRole('img', { name: /^1 день с выполненным планом/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /^1 день с занятиями .* из них 1 с выполненным планом$/ })).toBeVisible();
+  // The heatmap names a day on hover or tap.
+  await expect(page.getByText(/^1 день с занятиями · \d+ карточ/)).toBeVisible();
+  await page.locator('[data-today]').last().click();
+  await expect(page.getByText(/: \d+ карточ\S* · план выполнен$/)).toBeVisible();
   await expect(page.getByText('Ещё 5 дней до цели недели')).toBeVisible();
 
   // A row opens the deck's page, which goes back to «Прогресс».
