@@ -20,6 +20,7 @@ from app.core.errors import ApiError
 from app.models import Group, GroupMember, ReviewAttempt, User
 from app.schemas.groups import BoardOut, BoardRow, GroupGoal, GroupOut, GroupPreviewOut
 from app.services.pace import target_of
+from app.services.plan_days import week_of
 from app.services.progress import DAILY_GOAL_POINTS, INTRODUCTION, STREAK_HISTORY_DAYS, streak
 from app.services.scheduling import local_date
 
@@ -231,11 +232,6 @@ def leave_all(db: Session, user: User) -> None:
 
 
 # --- the board ------------------------------------------------------------------------------
-
-
-def week_of(today: date) -> list[date]:
-    monday = today - timedelta(days=today.weekday())
-    return [monday + timedelta(days=n) for n in range(7)]
 
 
 def rank(rows: list[BoardRow]) -> list[BoardRow]:
