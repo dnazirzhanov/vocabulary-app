@@ -7,7 +7,7 @@ import styles from './AuthScreen.module.css';
 type Mode = 'signIn' | 'signUp';
 
 /** Email and password only: the least personal data that still lets a learner come back. */
-export function AuthScreen() {
+export function AuthScreen({ invited = false }: { invited?: boolean }) {
   const [mode, setMode] = useState<Mode>('signUp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +50,9 @@ export function AuthScreen() {
           <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
             {mode === 'signUp' ? 'Создайте аккаунт' : 'С возвращением'}
           </h1>
+          {invited && (
+            <p className={styles.invited}>Вас пригласили в группу. Войдите или создайте аккаунт, чтобы вступить.</p>
+          )}
           <p className={styles.lead}>
             {mode === 'signUp'
               ? 'Чтобы прогресс сохранялся на любом устройстве.'

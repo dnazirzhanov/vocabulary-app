@@ -3,8 +3,11 @@ import { syncWithServer } from './clock.ts';
 import type {
   AttemptResponse,
   AttemptResult,
+  Board,
   Deck,
   DeckWord,
+  Group,
+  GroupPreview,
   Me,
   MeUpdate,
   Pace,
@@ -74,12 +77,32 @@ export const api = {
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
   dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
+  groups: () => request<Group[]>('GET', '/groups'),
+  createGroup: (name: string, nickname: string) => request<Group>('POST', '/groups', { name, nickname }),
+  previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
+  joinGroup: (code: string, nickname: string) =>
+    request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`, { nickname }),
+  board: (groupId: string) => request<Board>('GET', `/groups/${groupId}/board`),
+  leaveGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}/members/me`),
+  removeMember: (groupId: string, memberId: string) =>
+    request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
   /** Deletes the learner's account data on our server (sessions, answers, progress). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };
 
+// Errors the learner can act on, by the server's error code.
+const MESSAGES: Record<string, string> = {
+  nickname_taken: 'Это имя уже занято в группе — выберите другое.',
+  invalid_nickname: 'Такое имя не подойдёт: только буквы, цифры, пробел и дефис.',
+  invalid_group_name: 'Название: от 2 до 40 символов, без ссылок.',
+  too_many_groups: 'Можно состоять не больше чем в 5 группах.',
+  group_full: 'В этой группе уже 50 участников.',
+  rate_limited: 'Слишком много попыток. Подождите минуту.',
+};
+
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */
 export function describeError(error: unknown): string {
+  if (error instanceof ApiError && MESSAGES[error.code]) return MESSAGES[error.code];
   if (error instanceof ApiError && error.kind === 'network') {
     return 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
   }

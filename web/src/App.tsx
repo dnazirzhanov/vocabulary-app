@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
+import { BoardScreen } from './groups/BoardScreen.tsx';
+import { GroupsScreen } from './groups/GroupsScreen.tsx';
+import { JoinScreen } from './groups/JoinScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { api, describeError } from './lib/api.ts';
@@ -17,7 +20,46 @@ type Screen =
   | { name: 'summary'; summary: Summary }
   | { name: 'progress'; deckId: string }
   | { name: 'goal' }
-  | { name: 'words' };
+  | { name: 'words' }
+  | { name: 'groups' }
+  | { name: 'board'; groupId: string }
+  | { name: 'join'; code: string };
+
+// An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
+// first-run screens; the address bar goes back to "/" because the app has no router.
+const INVITE_KEY = 'pendingInvite';
+function rememberInviteFromUrl() {
+  const match = /^\/join\/([A-Za-z0-9-]{4,16})\/?$/.exec(location.pathname);
+  if (!match) return;
+  try {
+    sessionStorage.setItem(INVITE_KEY, match[1]);
+  } catch {
+    // storage unavailable (private mode): the join screen still opens for this page load
+    pendingFallback = match[1];
+  }
+  history.replaceState(null, '', '/');
+}
+let pendingFallback: string | null = null;
+function pendingInvite(): string | null {
+  try {
+    return sessionStorage.getItem(INVITE_KEY) ?? pendingFallback;
+  } catch {
+    return pendingFallback;
+  }
+}
+function forgetInvite() {
+  pendingFallback = null;
+  try {
+    sessionStorage.removeItem(INVITE_KEY);
+  } catch {
+    // nothing stored
+  }
+}
+rememberInviteFromUrl();
+const startScreen = (): Screen => {
+  const code = pendingInvite();
+  return code ? { name: 'join', code } : { name: 'home' };
+};
 
 type Account = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; email: string | null };
 
@@ -40,7 +82,7 @@ function useAccount(): Account {
 export function App() {
   const account = useAccount();
   if (account.status === 'loading') return null;
-  if (account.status === 'signedOut') return <AuthScreen />;
+  if (account.status === 'signedOut') return <AuthScreen invited={pendingInvite() !== null} />;
   // Keyed by account, so signing in as someone else starts from a fresh home screen.
   return <Learning key={account.email ?? 'dev'} email={account.email} />;
 }
@@ -72,7 +114,7 @@ function useProfile() {
 /** A few screens and no router: all state that matters lives on the server, so home can always reload it. */
 function Learning({ email }: { email: string | null }) {
   const { profile, setProfile, error, retry } = useProfile();
-  const [screen, setScreen] = useState<Screen>({ name: 'home' });
+  const [screen, setScreen] = useState<Screen>(startScreen);
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
   const showSession = useCallback((session: Session) => setScreen({ name: 'session', session }), []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
@@ -97,7 +139,7 @@ function Learning({ email }: { email: string | null }) {
         me={me}
         onDone={(updated) => {
           setProfile({ me: updated, deck });
-          goHome();
+          setScreen(startScreen());
         }}
         onBack={me.onboarded ? goHome : undefined}
       />
@@ -121,6 +163,40 @@ function Learning({ email }: { email: string | null }) {
           else goHome();
         }}
         onHome={goHome}
+      />
+    );
+  }
+  if (screen.name === 'join') {
+    return (
+      <JoinScreen
+        code={screen.code}
+        onJoined={(groupId) => {
+          forgetInvite();
+          setScreen({ name: 'board', groupId });
+        }}
+        onCancel={() => {
+          forgetInvite();
+          goHome();
+        }}
+      />
+    );
+  }
+  if (screen.name === 'groups') {
+    return (
+      <GroupsScreen
+        onBack={goHome}
+        onOpen={(groupId) => setScreen({ name: 'board', groupId })}
+        onJoinCode={(code) => setScreen({ name: 'join', code })}
+      />
+    );
+  }
+  if (screen.name === 'board') {
+    return (
+      <BoardScreen
+        key={screen.groupId}
+        groupId={screen.groupId}
+        onBack={goHome}
+        onLeft={() => setScreen({ name: 'groups' })}
       />
     );
   }
@@ -148,6 +224,7 @@ function Learning({ email }: { email: string | null }) {
       onProgress={(deckId) => setScreen({ name: 'progress', deckId })}
       onGoal={() => setScreen({ name: 'goal' })}
       onWords={() => setScreen({ name: 'words' })}
+      onFriends={(groupId) => setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' })}
     />
   );
 }

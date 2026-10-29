@@ -2,10 +2,13 @@
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
+from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.services.content import ContentError, import_deck, parse_deck
+from app.services.demo import seed_classmates
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -17,7 +20,21 @@ def main(argv: list[str] | None = None) -> int:
     ):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("directory", type=Path)
+    seed = commands.add_parser(
+        "seed-classmates", help="development only: a demo group with made-up classmates"
+    )
+    seed.add_argument("--owner", default="local", help="the X-Dev-User who owns the group")
     args = parser.parse_args(argv)
+
+    if args.command == "seed-classmates":
+        settings = get_settings()
+        if settings.environment != "development" or settings.auth_mode != "dev":
+            print("seed-classmates only runs against a development database", file=sys.stderr)
+            return 1
+        with get_sessionmaker()() as db:
+            code = seed_classmates(db, f"dev|{args.owner}", datetime.now(UTC))
+        print(f"Demo group ready (invite code {code}); open the app and go to «Друзья».")
+        return 0
 
     try:
         content = parse_deck(args.directory)

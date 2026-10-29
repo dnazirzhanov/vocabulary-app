@@ -52,6 +52,13 @@
   font-size: var(--text-option);
 }
 
+.invited {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  font-weight: var(--weight-strong);
+}
+
 .field {
   display: flex;
   flex-direction: column;

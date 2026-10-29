@@ -43,7 +43,7 @@ from app.schemas.learning import (
     TypeWordExercise,
     WordOut,
 )
-from app.services import pace
+from app.services import groups, pace
 from app.services.learning import (
     CHOICE_TYPES,
     REVIEW_WORDS_PER_SESSION,
@@ -546,6 +546,8 @@ def complete_session(
 
 
 def delete_learner(db: Session, user: User) -> None:
-    """Foreign keys cascade from users to sessions, attempts and progress (one transaction)."""
+    """Foreign keys cascade from users to sessions, attempts, progress and group memberships (one
+    transaction); groups the learner owned pass to the next member first, empty ones go."""
+    groups.leave_all(db, user)
     db.delete(user)
     db.commit()

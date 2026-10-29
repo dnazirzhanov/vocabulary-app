@@ -14,3 +14,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Accepted |
 | [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted |
 | [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted |
+| [0011](0011-friend-groups-and-board.md) | Friend groups with a weekly board that rewards showing up | Accepted |

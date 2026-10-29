@@ -12,6 +12,7 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { PathView } from '../path/PathView.tsx';
 import styles from './HomeScreen.module.css';
+import { FriendsCard } from './FriendsCard.tsx';
 import { SuggestionCard } from './SuggestionCard.tsx';
 
 type Loaded = {
@@ -28,9 +29,10 @@ interface HomeScreenProps {
   onProgress: (deckId: string) => void;
   onGoal: () => void;
   onWords: () => void;
+  onFriends: (groupId: string | null) => void;
 }
 
-export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScreenProps) {
+export function HomeScreen({ onSession, onProgress, onGoal, onWords, onFriends }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -200,6 +202,7 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
                 />
               </div>
             )}
+            <FriendsCard onOpen={onFriends} />
             <button type="button" className={styles.wordsLink} onClick={onWords}>
               Все слова колоды · {deck.word_count}
             </button>
