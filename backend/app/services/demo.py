@@ -8,7 +8,15 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import DeckWord, Group, GroupMember, LearningSession, ReviewAttempt, User
+from app.models import (
+    DeckWord,
+    Group,
+    GroupMember,
+    LearningSession,
+    ReviewAttempt,
+    User,
+    UserWordProgress,
+)
 from app.services.groups import new_invite_code
 from app.services.plan_days import week_of
 from app.services.progress import INTRODUCED_POINTS
@@ -19,12 +27,12 @@ ZONE = ZoneInfo("Asia/Bishkek")
 # Nickname and new words per day, Monday to Sunday (None: no study that day).
 CLASSMATES: list[tuple[str, int, int, list[int | None]]] = [
     # (nickname, words a day, days a week promised, new words met each day Monday to Sunday)
-    ("Быстрый Барсук", 20, 4, [20, 25, None, 20, None, None, None]),
-    ("Тихий Лис", 3, 5, [3, 3, 3, 3, 3, None, None]),
-    ("Весёлый Кот", 5, 3, [5, None, 5, 5, None, None, None]),
-    ("Смелый Ёж", 10, 6, [None, 10, None, None, None, None, None]),
-    ("Ранний Орёл", 4, 5, [4, 4, 4, None, None, None, None]),
-    ("Сонный Панда", 5, 3, [None, None, None, None, None, None, None]),
+    ("Парвиз", 20, 4, [20, 25, None, 20, None, None, None]),
+    ("Искандер", 3, 5, [3, 3, 3, 3, 3, None, None]),
+    ("Ахмед", 5, 3, [5, None, 5, 5, None, None, None]),
+    ("Али", 10, 6, [None, 10, None, None, None, None, None]),
+    ("Рашид", 4, 5, [4, 4, 4, None, None, None, None]),
+    ("Тимур", 5, 3, [None, None, None, None, None, None, None]),
 ]
 
 
@@ -80,6 +88,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                 joined_at=now,
             )
         )
+        met = 0  # each classmate meets new words in deck order, so every day's words are new
         for day, count in zip(days, plan, strict=True):
             # Evening of each day so far; today's activity a little before now, so it counts.
             evening = datetime.combine(day, datetime.min.time(), tzinfo=ZONE) + timedelta(hours=18)
@@ -100,11 +109,21 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             db.add(session)
             db.flush()
             for index in range(count):
+                word_id = words[(met + index) % len(words)]
+                db.add(
+                    UserWordProgress(
+                        user_id=classmate.id,
+                        word_id=word_id,
+                        introduced_at=moment,
+                        last_seen_at=moment,
+                        due_at=moment + timedelta(days=1),
+                    )
+                )
                 db.add(
                     ReviewAttempt(
                         session_id=session.id,
                         user_id=classmate.id,
-                        word_id=words[index % len(words)],
+                        word_id=word_id,
                         exercise_id=f"demo-{index}",
                         exercise_type="card",
                         correct=None,
@@ -113,5 +132,6 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                         points=INTRODUCED_POINTS,
                     )
                 )
+            met += count
     db.commit()
     return group.invite_code

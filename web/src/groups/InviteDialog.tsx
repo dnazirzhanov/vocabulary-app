@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
-import { useEffect, useRef, useState } from 'react';
-import { CheckIcon, CloseIcon } from '../ui/icons.tsx';
+import { useEffect, useState } from 'react';
+import { Dialog } from '../ui/Dialog.tsx';
+import { CheckIcon } from '../ui/icons.tsx';
 import styles from './Groups.module.css';
 
 const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
@@ -15,34 +16,17 @@ interface InviteDialogProps {
 
 /**
  * The invitation in a modal window: a QR code, the code, the link, and ways to copy, share or save
- * it. Everything is made in the browser, so the code never reaches another service. It is a native
- * <dialog>: the browser traps focus, closes it on Escape and gives focus back to the button.
+ * it. Everything is made in the browser, so the code never reaches another service.
  */
 export function InviteDialog({ code, groupName, open, onClose }: InviteDialogProps) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
-      className={styles.dialog}
-      aria-labelledby="invite-title"
-      onClose={onClose}
-      // A click on the backdrop lands on the dialog element itself, never on its content.
-      onClick={(event) => event.target === ref.current && onClose()}
-    >
-      {open && <InviteContent code={code} groupName={groupName} onClose={onClose} />}
-    </dialog>
+    <Dialog open={open} onClose={onClose} title="Пригласить друзей">
+      <InviteContent code={code} groupName={groupName} />
+    </Dialog>
   );
 }
 
-function InviteContent({ code, groupName, onClose }: Omit<InviteDialogProps, 'open'>) {
+function InviteContent({ code, groupName }: { code: string; groupName: string }) {
   const link = `${location.origin}/join/${code}`;
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -62,15 +46,7 @@ function InviteContent({ code, groupName, onClose }: Omit<InviteDialogProps, 'op
   };
 
   return (
-    <div className={styles.invite}>
-      <header className={styles.inviteHead}>
-        <h2 id="invite-title" className={styles.sectionTitle}>
-          Пригласить друзей
-        </h2>
-        <button type="button" className={styles.dialogClose} onClick={onClose} aria-label="Закрыть">
-          <CloseIcon aria-hidden="true" />
-        </button>
-      </header>
+    <>
       <p className={styles.hint}>Пусть друзья откроют ссылку или наведут камеру на QR-код.</p>
       {qr && <img className={styles.qr} src={qr} alt={`QR-код для вступления в группу «${groupName}»`} />}
       <p className={styles.code}>
@@ -113,6 +89,6 @@ function InviteContent({ code, groupName, onClose }: Omit<InviteDialogProps, 'op
           Сейчас приложение работает только на этом компьютере: ссылка заработает у друзей, когда его опубликуют.
         </p>
       )}
-    </div>
+    </>
   );
 }

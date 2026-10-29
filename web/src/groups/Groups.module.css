@@ -356,23 +356,68 @@
 }
 
 .boardRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* The row itself is the button that opens the member's profile. */
+.rowButton {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--space-3);
-  row-gap: var(--space-2);
-  padding: var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--color-border);
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowButton:hover {
+  background: rgb(38 38 38 / 0.04);
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* «Удалить» under the name, where the row's text starts (rank column + gap + padding). */
+.boardRow > :not(.rowButton) {
+  align-self: flex-start;
+  margin: 0 0 var(--space-2) calc(36px + var(--space-3) + var(--space-2));
+}
+
+.restingButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.restingButton:hover {
+  background: rgb(38 38 38 / 0.04);
 }
 
 .boardRow[data-me] {
   border-radius: var(--radius-md);
   background: var(--color-primary-tint);
   box-shadow: inset 0 0 0 var(--border-control) var(--color-primary-strong);
-}
-
-.boardRow > :last-child:not(.score) {
-  grid-column: 2 / -1;
 }
 
 .rank {
@@ -392,10 +437,6 @@
 
 .rank[data-top='1'] {
   background: var(--color-primary);
-}
-
-.who {
-  min-width: 0;
 }
 
 .nick {
@@ -445,7 +486,7 @@
 }
 
 .weekDots i[data-on] {
-  background: var(--color-success);
+  background: var(--color-activity-goal); /* the same "plan done" as Progress and the profile */
 }
 
 .score {
@@ -543,54 +584,7 @@
   font-size: var(--text-body);
 }
 
-/* The invitation: a modal window (a native <dialog>) with the QR code, the code and the link. */
-.dialog {
-  width: min(420px, calc(100vw - 2 * var(--gutter)));
-  max-height: calc(100dvh - 2 * var(--space-4));
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: 0 12px 40px rgb(38 38 38 / 0.25);
-  overflow-y: auto;
-}
-
-.dialog::backdrop {
-  background: rgb(38 38 38 / 0.5);
-}
-
-.invite {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
-.inviteHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.dialogClose {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.dialogClose:hover {
-  background: rgb(38 38 38 / 0.06);
-}
-
+/* The invitation, inside the shared modal window (ui/Dialog). */
 .qr {
   width: min(240px, 100%);
   aspect-ratio: 1;

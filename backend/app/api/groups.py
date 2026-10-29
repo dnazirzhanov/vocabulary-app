@@ -8,7 +8,8 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.core.ratelimit import limit_joins
 from app.schemas.groups import BoardOut, CreateGroupIn, GroupOut, GroupPreviewOut, JoinGroupIn
-from app.services import groups
+from app.schemas.profile import ProfileOut
+from app.services import groups, profile
 from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["groups"])
@@ -49,6 +50,13 @@ def join_group(
 @router.get("/groups/{group_id}/board")
 def group_board(group_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> BoardOut:
     return groups.board(db, user, group_id, now)
+
+
+@router.get("/groups/{group_id}/members/{member_id}/profile")
+def member_profile(
+    group_id: UUID, member_id: UUID, user: CurrentUser, db: DbSession, now: Now
+) -> ProfileOut:
+    return profile.member_profile(db, user, group_id, member_id, now)
 
 
 @router.delete("/groups/{group_id}/members/me", status_code=204)

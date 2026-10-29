@@ -52,6 +52,14 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await expect(friend.getByRole('listitem').filter({ hasText: 'Лис' })).toContainText('вы');
   await friendContext.close();
 
+  // A tap on a member opens their profile: their week against their own promise.
+  await button(page, 'Сегодня').click();
+  await button(page, 'Друзья').click(); // the only group: its board
+  await page.getByRole('button', { name: /^Лис/ }).click();
+  const fox = page.getByRole('dialog', { name: 'Лис' });
+  await expect(fox).toContainText('Обещание: 6 дней в неделю по 3 слова');
+  await page.keyboard.press('Escape');
+
   // With a single group, «Друзья» opens its board; the place is on the board, not in the navigation.
   await button(page, 'Сегодня').click();
   await button(page, 'Друзья').click();
