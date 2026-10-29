@@ -73,3 +73,41 @@ test('a topic gives a deck the words for it', async ({ page, context }) => {
   await expect(page.getByRole('status').filter({ hasText: 'Добавлено' })).toContainText('Добавлено: 5');
   await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('5');
 });
+
+// A deck keeps its topic (ADR 0019): offered again next time; a different topic is offered a
+// deck of its own, or added here anyway.
+test('a deck keeps its topic; a new topic is offered its own deck', async ({ page, context }) => {
+  const deck = await (await context.request.post('/api/decks', { data: { title: 'Климат' } })).json();
+  await context.request.post(`/api/decks/${deck.id}/words/topic`, { data: { topic: 'климат', count: 5 } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Изменить «Климат»' }).click();
+  await page.getByRole('tab', { name: 'Тема' }).click();
+  const topic = page.getByRole('textbox', { name: 'Тема' });
+  await expect(topic).toHaveValue('климат'); // continuing is one tap
+
+  // The same topic, written differently: no question asked.
+  await topic.fill('Изменение климата');
+  await expect(button(page, 'Составить карточки · 10')).toBeVisible();
+
+  // A different one: a deck of its own is offered first.
+  await topic.fill('технологии');
+  await button(page, 'Составить карточки · 10').click();
+  const fork = page.getByRole('group', { name: 'Это новая тема. Создать для неё отдельную колоду?' });
+  await expect(fork).toContainText('Эта колода — о теме «климат»');
+  await fork.getByRole('button', { name: 'Создать колоду «Технологии»' }).click();
+  // The new deck opens with its cards; the climate deck is untouched.
+  await expect(page.getByRole('textbox', { name: 'Название набора' })).toHaveValue('Технологии');
+  await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('10');
+  await button(page, 'Мои колоды').click();
+  await expect(page.getByRole('button', { name: /^Климат/ })).toContainText('5 слов');
+  await expect(page.getByRole('button', { name: /^Технологии/ })).toContainText('10 слов');
+
+  // «Всё равно добавить сюда»: the words go into this deck.
+  await page.getByRole('button', { name: 'Изменить «Климат»' }).click();
+  await page.getByRole('tab', { name: 'Тема' }).click();
+  await topic.fill('погода');
+  await page.getByRole('radio', { name: '5', exact: true }).check();
+  await button(page, 'Составить карточки · 5').click();
+  await fork.getByRole('button', { name: 'Всё равно добавить сюда' }).click();
+  await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('10');
+});

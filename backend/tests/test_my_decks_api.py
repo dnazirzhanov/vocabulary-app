@@ -321,3 +321,14 @@ def test_a_word_named_on_purpose_may_come_back(client: TestClient) -> None:
         f"/api/decks/{deck['id']}/words/fill", json={"words": ["teapot"]}, headers=as_("pavel")
     ).json()
     assert filled["added"] == 1
+
+
+def test_a_deck_remembers_its_topics_latest_first(client: TestClient) -> None:
+    deck = personal_deck(client)
+    url = f"/api/decks/{deck['id']}/words/topic"
+    for minute, topic in ((1, "климат"), (2, "технологии"), (3, "Климат")):
+        headers = as_("pavel", MOMENT.replace(minute=minute))
+        client.post(url, json={"topic": topic, "count": 5}, headers=headers)
+    edit = client.get(f"/api/decks/{deck['id']}/edit", headers=as_("pavel")).json()
+    # «Климат» is «климат» again (case doesn't make a new topic): used last, written as last.
+    assert edit["topics"] == ["Климат", "технологии"]

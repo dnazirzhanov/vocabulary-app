@@ -135,6 +135,8 @@ class TeacherDeckOut(BaseModel):
     words: list[TeacherWordOut]
     # Groups it is given to now.
     groups: list[AssignedGroupOut]
+    # Topics it has been grown with, the latest first (ADR 0019).
+    topics: list[str] = []
 
 
 class SkippedOut(BaseModel):

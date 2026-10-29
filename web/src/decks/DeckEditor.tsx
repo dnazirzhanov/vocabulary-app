@@ -53,6 +53,8 @@ interface DeckEditorProps {
   onDone: () => void;
   /** Studying this deck now (a personal deck's main action). */
   onStudy: (session: Session) => void;
+  /** Another of my decks, e.g. one just made for a new topic (ADR 0019). */
+  onOpenDeck: (deckId: string) => void;
 }
 
 /**
@@ -60,7 +62,7 @@ interface DeckEditorProps {
  * correct one, and one action that gives the deck to the group. Students meet the words first in
  * their own daily lesson, at their own pace. Course words are linked, not copied.
  */
-export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorProps) {
+export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -257,7 +259,9 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
             </div>
             <div id={`pane-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`} className={styles.pane}>
               {mode === 'words' && <QuickAddPanel deckId={deck.id} onAdded={drafted} />}
-              {mode === 'topic' && <TopicPanel deckId={deck.id} onAdded={drafted} />}
+              {mode === 'topic' && (
+                <TopicPanel deckId={deck.id} topics={deck.topics} onAdded={drafted} onOpenDeck={onOpenDeck} />
+              )}
               {mode === 'text' && <GeneratePanel deckId={deck.id} onDrafted={drafted} />}
               {mode === 'manual' && (
                 <form

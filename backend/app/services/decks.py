@@ -25,6 +25,7 @@ from app.models import (
     Deck,
     DeckAssignment,
     DeckSeenWord,
+    DeckTopic,
     DeckWord,
     Group,
     GroupMember,
@@ -215,6 +216,13 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
         created_at=deck.created_at,
         words=[_teacher_word(deck, word) for word in words],
         groups=[AssignedGroupOut(id=group_id, name=name) for group_id, name in groups],
+        topics=list(
+            db.scalars(
+                select(DeckTopic.topic)
+                .where(DeckTopic.deck_id == deck.id)
+                .order_by(DeckTopic.used_at.desc(), DeckTopic.key)
+            )
+        ),
     )
 
 
@@ -448,7 +456,14 @@ def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider
     )
 
 
-def topic(db: Session, user: User, deck_id: str, body: TopicIn, provider: Provider) -> GenerateOut:
+def topic_key(topic: str) -> str:
+    """A topic as compared: case, «ё» and spacing don't make a new one."""
+    return " ".join(topic.lower().replace("ё", "е").split())[:80]
+
+
+def topic(
+    db: Session, user: User, deck_id: str, body: TopicIn, provider: Provider, now: datetime
+) -> GenerateOut:
     """Cards for a topic (ADR 0019), never a word the deck has had — asked day after day, a topic
     deck keeps growing. The AI is told the deck's words to avoid; it is asked for a few more than
     wanted, since it sometimes repeats one anyway, and those are dropped by key; if it still falls
@@ -476,6 +491,15 @@ def topic(db: Session, user: User, deck_id: str, body: TopicIn, provider: Provid
         avoid += [card.headword for card in cards]
     if added < wanted:
         skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
+    # The deck's topic, offered next time; the latest wording and use win.
+    db.execute(
+        insert(DeckTopic)
+        .values(deck_id=deck.id, key=topic_key(body.topic), topic=body.topic, used_at=now)
+        .on_conflict_do_update(
+            index_elements=[DeckTopic.deck_id, DeckTopic.key],
+            set_={"topic": body.topic, "used_at": now},
+        )
+    )
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name

@@ -89,6 +89,22 @@ class DeckSeenWord(Base):
     headword: Mapped[str] = mapped_column(String(64))
 
 
+class DeckTopic(Base):
+    """A topic a deck has been grown with (ADR 0019): the editor offers the last one again, and
+    a different one is met with the offer of a deck of its own."""
+
+    __tablename__ = "deck_topics"
+
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
+    )
+    # The topic as compared: lowercase, ё as е, single spaces.
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    # As the learner last wrote it, and when.
+    topic: Mapped[str] = mapped_column(String(80))
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class DeckAssignment(Base):
     """A group deck given to a group: its members meet the words in their daily lesson, before
     the course's (ADR 0017). Taking it back keeps the row, so a deck is never given twice."""

@@ -383,6 +383,8 @@ export interface TeacherDeck {
   /** `from_course`: the course's own word, linked; its content is not edited here. */
   words: TeacherWord[];
   groups: { id: string; name: string }[];
+  /** Topics it has been grown with, the latest first (ADR 0019). */
+  topics: string[];
 }
 
 /** A word form from an example sentence (backend glossary). */

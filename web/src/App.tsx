@@ -275,6 +275,7 @@ function Learning({ email }: { email: string | null }) {
           backLabel={groupId ? 'К группе' : 'Мои колоды'}
           onDone={() => setScreen(groupId ? { name: 'board', groupId } : { name: 'home' })}
           onStudy={(session) => startSession(session, screen.deckId)}
+          onOpenDeck={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
         />
       );
     }

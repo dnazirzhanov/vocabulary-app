@@ -116,9 +116,10 @@ def topic(
     user: CurrentUser,
     db: DbSession,
     provider: Annotated[Provider, Depends(get_provider)],
+    now: Now,
 ) -> GenerateOut:
     """Cards for a topic, saved to the deck (ADR 0019)."""
-    return decks.topic(db, user, deck_id, body, provider)
+    return decks.topic(db, user, deck_id, body, provider, now)
 
 
 @router.post("/decks/{deck_id}/words/suggest", dependencies=[Depends(limit_generations)])

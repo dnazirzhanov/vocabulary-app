@@ -43,6 +43,13 @@ English word and the app writes the rest. Decks need a place of their own, not t
   purpose («Быстро добавить») check only the deck's current words, so a removed word may come
   back when asked for. A deck holds up to 500 words, so a topic can grow day after day (measured:
   «климат», 10 a day for three days: 30 distinct words, one call each, 4–5 s).
+- **A deck keeps its topic; topics aren't locked.** A deck remembers the topics it was grown with
+  (`deck_topics`, latest first) and the «Тема» tab starts with the last one, so continuing is one
+  tap. A topic that is none of them (case, «ё» and spacing aside; one containing the other is the
+  same: «изменение климата» is «климат») is met, before any call, with the offer of a deck of its
+  own — «Создать колоду «Технологии»» makes it and drafts the cards there — or «Всё равно добавить
+  сюда». Not a lock: the other ways have no topic, people organise decks differently, and a
+  mistake shouldn't be stuck.
 - **Pronunciation: the device's voice for now.** Words without a recording are read by the
   browser's English voice (ADR 0013's fallback); the editor has a listen button per word. Recorded
   audio for user words needs a text-to-speech service and is a later milestone.
