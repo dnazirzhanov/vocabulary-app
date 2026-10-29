@@ -75,6 +75,20 @@ class DeckWord(Base):
     position: Mapped[int]
 
 
+class DeckSeenWord(Base):
+    """Every word a deck has ever had, by its key (generation.word_key), removed ones too: the AI
+    never brings a deck the same word again (ADR 0019). Small: one short row per word."""
+
+    __tablename__ = "deck_seen_words"
+
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # The word as it was first written, for the list the AI is asked to avoid.
+    headword: Mapped[str] = mapped_column(String(64))
+
+
 class DeckAssignment(Base):
     """A group deck given to a group: its members meet the words in their daily lesson, before
     the course's (ADR 0017). Taking it back keeps the row, so a deck is never given twice."""

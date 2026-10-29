@@ -33,6 +33,16 @@ English word and the app writes the rest. Decks need a place of their own, not t
   about it — nouns, verbs and set phrases — avoiding the deck's words, and writes full cards with
   the same checks. It counts toward the 20 drafts a day. The composer's tabs read «Слова · Тема ·
   Текст · Вручную»; on small phones their labels shrink a little so all four stay on one line.
+- **A deck never gets the same word twice from the AI.** Every word a deck has ever had — removed
+  ones too — is kept by a key (`deck_seen_words`): lowercase, spaces and hyphens alike, a plural
+  ending dropped from the last word (floods = flood, check-in = check in). Topic and text drafts
+  tell the AI those words to avoid (up to the last 600, about 3 tokens each) and not to use other
+  forms of them; ask for about 30% more than wanted; drop anything whose key the deck has had; and
+  if still short, call once more with the repeats added to the list — two calls at most, so the
+  cost is bounded. Repeats are reported only when the batch still ends up short. Words named on
+  purpose («Быстро добавить») check only the deck's current words, so a removed word may come
+  back when asked for. A deck holds up to 500 words, so a topic can grow day after day (measured:
+  «климат», 10 a day for three days: 30 distinct words, one call each, 4–5 s).
 - **Pronunciation: the device's voice for now.** Words without a recording are read by the
   browser's English voice (ADR 0013's fallback); the editor has a listen button per word. Recorded
   audio for user words needs a text-to-speech service and is a later milestone.

@@ -86,6 +86,22 @@ def flags(headword: str, translation: str, example: str) -> list[str]:
     return found
 
 
+def word_key(headword: str) -> str:
+    """One key for a word however it is written, so a deck never gets it twice (ADR 0019): case,
+    spaces and hyphens don't count (check-in, Check in), nor a plural ending on its last word
+    (floods, glacier/glaciers, policies/policy, boxes/box). Cheap and deterministic: no model.
+    A rare pair of different words may share a key (news/new); that only skips a card."""
+    words = " ".join(headword.lower().replace("-", " ").split()).split(" ")
+    last = words[-1]
+    if len(last) > 4 and last.endswith("ies"):
+        last = last[:-3] + "y"
+    elif len(last) > 4 and last.endswith(("ses", "xes", "zes", "ches", "shes")):
+        last = last[:-2]
+    elif len(last) > 3 and last.endswith("s") and not last.endswith(("ss", "us", "is")):
+        last = last[:-1]
+    return " ".join([*words[:-1], last])
+
+
 def sentences(text: str) -> list[str]:
     return [part.strip() for part in _SENTENCE_END.split(" ".join(text.split())) if part.strip()]
 
@@ -102,7 +118,8 @@ learners' level. Skip proper names, numbers and words a learner at that level su
 - Look closely for multiword expressions and take them whole: phrasal verbs ("carry out", \
 "phase out"), fixed phrases ("make up for", "take action") and set combinations ("fossil fuel", \
 "root cause"). A learner can't work these out from the single words.
-- Never repeat a word from the "already in the deck" list.
+- Never use a word from the "already in the deck" list, nor another form of it (flood: not \
+floods, flooding; check in: not check-in): the learner has had them all.
 
 Writing a card:
 - headword: the dictionary form in lowercase (managed → manage; carried out → carry out). Only \
@@ -130,7 +147,8 @@ Choosing:
 - Useful, common words for this topic at the learners' level: a mix of nouns, verbs, adjectives \
 and set phrases (check in, boarding pass), not only nouns. Skip words a learner at that level \
 surely knows, and names.
-- Never repeat a word from the "already in the deck" list.
+- Never use a word from the "already in the deck" list, nor another form of it (flood: not \
+floods, flooding; check in: not check-in): the learner has had them all.
 
 Writing a card:
 - headword: the dictionary form in lowercase. Only letters a-z, words joined by one space, hyphen \

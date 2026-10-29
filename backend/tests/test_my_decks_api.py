@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.decks import get_provider
 from app.models import UserWordProgress
+from app.services.generation import DraftCard
 from tests.support import at, cards, finish
 
 MOMENT = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -222,3 +224,100 @@ def test_a_topic_becomes_cards_for_it(client: TestClient) -> None:
         client.post(url, json={"topic": "еда", "count": 7}, headers=as_("pavel")).status_code == 422
     )
     assert client.post(url, json={"topic": "еда"}, headers=as_("ivan")).status_code == 404
+
+
+class TopicScript:
+    """Answers topic calls from a script, repeating itself as a model sometimes does."""
+
+    name = "deepseek"
+
+    def __init__(self, *rounds: list[str]) -> None:
+        self.rounds = list(rounds)
+        self.calls: list[dict[str, Any]] = []
+
+    def topic(self, topic: str, count: int, level: str, avoid: list[str]) -> list[Any]:
+        self.calls.append({"count": count, "avoid": list(avoid)})
+        words = self.rounds.pop(0) if self.rounds else []
+        return [
+            DraftCard(
+                headword=word, pos="noun", translation="перевод", example=f"A {word}.",
+                example_ru="", source_sentence="",
+            )
+            for word in words
+        ]  # fmt: skip
+
+
+def scripted(client: TestClient, script: TopicScript) -> None:
+    app = client.app
+    assert hasattr(app, "dependency_overrides")
+    app.dependency_overrides[get_provider] = lambda: script
+
+
+def test_a_topic_never_brings_a_word_the_deck_has_had(client: TestClient) -> None:
+    deck = add(
+        client,
+        personal_deck(client),
+        {**APPLE, "headword": "flood", "translation": "наводнение", "example": "A flood."},
+    )
+    deck = add(
+        client,
+        deck,
+        {**APPLE, "headword": "glacier", "translation": "ледник", "example": "A glacier."},
+    )
+    glacier = next(w["word"]["id"] for w in deck["words"] if w["word"]["headword"] == "glacier")
+    client.delete(
+        f"/api/decks/{deck['id']}/words/{glacier}", headers=as_("pavel")
+    )  # out, not forgotten
+    script = TopicScript(
+        ["floods", "Glaciers", "drought", "heatwave", "Drought", "check-in"],
+        ["check in", "wildfire", "smog", "emission"],
+    )
+    scripted(client, script)
+    result = client.post(
+        f"/api/decks/{deck['id']}/words/topic",
+        json={"topic": "климат", "count": 5},
+        headers=as_("pavel"),
+    ).json()
+
+    words = [w["word"]["headword"] for w in result["deck"]["words"]]
+    assert words == ["flood", "drought", "heatwave", "check-in", "wildfire", "smog"]
+    assert (result["added"], result["skipped"]) == (5, [])  # filled: repeats aren't reported
+    # The AI is told what to avoid, the removed word included; asked for a few spare.
+    first, second = script.calls
+    assert set(first["avoid"]) == {"flood", "glacier"} and first["count"] == 8
+    # Short after the first call: once more, with its repeats added to the list, for the rest.
+    assert {"floods", "Glaciers", "Drought"} <= set(second["avoid"]) and second["count"] == 5
+
+
+def test_a_topic_that_keeps_repeating_stops_after_two_calls(client: TestClient) -> None:
+    deck = add(
+        client,
+        personal_deck(client),
+        {**APPLE, "headword": "flood", "translation": "наводнение", "example": "A flood."},
+    )
+    script = TopicScript(["floods", "smog"], ["flooding", "Floods", "smog"], ["never asked"])
+    scripted(client, script)
+    result = client.post(
+        f"/api/decks/{deck['id']}/words/topic",
+        json={"topic": "климат", "count": 5},
+        headers=as_("pavel"),
+    ).json()
+    assert len(script.calls) == 2  # never a third call
+    # Two new words in two calls («flooding» is a word of its own, not a form of «flood»).
+    added = [w["word"]["headword"] for w in result["deck"]["words"]][1:]
+    assert (result["added"], added) == (2, ["smog", "flooding"])
+    # Short of what was asked: the repeats are named, so the learner knows why.
+    assert {(s["headword"], s["reason"]) for s in result["skipped"]} == {
+        ("floods", "duplicate"),
+        ("smog", "duplicate"),
+    }
+
+
+def test_a_word_named_on_purpose_may_come_back(client: TestClient) -> None:
+    deck = add(client, personal_deck(client), KETTLE)
+    teapot = deck["words"][0]["word"]["id"]
+    client.delete(f"/api/decks/{deck['id']}/words/{teapot}", headers=as_("pavel"))
+    filled = client.post(
+        f"/api/decks/{deck['id']}/words/fill", json={"words": ["teapot"]}, headers=as_("pavel")
+    ).json()
+    assert filled["added"] == 1

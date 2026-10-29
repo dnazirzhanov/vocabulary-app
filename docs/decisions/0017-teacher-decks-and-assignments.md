@@ -46,7 +46,7 @@ the same deck.
 - **Phrases.** A headword may be a phrase: lowercase letters, words joined by one space, hyphen or
   apostrophe (`carry out`, `well-known`). Spelling shows the separators as fixed gaps, never tiles;
   a hint names a slot among the letters only; a phrase wraps between its words, never inside one.
-- **Limits.** At most 50 words in a deck and 100 decks per author.
+- **Limits.** At most 100 decks per author; words per deck: see ADR 0019 (500).
 
 ## Consequences
 - The card highlights the target word in its example only when the example uses the headword

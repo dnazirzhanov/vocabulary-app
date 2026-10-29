@@ -24,6 +24,7 @@ from app.core.errors import ApiError
 from app.models import (
     Deck,
     DeckAssignment,
+    DeckSeenWord,
     DeckWord,
     Group,
     GroupMember,
@@ -50,10 +51,21 @@ from app.schemas.decks import (
 )
 from app.schemas.groups import AssignmentMemberOut, AssignmentOut, GroupProgressOut
 from app.schemas.learning import WordOut
-from app.services.generation import DraftCard, Provider, flags
+from app.services.generation import DraftCard, Provider, flags, word_key
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS
 
-MAX_WORDS_PER_DECK = 50
+MAX_WORDS_PER_DECK = 500  # room to grow a topic deck day by day (ADR 0019)
+# A topic draft: at most two calls; the AI is shown at most this many of the deck's words to avoid
+# (about 3 tokens each; any it repeats beyond them are still dropped by key).
+TOPIC_CALLS = 2
+AVOID_LIMIT = 600
+
+
+def over_ask(wanted: int) -> int:
+    """A few spare words, since the AI sometimes repeats one it was told to avoid."""
+    return max(3, -(-wanted * 3 // 10))
+
+
 MAX_DECKS_PER_USER = 100
 
 
@@ -315,7 +327,25 @@ def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | No
         db.flush()
     last = db.scalar(select(func.max(DeckWord.position)).where(DeckWord.deck_id == deck.id))
     db.add(DeckWord(deck_id=deck.id, word_id=word.id, position=(last or 0) + 1))
+    _remember(db, deck, word.headword)
     db.flush()
+
+
+def _remember(db: Session, deck: Deck, headword: str) -> None:
+    """The deck has had this word: the AI won't bring it again, even once it's taken out."""
+    db.execute(
+        insert(DeckSeenWord)
+        .values(deck_id=deck.id, key=word_key(headword), headword=headword)
+        .on_conflict_do_nothing()
+    )
+
+
+def _seen(db: Session, deck: Deck) -> dict[str, str]:
+    """Every word the deck has had, removed ones too: key → the word as first written."""
+    rows = db.execute(
+        select(DeckSeenWord.key, DeckSeenWord.headword).where(DeckSeenWord.deck_id == deck.id)
+    )
+    return {key: headword for key, headword in rows}
 
 
 def add_word(db: Session, user: User, deck_id: str, body: DeckWordIn) -> TeacherDeckOut:
@@ -339,8 +369,11 @@ def generate(
     room = MAX_WORDS_PER_DECK - len(present)
     if room <= 0:
         raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
-    cards = provider.draft(body.text, min(body.count, room), body.level, list(present))
-    added, skipped = _save_drafts(db, deck, cards, set(present), room)
+    seen = _seen(db, deck)
+    wanted = min(body.count, room)
+    cards = provider.draft(body.text, wanted, body.level, list(seen.values()))
+    added, skipped, repeats = _save_drafts(db, deck, cards, set(seen), wanted)
+    skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
@@ -358,22 +391,26 @@ def _present(db: Session, deck: Deck) -> list[str]:
 
 
 def _save_drafts(
-    db: Session, deck: Deck, cards: list[DraftCard], taken: set[str], room: int
-) -> tuple[int, list[SkippedOut]]:
-    """Checked cards into the deck; the caller commits. Unusable ones are reported, not dropped
-    in silence."""
+    db: Session, deck: Deck, cards: list[DraftCard], taken: set[str], wanted: int
+) -> tuple[int, list[SkippedOut], list[str]]:
+    """Checked cards into the deck, up to `wanted`; the caller commits. Returns how many were
+    added, the unusable ones (reported, never dropped in silence) and the words skipped because the
+    deck has had them (`taken`: word keys, updated here). Cards past `wanted` are the over-ask's
+    spare: unused, unreported."""
     added = 0
     skipped: list[SkippedOut] = []
+    repeats: list[str] = []
     for card in cards:
+        if added >= wanted:
+            break
         headword = " ".join(card.headword.strip().lower().split())
+        key = word_key(headword)
         if not valid_headword(headword):
             skipped.append(SkippedOut(headword=card.headword[:64], reason="invalid"))
-        elif headword in taken:
-            skipped.append(SkippedOut(headword=headword, reason="duplicate"))
+        elif key in taken:
+            repeats.append(headword)
         elif len(headword) > 64 or len(card.translation) > 120 or len(card.example) > 300:
             skipped.append(SkippedOut(headword=headword[:64], reason="too_long"))
-        elif added >= room:
-            skipped.append(SkippedOut(headword=headword, reason="full"))
         else:
             fields = DeckWordIn(
                 headword=headword,
@@ -383,9 +420,9 @@ def _save_drafts(
                 example_ru=card.example_ru.strip()[:300],
             )
             _append(db, deck, fields, card.source_sentence.strip() or None)
-            taken.add(headword)
+            taken.add(key)
             added += 1
-    return added, skipped
+    return added, skipped, repeats
 
 
 def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider) -> GenerateOut:
@@ -401,7 +438,10 @@ def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider
     for word in body.words:
         named.setdefault(" ".join(word.lower().split()), word)
     cards = provider.fill(list(named.values()), body.level)
-    added, skipped = _save_drafts(db, deck, cards, set(present), room)
+    # Named on purpose: only a word in the deck now is a repeat (one taken out may come back).
+    taken = {word_key(word) for word in present}
+    added, skipped, repeats = _save_drafts(db, deck, cards, taken, room)
+    skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
@@ -409,15 +449,33 @@ def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider
 
 
 def topic(db: Session, user: User, deck_id: str, body: TopicIn, provider: Provider) -> GenerateOut:
-    """Cards for a topic (ADR 0019): the AI chooses the words, avoiding the deck's own; the same
-    checks as a draft from text."""
+    """Cards for a topic (ADR 0019), never a word the deck has had — asked day after day, a topic
+    deck keeps growing. The AI is told the deck's words to avoid; it is asked for a few more than
+    wanted, since it sometimes repeats one anyway, and those are dropped by key; if it still falls
+    short, one more call with its repeats added to the list. At most two calls."""
     deck = _owned_deck(db, user, deck_id)
-    present = _present(db, deck)
-    room = MAX_WORDS_PER_DECK - len(present)
+    room = MAX_WORDS_PER_DECK - len(_present(db, deck))
     if room <= 0:
         raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
-    cards = provider.topic(body.topic, min(body.count, room), body.level, present)
-    added, skipped = _save_drafts(db, deck, cards, set(present), room)
+    wanted = min(body.count, room)
+    seen = _seen(db, deck)
+    taken = set(seen)
+    avoid = list(seen.values())[-AVOID_LIMIT:]
+    added = 0
+    skipped: list[SkippedOut] = []
+    repeats: list[str] = []
+    for _ in range(TOPIC_CALLS):
+        ask = (wanted - added) + over_ask(wanted - added)
+        cards = provider.topic(body.topic, ask, body.level, avoid)
+        more, problems, again = _save_drafts(db, deck, cards, taken, wanted - added)
+        added += more
+        skipped += problems
+        repeats += again
+        if added >= wanted or not cards:
+            break
+        avoid += [card.headword for card in cards]
+    if added < wanted:
+        skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name

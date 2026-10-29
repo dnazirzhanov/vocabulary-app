@@ -22,6 +22,7 @@ from app.services.generation import (
     Pos,
     flags,
     provider_for,
+    word_key,
 )
 from tests.support import at
 
@@ -294,3 +295,18 @@ def test_deepseek_chooses_words_for_a_topic() -> None:
     assert "names a topic" in system and "json" in system
     assert "Learners' level: A2. Choose 10 words or phrases." in user
     assert "Already in the deck: passport." in user and "<topic>\nв аэропорту\n</topic>" in user
+
+
+def test_a_word_has_one_key_however_it_is_written() -> None:
+    same = [
+        ("Floods", "flood"),
+        ("check-in", "Check in"),
+        ("glaciers", "glacier"),
+        ("policies", "policy"),
+        ("boxes", "box"),
+        ("greenhouse gases", "greenhouse gas"),
+    ]
+    for one, other in same:
+        assert word_key(one) == word_key(other), (one, other)
+    for word in ("glass", "bus", "crisis", "status", "flooding"):
+        assert word_key(word) == word, word
