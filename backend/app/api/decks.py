@@ -3,12 +3,23 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Response
+from fastapi import APIRouter, Depends, Path, Response
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now
-from app.schemas.decks import DeckWordIn, NewDeckIn, PublishIn, RenameDeckIn, TeacherDeckOut
+from app.core.config import Settings, get_settings
+from app.core.ratelimit import limit_generations
+from app.schemas.decks import (
+    DeckWordIn,
+    GenerateIn,
+    GenerateOut,
+    NewDeckIn,
+    PublishIn,
+    RenameDeckIn,
+    TeacherDeckOut,
+)
 from app.services import decks
+from app.services.generation import Provider, provider_for
 
 router = APIRouter(tags=["decks"])
 DeckId = Annotated[str, Path(max_length=64)]
@@ -41,6 +52,22 @@ def rename_deck(
 @router.post("/decks/{deck_id}/words", status_code=201)
 def add_word(deck_id: DeckId, body: DeckWordIn, user: CurrentUser, db: DbSession) -> TeacherDeckOut:
     return decks.add_word(db, user, deck_id, body)
+
+
+def get_provider(settings: Annotated[Settings, Depends(get_settings)]) -> Provider:
+    return provider_for(settings)
+
+
+@router.post("/decks/{deck_id}/generate", dependencies=[Depends(limit_generations)])
+def generate(
+    deck_id: DeckId,
+    body: GenerateIn,
+    user: CurrentUser,
+    db: DbSession,
+    provider: Annotated[Provider, Depends(get_provider)],
+) -> GenerateOut:
+    """Draft cards from the teacher's text into the deck (ADR 0018); the text is not stored."""
+    return decks.generate(db, user, deck_id, body, provider)
 
 
 @router.put("/decks/{deck_id}/words/{word_id}")

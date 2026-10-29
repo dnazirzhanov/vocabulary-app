@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { DeckWordInput, PartOfSpeech, TeacherDeck } from '../lib/types.ts';
+import type { DeckWordInput, GenerateResult, PartOfSpeech, TeacherDeck, WordFlag } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { BackIcon, CheckIcon } from '../ui/icons.tsx';
+import { AlertIcon, BackIcon, CheckIcon } from '../ui/icons.tsx';
+import { GeneratePanel } from './GeneratePanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 
@@ -19,6 +20,11 @@ const posLabel = (pos: string) => POS.find((option) => option.value === pos)?.la
 // Must match the server's rule (backend/app/schemas/decks.py): letters, a phrase joined by one
 // space, hyphen or apostrophe.
 const HEADWORD = /^[a-z]+([ '-][a-z]+)*$/;
+const FLAGS: Record<WordFlag, string> = {
+  translation_not_russian: 'перевод не на русском',
+  example_without_word: 'в примере нет этого слова',
+  example_long: 'длинный пример',
+};
 const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', example: '', example_ru: '' };
 
 interface DeckEditorProps {
@@ -39,12 +45,15 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
   const [title, setTitle] = useState('');
   const [form, setForm] = useState<DeckWordInput>(EMPTY);
   const [editing, setEditing] = useState<string | null>(null); // a word id
+  // The manual form, folded away: drafting from the lesson's text comes first (ADR 0018).
+  const [manualOpen, setManualOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [justGiven, setJustGiven] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstField = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLElement>(null);
 
   const show = useCallback((loaded: TeacherDeck) => {
     setDeck(loaded);
@@ -117,6 +126,18 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
       setSaving(false);
     }
   };
+  // On a phone the list sits above the panel: bring the new cards into view for review.
+  const drafted = (result: GenerateResult) => {
+    show(result.deck);
+    setJustGiven(false);
+    if (result.added > 0 && window.matchMedia('(max-width: 1023px)').matches) {
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Only the editor's own scrolling area moves (scrollIntoView would shift the whole page).
+      requestAnimationFrame(() =>
+        listRef.current?.closest('main')?.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' }),
+      );
+    }
+  };
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);
     if (!entry) return;
@@ -124,7 +145,8 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
     setForm({ headword: h, pos: pos as PartOfSpeech, translation, example, example_ru });
     setEditing(id);
     setFormError(null);
-    firstField.current?.focus();
+    setManualOpen(true);
+    requestAnimationFrame(() => firstField.current?.focus());
   };
 
   return (
@@ -136,7 +158,7 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
-          <section className={styles.listColumn} aria-labelledby="deck-title">
+          <section ref={listRef} className={styles.listColumn} aria-labelledby="deck-title">
             <p className={styles.eyebrow}>Слова для группы «{groupName}»</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
@@ -156,10 +178,10 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
             </p>
 
             {count === 0 ? (
-              <p className={styles.empty}>Пока ни одного слова — добавьте первое в форме.</p>
+              <p className={styles.empty}>Пока ни одного слова. Вставьте текст урока — карточки появятся здесь.</p>
             ) : (
               <ol className={styles.words}>
-                {deck.words.map(({ word, from_course }, index) => (
+                {deck.words.map(({ word, from_course, source_sentence, flags }, index) => (
                   <li key={word.id} className={styles.word} data-editing={editing === word.id || undefined}>
                     <span className={styles.number} aria-hidden="true">
                       {index + 1}
@@ -174,6 +196,17 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
                       <p className={styles.example} lang="en">
                         {word.example}
                       </p>
+                      {source_sentence && source_sentence !== word.example && (
+                        <p className={styles.source}>
+                          <span>Из текста:</span> <q lang="en">{source_sentence}</q>
+                        </p>
+                      )}
+                      {flags.length > 0 && (
+                        <p className={styles.flag}>
+                          <AlertIcon aria-hidden="true" />
+                          Проверьте: {flags.map((flag) => FLAGS[flag]).join(', ')}
+                        </p>
+                      )}
                     </div>
                     <div className={styles.rowActions}>
                       {!from_course && (
@@ -202,96 +235,107 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
             )}
           </section>
 
-          <form
-            className={styles.form}
-            onSubmit={(event) => void submit(event)}
-            aria-labelledby="form-title"
-            noValidate
-          >
-            <h2 id="form-title" className={styles.formTitle}>
-              {editing ? 'Изменить слово' : 'Добавить слово'}
-            </h2>
-            <label className={styles.field}>
-              <span>Слово или выражение</span>
-              <input
-                ref={firstField}
-                lang="en"
-                required
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                maxLength={64}
-                placeholder="carry out"
-                value={form.headword}
-                aria-invalid={headwordInvalid || undefined}
-                onChange={(event) => field('headword', event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span>Часть речи</span>
-              <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
-                {POS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.field}>
-              <span>Перевод</span>
-              <input
-                required
-                maxLength={120}
-                placeholder="проводить, выполнять"
-                value={form.translation}
-                onChange={(event) => field('translation', event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span>Пример</span>
-              <textarea
-                lang="en"
-                required
-                rows={2}
-                maxLength={300}
-                placeholder="They carried out the experiment."
-                value={form.example}
-                onChange={(event) => field('example', event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span>
-                Перевод примера <span className={styles.optional}>— необязательно</span>
-              </span>
-              <textarea
-                rows={2}
-                maxLength={300}
-                value={form.example_ru}
-                onChange={(event) => field('example_ru', event.target.value)}
-              />
-            </label>
-            {!editing && <p className={styles.note}>Слово из курса подставится само — ученики не выучат его дважды.</p>}
-            {formError && (
-              <p className={styles.problem} role="alert">
-                {formError}
-              </p>
-            )}
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.outlineButton}
-                disabled={saving || !headword || !form.translation.trim() || !form.example.trim()}
-                aria-busy={saving}
+          <div className={styles.side}>
+            <GeneratePanel deckId={deck.id} onDrafted={drafted} />
+            <details
+              className={styles.manual}
+              open={manualOpen}
+              onToggle={(event) => setManualOpen(event.currentTarget.open)}
+            >
+              <summary className={styles.manualSummary}>
+                {editing ? 'Изменить слово' : 'Добавить слово вручную'}
+              </summary>
+              <form
+                className={styles.form}
+                onSubmit={(event) => void submit(event)}
+                aria-label={editing ? 'Изменить слово' : 'Добавить слово вручную'}
+                noValidate
               >
-                {saving ? 'Сохраняем…' : editing ? 'Сохранить' : 'Добавить слово'}
-              </button>
-              {editing && (
-                <button type="button" className={styles.linkButton} onClick={resetForm}>
-                  Отмена
-                </button>
-              )}
-            </div>
-          </form>
+                <label className={styles.field}>
+                  <span>Слово или выражение</span>
+                  <input
+                    ref={firstField}
+                    lang="en"
+                    required
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={64}
+                    placeholder="carry out"
+                    value={form.headword}
+                    aria-invalid={headwordInvalid || undefined}
+                    onChange={(event) => field('headword', event.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Часть речи</span>
+                  <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
+                    {POS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Перевод</span>
+                  <input
+                    required
+                    maxLength={120}
+                    placeholder="проводить, выполнять"
+                    value={form.translation}
+                    onChange={(event) => field('translation', event.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Пример</span>
+                  <textarea
+                    lang="en"
+                    required
+                    rows={2}
+                    maxLength={300}
+                    placeholder="They carried out the experiment."
+                    value={form.example}
+                    onChange={(event) => field('example', event.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>
+                    Перевод примера <span className={styles.optional}>— необязательно</span>
+                  </span>
+                  <textarea
+                    rows={2}
+                    maxLength={300}
+                    value={form.example_ru}
+                    onChange={(event) => field('example_ru', event.target.value)}
+                  />
+                </label>
+                {!editing && (
+                  <p className={styles.note}>Слово из курса подставится само — ученики не выучат его дважды.</p>
+                )}
+                {formError && (
+                  <p className={styles.problem} role="alert">
+                    {formError}
+                  </p>
+                )}
+                <div className={styles.formActions}>
+                  <button
+                    type="submit"
+                    className={styles.outlineButton}
+                    disabled={saving || !headword || !form.translation.trim() || !form.example.trim()}
+                    aria-busy={saving}
+                  >
+                    {saving ? 'Сохраняем…' : editing ? 'Сохранить' : 'Добавить слово'}
+                  </button>
+                  {editing && (
+                    <button type="button" className={styles.linkButton} onClick={resetForm}>
+                      Отмена
+                    </button>
+                  )}
+                </div>
+              </form>
+            </details>
+          </div>
         </div>
       </main>
 

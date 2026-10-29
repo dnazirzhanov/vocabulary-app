@@ -56,6 +56,8 @@ class Word(Base):
     example: Mapped[str] = mapped_column(Text)
     example_ru: Mapped[str] = mapped_column(Text)
     illustration: Mapped[str | None] = mapped_column(String(32))
+    # The sentence of the teacher's material the word was drafted from (ADR 0018).
+    source_sentence: Mapped[str | None] = mapped_column(Text)
     # A teacher's own word belongs to the deck it was written for (ADR 0017); course words: null.
     owner_deck_id: Mapped[str | None] = mapped_column(
         ForeignKey("decks.id", ondelete="CASCADE"), index=True

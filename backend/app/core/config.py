@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     web_dist: str | None = None
     # Answer submissions allowed per learner per minute (in-process limit; one instance).
     attempts_per_minute: int = 120
+    # Drafting a deck from a teacher's text (ADR 0018): "claude" needs ANTHROPIC_API_KEY; "demo"
+    # makes placeholder cards without any service; "auto" is claude with a key, else demo outside
+    # production (production without a key has no generation).
+    generation_provider: Literal["auto", "claude", "demo"] = "auto"
+    anthropic_api_key: str | None = None
+    # Drafts per teacher per day: each costs a model call.
+    generations_per_day: int = 20
 
     @field_validator("database_url")
     @classmethod

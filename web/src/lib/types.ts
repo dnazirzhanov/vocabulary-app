@@ -300,6 +300,26 @@ export interface DeckWordInput {
   example_ru: string;
 }
 
+export type WordFlag = 'translation_not_russian' | 'example_without_word' | 'example_long';
+
+export interface TeacherWord {
+  word: Word;
+  from_course: boolean;
+  /** The sentence of the teacher's material it was drafted from (ADR 0018). */
+  source_sentence: string | null;
+  /** What the teacher should check. */
+  flags: WordFlag[];
+}
+
+/** Cards drafted from a teacher's text (ADR 0018), added to the deck for review. */
+export interface GenerateResult {
+  deck: TeacherDeck;
+  added: number;
+  skipped: { headword: string; reason: 'duplicate' | 'invalid' | 'too_long' | 'full' }[];
+  /** 'demo': placeholder cards, made without any service (development only). */
+  provider: 'claude' | 'demo';
+}
+
 /** A teacher's deck as its author edits it. */
 export interface TeacherDeck {
   id: string;
@@ -307,7 +327,7 @@ export interface TeacherDeck {
   status: 'draft' | 'published';
   created_at: string;
   /** `from_course`: the course's own word, linked; its content is not edited here. */
-  words: { word: Word; from_course: boolean }[];
+  words: TeacherWord[];
   groups: { id: string; name: string }[];
 }
 

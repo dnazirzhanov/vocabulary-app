@@ -36,6 +36,7 @@ test('a teacher gives words to a group and a student learns them first', async (
   await title.fill('Unit 4');
   await title.press('Enter');
 
+  await page.getByText('Добавить слово вручную').click();
   await page.getByLabel('Слово или выражение').fill('Carry out');
   await page.getByLabel('Часть речи').selectOption('phrase');
   await page.getByLabel('Перевод', { exact: true }).fill('выполнять');
@@ -79,4 +80,36 @@ test('a teacher gives words to a group and a student learns them first', async (
   await page.reload();
   await openGroup(page);
   await expect(page.getByRole('list', { name: /Кто сколько слов встретил/ })).toContainText('Анна2 из 2');
+});
+
+// Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).
+test('a teacher drafts cards from a lesson text and reviews them', async ({ page, context }) => {
+  const group = await (
+    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
+  ).json();
+  const deck = await (
+    await context.request.post('/api/decks', { data: { title: 'Unit 4', group_id: group.id } })
+  ).json();
+  expect(deck.status).toBe('draft');
+
+  await page.goto('/');
+  await openGroup(page);
+  await page.getByRole('button', { name: /^Unit 4/ }).click();
+  await page
+    .getByLabel('Текст урока')
+    .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');
+  await page.getByRole('radio', { name: '5', exact: true }).check();
+  await button(page, 'Подобрать слова').click();
+
+  await expect(page.getByRole('status').filter({ hasText: 'Добавлено' })).toContainText('Добавлено: 5');
+  const words = page.getByRole('list').filter({ hasText: 'setbacks' });
+  await expect(words.getByRole('listitem')).toHaveCount(5);
+  // Each card shows the sentence it came from; the demo says its translations are not real.
+  await expect(page.getByText('Демо-режим')).toBeVisible();
+  // A review fix before giving the deck: the manual form opens for the word.
+  await words.getByRole('listitem').first().getByRole('button', { name: 'Изменить' }).click();
+  await page.getByLabel('Перевод', { exact: true }).fill('несколько');
+  await button(page, 'Сохранить').click();
+  await expect(words.getByRole('listitem').first()).toContainText('несколько');
+  await expect(button(page, 'Задать группе · 5\u00a0слов')).toBeEnabled();
 });

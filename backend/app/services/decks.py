@@ -33,12 +33,17 @@ from app.models import (
 from app.schemas.decks import (
     AssignedGroupOut,
     DeckWordIn,
+    GenerateIn,
+    GenerateOut,
     NewDeckIn,
+    SkippedOut,
     TeacherDeckOut,
     TeacherWordOut,
+    valid_headword,
 )
 from app.schemas.groups import AssignmentMemberOut, AssignmentOut
 from app.schemas.learning import WordOut
+from app.services.generation import Provider, flags
 
 MAX_WORDS_PER_DECK = 50
 MAX_DECKS_PER_USER = 100
@@ -167,11 +172,18 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
         title=deck.title,
         status="published" if deck.status == "published" else "draft",
         created_at=deck.created_at,
-        words=[
-            TeacherWordOut(word=_word_out(word), from_course=word.owner_deck_id != deck.id)
-            for word in words
-        ],
+        words=[_teacher_word(deck, word) for word in words],
         groups=[AssignedGroupOut(id=group_id, name=name) for group_id, name in groups],
+    )
+
+
+def _teacher_word(deck: Deck, word: Word) -> TeacherWordOut:
+    own = word.owner_deck_id == deck.id
+    return TeacherWordOut(
+        word=_word_out(word),
+        from_course=not own,
+        source_sentence=word.source_sentence,
+        flags=flags(word.headword, word.translation, word.example) if own else [],
     )
 
 
@@ -253,13 +265,9 @@ def _same_headword(db: Session, deck_id: str, headword: str, but: str | None = N
     return db.scalar(query.limit(1)) is not None
 
 
-def add_word(db: Session, user: User, deck_id: str, body: DeckWordIn) -> TeacherDeckOut:
-    deck = _owned_deck(db, user, deck_id)
-    present = _deck_word_ids(db, deck.id)
-    if len(present) >= MAX_WORDS_PER_DECK:
-        raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
-    if _same_headword(db, deck.id, body.headword):
-        raise ApiError(409, "word_in_deck", "This word is already in the deck")
+def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | None = None) -> None:
+    """A word at the end of the deck: the course's own when it has it, else a new word of the
+    deck. The caller checks for room and duplicates and commits."""
     word = _course_word(db, body.headword, body.pos)
     if word is None:
         word = Word(
@@ -272,13 +280,69 @@ def add_word(db: Session, user: User, deck_id: str, body: DeckWordIn) -> Teacher
             example_ru=body.example_ru,
             illustration=None,
             owner_deck_id=deck.id,
+            source_sentence=source_sentence,
         )
         db.add(word)
         db.flush()
     last = db.scalar(select(func.max(DeckWord.position)).where(DeckWord.deck_id == deck.id))
     db.add(DeckWord(deck_id=deck.id, word_id=word.id, position=(last or 0) + 1))
+    db.flush()
+
+
+def add_word(db: Session, user: User, deck_id: str, body: DeckWordIn) -> TeacherDeckOut:
+    deck = _owned_deck(db, user, deck_id)
+    if len(_deck_word_ids(db, deck.id)) >= MAX_WORDS_PER_DECK:
+        raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
+    if _same_headword(db, deck.id, body.headword):
+        raise ApiError(409, "word_in_deck", "This word is already in the deck")
+    _append(db, deck, body)
     db.commit()
     return _deck_out(db, deck)
+
+
+def generate(
+    db: Session, user: User, deck_id: str, body: GenerateIn, provider: Provider
+) -> GenerateOut:
+    """Draft cards from the teacher's text into the deck (ADR 0018). The text is read once and
+    not kept; each card keeps only its own sentence. Cards that cannot be saved are reported."""
+    deck = _owned_deck(db, user, deck_id)
+    present = db.scalars(
+        select(func.lower(Word.headword))
+        .join(DeckWord, DeckWord.word_id == Word.id)
+        .where(DeckWord.deck_id == deck.id)
+    ).all()
+    room = MAX_WORDS_PER_DECK - len(present)
+    if room <= 0:
+        raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
+    cards = provider.draft(body.text, min(body.count, room), body.level, list(present))
+    taken = set(present)
+    added = 0
+    skipped: list[SkippedOut] = []
+    for card in cards:
+        headword = " ".join(card.headword.strip().lower().split())
+        if not valid_headword(headword):
+            skipped.append(SkippedOut(headword=card.headword[:64], reason="invalid"))
+        elif headword in taken:
+            skipped.append(SkippedOut(headword=headword, reason="duplicate"))
+        elif len(headword) > 64 or len(card.translation) > 120 or len(card.example) > 300:
+            skipped.append(SkippedOut(headword=headword[:64], reason="too_long"))
+        elif added >= room:
+            skipped.append(SkippedOut(headword=headword, reason="full"))
+        else:
+            fields = DeckWordIn(
+                headword=headword,
+                pos=card.pos,
+                translation=card.translation.strip(),
+                example=card.example.strip(),
+                example_ru=card.example_ru.strip()[:300],
+            )
+            _append(db, deck, fields, card.source_sentence.strip() or None)
+            taken.add(headword)
+            added += 1
+    db.commit()
+    return GenerateOut(
+        deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
+    )
 
 
 def _deck_word(db: Session, deck: Deck, word_id: str) -> Word:

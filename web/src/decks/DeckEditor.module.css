@@ -56,7 +56,7 @@
     max-width: var(--width-lesson);
   }
 
-  .form {
+  .side {
     position: sticky;
     top: 0;
   }
@@ -215,9 +215,43 @@
   cursor: not-allowed;
 }
 
-/* --- the form -------------------------------------------------------------------------------- */
+.source {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  overflow-wrap: anywhere;
+}
 
-.form {
+.source span {
+  font-weight: var(--weight-strong);
+}
+
+/* Something to check: an icon and words, not colour alone. */
+.flag {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-error);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.flag svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* --- the side: drafting from text first, the manual form folded below ---------------------- */
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -225,6 +259,102 @@
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-weight: var(--weight-strong);
+}
+
+.choice legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.segments {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  min-height: 48px;
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.segment[data-selected] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.segment:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.generateStatus:empty {
+  display: none;
+}
+
+.generateStatus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.done {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.demo {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-stage);
+  font-size: var(--text-meta);
+}
+
+.manual {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.manualSummary {
+  min-height: 56px;
+  padding: var(--space-4) var(--space-5);
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
 }
 
 .formTitle {
