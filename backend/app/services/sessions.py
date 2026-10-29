@@ -268,10 +268,11 @@ def require_published_deck(db: Session, deck_id: str) -> Deck:
 
 def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
-) -> tuple[str, list[PlannedExercise]]:
+) -> tuple[str, list[PlannedExercise], int]:
     """One deck: its due cards, most overdue first, then its new words as today's pace allows
     (ADR 0010). No deck («Продолжить»): due cards of every level, then the current level's new
-    words, so earlier levels keep coming back (ADR 0014)."""
+    words, so earlier levels keep coming back (ADR 0014). Also returns the day's plan to record
+    (pace.recorded_target)."""
     rows = _course_rows(db, user, now)
     current = _current_index(rows)
     if request.deck_id is None:
@@ -309,7 +310,7 @@ def _study_plan(
         if today.blocked_by_reviews:
             raise ApiError(409, "reviews_first", "Too many reviews are due: review first")
         raise ApiError(409, "nothing_to_study", "Nothing is due and no new words are left")
-    return deck.id, plan_cards(due, new)
+    return deck.id, plan_cards(due, new), pace.recorded_target(today, pace.words_left(db, user))
 
 
 def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[PlannedExercise]:
@@ -341,8 +342,12 @@ def start_session(
     if existing is not None:
         return present_session(db, user, existing, now)
 
+    # Practice is never part of the plan, so it records none.
+    day_target: int | None = None
+    promised_days: int | None = None
     if isinstance(request, StartStudySession):
-        deck_id, plan = _study_plan(db, user, request, now, time_zone)
+        deck_id, plan, day_target = _study_plan(db, user, request, now, time_zone)
+        promised_days = user.study_days_per_week
     else:
         deck_id, plan = request.deck_id, _hard_plan(db, user, request)
     session = LearningSession(
@@ -352,6 +357,8 @@ def start_session(
         kind=request.kind,
         plan=[step.to_json() for step in plan],
         started_at=now,
+        day_target=day_target,
+        promised_days=promised_days,
     )
     db.add(session)
     try:
