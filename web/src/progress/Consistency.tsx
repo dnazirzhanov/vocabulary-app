@@ -1,14 +1,12 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { daysAfterOf, plural } from '../i18n/plural.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import { buildCalendar, weekProgress, type Cell, type Level } from '../lib/consistency.ts';
+import { buildYear, weekProgress, yearsOf, type Cell, type Level } from '../lib/consistency.ts';
 import type { Progress } from '../lib/types.ts';
-import { CheckIcon } from '../ui/icons.tsx';
+import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
 import styles from './Progress.module.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-// Weekday names are shown on alternate rows, as on GitHub's calendar.
-const LABELLED_ROWS = new Set([0, 2, 4]);
 const LEVEL_NAME: Record<Level, string> = { 0: 'без занятий', 1: 'были занятия', 2: 'план выполнен' };
 const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const dayWord = (n: number) => plural(n, { one: 'день', few: 'дня', many: 'дней' });
@@ -22,27 +20,20 @@ const dayLine = (cell: Cell) => {
   return `${date}: ${number.format(cell.cards)} ${cardsWord(cell.cards)}${cell.level === 2 ? ' · план выполнен' : ''}`;
 };
 
-const WIDE = '(min-width: 640px)';
-const subscribe = (notify: () => void) => {
-  const query = window.matchMedia(WIDE);
-  query.addEventListener('change', notify);
-  return () => query.removeEventListener('change', notify);
-};
-/** Half a year on a wide screen; on a phone fewer weeks, so a day stays big enough to see. */
-const useWeekCount = () => (useSyncExternalStore(subscribe, () => window.matchMedia(WIDE).matches) ? 26 : 18);
-
 /**
  * Consistency without a streak to lose: this week against the days the learner promised, and a
- * calendar of the weeks before. A day with the plan done is solid, a lighter one had some learning.
+ * whole year of days, January to December, shaded by the cards answered each day.
  */
 export function Consistency({ progress }: { progress: Progress }) {
   const today = progress.today.date;
   const target = progress.today.target;
   const week = weekProgress(progress.activity, today, progress.promised_days);
-  const calendar = buildCalendar(progress.activity, today, useWeekCount());
+  const years = yearsOf(progress.activity, today);
+  const [year, setYear] = useState(years[years.length - 1]);
+  const calendar = buildYear(progress.activity, today, year);
   const left = week.target - week.done;
   const [picked, setPicked] = useState<string | null>(null);
-  const pickedCell = calendar.weeks.flat().find((cell) => cell.date === picked);
+  const pickedCell = calendar.months.flatMap((month) => month.days).find((cell) => cell.date === picked);
   const pick = (target: EventTarget) => {
     const date = (target as HTMLElement).dataset.date;
     if (date) setPicked(date);
@@ -91,59 +82,68 @@ export function Consistency({ progress }: { progress: Progress }) {
 
       <div className={styles.heatHead}>
         <h3 className={styles.heatTitle}>Карточки по дням</h3>
-        <p className={styles.scale} aria-hidden="true">
-          <span>меньше</span>
-          {([0, 1, 2, 3, 4] as const).map((shade) => (
-            <i key={shade} className={styles.cell} data-shade={shade} />
-          ))}
-          <span>больше</span>
-        </p>
+        <div className={styles.yearSwitch}>
+          <button
+            type="button"
+            aria-label="Предыдущий год"
+            disabled={year <= years[0]}
+            onClick={() => (setYear(year - 1), setPicked(null))}
+          >
+            <BackIcon aria-hidden="true" />
+          </button>
+          <span aria-live="polite">{year}</span>
+          <button
+            type="button"
+            aria-label="Следующий год"
+            disabled={year >= years[years.length - 1]}
+            onClick={() => (setYear(year + 1), setPicked(null))}
+          >
+            <ForwardIcon aria-hidden="true" />
+          </button>
+        </div>
       </div>
-      {/* Hover or tap a day to read it under the grid; the grid itself is one image for screen
-          readers, summarised in its label and in the line below. */}
+      {/* Twelve month calendars, weeks from Monday. Hover or tap a day to read it under the grid;
+          for screen readers the year is one image, summed up in its label and the line below. */}
       <div
-        className={styles.calendar}
+        className={styles.year}
         role="img"
-        aria-label={`${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями за ${calendar.weeks.length} недель, из них ${calendar.goalDays} с выполненным планом`}
-        style={{ gridTemplateColumns: `auto repeat(${calendar.weeks.length}, minmax(0, 1fr))` }}
+        aria-label={`${year}: ${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями, из них ${calendar.goalDays} с выполненным планом`}
         onPointerOver={(event) => pick(event.target)}
         onPointerLeave={(event) => event.pointerType === 'mouse' && setPicked(null)}
         onClick={(event) => pick(event.target)}
       >
         {calendar.months.map((month) => (
-          <span
-            key={month.week}
-            className={styles.month}
-            style={{ gridColumn: `${month.week + 2} / span ${month.span}` }}
-          >
-            {month.label}
-          </span>
+          <div key={month.label} className={styles.month}>
+            <span className={styles.monthName}>{month.label}</span>
+            <div className={styles.monthDays}>
+              {month.days.map((cell, index) => (
+                <i
+                  key={cell.date}
+                  className={styles.cell}
+                  data-shade={cell.shade}
+                  data-date={cell.future ? undefined : cell.date}
+                  data-future={cell.future || undefined}
+                  data-today={cell.date === today || undefined}
+                  data-picked={cell.date === picked || undefined}
+                  title={cell.future ? undefined : dayLine(cell)}
+                  style={index === 0 ? { gridColumnStart: month.offset + 1 } : undefined}
+                />
+              ))}
+            </div>
+          </div>
         ))}
-        {WEEKDAYS.map((name, row) => (
-          <span key={name} className={styles.rowName} style={{ gridRow: row + 2 }}>
-            {LABELLED_ROWS.has(row) ? name : ''}
-          </span>
-        ))}
-        {calendar.weeks.map((cells, column) =>
-          cells.map((cell, row) => (
-            <i
-              key={cell.date}
-              className={styles.cell}
-              data-shade={cell.shade}
-              data-date={cell.future ? undefined : cell.date}
-              data-future={cell.future || undefined}
-              data-today={cell.date === today || undefined}
-              data-picked={cell.date === picked || undefined}
-              title={cell.future ? undefined : dayLine(cell)}
-              style={{ gridColumn: column + 2, gridRow: row + 2 }}
-            />
-          )),
-        )}
       </div>
+      <p className={styles.scale} aria-hidden="true">
+        <span>меньше</span>
+        {([0, 1, 2, 3, 4] as const).map((shade) => (
+          <i key={shade} className={styles.cell} data-shade={shade} />
+        ))}
+        <span>больше</span>
+      </p>
       <p className={styles.heatCaption} aria-live="polite">
         {pickedCell
           ? dayLine(pickedCell)
-          : `${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями · ${number.format(calendar.cards)} ${cardsWord(calendar.cards)}`}
+          : `${year}: ${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями · ${number.format(calendar.cards)} ${cardsWord(calendar.cards)}`}
       </p>
       <p className={styles.footnote}>
         {target > 0

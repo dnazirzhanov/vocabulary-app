@@ -66,20 +66,25 @@ export interface CalendarCell extends Cell {
   shade: Shade;
 }
 
-export interface Calendar {
-  /** Oldest week first; each week is Monday to Sunday and the last one holds today. */
-  weeks: CalendarCell[][];
-  /** A month named over the first week that starts in it, spanning the weeks until the next one. */
-  months: { week: number; span: number; label: string }[];
-  /** Days with any learning, days with the plan done, and cards answered, over the calendar. */
+export interface MonthGrid {
+  /** «январь» … «декабрь». */
+  label: string;
+  /** Blank places before the 1st, so the 1st falls under its weekday (weeks start on Monday). */
+  offset: number;
+  days: CalendarCell[];
+}
+
+export interface YearCalendar {
+  year: number;
+  /** January to December. */
+  months: MonthGrid[];
+  /** Days with any learning, days with the plan done, and cards answered, over the year. */
   activeDays: number;
   goalDays: number;
   cards: number;
 }
 
-const monthName = new Intl.DateTimeFormat('ru', { month: 'short', timeZone: 'UTC' });
-/** A label needs two weeks of room, so short names never run into the next one or off the edge. */
-const MIN_LABEL_WEEKS = 2;
+const monthName = new Intl.DateTimeFormat('ru', { month: 'long', timeZone: 'UTC' });
 
 /**
  * Shades relative to the learner's own busy days (the 90th percentile, so one marathon day does
@@ -98,26 +103,27 @@ function busyDay(cells: Cell[]): number {
   return counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.9))] : 1;
 }
 
-export function buildCalendar(activity: PlanDay[], today: string, weekCount: number): Calendar {
-  const first = addDays(mondayOf(today), -7 * (weekCount - 1));
-  const plain = cellsFrom(first, 7 * weekCount, activity, today);
+/** The years a learner can look at: from their first active day to this year. */
+export function yearsOf(activity: PlanDay[], today: string): number[] {
+  const last = Number(today.slice(0, 4));
+  const first = Math.min(last, ...activity.map((day) => Number(day.date.slice(0, 4))));
+  return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+/** A whole calendar year, January to December, as twelve month grids; days after today are empty. */
+export function buildYear(activity: PlanDay[], today: string, year: number): YearCalendar {
+  const first = `${year}-01-01`;
+  const length = Math.round((toTime(`${year + 1}-01-01`) - toTime(first)) / DAY_MS);
+  const plain = cellsFrom(first, length, activity, today);
   const busy = busyDay(plain);
   const cells = plain.map((cell) => ({ ...cell, shade: shadeOf(cell.cards, busy) }));
-  const weeks = Array.from({ length: weekCount }, (_, week) => cells.slice(week * 7, week * 7 + 7));
-
-  // A week belongs to the month of its Monday; a month is named where its weeks begin.
-  const starts: { week: number; label: string }[] = [];
-  weeks.forEach((week, index) => {
-    const month = week[0].date.slice(0, 7);
-    if (index > 0 && weeks[index - 1][0].date.slice(0, 7) === month) return;
-    starts.push({ week: index, label: monthName.format(toTime(week[0].date)).replace('.', '') });
+  const months = Array.from({ length: 12 }, (_, month) => {
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const days = cells.filter((cell) => cell.date.startsWith(prefix));
+    return { label: monthName.format(toTime(days[0].date)), offset: weekdayIndex(days[0].date), days };
   });
-  const months = starts
-    .map((start, index) => ({ ...start, span: (starts[index + 1]?.week ?? weekCount) - start.week }))
-    .filter((month) => month.span >= MIN_LABEL_WEEKS);
-
   return {
-    weeks,
+    year,
     months,
     activeDays: cells.filter((cell) => cell.level > 0).length,
     goalDays: cells.filter((cell) => cell.level === 2).length,
