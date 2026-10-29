@@ -8,7 +8,7 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.schemas.me import DismissIn, MeOut, MeUpdate, PaceOut
 from app.schemas.profile import ProfileOut
-from app.services import pace, profile, sessions
+from app.services import decks, pace, profile
 from app.services.me import me_out, remember_time_zone, update_me
 
 router = APIRouter(tags=["me"])
@@ -37,7 +37,7 @@ def get_pace(
     now: Now,
     time_zone: TimeZone,
 ) -> PaceOut:
-    sessions.require_published_deck(db, deck_id)
+    decks.visible_deck(db, user, deck_id)
     remember_time_zone(db, user, time_zone)  # home loads this on every visit
     return pace.pace_view(db, user, deck_id, now, time_zone)
 

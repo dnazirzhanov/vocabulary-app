@@ -1,0 +1,165 @@
+/* The board's section of decks given to the group: a list, not cards; counts in text first. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.title {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+/* A visible secondary action: bordered, never orange (the screen's one primary keeps that). */
+.outlineButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge-hover);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out);
+}
+
+.outlineButton:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.04);
+}
+
+.outlineButton:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.outlineButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.problem {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.item:last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.itemButton,
+.itemStatic {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.itemButton {
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.itemButton:hover {
+  background: rgb(38 38 38 / 0.04);
+}
+
+.itemTitle {
+  font-weight: var(--weight-display);
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.mine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mine strong {
+  font-weight: var(--weight-display);
+}
+
+.track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-track);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.learners {
+  display: grid;
+  /* One learner per line on a phone, so a count never reads as the next name's. */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-meta);
+}
+
+.learners li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.count[data-done] {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}

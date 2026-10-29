@@ -20,3 +20,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0014](0014-course-levels-and-anki-deck-list.md) | Level decks, later ones locked; Anki-style counts and a «Today» home | Accepted |
 | [0015](0015-plan-days.md) | Plan days: consistency against the learner's own promise | Accepted |
 | [0016](0016-spelling-with-letter-tiles.md) | Spelling with letter tiles: one card per new word, part of the day's plan | Accepted |
+| [0017](0017-teacher-decks-and-assignments.md) | Teachers' decks given to a group, met first within the learner's own pace | Accepted |

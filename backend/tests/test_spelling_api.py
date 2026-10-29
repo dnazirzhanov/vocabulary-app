@@ -44,7 +44,7 @@ def test_the_lesson_is_cards_only_and_spelling_is_a_session_of_its_own(
     assert [e["type"] for e in session["exercises"]] == ["spelling"] * 5
     first = session["exercises"][0]
     # The meaning only: no headword, word id, example or audio.
-    assert set(first) == {"id", "type", "prompt", "slots", "tiles", "hint"}
+    assert set(first) == {"id", "type", "prompt", "slots", "separators", "tiles", "hint"}
     assert first["hint"] is None
     assert (first["prompt"]["translation"], first["slots"]) == ("дом", 5)
     assert "house" not in str(first)

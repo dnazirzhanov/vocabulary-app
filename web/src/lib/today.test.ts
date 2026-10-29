@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { courseCounts, currentDeck, newInSession, nextDueAt, studyLabel } from './today.ts';
+import { courseCounts, currentDeck, lessonDecks, newInSession, nextDueAt, studyLabel } from './today.ts';
 import type { Deck, Pace } from './types.ts';
 
 const deck = (id: string, fields: Partial<Deck> = {}): Deck => ({
   id,
+  kind: 'course',
+  group_name: null,
   title: id,
   description: '',
   level: null,
@@ -52,6 +54,18 @@ test('the current level is the last one open', () => {
   assert.equal(currentDeck([]), undefined);
 });
 
+test("a teacher's deck is never the current level, but its words come first", () => {
+  const given = deck('g', { kind: 'group', group_name: '7Б', word_count: 3 });
+  const decks = [given, deck('a'), deck('b', { locked: true })];
+  assert.equal(currentDeck(decks)?.id, 'a');
+  assert.deepEqual(
+    lessonDecks(decks).map((d) => d.id),
+    ['g', 'a'],
+  );
+  // Three of the teacher's words and the level's together fill a lesson of five.
+  assert.equal(newInSession([given, deck('a', { introduced_count: 98 })], pace()), 5);
+});
+
 test('the next review is the earliest of every deck', () => {
   const decks = [
     deck('a', { next_due_at: '2026-11-03T09:00:00Z' }),
@@ -63,11 +77,11 @@ test('the next review is the earliest of every deck', () => {
 });
 
 test('a session brings new words while some are left and reviews are under control', () => {
-  assert.equal(newInSession(deck('a'), pace()), 5);
-  assert.equal(newInSession(deck('a', { introduced_count: 98 }), pace()), 2);
-  assert.equal(newInSession(deck('a', { introduced_count: 100 }), pace()), 0);
+  assert.equal(newInSession([deck('a')], pace()), 5);
+  assert.equal(newInSession([deck('a', { introduced_count: 98 })], pace()), 2);
+  assert.equal(newInSession([deck('a', { introduced_count: 100 })], pace()), 0);
   // The brake counts reviews of every level, so it holds even for a deck with nothing due.
-  assert.equal(newInSession(deck('a'), pace({ blocked_by_reviews: true })), 0);
+  assert.equal(newInSession([deck('a')], pace({ blocked_by_reviews: true })), 0);
 });
 
 test('the study button says what the session holds', () => {

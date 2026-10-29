@@ -46,6 +46,7 @@ export function DeckList({
                 <strong>{deck.title}</strong>
                 <span className={styles.deckMeta}>
                   {deck.level && `${deck.level} · `}
+                  {deck.group_name && `от группы «${deck.group_name}» · `}
                   {deck.locked && index > 0
                     ? `после уровня «${decks[index - 1].title}»`
                     : `${deck.introduced_count} из ${deck.word_count}`}

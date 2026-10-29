@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.services.content import parse_deck
 from app.services.learning import PlannedExercise, plan_spelling
-from app.services.spelling import is_correct, tiles
+from app.services.spelling import is_correct, letters, separators, tiles
 
 CONTENT = Path(__file__).resolve().parents[2] / "content"
 LEVELS = ("a1-a2", "b1-b2", "c1")
@@ -42,6 +42,18 @@ def test_answers_forgive_case_and_spaces_never_a_misspelling() -> None:
     assert is_correct(" Apple ", "apple")
     assert not is_correct("aple", "apple")
     assert not is_correct("", "apple")
+
+
+def test_a_phrase_is_built_from_letters_with_fixed_gaps() -> None:
+    assert letters("carry out") == "carryout"
+    assert separators("carry out") == [(5, " ")]
+    assert separators("well-known") == [(4, "-")]
+    assert separators("o'clock") == [(1, "'")]
+    assert separators("house") == []
+    bank = tiles("carry out", random.Random(2))
+    assert " " not in bank and Counter(bank)["r"] >= 2
+    assert is_correct("Carry out", "carry out")
+    assert not is_correct("carryout", "carry out")
 
 
 def bank(word_id: str, step_id: str) -> list[str]:

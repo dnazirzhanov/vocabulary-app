@@ -8,6 +8,9 @@ The tile bank holds one tile for every letter of the word (apple has two p tiles
 letters that are not in it, arranged alphabetically so a letter is easy to find. The word may
 not stand in the bank letter by letter; if alphabetical order happens to spell it, the bank is
 shuffled instead.
+
+A phrase (carry out, well-known) is built the same way: its spaces, hyphens and apostrophes are
+fixed gaps between the slots, never tiles, and a hint names a slot among the letters only.
 """
 
 import random
@@ -29,9 +32,26 @@ def is_correct(answer: str, target: str) -> bool:
     return normalize(answer) == normalize(target) != ""
 
 
+def letters(target: str) -> str:
+    """The letters to build, without a phrase's separators."""
+    return "".join(letter for letter in normalize(target) if letter in LETTERS)
+
+
+def separators(target: str) -> list[tuple[int, str]]:
+    """A phrase's fixed gaps: (letters before it, the character)."""
+    gaps: list[tuple[int, str]] = []
+    count = 0
+    for char in normalize(target):
+        if char in LETTERS:
+            count += 1
+        else:
+            gaps.append((count, char))
+    return gaps
+
+
 def tiles(target: str, rng: random.Random) -> list[str]:
     """The letter bank for `target`, in display order."""
-    word = [letter for letter in normalize(target) if letter in LETTERS]
+    word = list(letters(target))
     absent = [letter for letter in LETTERS if letter not in word]
     count = max(MIN_TILES, len(word) + MIN_DISTRACTORS)
     bank = sorted(word + rng.sample(absent, count - len(word)))

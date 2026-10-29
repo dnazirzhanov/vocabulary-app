@@ -1,4 +1,17 @@
-from sqlalchemy import ARRAY, ForeignKey, String, Text, UniqueConstraint, text
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    ARRAY,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -6,6 +19,7 @@ from app.models.base import Base
 
 class Deck(Base):
     __tablename__ = "decks"
+    __table_args__ = (CheckConstraint("kind IN ('course', 'group')", name="kind_values"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
@@ -20,6 +34,14 @@ class Deck(Base):
     # The course goal promised to learners (deck.yaml `course_goal`), only when it has a source.
     goal_words: Mapped[int | None]
     goal_coverage_percent: Mapped[int | None]
+    # 'course': the levels, loaded from content/. 'group': a teacher's deck, given to a group's
+    # members through an assignment (ADR 0017); never part of the course or its goal.
+    kind: Mapped[str] = mapped_column(String(8), server_default=text("'course'"))
+    # A group deck's author, the only one who may edit it; kept when the author's account goes.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Word(Base):
@@ -34,6 +56,10 @@ class Word(Base):
     example: Mapped[str] = mapped_column(Text)
     example_ru: Mapped[str] = mapped_column(Text)
     illustration: Mapped[str | None] = mapped_column(String(32))
+    # A teacher's own word belongs to the deck it was written for (ADR 0017); course words: null.
+    owner_deck_id: Mapped[str | None] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), index=True
+    )
 
 
 class DeckWord(Base):
@@ -45,6 +71,24 @@ class DeckWord(Base):
     )
     word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
     position: Mapped[int]
+
+
+class DeckAssignment(Base):
+    """A group deck given to a group: its members meet the words in their daily lesson, before
+    the course's (ADR 0017). Taking it back keeps the row, so a deck is never given twice."""
+
+    __tablename__ = "deck_assignments"
+    __table_args__ = (UniqueConstraint("group_id", "deck_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
+    deck_id: Mapped[str] = mapped_column(ForeignKey("decks.id", ondelete="CASCADE"), index=True)
+    # Who gave it: they set the words, so they do not get them in their own lesson.
+    assigned_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class GlossaryForm(Base):

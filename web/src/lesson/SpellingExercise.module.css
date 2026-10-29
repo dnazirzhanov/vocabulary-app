@@ -51,11 +51,21 @@
 
 /* --- answer slots ------------------------------------------------------------------------- */
 
+/* The words of a phrase side by side with a word's space between them; a word wraps inside
+   itself only when it alone is wider than the screen. */
 .slots {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.slotWord {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-1);
+  max-width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -88,6 +98,17 @@
   border-bottom-color: var(--color-option-edge-hover);
   background: transparent;
   cursor: default;
+}
+
+/* A hyphen or apostrophe inside a word, built in. */
+.mark {
+  display: grid;
+  place-items: end center;
+  width: var(--space-3);
+  height: clamp(44px, 12vw, 54px);
+  padding-bottom: var(--space-2);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
 }
 
 /* --- the tile bank ------------------------------------------------------------------------- */

@@ -29,14 +29,20 @@ from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_d
 
 
 def word_stages(db: Session, user: User, now: datetime) -> WordStages:
-    """Words of every published level (a retired deck may still list words that moved on)."""
-    mine = (
-        select(UserWordProgress)
-        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+    """Words of every published level of the course (a retired deck may still list words that
+    moved on). Teachers' own words are not course words: they never count toward its sourced goal
+    (ADR 0017)."""
+    in_course = (
+        select(DeckWord.word_id)
         .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(Deck.status == "published", UserWordProgress.user_id == user.id)
-        .subquery()
+        .where(
+            DeckWord.word_id == UserWordProgress.word_id,
+            Deck.kind == "course",
+            Deck.status == "published",
+        )
+        .exists()
     )
+    mine = select(UserWordProgress).where(UserWordProgress.user_id == user.id, in_course).subquery()
     introduced, well_learned, due = db.execute(
         select(
             func.count(),

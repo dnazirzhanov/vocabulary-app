@@ -14,7 +14,7 @@ from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -43,6 +43,7 @@ from app.schemas.learning import (
     IntervalPreview,
     RatingCounts,
     RatingResponse,
+    SeparatorOut,
     SessionOut,
     SpellingExercise,
     SpellingPrompt,
@@ -56,7 +57,7 @@ from app.schemas.learning import (
     SummaryWord,
     WordOut,
 )
-from app.services import groups, pace, spelling
+from app.services import decks, groups, pace, spelling
 from app.services.learning import (
     HARD_CARDS_PER_SESSION,
     REQUEUE_WITHIN_SECONDS,
@@ -184,7 +185,11 @@ def _exercise_out(
         return SpellingExercise(
             id=step.id,
             prompt=SpellingPrompt(translation=word.translation, pos=word.pos),
-            slots=len(word.headword),
+            slots=len(spelling.letters(word.headword)),
+            separators=[
+                SeparatorOut(after=after, char=char)
+                for after, char in spelling.separators(word.headword)
+            ],
             tiles=list(step.tiles),
             hint=_hint_out(step, word),
         )
@@ -194,7 +199,7 @@ def _exercise_out(
 def _hint_out(step: PlannedExercise, word: Word) -> HintOut | None:
     if step.hint is None:
         return None
-    return HintOut(position=step.hint, letter=word.headword[step.hint])
+    return HintOut(position=step.hint, letter=spelling.letters(word.headword)[step.hint])
 
 
 def _result_out(
@@ -239,8 +244,8 @@ def present_session(db: Session, user: User, session: LearningSession, now: date
     )
 
 
-def _course_rows(db: Session, user: User, now: datetime) -> list[Any]:
-    """Published decks in level order, with the learner's counts on each."""
+def _counted_decks(user: User, now: datetime) -> Select[Any]:
+    """Decks with the learner's counts on each: words, met, due, in learning steps, next due."""
     word_count = (
         select(func.count()).where(DeckWord.deck_id == Deck.id).correlate(Deck).scalar_subquery()
     )
@@ -261,13 +266,32 @@ def _course_rows(db: Session, user: User, now: datetime) -> list[Any]:
         .scalar_subquery()
     )
     next_due = select(func.min(mine.c.due_at)).where(mine.c.due_at > now).scalar_subquery()
+    return select(Deck, word_count, introduced, due, learning, next_due)
+
+
+def _course_rows(db: Session, user: User, now: datetime) -> list[Any]:
+    """The course's published levels in order, with the learner's counts on each."""
     return list(
         db.execute(
-            select(Deck, word_count, introduced, due, learning, next_due)
-            .where(Deck.status == "published")
+            _counted_decks(user, now)
+            .where(Deck.kind == "course", Deck.status == "published")
             .order_by(Deck.level_order, Deck.id)
         )
     )
+
+
+def _assigned_rows(db: Session, user: User, now: datetime) -> list[tuple[Any, str]]:
+    """Decks given to my groups (ADR 0017), oldest first: counted rows and the group's name."""
+    given = decks.assigned_decks(db, user)
+    if not given:
+        return []
+    rows = {
+        row[0].id: row
+        for row in db.execute(
+            _counted_decks(user, now).where(Deck.id.in_([deck.id for deck, _ in given]))
+        )
+    }
+    return [(rows[deck.id], group_name) for deck, group_name in given]
 
 
 def _current_index(rows: list[Any]) -> int:
@@ -279,36 +303,52 @@ def _current_index(rows: list[Any]) -> int:
     return max(0, len(rows) - 1)
 
 
+def _deck_out(row: Any, *, locked: bool, new_today: int, group_name: str | None = None) -> DeckOut:
+    deck, words, met, due_now, learning, upcoming = row
+    return DeckOut(
+        id=deck.id,
+        kind=deck.kind,
+        group_name=group_name,
+        title=deck.title,
+        description=deck.description,
+        level=deck.level,
+        level_order=deck.level_order,
+        locked=locked,
+        course_goal=CourseGoalOut(
+            target_words=deck.goal_words, coverage_percent=deck.goal_coverage_percent
+        )
+        if deck.goal_words and deck.goal_coverage_percent
+        else None,
+        word_count=words,
+        introduced_count=met,
+        due_count=due_now,
+        learning_count=learning,
+        review_count=due_now - learning,
+        new_today=new_today,
+        next_due_at=upcoming,
+    )
+
+
 def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> list[DeckOut]:
+    """Decks given to my groups first, then the course's levels. Today's new words go to the
+    given decks first, then to the current level, as the daily lesson takes them (ADR 0017)."""
     rows = _course_rows(db, user, now)
     if not rows:
         return []
     current = _current_index(rows)
     today = pace.day_plan(db, user, rows[current][0].id, now, time_zone)
     allowance = 0 if today.blocked_by_reviews else today.remaining
-    return [
-        DeckOut(
-            id=deck.id,
-            title=deck.title,
-            description=deck.description,
-            level=deck.level,
-            level_order=deck.level_order,
-            locked=index > current,
-            course_goal=CourseGoalOut(
-                target_words=deck.goal_words, coverage_percent=deck.goal_coverage_percent
-            )
-            if deck.goal_words and deck.goal_coverage_percent
-            else None,
-            word_count=words,
-            introduced_count=met,
-            due_count=due_now,
-            learning_count=learning,
-            review_count=due_now - learning,
-            new_today=min(allowance, words - met) if index == current else 0,
-            next_due_at=upcoming,
-        )
-        for index, (deck, words, met, due_now, learning, upcoming) in enumerate(rows)
-    ]
+    out: list[DeckOut] = []
+    for row, group_name in _assigned_rows(db, user, now):
+        _, words, met, *_ = row
+        new = min(allowance, words - met)
+        allowance -= new
+        out.append(_deck_out(row, locked=False, new_today=new, group_name=group_name))
+    for index, row in enumerate(rows):
+        _, words, met, *_ = row
+        new = min(allowance, words - met) if index == current else 0
+        out.append(_deck_out(row, locked=index > current, new_today=new))
+    return out
 
 
 def active_session(db: Session, user: User, now: datetime) -> ActiveSessionOut:
@@ -323,20 +363,13 @@ def get_session(db: Session, user: User, session_id: UUID, now: datetime) -> Ses
 # --- starting --------------------------------------------------------------------------------
 
 
-def require_published_deck(db: Session, deck_id: str) -> Deck:
-    deck = db.get(Deck, deck_id)
-    if deck is None or deck.status != "published":
-        raise ApiError(404, "deck_not_found", "Deck not found")
-    return deck
-
-
 def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
 ) -> tuple[str, list[PlannedExercise], int]:
     """One deck: its due cards, most overdue first, then its new words as today's pace allows
-    (ADR 0010). No deck («Продолжить»): due cards of every level, then the current level's new
-    words, so earlier levels keep coming back (ADR 0014). Also returns the day's plan to record
-    (pace.recorded_target)."""
+    (ADR 0010). No deck («Продолжить»): due cards of every level, then new words: those of decks
+    given to my groups first (ADR 0017), then the current level's, so earlier levels keep coming
+    back (ADR 0014). Also returns the day's plan to record (pace.recorded_target)."""
     rows = _course_rows(db, user, now)
     current = _current_index(rows)
     if request.deck_id is None:
@@ -344,7 +377,7 @@ def _study_plan(
             raise ApiError(404, "deck_not_found", "No decks are published")
         deck = rows[current][0]
     else:
-        deck = require_published_deck(db, request.deck_id)
+        deck = decks.visible_deck(db, user, request.deck_id)
         position = next((i for i, row in enumerate(rows) if row[0].id == deck.id), current)
         if position > current:
             raise ApiError(409, "deck_locked", "Finish the previous level first")
@@ -369,6 +402,9 @@ def _study_plan(
             db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
         )
         order = [word.id for word in _deck_words(db, deck.id)]
+        if request.deck_id is None:
+            # A course word a teacher linked comes with the teacher's deck, and only once.
+            order = list(dict.fromkeys(decks.assigned_words(db, user) + order))
         new = pick_new_words(order, introduced, today.next_lesson_size)
     if not due and not new:
         if today.blocked_by_reviews:
@@ -419,7 +455,7 @@ def _tile_maker(db: Session, user: User, now: datetime) -> "TileMaker":
 
 def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[PlannedExercise]:
     """The learner's own hardest words of this deck: highest FSRS difficulty, then most lapses."""
-    deck = require_published_deck(db, request.deck_id)
+    deck = decks.visible_deck(db, user, request.deck_id)
     hardest = list(
         db.scalars(
             select(UserWordProgress.word_id)
@@ -673,14 +709,14 @@ def give_hint(db: Session, user: User, session_id: UUID, exercise_id: str, hint:
     step = next((planned for planned in plan if planned.id == exercise_id), None)
     if step is None or not step.spelling:
         raise ApiError(404, "exercise_not_found", "No spelling card with this id in this session")
-    word = db.get_one(Word, step.word_id)
+    letters = spelling.letters(db.get_one(Word, step.word_id).headword)
     if step.hint is not None:
         if step.hint != hint.position:
             raise ApiError(409, "hint_used", "This card's hint has already been used")
-        return HintOut(position=step.hint, letter=word.headword[step.hint])
+        return HintOut(position=step.hint, letter=letters[step.hint])
     if session.completed_at is not None or step.id in _attempts(db, session.id):
         raise ApiError(409, "already_answered", "This card is already answered")
-    if hint.position >= len(word.headword):
+    if hint.position >= len(letters):
         raise ApiError(422, "no_such_letter", "The word has no letter there")
     session.plan = [
         replace(planned, hint=hint.position).to_json()
@@ -689,7 +725,7 @@ def give_hint(db: Session, user: User, session_id: UUID, exercise_id: str, hint:
         for planned in plan
     ]
     db.commit()
-    return HintOut(position=hint.position, letter=word.headword[hint.position])
+    return HintOut(position=hint.position, letter=letters[hint.position])
 
 
 # --- completing ------------------------------------------------------------------------------

@@ -30,7 +30,7 @@ test('spelling follows the lesson: a card per new word, built from its meaning',
   await expect(page.getByRole('button', { name: 'Буква 1: o, убрать' })).toBeVisible(); // shifted left
   await expect(tile(page, 'h')).toBeEnabled();
   await button(page, 'Очистить').click();
-  await expect(page.getByRole('list', { name: 'Ответ: 0 из 5 букв' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Ответ: 0 из 5 букв' })).toBeVisible();
 
   for (const letter of 'house') await tile(page, letter).click();
   await check.click();
@@ -74,7 +74,7 @@ test('the day waits for spelling; it can be repeated and a half-built word survi
   await tile(page, 'o').click();
   await page.reload();
   await button(page, 'Продолжить урок').click();
-  await expect(page.getByRole('list', { name: 'Ответ: 2 из 5 букв' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Ответ: 2 из 5 букв' })).toBeVisible();
   await button(page, 'Очистить').click();
   await finishSession(page);
   await button(page, 'На главную').click();
@@ -96,7 +96,7 @@ test('one hint per card fills the next letter, and only that one', async ({ page
   await hint.click();
   // The third slot gets its letter; the word's other letters stay hidden.
   await expect(page.getByRole('button', { name: 'Буква 3: u (подсказка), убрать' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Ответ: 3 из 5 букв' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Ответ: 3 из 5 букв' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
   await expect(page.locator('main')).not.toContainText('house');
 

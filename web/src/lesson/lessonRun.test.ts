@@ -15,6 +15,7 @@ const spelling = (id: string): SpellingExercise => ({
   type: 'spelling',
   prompt: { translation: 'дом', pos: 'noun' },
   slots: 5,
+  separators: [],
   tiles: [],
   hint: null,
 });

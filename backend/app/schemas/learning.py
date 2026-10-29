@@ -33,6 +33,11 @@ class CourseGoalOut(BaseModel):
 
 class DeckOut(BaseModel):
     id: str
+    # 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed
+    # first: its words come before the course's in the daily lesson.
+    kind: Literal["course", "group"]
+    # A group deck's group, so the learner knows where it came from.
+    group_name: str | None = None
     title: str
     description: str
     # The course level ("A1–A2") and its order; a later level is locked until the one before is
@@ -84,6 +89,8 @@ class SpellingExercise(BaseModel):
     prompt: SpellingPrompt
     # Letters in the word: the empty slots.
     slots: int
+    # A phrase's spaces, hyphens and apostrophes: fixed gaps between slots, never tiles.
+    separators: list["SeparatorOut"] = Field(default_factory=list)
     # Letter tiles in display order; the client gives each its own identity by position.
     tiles: list[str]
     # The one hint of this card, once given: a slot and its letter.
@@ -97,8 +104,15 @@ class HintIn(_Input):
 
 
 class HintOut(BaseModel):
+    # The slot: the letter's place among the word's letters (separators not counted).
     position: int
     letter: str
+
+
+class SeparatorOut(BaseModel):
+    # How many letters come before it.
+    after: int
+    char: str
 
 
 ExerciseOut = Annotated[CardExercise | SpellingExercise, Field(discriminator="type")]

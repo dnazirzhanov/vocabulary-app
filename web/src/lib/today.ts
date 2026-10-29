@@ -30,7 +30,14 @@ export function courseCounts(decks: Deck[]): Counts {
 
 /** The level the learner is on: the last one open (later levels wait until it is met). */
 export function currentDeck(decks: Deck[]): Deck | undefined {
-  return decks.filter((deck) => !deck.locked).at(-1);
+  return decks.filter((deck) => deck.kind === 'course' && !deck.locked).at(-1);
+}
+
+/** Where the next lesson's new words come from: decks given to my groups, then the current level
+ * (ADR 0017). */
+export function lessonDecks(decks: Deck[]): Deck[] {
+  const current = currentDeck(decks);
+  return [...decks.filter((deck) => deck.kind === 'group'), ...(current ? [current] : [])];
 }
 
 /** The earliest upcoming review of these decks, when nothing is due. */
@@ -40,11 +47,12 @@ export function nextDueAt(decks: Deck[]): string | null {
 }
 
 /**
- * New words the next study session brings from `deck`: none once it is fully met or while too many
- * reviews are due anywhere in the course; after today's target, a bonus lesson (ADR 0010).
+ * New words the next study session brings from these decks (lessonDecks): none once they are fully
+ * met or while too many reviews are due anywhere in the course; after today's target, a bonus
+ * lesson (ADR 0010).
  */
-export function newInSession(deck: Deck, pace: Pace | null): number {
-  const left = deck.word_count - deck.introduced_count;
+export function newInSession(decks: Deck[], pace: Pace | null): number {
+  const left = decks.reduce((sum, deck) => sum + deck.word_count - deck.introduced_count, 0);
   if (left <= 0 || pace?.blocked_by_reviews) return 0;
   return Math.min(pace?.next_lesson_size ?? 5, left);
 }

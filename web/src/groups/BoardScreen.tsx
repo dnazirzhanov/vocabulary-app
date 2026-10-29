@@ -8,6 +8,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, FlameIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { GroupDecks } from '../decks/GroupDecks.tsx';
 import { InviteDialog } from './InviteDialog.tsx';
 import styles from './Groups.module.css';
 
@@ -26,12 +27,21 @@ interface BoardScreenProps {
   inviteOnOpen?: boolean;
   /** A tap on a member opens their profile window (ADR 0015). */
   onOpenProfile: (memberId: string, nickname: string) => void;
+  /** The owner opens one of their decks for the group (ADR 0017). */
+  onOpenDeck: (deckId: string, groupName: string) => void;
   onBack: () => void;
   onLeft: () => void;
 }
 
 /** This week in the group: places by days practised, a shared goal, and a button to invite friends. */
-export function BoardScreen({ groupId, inviteOnOpen = false, onOpenProfile, onBack, onLeft }: BoardScreenProps) {
+export function BoardScreen({
+  groupId,
+  inviteOnOpen = false,
+  onOpenProfile,
+  onOpenDeck,
+  onBack,
+  onLeft,
+}: BoardScreenProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
@@ -189,6 +199,8 @@ export function BoardScreen({ groupId, inviteOnOpen = false, onOpenProfile, onBa
                 По плану к концу сегодняшнего дня — {plannedByToday}. Считаются слова по плану, без лишних.
               </p>
             </section>
+
+            <GroupDecks board={board} onOpenDeck={(deckId) => onOpenDeck(deckId, group.name)} />
 
             <h2 className={styles.sectionTitle}>Эта неделя</h2>
             <p className={styles.hint}>Место — по доле обещанных дней, в которые выполнен план.</p>
