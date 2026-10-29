@@ -1,21 +1,12 @@
 import type { ReactNode, Ref } from 'react';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
+import { canSpeak, speak } from '../lib/speech.ts';
 import type { AttemptResult, ChoiceExercise, Exercise, IntroduceExercise, TypeWordExercise } from '../lib/types.ts';
 import { SpeakerIcon } from '../ui/icons.tsx';
 import { AnswerOption, type AnswerOptionState } from './AnswerOption.tsx';
 import type { RunState } from './sessionRun.ts';
 import styles from './LessonScreen.module.css';
-
-const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
-function speak(word: string) {
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = 'en-US';
-  utterance.rate = 0.9;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
 
 function WordHeading({ headword, headingRef }: { headword: string; headingRef: Ref<HTMLHeadingElement> }) {
   return (

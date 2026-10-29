@@ -8,6 +8,7 @@ import { authMode, supabase } from './lib/auth.ts';
 import type { Deck, Me, Session, Summary } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
+import { WordsScreen } from './words/WordsScreen.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 
 type Screen =
@@ -15,7 +16,8 @@ type Screen =
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress'; deckId: string }
-  | { name: 'goal' };
+  | { name: 'goal' }
+  | { name: 'words' };
 
 type Account = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; email: string | null };
 
@@ -122,6 +124,9 @@ function Learning({ email }: { email: string | null }) {
       />
     );
   }
+  if (screen.name === 'words' && deck) {
+    return <WordsScreen deckId={deck.id} deckTitle={deck.title} onBack={goHome} />;
+  }
   if (screen.name === 'progress') {
     const client = supabase;
     return (
@@ -142,6 +147,7 @@ function Learning({ email }: { email: string | null }) {
       onSession={showSession}
       onProgress={(deckId) => setScreen({ name: 'progress', deckId })}
       onGoal={() => setScreen({ name: 'goal' })}
+      onWords={() => setScreen({ name: 'words' })}
     />
   );
 }

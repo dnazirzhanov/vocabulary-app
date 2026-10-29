@@ -13,12 +13,13 @@ from app.schemas.learning import (
     AttemptIn,
     AttemptResultOut,
     DeckOut,
+    DeckWordOut,
     ProgressOut,
     SessionOut,
     StartSessionIn,
     SummaryOut,
 )
-from app.services import progress, sessions
+from app.services import progress, sessions, words
 
 router = APIRouter(tags=["learning"])
 
@@ -77,3 +78,9 @@ def deck_progress(
 ) -> ProgressOut:
     sessions.require_published_deck(db, deck_id)
     return progress.deck_progress(db, user, deck_id, now, time_zone)
+
+
+@router.get("/decks/{deck_id}/words")
+def deck_words(deck_id: str, user: CurrentUser, db: DbSession) -> list[DeckWordOut]:
+    sessions.require_published_deck(db, deck_id)
+    return words.deck_words(db, user, deck_id)
