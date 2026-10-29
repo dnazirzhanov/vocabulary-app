@@ -21,6 +21,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "study_days_per_week": 6,
         "ramp_enabled": True,
         "onboarded": False,
+        "onboarded_at": None,
     }
     changed = client.patch(
         "/api/me", json={"daily_target_words": 3, "study_days_per_week": 5}, headers=at(DAY_1)
@@ -30,6 +31,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "study_days_per_week": 5,
         "ramp_enabled": True,
         "onboarded": True,
+        "onboarded_at": DAY_1.isoformat().replace("+00:00", "Z"),
     }
 
 

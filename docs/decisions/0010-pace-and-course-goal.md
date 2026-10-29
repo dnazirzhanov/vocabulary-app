@@ -38,6 +38,18 @@ certainty about the process (what, in which order, when you finish), never fluen
   - *raise* by ~30% when the target was met on 5 of the last 7 days with recall ≥ 85% (at least 10
     reviews) and no review debt.
 
+**Roadmap** (`web/src/lib/roadmap.ts`, pure and tested; redrawn live as the pace changes):
+- New words on study days only; rest days come from the weekend first; today always counts.
+- Two dates: the last new word of the deck, and "хорошо помните все" — a word counts as well
+  remembered after three on-time successful reviews (stage 4: 1, 3 and 7 days), each done on the
+  first study day it falls due. Words met before today are treated as met today (never optimistic).
+- Weekly rows (with the ramp's lower targets), month-end totals, and a projection of the whole
+  course at the same pace, labelled as such because the course is still being written.
+- The chart has one axis (words over calendar time), two validated series colours (`#fa5d19`,
+  `#2d6db5`: CVD ΔE 23.5), a legend plus direct labels, a crosshair tooltip on hover or arrow
+  keys, and the weekly table as its text alternative. The app has no dark theme yet, so neither
+  does the chart.
+
 ## Consequences
 - All thresholds are pilot hypotheses; they live as named constants in one module with tests.
 - Users who have not chosen a pace get 5 words a day without a ramp, which is what lessons were

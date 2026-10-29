@@ -32,6 +32,11 @@
   --color-error: #b42318;            /* 5.75:1 on tint */
   --color-error-tint: #fdecea;
 
+  /* Chart series (validated with the dataviz checks: CVD ΔE 23.5, both ≥ 3:1 on paper).
+     Identity never rests on colour alone: a legend and direct labels name each line. */
+  --color-series-met: #fa5d19;
+  --color-series-firm: #2d6db5;
+
   /* Illustration palette — keep every illustration inside it */
   --illo-line: #262626;
   --illo-accent: #fa5d19;
