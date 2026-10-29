@@ -1,16 +1,16 @@
-"""Friend groups and their weekly board (ADR 0011).
+"""Friend groups and their board (ADR 0011, 0023).
 
 Motivation comes largely from other people, so learners can study alongside friends or a class.
 Learners may be minors, so a group shows nicknames only, has no chat, and is joined by an invite
-code. The board ranks by the share of each member's own promise kept this week (ADR 0015), so
-keeping a pace beats volume: a learner on 3 words a day, 3 days a week, can top a board that
-also holds a 100-words-a-day learner.
+code. The board is the members' statistics over a week, a month or all time, ranked three ways:
+by steadiness (days studied, then days with the plan done, then weeks in a row) by default, or by
+words learned, or by cards answered (ADR 0023).
 """
 
 import re
 import secrets
-from datetime import datetime, timedelta
-from fractions import Fraction
+from collections.abc import Callable
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -19,12 +19,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import Group, GroupMember, User
-from app.schemas.groups import BoardOut, BoardRow, GroupGoal, GroupOut, GroupPreviewOut
+from app.models import Group, GroupMember, ReviewAttempt, User
+from app.schemas.groups import (
+    BoardOut,
+    BoardRow,
+    GroupOut,
+    GroupPreviewOut,
+    GroupSummaryOut,
+    Period,
+    RanksOut,
+    TodayMemberOut,
+    TotalsOut,
+)
 from app.services.decks import board_assignments
-from app.services.pace import target_of
 from app.services.plan_days import (
     HISTORY_DAYS,
+    PlanDay,
     days_by_user,
     promises_by_user,
     week_of,
@@ -32,13 +42,13 @@ from app.services.plan_days import (
     week_streak,
     zone_of,
 )
+from app.services.progress import local_day_bounds
 from app.services.scheduling import local_date
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
 CODE_LENGTH = 8
 MAX_GROUPS_PER_USER = 5
 MAX_MEMBERS = 50
-GOAL_FLOOR = 20
 
 _NICKNAME = re.compile(r"[A-Za-zА-Яа-яЁё0-9 -]{2,20}")
 _LINK_LIKE = re.compile(r"(https?|www)", re.IGNORECASE)
@@ -111,14 +121,32 @@ def membership(db: Session, user: User, group_id: UUID) -> tuple[Group, GroupMem
     return row[0], row[1]
 
 
-def my_groups(db: Session, user: User) -> list[GroupOut]:
+def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
+    """My groups, each with its pulse (ADR 0023): my place this week and who studied today."""
     rows = db.execute(
         select(Group, GroupMember)
         .join(GroupMember, GroupMember.group_id == Group.id)
         .where(GroupMember.user_id == user.id)
         .order_by(GroupMember.joined_at)
-    )
-    return [_group_out(db, group, member) for group, member in rows]
+    ).all()
+    summaries: list[GroupSummaryOut] = []
+    for group, member in rows:
+        week = board(db, user, group.id, now, "week")
+        me = next(row for row in week.rows if row.is_me)
+        summaries.append(
+            GroupSummaryOut(
+                **_group_out(db, group, member).model_dump(),
+                my_rank=me.ranks.steady,
+                ranked=sum(row.ranks.steady is not None for row in week.rows),
+                members=[
+                    TodayMemberOut(
+                        nickname=row.nickname, is_me=row.is_me, studied_today=row.studied_today
+                    )
+                    for row in week.rows
+                ],
+            )
+        )
+    return summaries
 
 
 def _group_by_code(db: Session, code: str) -> Group:
@@ -244,84 +272,161 @@ def leave_all(db: Session, user: User) -> None:
 # --- the board ------------------------------------------------------------------------------
 
 
-def rank(rows: list[BoardRow], active: set[UUID]) -> list[BoardRow]:
-    """The share of the promise kept this week (ADR 0015): 3 of 4 days is ahead of 1 of 6, and
-    days beyond the promise add nothing. Equal shares share a place (1, 2, 2, 4). Members with no
-    answers this week get no place and come last; within a place, by nickname."""
+Key = Callable[[BoardRow], tuple[int, ...]]
 
-    def kept(row: BoardRow) -> Fraction:
-        return Fraction(min(row.plan_days, row.promised_days), row.promised_days)
+# The three rankings (ADR 0023). Steadiness: days studied, then days with the plan done, then
+# weeks in a row with the promise kept.
+RANKINGS: dict[str, Key] = {
+    "steady": lambda row: (row.days, row.plan_days, row.streak_weeks),
+    "learned": lambda row: (row.learned,),
+    "cards": lambda row: (row.cards,),
+}
 
-    ordered = sorted(
-        (row for row in rows if row.member_id in active),
-        key=lambda row: (-kept(row), row.nickname.casefold()),
-    )
-    ranked: list[BoardRow] = []
+
+def places(rows: list[BoardRow], key: Key) -> dict[UUID, int | None]:
+    """Places by `key`, highest first; equal keys share a place (1, 2, 2, 4). A member with
+    nothing done in the period gets no place."""
+    ordered = sorted((row for row in rows if row.days > 0), key=key, reverse=True)
+    result: dict[UUID, int | None] = {row.member_id: None for row in rows}
+    previous: tuple[tuple[int, ...], int] | None = None
     for index, row in enumerate(ordered):
-        previous = ranked[-1] if ranked else None
-        same = previous is not None and kept(previous) == kept(row)
-        ranked.append(
-            row.model_copy(update={"rank": previous.rank if same and previous else index + 1})
+        value = key(row)
+        place = previous[1] if previous and previous[0] == value else index + 1
+        result[row.member_id] = place
+        previous = (value, place)
+    return result
+
+
+def rank(rows: list[BoardRow]) -> list[BoardRow]:
+    """Every row with its places by each ranking, ordered by steadiness; members without a place
+    come last, by nickname."""
+    by = {name: places(rows, key) for name, key in RANKINGS.items()}
+    ranked = [
+        row.model_copy(
+            update={"ranks": RanksOut(**{name: by[name][row.member_id] for name in RANKINGS})}
         )
-    resting = sorted(
-        (row for row in rows if row.member_id not in active),
-        key=lambda row: row.nickname.casefold(),
+        for row in rows
+    ]
+    return sorted(
+        ranked,
+        key=lambda row: (
+            row.ranks.steady is None,
+            row.ranks.steady or 0,
+            row.nickname.casefold(),
+        ),
     )
-    return ranked + [row.model_copy(update={"rank": None}) for row in resting]
 
 
-def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
+def period_bounds(period: Period, today: date) -> tuple[date | None, date]:
+    """[first, last] local days of the period; all time has no first day."""
+    if period == "week":
+        days = week_of(today)
+        return days[0], days[-1]
+    if period == "month":
+        first = today.replace(day=1)
+        following = (first + timedelta(days=32)).replace(day=1)
+        return first, following - timedelta(days=1)
+    return None, today
+
+
+def _learned(
+    db: Session, users: list[User], since: datetime | None, until: datetime
+) -> dict[UUID, int]:
+    """Words each learner first recalled in a later review (`was_review`, any answer but
+    «Снова»: the «Прогресс» definition, ADR 0022) within [since, until)."""
+    first = (
+        select(
+            ReviewAttempt.user_id,
+            ReviewAttempt.word_id,
+            func.min(ReviewAttempt.answered_at).label("at"),
+        )
+        .where(
+            ReviewAttempt.user_id.in_([user.id for user in users]),
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+        .group_by(ReviewAttempt.user_id, ReviewAttempt.word_id)
+        .subquery()
+    )
+    query = select(first.c.user_id, func.count()).where(first.c.at < until)
+    if since is not None:
+        query = query.where(first.c.at >= since)
+    counts: dict[UUID, int] = dict(db.execute(query.group_by(first.c.user_id)).tuples().all())
+    return {user.id: int(counts.get(user.id, 0)) for user in users}
+
+
+def board(
+    db: Session, user: User, group_id: UUID, now: datetime, period: Period = "week"
+) -> BoardOut:
     group, me = membership(db, user, group_id)
     members = db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)
         .where(GroupMember.group_id == group.id)
     ).all()
-    days = week_of(local_date(now, ZoneInfo(group.time_zone)))
+    zone = ZoneInfo(group.time_zone)
+    today = local_date(now, zone)
+    days = week_of(today)
+    first, last = period_bounds(period, today)
 
     # Everyone's days, each member's counted in their own time zone (ADR 0011, 0015).
     users = [member_user for _, member_user in members]
-    since = now - timedelta(days=HISTORY_DAYS + 1)
+    history = HISTORY_DAYS if period != "all" else 365 * 30
+    since = now - timedelta(days=history + 1)
     plan_days = days_by_user(db, users, since)
     promises = promises_by_user(db, users, since)
+    learned = _learned(
+        db,
+        users,
+        local_day_bounds(first, zone)[0] if first else None,
+        local_day_bounds(last, zone)[1],
+    )
+
+    def in_period(day: PlanDay) -> bool:
+        return (first is None or day.day >= first) and day.day <= last
 
     rows: list[BoardRow] = []
-    active: set[UUID] = set()
-    goal_done = goal_target = 0
     for member, member_user in members:
+        mine = plan_days[member_user.id]
         promised = promises[member_user.id].get(days[0], member_user.study_days_per_week)
-        week = week_plan(plan_days[member_user.id], days, promised)
-        if week.active:
-            active.add(member.id)
+        week = week_plan(mine, days, promised)
         member_today = local_date(now, zone_of(member_user))
+        counted = [day for day in mine.values() if in_period(day)]
         rows.append(
             BoardRow(
                 member_id=member.id,
                 nickname=member.nickname,
                 role=member.role,
                 is_me=member.id == me.id,
-                rank=None,
-                plan_days=week.plan_days,
+                days=len(counted),
+                plan_days=sum(day.plan_done for day in counted),
+                learned=learned[member_user.id],
+                cards=sum(day.answers for day in counted),
+                ranks=RanksOut(steady=None, learned=None, cards=None),
                 promised_days=promised,
                 week=week.done,
                 streak_weeks=week_streak(
-                    plan_days[member_user.id],
+                    mine,
                     promises[member_user.id],
                     member_user.study_days_per_week,
                     member_today,
                 ),
+                studied_today=member_today in mine,
             )
         )
-        # Each member moves the shared bar by their planned words, at most their week's plan.
-        week_target = target_of(member_user) * promised
-        goal_done += min(week.planned_new, week_target)
-        goal_target += week_target
 
     return BoardOut(
         group=_group_out(db, group, me),
         week_start=days[0],
         week_end=days[-1],
-        rows=rank(rows, active),
-        goal=GroupGoal(done=goal_done, target=max(GOAL_FLOOR, goal_target)),
+        period=period,
+        period_start=first,
+        period_end=last,
+        rows=rank(rows),
+        totals=TotalsOut(
+            days=sum(row.days for row in rows),
+            learned=sum(row.learned for row in rows),
+            cards=sum(row.cards for row in rows),
+        ),
         assignments=board_assignments(db, group.id, me, [member for member, _ in members]),
     )

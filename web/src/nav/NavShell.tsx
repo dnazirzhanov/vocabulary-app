@@ -1,16 +1,12 @@
 import type { ReactNode } from 'react';
 import { ChartIcon, HomeIcon, PeopleIcon, PersonIcon } from '../ui/icons.tsx';
 import styles from './NavShell.module.css';
-import { useFriendsTarget } from './useFriendsTarget.ts';
 
 export type NavTab = 'today' | 'friends' | 'progress';
 
 interface NavShellProps {
   tab: NavTab;
-  /** Bumped when the groups change, so «Друзья» knows which group to open. */
-  version: number;
-  /** `groupId`: for friends, the one group to open straight away (null: the list of groups). */
-  onNavigate: (tab: NavTab, groupId: string | null) => void;
+  onNavigate: (tab: NavTab) => void;
   /** «Профиль» opens the learner's own profile window over the current screen. */
   onProfile: () => void;
   children: ReactNode;
@@ -20,8 +16,7 @@ interface NavShellProps {
  * The app's sections around the current screen: a sidebar on desktop and a bottom tab bar on
  * phones. Lessons are outside it.
  */
-export function NavShell({ tab, version, onNavigate, onProfile, children }: NavShellProps) {
-  const friendsGroup = useFriendsTarget(version);
+export function NavShell({ tab, onNavigate, onProfile, children }: NavShellProps) {
   const items = [
     { tab: 'today', label: 'Сегодня', Icon: HomeIcon },
     { tab: 'friends', label: 'Друзья', Icon: PeopleIcon },
@@ -42,7 +37,7 @@ export function NavShell({ tab, version, onNavigate, onProfile, children }: NavS
                 type="button"
                 className={styles.item}
                 aria-current={target === tab ? 'page' : undefined}
-                onClick={() => onNavigate(target, target === 'friends' ? friendsGroup : null)}
+                onClick={() => onNavigate(target)}
               >
                 <span className={styles.icon}>
                   <Icon aria-hidden="true" />

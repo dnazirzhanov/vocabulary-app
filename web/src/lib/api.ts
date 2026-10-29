@@ -10,6 +10,8 @@ import type {
   Hint,
   Group,
   GroupPreview,
+  GroupSummary,
+  Period,
   Knowledge,
   Me,
   MeUpdate,
@@ -115,12 +117,13 @@ export const api = {
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
   dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
-  groups: () => request<Group[]>('GET', '/groups'),
+  groups: () => request<GroupSummary[]>('GET', '/groups'),
   createGroup: (name: string, nickname: string) => request<Group>('POST', '/groups', { name, nickname }),
   previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
   joinGroup: (code: string, nickname: string) =>
     request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`, { nickname }),
-  board: (groupId: string) => request<Board>('GET', `/groups/${groupId}/board`),
+  board: (groupId: string, period: Period = 'week') =>
+    request<Board>('GET', `/groups/${groupId}/board?period=${period}`),
   leaveGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}/members/me`),
   removeMember: (groupId: string, memberId: string) =>
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),

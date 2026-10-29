@@ -33,6 +33,21 @@ class GroupOut(BaseModel):
     nickname: str
 
 
+class TodayMemberOut(BaseModel):
+    nickname: str
+    is_me: bool
+    studied_today: bool
+
+
+class GroupSummaryOut(GroupOut):
+    """A group in the list of my groups (ADR 0023): its pulse before opening it."""
+
+    # My place this week by steadiness (null: nothing done yet this week), among the ranked.
+    my_rank: int | None
+    ranked: int
+    members: list[TodayMemberOut]
+
+
 class GroupPreviewOut(BaseModel):
     """What an invite shows before joining: no member names."""
 
@@ -41,28 +56,45 @@ class GroupPreviewOut(BaseModel):
     already_member: bool
 
 
+Period = Literal["week", "month", "all"]
+
+
+class RanksOut(BaseModel):
+    """A member's place by each ranking (ADR 0023); null with nothing done in the period. Equal
+    values share a place."""
+
+    steady: int | None
+    learned: int | None
+    cards: int | None
+
+
 class BoardRow(BaseModel):
     member_id: UUID
     nickname: str
     role: Literal["owner", "member"]
     is_me: bool
-    # Null for members with no answers yet this week: they are listed without a place.
-    rank: int | None
-    # Days this week with the member's own plan done, against the days they promised (ADR 0015).
+    # Over the period: days with any answers, days with the plan done (ADR 0022), words learned
+    # (first recalled in a later review), cards answered.
+    days: int
     plan_days: int
+    learned: int
+    cards: int
+    ranks: RanksOut
+    # This week, whatever the period: days promised, and Monday … Sunday with the plan done.
     promised_days: int
-    # Monday … Sunday of the group's week: was the plan done that day?
     week: list[bool]
     # Weeks in a row with the promise kept.
     streak_weeks: int
+    # Answered anything today, in the member's own day.
+    studied_today: bool
 
 
-class GroupGoal(BaseModel):
-    """Co-operative: new words met by everyone this week within their own plans (extra words do
-    not count), against everyone's plans combined."""
+class TotalsOut(BaseModel):
+    """The whole group over the period: co-operative, never compared."""
 
-    done: int
-    target: int
+    days: int
+    learned: int
+    cards: int
 
 
 class AssignmentMemberOut(BaseModel):
@@ -106,6 +138,9 @@ class BoardOut(BaseModel):
     group: GroupOut
     week_start: date
     week_end: date
+    period: Period
+    period_start: date | None
+    period_end: date
     rows: list[BoardRow]
-    goal: GroupGoal
+    totals: TotalsOut
     assignments: list[AssignmentOut]

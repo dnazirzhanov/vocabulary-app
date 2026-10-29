@@ -231,20 +231,37 @@ export interface GroupPreview {
   already_member: boolean;
 }
 
+/** The board's periods and rankings (ADR 0023). */
+export type Period = 'week' | 'month' | 'all';
+export type Ranking = 'steady' | 'learned' | 'cards';
+
 export interface BoardRow {
   member_id: string;
   nickname: string;
   role: 'owner' | 'member';
   is_me: boolean;
-  /** Null for members with no answers yet this week. */
-  rank: number | null;
-  /** Days this week with the member's own plan done, against the days promised (ADR 0015). */
+  /** Over the period: days studied, days with the plan done, words learned, cards answered. */
+  days: number;
   plan_days: number;
+  learned: number;
+  cards: number;
+  /** Places by each ranking; null with nothing done in the period. Equal values share a place. */
+  ranks: Record<Ranking, number | null>;
+  /** This week, whatever the period: days promised, and Monday … Sunday with the plan done. */
   promised_days: number;
-  /** Monday … Sunday: was the plan done? */
   week: boolean[];
   /** Weeks in a row with the promise kept. */
   streak_weeks: number;
+  /** Answered anything today, in the member's own day. */
+  studied_today: boolean;
+}
+
+/** A group in the list (ADR 0023): its pulse before opening it. */
+export interface GroupSummary extends Group {
+  /** My place this week by steadiness (null: nothing yet this week), among `ranked` members. */
+  my_rank: number | null;
+  ranked: number;
+  members: { nickname: string; is_me: boolean; studied_today: boolean }[];
 }
 
 /** A learner's week against their own promise (ADR 0015); mirrors backend/app/schemas/profile.py. */
@@ -271,8 +288,13 @@ export interface Board {
   group: Group;
   week_start: string;
   week_end: string;
+  period: Period;
+  /** Null for all time. */
+  period_start: string | null;
+  period_end: string;
   rows: BoardRow[];
-  goal: { done: number; target: number };
+  /** The whole group over the period. */
+  totals: { days: number; learned: number; cards: number };
   assignments: Assignment[];
 }
 

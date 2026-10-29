@@ -26,3 +26,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0020](0020-deck-pages.md) | Deck pages: home is the course's levels; every lesson belongs to one deck | Accepted |
 | [0021](0021-own-decks-first.md) | Home is «Мои колоды»; the course is offered below, one tap away | Accepted |
 | [0022](0022-progress-by-deck.md) | «Прогресс» by deck: words learned (recalled in a later review); a day kept with every review done | Accepted |
+| [0023](0023-friends-groups-first.md) | «Друзья»: groups first; a group's statistics ranked by steadiness, words learned or cards, over a week, month or all time | Accepted |

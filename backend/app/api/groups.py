@@ -7,7 +7,15 @@ from fastapi import APIRouter, Depends, Path, Response
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.core.ratelimit import limit_joins
-from app.schemas.groups import BoardOut, CreateGroupIn, GroupOut, GroupPreviewOut, JoinGroupIn
+from app.schemas.groups import (
+    BoardOut,
+    CreateGroupIn,
+    GroupOut,
+    GroupPreviewOut,
+    GroupSummaryOut,
+    JoinGroupIn,
+    Period,
+)
 from app.schemas.profile import ProfileOut
 from app.services import groups, profile
 from app.services.me import remember_time_zone
@@ -17,8 +25,8 @@ Code = Path(min_length=4, max_length=16)
 
 
 @router.get("/groups")
-def list_groups(user: CurrentUser, db: DbSession) -> list[GroupOut]:
-    return groups.my_groups(db, user)
+def list_groups(user: CurrentUser, db: DbSession, now: Now) -> list[GroupSummaryOut]:
+    return groups.my_groups(db, user, now)
 
 
 @router.post("/groups", status_code=201)
@@ -48,8 +56,11 @@ def join_group(
 
 
 @router.get("/groups/{group_id}/board")
-def group_board(group_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> BoardOut:
-    return groups.board(db, user, group_id, now)
+def group_board(
+    group_id: UUID, user: CurrentUser, db: DbSession, now: Now, period: Period = "week"
+) -> BoardOut:
+    """The members' statistics over a week, a month or all time, ranked three ways (ADR 0023)."""
+    return groups.board(db, user, group_id, now, period)
 
 
 @router.get("/groups/{group_id}/members/{member_id}/profile")

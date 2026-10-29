@@ -4,7 +4,7 @@ import { DeckEditor } from './decks/DeckEditor.tsx';
 import { DeckScreen } from './decks/DeckScreen.tsx';
 import { WordsScreen } from './words/WordsScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
-import { BoardScreen } from './groups/BoardScreen.tsx';
+import { GroupScreen } from './groups/GroupScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
 import { CourseScreen } from './home/CourseScreen.tsx';
@@ -147,7 +147,6 @@ function Learning({ email }: { email: string | null }) {
   }, []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
   // Bumped when the groups change, so the navigation's line about them refreshes.
-  const [navVersion, setNavVersion] = useState(0);
   // The profile window, over whichever screen is showing (ADR 0015).
   const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
 
@@ -216,21 +215,14 @@ function Learning({ email }: { email: string | null }) {
   }
 
   // Every other screen sits in the navigation, which stays mounted while the screens change.
-  const refreshNav = () => setNavVersion((version) => version + 1);
-  // Moving between sections also refreshes the line about friends.
-  const navigate = (tab: NavTab, groupId: string | null) => {
-    refreshNav();
+  const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
     else if (tab === 'progress') setScreen({ name: 'progress' });
-    else setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' });
+    // «Друзья» always opens the list of groups first (ADR 0023).
+    else setScreen({ name: 'groups' });
   };
   return (
-    <NavShell
-      tab={tabOf(screen)}
-      version={navVersion}
-      onNavigate={navigate}
-      onProfile={() => setProfileTarget({ kind: 'me' })}
-    >
+    <NavShell tab={tabOf(screen)} onNavigate={navigate} onProfile={() => setProfileTarget({ kind: 'me' })}>
       {tabScreen()}
       <ProfileDialog
         target={profileTarget}
@@ -253,7 +245,6 @@ function Learning({ email }: { email: string | null }) {
       return (
         <GroupsScreen
           onOpen={(groupId, created) => {
-            refreshNav();
             setScreen({ name: 'board', groupId, invite: created });
           }}
           onJoinCode={(code) => setScreen({ name: 'join', code })}
@@ -262,7 +253,7 @@ function Learning({ email }: { email: string | null }) {
     }
     if (screen.name === 'board') {
       return (
-        <BoardScreen
+        <GroupScreen
           key={screen.groupId}
           groupId={screen.groupId}
           inviteOnOpen={screen.invite}
@@ -272,7 +263,6 @@ function Learning({ email }: { email: string | null }) {
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
-            refreshNav();
             setScreen({ name: 'groups' });
           }}
         />

@@ -75,15 +75,26 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
         "nickname",
         "role",
         "is_me",
-        "rank",
+        "days",
         "plan_days",
+        "learned",
+        "cards",
+        "ranks",
         "promised_days",
         "week",
         "streak_weeks",
+        "studied_today",
     }
 
 
-def test_the_board_ranks_by_the_share_of_one_s_own_promise_kept(client: TestClient) -> None:
+def board_of(client: TestClient, group_id: str, period: str = "week") -> dict[str, Any]:
+    board: dict[str, Any] = client.get(
+        f"/api/groups/{group_id}/board", params={"period": period}, headers=as_("olga")
+    ).json()
+    return board
+
+
+def test_the_board_ranks_three_ways_over_a_week_a_month_or_all_time(client: TestClient) -> None:
     group = create(client)
     code = group["invite_code"]
     join(client, "pavel", code, "Весёлый Кот")
@@ -92,32 +103,64 @@ def test_the_board_ranks_by_the_share_of_one_s_own_promise_kept(client: TestClie
         "/api/me", json={"daily_target_words": 3, "study_days_per_week": 3}, headers=as_("olga")
     )
 
-    # Olga: her 3 words on the three days she promised. Pavel: 20 words in one day (his plan of
-    # 5, then bonus lessons) against six days promised.
+    # Olga: a lesson on each of three days. Pavel: four lessons in one day (more cards), and one
+    # back in October.
     monday = THURSDAY - timedelta(days=3)
     for n in range(3):
         moment = monday + timedelta(days=n)
         session = client.post("/api/sessions", json=NEW, headers=as_("olga", moment)).json()
         play_as(client, "olga", session, moment)
+    october = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
+    session = client.post("/api/sessions", json=NEW, headers=as_("pavel", october)).json()
+    play_as(client, "pavel", session, october)
     for n in range(4):
         moment = THURSDAY - timedelta(hours=4) + timedelta(minutes=10 * n)
         session = client.post("/api/sessions", json=NEW, headers=as_("pavel", moment)).json()
         play_as(client, "pavel", session, moment)
 
-    board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
-    assert (board["week_start"], board["week_end"]) == ("2026-11-02", "2026-11-08")
+    board = board_of(client, group["id"])
+    assert (board["period"], board["period_start"], board["period_end"]) == (
+        "week",
+        "2026-11-02",
+        "2026-11-08",
+    )
     rows = {row["nickname"]: row for row in board["rows"]}
     olga, pavel, rest = rows["Смелый Ёж"], rows["Весёлый Кот"], rows["Тихий Лис"]
-    assert (olga["rank"], olga["plan_days"], olga["promised_days"]) == (1, 3, 3)
+    # Steadiness: three days beat one busy day; more cards win the cards ranking.
+    assert (olga["days"], olga["plan_days"], olga["ranks"]["steady"]) == (3, 3, 1)
+    assert (pavel["days"], pavel["ranks"]["steady"]) == (1, 2)
+    assert pavel["cards"] > olga["cards"] and pavel["ranks"]["cards"] == 1
     assert olga["week"] == [True, True, True, False, False, False, False]
-    assert olga["is_me"] and olga["streak_weeks"] == 1  # this week's promise is kept
-    # Volume does not help: one day of six is behind three of three.
-    assert (pavel["rank"], pavel["plan_days"], pavel["promised_days"]) == (2, 1, 6)
-    assert (rest["rank"], rest["plan_days"]) == (None, 0)
+    assert olga["is_me"] and olga["streak_weeks"] == 1
+    assert (pavel["studied_today"], olga["studied_today"]) == (True, False)
+    assert rest["ranks"] == {"steady": None, "learned": None, "cards": None}
     assert [row["nickname"] for row in board["rows"]] == ["Смелый Ёж", "Весёлый Кот", "Тихий Лис"]
-    # Co-operative goal: planned words only (Pavel's bonus words do not count), against
-    # everyone's week of plans (3×3 + 5×6 + 5×6).
-    assert board["goal"] == {"done": 3 * 3 + 5, "target": 69}
+    assert board["totals"] == {
+        "days": 4,
+        "learned": olga["learned"] + pavel["learned"],
+        "cards": olga["cards"] + pavel["cards"],
+    }
+
+    # This month leaves October out; all time counts it.
+    month = {row["nickname"]: row for row in board_of(client, group["id"], "month")["rows"]}
+    ever = {row["nickname"]: row for row in board_of(client, group["id"], "all")["rows"]}
+    assert (month["Весёлый Кот"]["days"], ever["Весёлый Кот"]["days"]) == (1, 2)
+    assert ever["Весёлый Кот"]["cards"] > month["Весёлый Кот"]["cards"]
+    assert board_of(client, group["id"], "all")["period_start"] is None
+
+
+def test_the_list_of_groups_shows_each_group_s_pulse(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    session = client.post("/api/sessions", json=NEW, headers=as_("pavel")).json()
+    play_as(client, "pavel", session, THURSDAY)
+    (summary,) = client.get("/api/groups", headers=as_("olga")).json()
+    # Nothing done yet this week: no place for Olga, one ranked member, Pavel studied today.
+    assert (summary["my_rank"], summary["ranked"]) == (None, 1)
+    assert summary["members"] == [
+        {"nickname": "Весёлый Кот", "is_me": False, "studied_today": True},
+        {"nickname": "Смелый Ёж", "is_me": True, "studied_today": False},
+    ]
 
 
 def play_as(
@@ -187,3 +230,16 @@ def test_a_learner_can_be_in_at_most_five_groups(client: TestClient) -> None:
         "/api/groups", json={"name": "Шестая", "nickname": "Смелый Ёж"}, headers=as_("olga")
     )
     assert too_many.status_code == 409
+
+
+def test_a_word_counts_as_learned_in_the_period_it_was_first_recalled(client: TestClient) -> None:
+    group = create(client)
+    october = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
+    session = client.post("/api/sessions", json=NEW, headers=as_("olga", october)).json()
+    play_as(client, "olga", session, october)  # met in October: not learned yet
+    assert board_of(client, group["id"], "all")["rows"][0]["learned"] == 0
+    # Reviewed and recalled this week: learned this week, this month and all time.
+    session = client.post("/api/sessions", json=NEW, headers=as_("olga")).json()
+    play_as(client, "olga", session, THURSDAY)
+    week, ever = board_of(client, group["id"]), board_of(client, group["id"], "all")
+    assert week["rows"][0]["learned"] == ever["rows"][0]["learned"] == 5

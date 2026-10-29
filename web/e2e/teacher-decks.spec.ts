@@ -1,7 +1,7 @@
 import { type Page } from '@playwright/test';
 import { button, DEMO, expect, finishSession, spellToday, test } from './learner.ts';
 
-/** «Друзья» opens the board straight away once it knows the group, the list of groups before. */
+/** Makes a deck from home. */
 async function newDeck(page: Page, title: string) {
   await page.getByRole('button', { name: /^Создать колоду/ }).click();
   await page.getByLabel('Название новой колоды').fill(title);
@@ -9,16 +9,14 @@ async function newDeck(page: Page, title: string) {
   await expect(page.getByText('Моя колода')).toBeVisible();
 }
 
+/** «Друзья» always lists the groups first (ADR 0023); the group opens from its row. */
 async function openGroup(page: Page) {
   await page
     .getByRole('button', { name: /Друзья/ })
     .first()
     .click();
-  const listed = page.getByRole('button', { name: /^7Б английский/ });
-  const board = page.getByRole('heading', { level: 1, name: '7Б английский' });
-  await expect(listed.or(board)).toBeVisible();
-  if (await listed.isVisible()) await listed.click();
-  await expect(board).toBeVisible();
+  await page.getByRole('button', { name: /^7Б английский/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '7Б английский' })).toBeVisible();
 }
 
 // A teacher's deck end to end (ADR 0017): the group's owner writes words and gives them to the
