@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Response
+from fastapi import APIRouter, Body, Depends, Path, Response
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
@@ -15,6 +15,8 @@ from app.schemas.learning import (
     DeckOut,
     DeckWordOut,
     GlossaryEntryOut,
+    HintIn,
+    HintOut,
     ProgressOut,
     SessionOut,
     StartSessionIn,
@@ -57,9 +59,27 @@ def get_session(session_id: UUID, user: CurrentUser, db: DbSession, now: Now) ->
 
 @router.post("/sessions/{session_id}/attempts", dependencies=[Depends(limit_attempts)])
 def submit_attempt(
-    session_id: UUID, attempt: AttemptIn, user: CurrentUser, db: DbSession, now: Now
+    session_id: UUID,
+    attempt: AttemptIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
 ) -> AttemptResultOut:
-    return sessions.submit_attempt(db, user, session_id, attempt, now)
+    return sessions.submit_attempt(db, user, session_id, attempt, now, time_zone)
+
+
+@router.post(
+    "/sessions/{session_id}/exercises/{exercise_id}/hint", dependencies=[Depends(limit_attempts)]
+)
+def give_hint(
+    session_id: UUID,
+    exercise_id: Annotated[str, Path(max_length=8)],
+    hint: HintIn,
+    user: CurrentUser,
+    db: DbSession,
+) -> HintOut:
+    return sessions.give_hint(db, user, session_id, exercise_id, hint)
 
 
 @router.post("/sessions/{session_id}/complete")

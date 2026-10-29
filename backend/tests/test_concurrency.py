@@ -48,6 +48,7 @@ def test_simultaneous_answers_to_one_exercise_count_once(
             {"exercise_id": card["id"], "response": {"kind": "rating", "rating": 4}}
         ),
         datetime.now(UTC),
+        ZoneInfo("UTC"),
     )
 
     assert second.model_dump(mode="json") == first

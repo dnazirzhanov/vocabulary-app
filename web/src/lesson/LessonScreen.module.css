@@ -66,6 +66,10 @@
   color: var(--color-success);
 }
 
+.countSpelling strong {
+  color: var(--color-primary-strong);
+}
+
 .main {
   display: flex;
   min-height: 0;

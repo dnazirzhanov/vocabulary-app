@@ -1,10 +1,12 @@
 import type { Page } from '@playwright/test';
-import { button, expect, finishSession, test } from './learner.ts';
+import { button, expect, finishSession, spellToday, test } from './learner.ts';
 
 /** The big figure with its unit beside it, e.g. «1 из 6 дней на этой неделе». */
 const figure = (page: Page, unit: string) => page.getByText(unit).locator('..');
 
-test('progress answers two questions: how many words, and how steadily', async ({ page }) => {
+test('progress answers two questions: how many words, and how steadily', async ({ page, learner }) => {
+  // A Monday: the whole week is still ahead, so the weekly nudge has room to show.
+  await learner.travelTo(new Date('2026-11-02T09:00:00Z'));
   await page.goto('/');
   await button(page, 'Прогресс').click();
   await expect(page.getByRole('heading', { name: 'Прогресс' })).toBeFocused();
@@ -17,6 +19,7 @@ test('progress answers two questions: how many words, and how steadily', async (
 
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
+  await spellToday(page); // the day's plan: the cards, then their spelling
   await expect(page.getByText('План на сегодня выполнен')).toBeVisible();
   await button(page, 'На главную').click();
   // One day of six promised: no week kept yet, so no streak to show.

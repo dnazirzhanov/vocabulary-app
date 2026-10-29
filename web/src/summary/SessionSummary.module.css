@@ -320,3 +320,18 @@
   background: #e9f1fa;
   color: var(--color-series-firm);
 }
+
+/* Practice of hard words, when today's spelling has the main button. */
+.practiceLink {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

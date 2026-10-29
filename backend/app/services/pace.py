@@ -220,7 +220,12 @@ def _answer_gaps(db: Session, user: User, since: datetime) -> list[float]:
     )
     gaps = (
         select(func.extract("epoch", ReviewAttempt.answered_at - previous).label("gap"))
-        .where(ReviewAttempt.user_id == user.id, ReviewAttempt.answered_at >= since)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.answered_at >= since,
+            # Flashcards only: building a word with tiles takes longer and is timed apart.
+            ReviewAttempt.exercise_type == "card",
+        )
         .subquery()
     )
     return [float(gap) for gap in db.scalars(select(gaps.c.gap).where(gaps.c.gap.is_not(None)))]

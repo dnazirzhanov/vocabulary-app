@@ -55,7 +55,9 @@ class LearningSession(Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (
         # study and hard are flashcard sessions (ADR 0012); the others are kept for history.
-        CheckConstraint("kind IN ('new', 'practice', 'review', 'study', 'hard')", name="kind"),
+        CheckConstraint(
+            "kind IN ('new', 'practice', 'review', 'study', 'hard', 'spelling')", name="kind"
+        ),
         CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
         CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
         # A learner has at most one unfinished session; starting again resumes it.
@@ -79,6 +81,8 @@ class LearningSession(Base):
     # when no new words were possible) and the days a week promised. NULL for practice.
     day_target: Mapped[int | None] = mapped_column(SmallInteger)
     promised_days: Mapped[int | None] = mapped_column(SmallInteger)
+    # A spelling session (ADR 0016): how many of the day's new words it covers.
+    spelling_words: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReviewAttempt(Base):

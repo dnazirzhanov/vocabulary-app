@@ -103,6 +103,8 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words; members only; no points |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
 | `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
+| `POST /api/sessions/{id}/attempts` | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any |
+| `POST /api/sessions/{id}/exercises/{exercise_id}/hint` | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016) |
 | `GET /api/me/profile`, `GET /api/groups/{id}/members/{member_id}/profile` | a learner's week against their own promise and the learning beyond it (ADR 0015); one's own for everyone, a member's for members of that group only; nickname, no ids or e-mail |
 | `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
 | `GET /api/me/pace?deck_id=` | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion |

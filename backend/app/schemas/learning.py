@@ -69,20 +69,62 @@ class CardExercise(BaseModel):
     previews: list[IntervalPreview]
 
 
-ExerciseOut = CardExercise
+class SpellingPrompt(BaseModel):
+    """What a spelling card shows: the meaning, never the English word (no id, example or audio)."""
 
-SessionKind = Literal["study", "hard"]
+    translation: str
+    pos: str
+
+
+class SpellingExercise(BaseModel):
+    """Build the word from its meaning with letter tiles (ADR 0016)."""
+
+    id: str
+    type: Literal["spelling"] = "spelling"
+    prompt: SpellingPrompt
+    # Letters in the word: the empty slots.
+    slots: int
+    # Letter tiles in display order; the client gives each its own identity by position.
+    tiles: list[str]
+    # The one hint of this card, once given: a slot and its letter.
+    hint: "HintOut | None" = None
+
+
+class HintIn(_Input):
+    """Ask for the letter of the next empty slot (ADR 0016): one per card."""
+
+    position: Annotated[int, Field(ge=0, le=63)]
+
+
+class HintOut(BaseModel):
+    position: int
+    letter: str
+
+
+ExerciseOut = Annotated[CardExercise | SpellingExercise, Field(discriminator="type")]
+
+
+class InsertedExercise(BaseModel):
+    """An exercise added to the lesson by an answer, and its position in the exercise list."""
+
+    index: int
+    exercise: ExerciseOut
+
+
+SessionKind = Literal["study", "hard", "spelling"]
 
 
 class AttemptResultOut(BaseModel):
     exercise_id: str
-    rating: int
-    # When the card is due next (practice sessions leave the schedule as it was).
-    next_due_at: datetime
-    # Another showing of the same card later in this session, when it is due again soon, and its
-    # position in the session's exercise list.
-    appended: CardExercise | None = None
-    appended_index: int | None = None
+    # Cards: the rating and when the card is due next (practice leaves the schedule as it was).
+    rating: int | None = None
+    next_due_at: datetime | None = None
+    # Spelling: whether the word was built right at this first try, and the word itself (shown
+    # only once answered).
+    correct: bool | None = None
+    answer: str | None = None
+    # Exercises this answer added later in the lesson: another showing of a card due again soon.
+    inserted: list[InsertedExercise] = []
 
 
 class SessionOut(BaseModel):
@@ -114,7 +156,13 @@ class StartHardSession(_Input):
     deck_id: Annotated[str, StringConstraints(max_length=64)]
 
 
-StartRequest = StartStudySession | StartHardSession
+class StartSpellingSession(_Input):
+    """A spelling card for each word learned today (ADR 0016); may be repeated for practice."""
+
+    kind: Literal["spelling"]
+
+
+StartRequest = StartStudySession | StartHardSession | StartSpellingSession
 StartSessionIn = Annotated[StartRequest, Field(discriminator="kind")]
 
 
@@ -124,9 +172,15 @@ class RatingResponse(_Input):
     rating: Annotated[int, Field(ge=1, le=4)]
 
 
+class SpellingResponse(_Input):
+    kind: Literal["spelling"]
+    # The letters of the tiles chosen, in order; checked and discarded, never stored.
+    answer: Annotated[str, StringConstraints(max_length=64)]
+
+
 class AttemptIn(_Input):
     exercise_id: Annotated[str, StringConstraints(max_length=8)]
-    response: RatingResponse
+    response: Annotated[RatingResponse | SpellingResponse, Field(discriminator="kind")]
 
 
 class SummaryWord(BaseModel):
@@ -155,6 +209,16 @@ class SummaryOut(BaseModel):
     ratings: RatingCounts
     # Today's plan once this session is done (ADR 0015); practice sessions are never part of it.
     today: "TodayPlanOut"
+    spelling: "SpellingSummaryOut | None" = None
+
+
+class SpellingSummaryOut(BaseModel):
+    """A spelling session (ADR 0016): its words, those built right at the first try, and those
+    built after a mistake."""
+
+    words: int
+    first_try: int
+    needs_practice: int
 
 
 class WordStages(BaseModel):
@@ -183,6 +247,8 @@ class TodayPlanOut(BaseModel):
     plan_done: bool
     # New words beyond today's target: extra, never part of the plan.
     extra_new: int
+    # Today's spelling: part of the plan (ADR 0016).
+    spelling: "SpellingTodayOut"
 
 
 class RecallRate(BaseModel):
@@ -206,6 +272,15 @@ class ProgressOut(BaseModel):
     # This week's promise: days with the plan done.
     promised_days: int
     recall: RecallRate
+    spelling_today: "SpellingTodayOut"
+
+
+class SpellingTodayOut(BaseModel):
+    """Today's spelling (ADR 0016): the planned new words to spell, and how many a finished
+    spelling session has covered (mistakes or not). Extra practice never raises it."""
+
+    words: int
+    done: int
 
 
 class DeckWordOut(BaseModel):

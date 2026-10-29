@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import DeckWord, User, UserWordProgress
-from tests.support import Play, at
+from tests.support import Play, at, cards
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 
@@ -73,7 +73,7 @@ def test_a_deck_session_reviews_only_that_deck(client: TestClient, db: Session) 
     deck_only = client.post(
         "/api/sessions", json={"kind": "study", "deck_id": "b1-b2"}, headers=at(DAY0)
     ).json()
-    assert all(card["new"] for card in deck_only["exercises"])  # no A1–A2 reviews here
+    assert all(card["new"] for card in cards(deck_only))  # no A1–A2 reviews here
     assert deck_only["deck_id"] == "b1-b2"
 
 
@@ -86,11 +86,11 @@ def test_continue_starts_with_every_level_s_due_cards(client: TestClient, db: Se
     db.commit()
 
     session = client.post("/api/sessions", json={"kind": "study"}, headers=at(DAY0)).json()
-    cards = session["exercises"]
-    assert {card["word"]["id"] for card in cards if not card["new"]} == {
+    shown = cards(session)
+    assert {card["word"]["id"] for card in shown if not card["new"]} == {
         progress.word_id for progress in due_now
     }
-    assert [card["new"] for card in cards] == [False] * 3 + [True] * 5
+    assert [card["new"] for card in shown] == [False] * 3 + [True] * 5
     assert session["deck_id"] == "b1-b2"  # the current level supplies the new words
 
 

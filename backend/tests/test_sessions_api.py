@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import DeckWord, User, UserWordProgress
-from tests.support import Play, at, rate
+from tests.support import Play, at, cards, rate
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 STUDY = {"kind": "study", "deck_id": "a1-a2"}
@@ -33,7 +33,7 @@ def rate_card(
 
 def order(client: TestClient, session_id: str) -> list[str]:
     session = client.get(f"/api/sessions/{session_id}", headers=at(DAY0)).json()
-    return [card["word"]["headword"] for card in session["exercises"]]
+    return [card["word"]["headword"] for card in cards(session)]
 
 
 def test_a_first_session_shows_new_cards_with_their_answer_and_interval_hints(
@@ -48,15 +48,15 @@ def test_a_first_session_shows_new_cards_with_their_answer_and_interval_hints(
 
     session = start(client).json()
     assert (session["kind"], session["completed"], session["results"]) == ("study", False, [])
-    cards = session["exercises"]
-    assert [card["word"]["headword"] for card in cards] == [
+    shown = cards(session)
+    assert [card["word"]["headword"] for card in shown] == [
         "house",
         "water",
         "friend",
         "buy",
         "cheap",
     ]
-    first = cards[0]
+    first = shown[0]
     assert (first["type"], first["new"], first["word"]["translation"]) == ("card", True, "дом")
     # «Снова» brings it back in a minute, «Легко» in days, as Anki shows under its buttons.
     seconds = {preview["rating"]: preview["seconds"] for preview in first["previews"]}
@@ -69,8 +69,9 @@ def test_a_card_rated_good_on_first_sight_comes_back_once_more(
     session = start(client).json()
     result = rate_card(client, session["id"], "c1", 3).json()
     assert result["rating"] == 3
-    assert result["appended"]["word"]["headword"] == "house"
-    assert (result["appended"]["new"], result["appended_index"]) == (False, 4)
+    [again] = result["inserted"]
+    assert again["exercise"]["word"]["headword"] == "house"
+    assert (again["exercise"]["new"], again["index"]) == (False, 4)
     # Inserted a few cards later, not at once.
     assert order(client, session["id"]) == ["house", "water", "friend", "buy", "house", "cheap"]
 
@@ -83,8 +84,14 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
 ) -> None:
     summary = play(STUDY, DAY0, ratings={"water": 4, "friend": 1})
     assert (summary["new_words"], summary["reviewed_words"]) == (5, 0)
-    # Five new words: today's plan of five is done, nothing extra (ADR 0015).
-    assert summary["today"] == {"new_words": 5, "target": 5, "plan_done": True, "extra_new": 0}
+    # Five new words, nothing extra (ADR 0015); the plan waits for their spelling (ADR 0016).
+    assert summary["today"] == {
+        "new_words": 5,
+        "target": 5,
+        "plan_done": False,
+        "extra_new": 0,
+        "spelling": {"words": 5, "done": 0},
+    }
     assert summary["ratings"]["easy"] == 1
     by_word = {row["word"]["headword"]: row for row in summary["words"]}
     # «Легко» graduates at once; the others needed a second showing, «Снова» a third.
@@ -100,8 +107,8 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
 def test_due_cards_come_back_first_and_score_as_reviews(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0)
     later = DAY0 + timedelta(days=10)
-    cards = start(client, later).json()["exercises"]
-    assert [card["new"] for card in cards] == [False] * 5 + [True] * 5
+    shown = cards(start(client, later).json())
+    assert [card["new"] for card in shown] == [False] * 5 + [True] * 5
     summary = play(STUDY, later, ratings={"house": 1})
     assert summary["reviewed_words"] == 5
     assert summary["today"]["new_words"] == 5  # the reviews came first, then today's new words
@@ -111,7 +118,7 @@ def test_a_repeated_rating_counts_once_and_the_first_one_stands(client: TestClie
     session = start(client).json()
     first = rate_card(client, session["id"], "c1", 4).json()
     again = rate_card(client, session["id"], "c1", 1).json()
-    assert again == first | {"appended": None, "appended_index": None}
+    assert again == first | {"inserted": []}  # the stored answer, without re-inserting
     after = client.get(f"/api/sessions/{session['id']}").json()
     assert [r["exercise_id"] for r in after["results"]] == ["c1"]
 
@@ -170,7 +177,7 @@ def test_completion_rules(client: TestClient, play: Play) -> None:
     session = start(client).json()
     early = client.post(f"/api/sessions/{session['id']}/complete")
     assert (early.status_code, early.json()["error"]["code"]) == (409, "session_incomplete")
-    summary = play(STUDY, DAY0)  # resumes and finishes the open session
+    summary = play(STUDY, DAY0, spell=False)  # resumes and finishes the open session
     again = client.post(f"/api/sessions/{summary['session_id']}/complete", headers=at(DAY0))
     assert again.json()["today"] == summary["today"]
 

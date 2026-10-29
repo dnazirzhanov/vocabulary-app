@@ -7,7 +7,7 @@ import { courseCounts, currentDeck, newInSession, nextDueAt, studyLabel } from '
 import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CardCounts } from '../today/CardCounts.tsx';
-import { FlameIcon } from '../ui/icons.tsx';
+import { CheckIcon, FlameIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { DeckList } from './DeckList.tsx';
 import { SuggestionCard } from './SuggestionCard.tsx';
@@ -105,6 +105,18 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   const label = active ? 'Продолжить урок' : studyLabel({ due, fresh, started, bonus });
   // One session for everything due on every level, then the current level's new words.
   const study = async () => onSession(active ?? (await api.startStudySession(null)), null);
+  // Spelling (ADR 0016): a card for each word learned today; required once, then free practice.
+  const learnedToday = progress?.today.new_words ?? 0;
+  const spellingToday = progress?.spelling_today ?? { words: 0, done: 0 };
+  const spellingLabel =
+    learnedToday === 0
+      ? null
+      : spellingToday.done < spellingToday.words
+        ? `Правописание · ${wordsLabel(learnedToday)}`
+        : 'Правописание · ещё раз';
+  const spell = async () => onSession(active ?? (await api.startSpellingSession()), null);
+  // The lesson comes first; once nothing is left to study, spelling takes the main button.
+  const primary = label ? { text: label, run: study } : spellingLabel ? { text: spellingLabel, run: spell } : null;
   const upcoming = nextDueAt(decks);
   const nextReview = upcoming ? `Следующее повторение — ${relativeDay(upcoming)}.` : null;
   const nothingLeft = counts.fresh + due === 0;
@@ -148,7 +160,13 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
               {nothingLeft && !active ? 'На сегодня всё' : 'Сегодня'}
             </h1>
             <CardCounts counts={counts} />
-            {pace && newLeft && <DailyTarget pace={pace} />}
+            {pace && newLeft && <TodayPlan pace={pace} spelling={progress?.spelling_today ?? null} />}
+            {label && spellingLabel && (
+              <button type="button" className={styles.spellButton} disabled={busy} onClick={() => run(spell)}>
+                <PencilIcon aria-hidden="true" />
+                {spellingLabel}
+              </button>
+            )}
             {note && <p className={styles.note}>{note}</p>}
             {pace?.suggestion && !active && (
               <div className={styles.suggestion}>
@@ -174,23 +192,23 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
           />
         </div>
       </main>
-      {(label || error) && (
+      {(primary || error) && (
         <footer className={styles.actions}>
           {error && (
             <p className={styles.error} role="alert">
               {error}
             </p>
           )}
-          {label && (
+          {primary && (
             <div className={styles.actionsInner}>
               <PrimaryButton
                 type="button"
                 className={styles.action}
                 disabled={busy}
                 aria-busy={busy}
-                onClick={() => run(study)}
+                onClick={() => run(primary.run)}
               >
-                {busy ? 'Загружаем…' : label}
+                {busy ? 'Загружаем…' : primary.text}
               </PrimaryButton>
             </div>
           )}
@@ -200,23 +218,54 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   );
 }
 
-/** Today's share of the daily target; the ramp is named so a lower number never looks like a cut. */
-function DailyTarget({ pace }: { pace: Pace }) {
-  const done = Math.min(pace.new_words_today, pace.effective_target);
+/**
+ * Today's plan in two parts (ADR 0016): the new words on cards, then their spelling.
+ * Done is marked by a tick and words, not colour alone. The warm-up is named so a lower number
+ * never looks like a cut.
+ */
+function TodayPlan({ pace, spelling }: { pace: Pace; spelling: Progress['spelling_today'] | null }) {
+  const cardsDone = pace.new_words_today >= pace.effective_target;
+  const words = spelling?.words ?? 0;
+  const spellingDone = words > 0 && spelling?.done === words;
   return (
-    <div className={styles.target}>
-      <p className={styles.targetValue}>
-        Новых слов за день: <strong>{pace.new_words_today}</strong> из {pace.effective_target}
-        {pace.new_words_today > pace.effective_target && <span className={styles.bonus}> · бонус!</span>}
-      </p>
-      <div className={styles.targetBar} aria-hidden="true">
-        <span style={{ width: `${(done / pace.effective_target) * 100}%` }} />
-      </div>
+    <section className={styles.plan} aria-labelledby="plan-title">
+      <h2 id="plan-title" className={styles.planTitle}>
+        План на сегодня
+      </h2>
+      <ul className={styles.planList}>
+        <li data-done={cardsDone || undefined}>
+          <span className={styles.planMark} aria-hidden="true">
+            {cardsDone && <CheckIcon />}
+          </span>
+          <span className={styles.planName}>Карточки</span>
+          <span className={styles.planValue}>
+            Новых слов за день: <strong>{pace.new_words_today}</strong> из {pace.effective_target}
+            {pace.new_words_today > pace.effective_target && <span className={styles.bonus}> · бонус!</span>}
+          </span>
+        </li>
+        <li data-done={spellingDone || undefined}>
+          <span className={styles.planMark} aria-hidden="true">
+            {spellingDone && <CheckIcon />}
+          </span>
+          <span className={styles.planName}>Правописание</span>
+          <span className={styles.planValue}>
+            {words > 0 ? (
+              <>
+                <strong>{spelling?.done}</strong> из {wordsLabel(words)}
+              </>
+            ) : cardsDone ? (
+              'нечего повторять'
+            ) : (
+              'после карточек'
+            )}
+          </span>
+        </li>
+      </ul>
       {pace.ramp_week !== null && (
         <p className={styles.targetNote}>
           Разогрев, неделя {pace.ramp_week + 1} из 2: сегодня цель {pace.effective_target} из {pace.target}.
         </p>
       )}
-    </div>
+    </section>
   );
 }

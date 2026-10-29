@@ -28,7 +28,7 @@ from app.services.content import (
     parse_deck,
     parse_glossary,
 )
-from tests.support import Play, Ratings, at, rate
+from tests.support import Play, Ratings, Spellings, at, finish, spell_today
 
 BACKEND = Path(__file__).resolve().parents[1]
 CONTENT = BACKEND.parent / "content"
@@ -76,39 +76,28 @@ def client(db: Session) -> Iterator[TestClient]:
 
 @pytest.fixture
 def play(client: TestClient) -> Play:
-    """Runs a whole session at a moment. Each card's first showing gets the rating given for its
-    headword in `ratings` (default «Хорошо»); cards shown again in the session get «Хорошо»."""
+    """Runs a whole session at a moment (tests.support.finish), cards rated as in `ratings`
+    (default «Хорошо»); after a study session, today's spelling too (as a learner keeps the
+    day's plan), built right unless `spellings` says otherwise, unless `spell=False`."""
 
     def run(
         start: dict[str, str],
         moment: datetime,
         ratings: Ratings | None = None,
         time_zone: str = "UTC",
+        spellings: Spellings | None = None,
+        spell: bool = True,
     ) -> dict[str, Any]:
+        # Each played lesson stands for minutes of real answering: a fresh rate-limit window.
+        reset_limits()
         headers = at(moment, time_zone)
         session = client.post("/api/sessions", json=start, headers=headers).json()
-        cards = list(session["exercises"])
-        seen: set[str] = set()
-        index = 0
-        while index < len(cards):
-            card = cards[index]
-            headword = card["word"]["headword"]
-            rating = (ratings or {}).get(headword, 3) if headword not in seen else 3
-            seen.add(headword)
-            result = client.post(
-                f"/api/sessions/{session['id']}/attempts",
-                json={"exercise_id": card["id"], "response": rate(rating)},
-                headers=headers,
-            ).json()
-            if result.get("appended"):
-                # The server inserted another showing a few cards later; mirror its position.
-                cards = client.get(f"/api/sessions/{session['id']}", headers=headers).json()[
-                    "exercises"
-                ]
-            index += 1
+        finish(client, session, headers, ratings)
         summary: dict[str, Any] = client.post(
             f"/api/sessions/{session['id']}/complete", headers=headers
         ).json()
+        if spell and start.get("kind") == "study":
+            spell_today(client, headers, spellings)
         return summary
 
     return run

@@ -7,7 +7,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckWord, User, UserWordProgress
-from app.schemas.learning import PlanDayOut, ProgressOut, RecallRate, TodayPlanOut, WordStages
+from app.schemas.learning import (
+    PlanDayOut,
+    ProgressOut,
+    RecallRate,
+    SpellingTodayOut,
+    TodayPlanOut,
+    WordStages,
+)
 from app.services.plan_days import (
     HISTORY_DAYS,
     PlanDay,
@@ -82,7 +89,16 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
         activity=[_day_out(day) for _, day in sorted(days.items())],
         promised_days=promises.get(monday, user.study_days_per_week),
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
+        spelling_today=_spelling_out(days.get(today)),
     )
+
+
+def _spelling_out(day: PlanDay | None) -> SpellingTodayOut:
+    """Today's planned new words to spell, and how many a finished spelling session covered."""
+    if day is None:
+        return SpellingTodayOut(words=0, done=0)
+    needed = day.spelling_needed
+    return SpellingTodayOut(words=needed, done=min(day.spelled, needed))
 
 
 def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> TodayPlanOut:
@@ -91,10 +107,13 @@ def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> T
     day = days_by_user(db, [user], start, time_zone)[user.id].get(today)
     if day is None:
         target = fallback_target(user, today, time_zone)
-        return TodayPlanOut(new_words=0, target=target, plan_done=False, extra_new=0)
+        return TodayPlanOut(
+            new_words=0, target=target, plan_done=False, extra_new=0, spelling=_spelling_out(None)
+        )
     return TodayPlanOut(
         new_words=day.new_words,
         target=day.target,
         plan_done=day.plan_done,
         extra_new=day.extra_new,
+        spelling=_spelling_out(day),
     )

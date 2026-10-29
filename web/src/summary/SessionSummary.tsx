@@ -15,6 +15,8 @@ interface SessionSummaryProps {
   summary: Summary;
   onPractice: () => Promise<void>;
   onNext: () => Promise<void>;
+  /** Today's spelling (ADR 0016): the next step after the cards, or another round. */
+  onSpelling: () => Promise<void>;
   onHome: () => void;
 }
 
@@ -27,6 +29,13 @@ export const isHard = (entry: Entry) => entry.lowest_rating <= 2;
 
 // Copy describes what happened (met, reviewed, practised) and never claims a word is learned.
 function describe(summary: Summary, hard: Entry[]) {
+  if (summary.kind === 'spelling' && summary.spelling) {
+    const { words: count, first_try, needs_practice } = summary.spelling;
+    return {
+      title: needs_practice === 0 ? 'Без единой ошибки!' : 'Правописание готово',
+      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой` : ''}.`,
+    };
+  }
   if (summary.kind === 'hard') {
     return {
       title: 'Тренировка пройдена',
@@ -91,7 +100,7 @@ function WordGroup({ title, entries, status, showNextReview }: WordGroupProps) {
   );
 }
 
-export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionSummaryProps) {
+export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome }: SessionSummaryProps) {
   const hard = summary.words.filter(isHard);
   const easy = summary.words.filter((entry) => !isHard(entry));
   const perfect = hard.length === 0;
@@ -99,6 +108,17 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { again, hard: hardCount, good, easy: easyCount } = summary.ratings;
+  // The next step: today's spelling when it is still due (ADR 0016), another round of spelling
+  // after spelling, practice of hard words, or more study.
+  const spellingDue = summary.today.spelling.done < summary.today.spelling.words;
+  const next =
+    summary.kind === 'spelling'
+      ? { label: 'Ещё раз', run: onSpelling }
+      : summary.kind === 'study' && spellingDue
+        ? { label: `Правописание · ${wordsLabel(summary.today.spelling.words)}`, run: onSpelling }
+        : perfect || summary.kind === 'hard'
+          ? { label: 'Продолжить', run: onNext }
+          : { label: 'Повторить трудные', run: onPractice };
 
   // Announce the result: focus lands on the heading, not on a button.
   useEffect(() => headingRef.current?.focus(), []);
@@ -117,12 +137,14 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
             </h1>
             <p className={styles.lead}>{lead}</p>
             <TodayPlanLine summary={summary} />
-            <ul className={styles.ratings} aria-label="Ваши оценки">
-              <li data-tone="again">Снова {again}</li>
-              <li data-tone="hard">Трудно {hardCount}</li>
-              <li data-tone="good">Хорошо {good}</li>
-              <li data-tone="easy">Легко {easyCount}</li>
-            </ul>
+            {summary.kind !== 'spelling' && (
+              <ul className={styles.ratings} aria-label="Ваши оценки">
+                <li data-tone="again">Снова {again}</li>
+                <li data-tone="hard">Трудно {hardCount}</li>
+                <li data-tone="good">Хорошо {good}</li>
+                <li data-tone="easy">Легко {easyCount}</li>
+              </ul>
+            )}
           </div>
 
           <div className={styles.recap}>
@@ -139,6 +161,11 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
           </p>
         )}
         <div className={styles.actionsInner}>
+          {next.run === onSpelling && summary.kind === 'study' && !perfect && (
+            <button type="button" className={styles.practiceLink} disabled={busy} onClick={() => run(onPractice)}>
+              Повторить трудные
+            </button>
+          )}
           <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
             На главную
           </SecondaryButton>
@@ -147,9 +174,9 @@ export function SessionSummary({ summary, onPractice, onNext, onHome }: SessionS
             className={styles.action}
             disabled={busy}
             aria-busy={busy}
-            onClick={() => run(perfect || summary.kind === 'hard' ? onNext : onPractice)}
+            onClick={() => run(next.run)}
           >
-            {busy ? 'Загружаем…' : perfect || summary.kind === 'hard' ? 'Продолжить' : 'Повторить трудные'}
+            {busy ? 'Загружаем…' : next.label}
           </PrimaryButton>
         </div>
       </footer>
@@ -165,6 +192,7 @@ function TodayPlanLine({ summary }: { summary: Summary }) {
   else if (today.plan_done) text = 'План на сегодня выполнен';
   else if (today.target > today.new_words)
     text = `До плана на сегодня ещё ${wordsLabel(today.target - today.new_words)}`;
+  else if (today.spelling.done < today.spelling.words) text = 'Осталось правописание';
   else text = 'План на сегодня — повторения';
   return (
     <p className={styles.plan} data-done={today.plan_done || undefined}>

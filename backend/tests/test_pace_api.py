@@ -7,15 +7,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.ratelimit import reset_limits
 from app.models import DeckWord, User, UserWordProgress
-from tests.support import Play, at, rate
+from tests.support import Play, at, cards, rate
 
 DAY_1 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 NEW = {"kind": "study", "deck_id": "a1-a2"}
 
 
 def new_word_count(session: dict[str, Any]) -> int:
-    return sum(1 for exercise in session["exercises"] if exercise["new"])
+    return sum(1 for card in cards(session) if card["new"])
 
 
 def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> None:
@@ -87,24 +88,24 @@ def test_new_words_wait_while_too_many_reviews_are_due(client: TestClient, play:
     assert (pace["due_count"], pace["review_debt_limit"]) == (22, 20)
     # A session still starts, with reviews only: new words wait.
     session = client.post("/api/sessions", json=NEW, headers=at(later)).json()
-    assert len(session["exercises"]) == 22
+    assert len(cards(session)) == 22
     assert new_word_count(session) == 0
 
 
 def forget_every_review(client: TestClient, moment: datetime) -> None:
     """Rates every due review card «Снова», then leaves before the session's new words."""
+    reset_limits()  # a separate lesson, minutes after the others
     session = client.post("/api/sessions", json=NEW, headers=at(moment)).json()
-    cards, index = session["exercises"], 0
-    while index < len(cards) and not cards[index]["new"]:
+    exercises, index = session["exercises"], 0
+    while index < len(exercises) and exercises[index].get("new") is False:
         result = client.post(
             f"/api/sessions/{session['id']}/attempts",
-            json={"exercise_id": cards[index]["id"], "response": rate(1)},
+            json={"exercise_id": exercises[index]["id"], "response": rate(1)},
             headers=at(moment),
         ).json()
-        if result.get("appended"):
-            cards = client.get(f"/api/sessions/{session['id']}", headers=at(moment)).json()[
-                "exercises"
-            ]
+        assert "inserted" in result, result
+        for added in result["inserted"]:
+            exercises.insert(added["index"], added["exercise"])
         index += 1
 
 

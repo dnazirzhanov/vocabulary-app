@@ -10,7 +10,7 @@ const deckRow = (page: Page, title: string) => page.getByRole('button', { name: 
 
 test('home counts today like Anki: new, learning and due, in all and per deck', async ({ page, learner }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Сегодня', exact: true })).toBeFocused();
   await expect(today(page, 'Новые')).toHaveText('5');
   await expect(today(page, 'К повторению')).toHaveText('0');
   await expect(deckRow(page, 'Основа')).toHaveAccessibleName(/A1–A2 · 0 из 100 5 новых 0 изучаемых 0 к повторению/);
@@ -22,7 +22,7 @@ test('home counts today like Anki: new, learning and due, in all and per deck', 
   await finishSession(page);
   await button(page, 'На главную').click();
   // Today's new words are done; what is left is a bonus.
-  await expect(page.getByRole('heading', { name: 'На сегодня всё' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'На сегодня всё', exact: true })).toBeFocused();
   await expect(today(page, 'Новые')).toHaveText('0');
   await expect(button(page, 'Ещё 5 слов')).toBeVisible();
 
@@ -35,7 +35,7 @@ test('home counts today like Anki: new, learning and due, in all and per deck', 
   await deckRow(page, 'Основа').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
-  await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Сегодня', exact: true })).toBeFocused();
   await expect(button(page, 'Продолжить урок')).toBeVisible();
 });
 
