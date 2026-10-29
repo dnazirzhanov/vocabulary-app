@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { button, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, DEMO, expect, finishSession, spellToday, test } from './learner.ts';
 
 /** «Друзья» opens the board straight away once it knows the group, the list of groups before. */
 async function openGroup(page: Page) {
@@ -22,6 +22,7 @@ test('a teacher gives words to a group and a student learns them first', async (
   ).json();
   const student = await browser.newContext({
     extraHTTPHeaders: {
+      ...DEMO,
       'X-Dev-User': `e2e-student-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     },
   });

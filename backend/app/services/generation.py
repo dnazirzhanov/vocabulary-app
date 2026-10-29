@@ -13,10 +13,11 @@ import re
 from typing import Literal, Protocol
 
 import openai
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 
 from app.core.config import Settings
 from app.core.errors import ApiError
+from app.core.logging import logger
 from app.services.content import TOKEN
 
 Level = Literal["A1", "A2", "B1", "B2", "C1"]
@@ -24,7 +25,8 @@ Pos = Literal["noun", "verb", "adjective", "adverb", "phrase", "other"]
 
 # DeepSeek: the owner's choice (they hold credits there). OpenAI-compatible API.
 DEEPSEEK_URL = "https://api.deepseek.com"
-MAX_TOKENS = 8000  # room for 20 cards, so the JSON is never cut off midway
+# 20 cards take about 2,500 tokens; the rest is a margin so the JSON is never cut off midway.
+MAX_TOKENS = 16000
 TIMEOUT_SECONDS = 90.0
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _CYRILLIC = re.compile(r"[А-Яа-яЁё]")
@@ -39,6 +41,13 @@ class DraftCard(BaseModel):
     example: str
     example_ru: str
     source_sentence: str
+
+    @field_validator("pos", mode="before")
+    @classmethod
+    def _any_other_pos(cls, value: object) -> object:
+        # A part of speech outside our list ("preposition", "idiom") is "other", not a failed draft.
+        allowed = ("noun", "verb", "adjective", "adverb", "phrase", "other")
+        return value if value in allowed else "other"
 
 
 class Draft(BaseModel):
@@ -82,8 +91,9 @@ and write one card for each.
 Choosing:
 - Prefer words that matter for understanding this text and are useful beyond it, at the \
 learners' level. Skip proper names, numbers and words a learner at that level surely knows.
-- Include multiword expressions whose meaning is not the sum of their parts (phrasal verbs such \
-as "carry out", fixed phrases such as "make up for").
+- Look closely for multiword expressions and take them whole: phrasal verbs ("carry out", \
+"phase out"), fixed phrases ("make up for", "take action") and set combinations ("fossil fuel", \
+"root cause"). A learner can't work these out from the single words.
 - Never repeat a word from the "already in the deck" list.
 
 Writing a card:
@@ -126,12 +136,14 @@ class DeepSeekProvider:
             if content.strip():
                 break
         else:
-            raise ApiError(502, "generation_failed", "The drafting service answered with nothing")
+            raise _failed(
+                "generation_failed", "empty", "The drafting service answered with nothing"
+            )
         try:
             return Draft.model_validate_json(content).cards[:count]
         except ValidationError as error:
-            raise ApiError(
-                502, "generation_failed", "The draft was not in the expected shape"
+            raise _failed(
+                "generation_failed", "shape", "The draft was not in the expected shape"
             ) from error
 
     def _ask(self, prompt: str) -> str:
@@ -144,6 +156,9 @@ class DeepSeekProvider:
                     {"role": "user", "content": prompt},
                 ],
                 response_format={"type": "json_object"},
+                # Reasoning first made a 20-word draft five times slower and four times longer,
+                # past the token limit (measured Oct 29 2026), with meanings no better.
+                extra_body={"thinking": {"type": "disabled"}},
             )
         except openai.AuthenticationError as error:
             raise ApiError(
@@ -164,9 +179,26 @@ class DeepSeekProvider:
                 502, "generation_failed", "The drafting service did not answer"
             ) from error
         choice = response.choices[0] if response.choices else None
-        if choice is None or choice.finish_reason == "length":
-            raise ApiError(502, "generation_failed", "The draft was cut off; try a shorter text")
+        if choice is None:
+            raise _failed(
+                "generation_failed", "no_choice", "The drafting service answered with nothing"
+            )
+        if choice.finish_reason == "length":
+            raise _failed(
+                "generation_too_long",
+                "length",
+                "The draft was cut off; try a shorter text or fewer words",
+                output_tokens=response.usage.completion_tokens if response.usage else None,
+            )
         return choice.message.content or ""
+
+
+def _failed(code: str, reason: str, message: str, **fields: object) -> ApiError:
+    """A failed draft, logged with why (never the teacher's text or the answer)."""
+    logger.warning(
+        "generation failed", extra={"fields": {"code": code, "reason": reason, **fields}}
+    )
+    return ApiError(502, code, message)
 
 
 class DemoProvider:

@@ -204,7 +204,9 @@ class Completions:
             raise answer
         content, finish = answer if isinstance(answer, tuple) else (answer, "stop")
         message = SimpleNamespace(content=content)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason=finish)])
+        usage = SimpleNamespace(completion_tokens=16000)
+        choices = [SimpleNamespace(message=message, finish_reason=finish)]
+        return SimpleNamespace(choices=choices, usage=usage)
 
 
 def deepseek(completions: Completions) -> DeepSeekProvider:
@@ -228,6 +230,8 @@ def test_deepseek_asks_for_json_and_reads_the_cards() -> None:
     request = completions.requests[0]
     assert request["model"] == "deepseek-flash"
     assert request["response_format"] == {"type": "json_object"}
+    # Reasoning off: with it, a 20-word draft ran past the token limit (the first live failure).
+    assert request["extra_body"] == {"thinking": {"type": "disabled"}}
     assert "json" in request["messages"][0]["content"]  # JSON mode needs the word and an example
     assert "Already in the deck: setback." in request["messages"][1]["content"]
 
@@ -243,7 +247,7 @@ def test_deepseek_tries_once_more_after_an_empty_answer() -> None:
     ("answer", "code"),
     [
         ('{"words": []}', "generation_failed"),  # not the asked shape
-        ((CARD_JSON[:40], "length"), "generation_failed"),  # cut off
+        ((CARD_JSON[:40], "length"), "generation_too_long"),  # cut off
         (status_error(401), "generation_unavailable"),
         (status_error(402), "generation_no_credits"),
         (status_error(429), "generation_busy"),
@@ -254,3 +258,22 @@ def test_deepseek_failures_say_what_happened(answer: Any, code: str) -> None:
     with pytest.raises(ApiError) as failed:
         deepseek(Completions(answer)).draft(TEXT, 10, "B1", [])
     assert failed.value.code == code
+
+
+def test_an_unexpected_part_of_speech_is_other_not_a_failed_draft() -> None:
+    answer = CARD_JSON.replace('"pos": "phrase"', '"pos": "preposition"')
+    (card,) = deepseek(Completions(answer)).draft(TEXT, 10, "B1", [])
+    assert card.pos == "other"
+
+
+def test_a_dev_header_asks_for_the_demo_whatever_the_server_holds() -> None:
+    keyed = settings(generation_provider="deepseek", deepseek_api_key="k")
+    asked = SimpleNamespace(headers={"X-Dev-Generation": "demo"})
+    assert isinstance(get_provider(asked, keyed), DemoProvider)  # type: ignore[arg-type]
+    plain = SimpleNamespace(headers={})
+    assert get_provider(plain, keyed).name == "deepseek"  # type: ignore[arg-type]
+    production = settings(
+        generation_provider="deepseek", deepseek_api_key="k", environment="production",
+        auth_mode="jwt", auth_issuer="https://x.supabase.co/auth/v1",
+    )  # fmt: skip
+    assert get_provider(asked, production).name == "deepseek"  # type: ignore[arg-type]

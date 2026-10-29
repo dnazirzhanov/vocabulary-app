@@ -6,6 +6,8 @@ interface Learner {
 }
 
 const learnerId = new WeakMap<BrowserContext, string>();
+/** Drafting decks uses the demo, never a real model, even when the dev server holds a key. */
+export const DEMO = { 'X-Dev-Generation': 'demo' };
 
 /** Every test is a brand-new learner, so tests never share progress and can run in parallel. */
 export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
@@ -14,7 +16,7 @@ export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
   context: async ({ context, onboarded }, use) => {
     const id = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
-    await context.setExtraHTTPHeaders({ 'X-Dev-User': id });
+    await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
     if (onboarded) {
       await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
@@ -24,7 +26,11 @@ export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
   learner: async ({ context }, use) => {
     await use({
       travelTo: (moment) =>
-        context.setExtraHTTPHeaders({ 'X-Dev-User': learnerId.get(context)!, 'X-Dev-Now': moment.toISOString() }),
+        context.setExtraHTTPHeaders({
+          'X-Dev-User': learnerId.get(context)!,
+          'X-Dev-Now': moment.toISOString(),
+          ...DEMO,
+        }),
     });
   },
 });
