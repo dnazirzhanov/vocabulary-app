@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { Library, LibraryDeck, Session } from '../lib/types.ts';
+import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -9,16 +9,17 @@ import styles from './LibraryScreen.module.css';
 
 interface LibraryScreenProps {
   onBack: () => void;
-  /** A study session for one deck, started from here. */
-  onSession: (session: Session, deckId: string) => void;
+  /** A deck's page: its stats and its own «Учить» (ADR 0020). */
+  onOpenPage: (deckId: string) => void;
+  /** My deck's editor. */
   onOpenDeck: (deckId: string) => void;
 }
 
 /**
  * «Мои колоды» (ADR 0019): the decks I wrote and the decks my groups were given. Tapping a deck
- * studies it, within today's pace; my own decks can be edited, and a new one starts here.
+ * opens its page (ADR 0020); my own decks can be edited, and a new one starts here.
  */
-export function LibraryScreen({ onBack, onSession, onOpenDeck }: LibraryScreenProps) {
+export function LibraryScreen({ onBack, onOpenPage, onOpenDeck }: LibraryScreenProps) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
@@ -70,10 +71,7 @@ export function LibraryScreen({ onBack, onSession, onOpenDeck }: LibraryScreenPr
   };
   // An empty deck has nothing to study yet: it opens for adding words.
   const open = (deck: LibraryDeck, mine: boolean) =>
-    run(async () => {
-      if (mine && deck.word_count === 0) return onOpenDeck(deck.id);
-      onSession(await api.startStudySession(deck.id), deck.id);
-    });
+    mine && deck.word_count === 0 ? onOpenDeck(deck.id) : onOpenPage(deck.id);
 
   return (
     <div className={styles.screen}>

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
+import { DeckScreen } from './decks/DeckScreen.tsx';
 import { LibraryScreen } from './decks/LibraryScreen.tsx';
+import { WordsScreen } from './words/WordsScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
 import { BoardScreen } from './groups/BoardScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
@@ -27,6 +29,9 @@ type Screen =
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
   | { name: 'library' }
+  // A deck's page (ADR 0020); `from`: where «Назад» leads.
+  | { name: 'deck-page'; deckId: string; from: 'home' | 'library' }
+  | { name: 'words'; deckId: string; title: string; from: 'home' | 'library' }
   // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there.
   | { name: 'deck'; deckId: string; groupId: string | null }
   | { name: 'join'; code: string };
@@ -121,9 +126,20 @@ function useProfile() {
 function Learning({ email }: { email: string | null }) {
   const { profile, setProfile, error, retry } = useProfile();
   const [screen, setScreen] = useState<Screen>(startScreen);
-  // The deck a study session was started for (null: the whole course), so «Дальше» keeps to it.
+  // The deck a study session was started for, so «Дальше» keeps to it and leaving returns to its
+  // page; and where that page was opened from, for its «Назад».
   const [scope, setScope] = useState<string | null>(null);
+  const [pageFrom, setPageFrom] = useState<'home' | 'library'>('home');
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
+  const openPage = useCallback((deckId: string, from: 'home' | 'library') => {
+    setPageFrom(from);
+    setScreen({ name: 'deck-page', deckId, from });
+  }, []);
+  // After a lesson: back to the deck it was from.
+  const leave = useCallback(
+    () => (scope ? openPage(scope, pageFrom) : setScreen({ name: 'home' })),
+    [scope, pageFrom, openPage],
+  );
   const showSession = useCallback((session: Session) => setScreen({ name: 'session', session }), []);
   const startSession = useCallback((session: Session, from: string | null) => {
     setScope(from);
@@ -161,7 +177,7 @@ function Learning({ email }: { email: string | null }) {
     );
   }
   if (screen.name === 'session') {
-    return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={goHome} />;
+    return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={leave} />;
   }
   if (screen.name === 'summary') {
     const { summary } = screen;
@@ -179,7 +195,7 @@ function Learning({ email }: { email: string | null }) {
           }
         }}
         onSpelling={async () => showSession(await api.startSpellingSession())}
-        onHome={goHome}
+        onHome={leave}
       />
     );
   }
@@ -266,7 +282,7 @@ function Learning({ email }: { email: string | null }) {
       return (
         <LibraryScreen
           onBack={goHome}
-          onSession={startSession}
+          onOpenPage={(deckId) => openPage(deckId, 'library')}
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         />
       );
@@ -284,7 +300,30 @@ function Learning({ email }: { email: string | null }) {
         />
       );
     }
-    return <HomeScreen onSession={startSession} onOpenLibrary={() => setScreen({ name: 'library' })} />;
+    if (screen.name === 'deck-page') {
+      const { deckId, from } = screen;
+      return (
+        <DeckScreen
+          key={deckId}
+          deckId={deckId}
+          backLabel={from === 'library' ? 'Мои колоды' : 'Колоды'}
+          onBack={() => setScreen(from === 'library' ? { name: 'library' } : { name: 'home' })}
+          onSession={startSession}
+          onWords={(id, title) => setScreen({ name: 'words', deckId: id, title, from })}
+          onEdit={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
+        />
+      );
+    }
+    if (screen.name === 'words') {
+      const { deckId, from } = screen;
+      return <WordsScreen deckId={deckId} deckTitle={screen.title} onBack={() => openPage(deckId, from)} />;
+    }
+    return (
+      <HomeScreen
+        onOpenDeck={(deckId) => openPage(deckId, 'home')}
+        onOpenLibrary={() => setScreen({ name: 'library' })}
+      />
+    );
   }
 }
 

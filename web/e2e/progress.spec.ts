@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { button, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, spellToday, test } from './learner.ts';
 
 /** The big figure with its unit beside it, e.g. «1 из 6 дней на этой неделе». */
 const figure = (page: Page, unit: string) => page.getByText(unit).locator('..');
@@ -17,6 +17,7 @@ test('progress answers two questions: how many words, and how steadily', async (
   await expect(page.getByText('Ещё 6 дней до цели недели')).toBeVisible();
   await button(page, 'Сегодня').click();
 
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
   await spellToday(page); // the day's plan: the cards, then their spelling

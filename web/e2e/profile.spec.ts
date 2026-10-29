@@ -1,8 +1,9 @@
-import { button, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, spellToday, test } from './learner.ts';
 
 test('the profile shows the week against the promise, and extra learning apart', async ({ page }) => {
   // The learner promised 6 days a week, 5 words a day (e2e/learner.ts).
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
   await spellToday(page); // the day's plan: the cards, then their spelling
@@ -11,8 +12,9 @@ test('the profile shows the week against the promise, and extra learning apart',
   await finishSession(page);
   await expect(page.getByText('+5 слов сверх плана')).toBeVisible();
   await button(page, 'На главную').click();
-  // Home has loaded (it moves focus to its heading then), so the window opens over a settled page.
-  await expect(page.getByRole('heading', { name: 'На сегодня всё', exact: true })).toBeFocused();
+  // The deck's page has loaded (it moves focus to its heading then), so the window opens over a
+  // settled page.
+  await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeFocused();
 
   const opener = button(page, 'Профиль');
   await opener.click();

@@ -31,7 +31,9 @@ test('a learner makes a deck from words and studies it', async ({ page }) => {
   await button(page, 'Учить · 3 слова').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('luggage');
   await finishSession(page);
-  await button(page, 'На главную').click();
+  await button(page, 'На главную').click(); // back on the deck's page
+  await expect(page.getByText(/3\s*из 3\sслова встречено/)).toBeVisible();
+  await button(page, 'Колоды').click();
   await page.getByRole('button', { name: /^Мои колоды · 1/ }).click();
   await expect(page.getByRole('button', { name: /^Путешествия/ })).toContainText('встречено 3');
 });

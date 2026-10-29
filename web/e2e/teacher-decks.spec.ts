@@ -72,13 +72,14 @@ test('a teacher gives words to a group and a student learns them first', async (
   await expect(button(page, 'Дать слова группе')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна0 из 2');
 
-  // The student meets the teacher's words first, within their own five a day.
+  // The student finds it in «Мои колоды» and studies it from its page, within their own pace.
   const learner = await student.newPage();
   await learner.goto('/');
-  await expect(learner.getByRole('button', { name: /^Unit 4/ })).toHaveAccessibleName(
-    /от Ольга · 7Б английский · 0 из 2 2 новых/,
-  );
-  await button(learner, 'Начать урок · 5 слов').click();
+  await learner.getByRole('button', { name: /^Мои колоды/ }).click();
+  await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText('от Ольга · 7Б английский');
+  await learner.getByRole('button', { name: /^Unit 4/ }).click();
+  await expect(learner.getByText('от Ольга · 7Б английский')).toBeVisible();
+  await button(learner, 'Начать урок · 2 слова').click();
   await expect(learner.getByRole('heading', { level: 1 })).toHaveText('carry out');
   await finishSession(learner);
   await button(learner, 'На главную').click();
@@ -86,11 +87,10 @@ test('a teacher gives words to a group and a student learns them first', async (
   await spellToday(learner);
   await student.close();
 
-  // The teacher is a member too: her deck is on her own «Сегодня», marked as hers.
-  await page.reload();
-  await expect(page.getByRole('button', { name: /^Unit 4/ })).toHaveAccessibleName(
-    /ваш набор · 7Б английский · 0 из 2/,
-  );
+  // The teacher finds it among her own decks, given to the group.
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Мои колоды/ }).click();
+  await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
   await openGroup(page);
   await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна2 из 2');
   await expect(page.getByText(/Группа: встречено 2 из 4 · все слова встретили 1 из 2/)).toBeVisible();

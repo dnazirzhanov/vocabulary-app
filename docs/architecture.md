@@ -91,7 +91,8 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 |---|---|
 | `GET /api/health/live` | process is up |
 | `GET /api/health/ready` | database reachable |
-| `GET /api/decks` | decks given to any of my groups first, mine included (`kind: group`, `group_name`, `author`, `is_mine`), then the course's levels, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0017) |
+| `GET /api/decks` | the course's levels for home, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0020) |
+| `GET /api/decks/{id}/stats` | a deck's page: met, learning, due, remembered well, new words today within the pace, next review, locked, today's spelling (ADR 0020) |
 | `GET /api/sessions/active` | `{ "session": … }` or `{ "session": null }` |
 | `POST /api/sessions` | `{kind: "study", deck_id}` (due cards from every deck, then new words sized by the daily pace) or `{kind: "hard", deck_id}` (practice on the hardest words; schedule unchanged); returns the open session if one exists; `409 nothing_to_study` / `409 nothing_to_practice` |
 | `GET /api/sessions/{id}` | session with exercises and results so far |

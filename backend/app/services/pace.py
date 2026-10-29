@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckWord, PaceDismissal, ReviewAttempt, User, UserWordProgress
 from app.schemas.me import PaceOut, SuggestionOut
-from app.services import decks
 from app.services.progress import INTRODUCTION, local_day_bounds, recall_counts
 from app.services.scheduling import local_date
 
@@ -233,8 +232,7 @@ def _answer_gaps(db: Session, user: User, since: datetime) -> list[float]:
 
 
 def words_left(db: Session, user: User) -> int:
-    """New words still to meet: every published level of the course, and the decks given to my
-    groups (ADR 0017). A word in both counts once."""
+    """New words still to meet in the course (every published level)."""
     introduced = set(
         db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
     )
@@ -243,7 +241,7 @@ def words_left(db: Session, user: User) -> int:
         .join(Deck, Deck.id == DeckWord.deck_id)
         .where(Deck.kind == "course", Deck.status == "published")
     )
-    return len((set(course) | set(decks.assigned_words(db, user))) - introduced)
+    return len(set(course) - introduced)
 
 
 def _quiet_kinds(db: Session, user: User, now: datetime) -> frozenset[SuggestionKind]:

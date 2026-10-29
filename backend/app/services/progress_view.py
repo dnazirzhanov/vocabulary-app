@@ -99,6 +99,13 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
     )
 
 
+def spelling_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> SpellingTodayOut:
+    """Today's spelling on its own, for a deck's page (ADR 0020)."""
+    today = local_date(now, time_zone)
+    since, _ = local_day_bounds(today, time_zone)
+    return _spelling_out(days_by_user(db, [user], since, time_zone)[user.id].get(today))
+
+
 def _spelling_out(day: PlanDay | None) -> SpellingTodayOut:
     """Today's planned new words to spell, and how many a finished spelling session covered."""
     if day is None:

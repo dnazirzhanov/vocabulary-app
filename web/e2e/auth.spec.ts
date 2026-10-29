@@ -63,7 +63,7 @@ test('a signed-out visitor sees the sign-up form, not the lessons', async ({ pag
   await mockSupabase(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Начать урок' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Колоды' })).toHaveCount(0);
 
   const submit = page.getByRole('button', { name: 'Создать аккаунт' });
   await expect(submit).toBeDisabled();
@@ -79,7 +79,7 @@ test('signing up opens the lessons and sends the token to the API', async ({ pag
   await fillForm(page, 'new@example.com', 'long-enough-1');
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
 
-  await expect(page.getByRole('button', { name: 'Начать урок' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Колоды' })).toBeVisible();
   const withToken = apiRequests.filter((request) => request.headers()['authorization'] === `Bearer ${fakeToken}`);
   expect(withToken.length).toBeGreaterThan(0);
   // Signed-out screens never reach the API.
@@ -98,7 +98,7 @@ test('a wrong password is explained in Russian and can be retried', async ({ pag
 
   await page.getByLabel('E-mail').fill('right@example.com');
   await page.getByRole('button', { name: 'Войти', exact: true }).last().click();
-  await expect(page.getByRole('button', { name: 'Начать урок' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Колоды' })).toBeVisible();
 });
 
 test('the session survives a reload, and signing out returns to the form', async ({ page }) => {
@@ -106,10 +106,10 @@ test('the session survives a reload, and signing out returns to the form', async
   await page.goto('/');
   await fillForm(page, 'right@example.com', 'long-enough-1');
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
-  await expect(page.getByRole('button', { name: 'Начать урок' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Колоды' })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Начать урок' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Колоды' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Прогресс' }).click();
   await expect(page.getByText('right@example.com')).toBeVisible();

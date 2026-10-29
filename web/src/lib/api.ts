@@ -4,6 +4,7 @@ import type {
   AttemptResult,
   Board,
   Deck,
+  DeckStats,
   DeckWord,
   GlossaryEntry,
   Hint,
@@ -104,6 +105,7 @@ export const api = {
   myProfile: () => request<Profile>('GET', '/me/profile'),
   memberProfile: (groupId: string, memberId: string) =>
     request<Profile>('GET', `/groups/${groupId}/members/${memberId}/profile`),
+  deckStats: (deckId: string) => request<DeckStats>('GET', `/decks/${deckId}/stats`),
   deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),

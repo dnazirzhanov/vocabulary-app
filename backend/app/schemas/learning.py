@@ -32,15 +32,9 @@ class CourseGoalOut(BaseModel):
 
 
 class DeckOut(BaseModel):
+    """A course level on home (ADR 0020); other decks are in «Мои колоды»."""
+
     id: str
-    # 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed
-    # first: its words come before the course's in the daily lesson.
-    kind: Literal["course", "group"]
-    # Where a group deck comes from: its group, its author's nickname there (None once they left)
-    # and whether I wrote it.
-    group_name: str | None = None
-    author: str | None = None
-    is_mine: bool = False
     title: str
     description: str
     # The course level ("A1–A2") and its order; a later level is locked until the one before is
@@ -59,6 +53,31 @@ class DeckOut(BaseModel):
     new_today: int
     # The earliest upcoming review, when nothing is due yet.
     next_due_at: datetime | None
+
+
+class DeckStatsOut(BaseModel):
+    """A deck's page (ADR 0020): my progress on it and what studying it would bring today."""
+
+    id: str
+    title: str
+    kind: Literal["course", "user"]
+    level: str | None
+    # Where a deck I didn't write comes from; whether I wrote it.
+    is_mine: bool
+    author: str | None
+    group_name: str | None
+    word_count: int
+    introduced_count: int
+    learning_count: int
+    review_count: int
+    # Remembered well: FSRS stability of 21 days or more, as on the progress page.
+    well_learned: int
+    # New words opening it would bring today, within the daily pace (0 for a locked level).
+    new_today: int
+    next_due_at: datetime | None
+    locked: bool
+    # Today's spelling covers words learned today from any deck.
+    spelling_today: "SpellingTodayOut"
 
 
 class IntervalPreview(BaseModel):

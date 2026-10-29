@@ -13,6 +13,7 @@ from app.schemas.learning import (
     AttemptIn,
     AttemptResultOut,
     DeckOut,
+    DeckStatsOut,
     DeckWordOut,
     GlossaryEntryOut,
     HintIn,
@@ -99,6 +100,14 @@ def delete_account(user: CurrentUser, db: DbSession) -> Response:
 @router.get("/progress")
 def course_progress(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> ProgressOut:
     return progress_view.course_progress(db, user, now, time_zone)
+
+
+@router.get("/decks/{deck_id}/stats")
+def deck_stats(
+    deck_id: str, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> DeckStatsOut:
+    """A deck's page: my progress on it and what studying it would bring today (ADR 0020)."""
+    return sessions.deck_stats(db, user, deck_id, now, time_zone)
 
 
 @router.get("/decks/{deck_id}/words")

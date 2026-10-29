@@ -2,6 +2,7 @@
 
 **Status:** Accepted. Amends ADR 0014 (which decks a learner sees) and ADR 0016 (phrases).
 Amended by ADR 0019: anyone writes decks (kind `group` renamed `user`); drafts live in «Мои колоды».
+Amended by ADR 0020: a group's deck is studied by opening it; its words no longer come first in a daily lesson.
 
 ## Context
 A teacher told us how he prepares vocabulary homework today: he asks ChatGPT for the words in

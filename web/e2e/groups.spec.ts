@@ -1,7 +1,8 @@
-import { button, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, spellToday, test } from './learner.ts';
 
 test('a learner creates a group, a friend joins by link, both are on the board', async ({ page, browser }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
   await spellToday(page); // the day's plan: the cards, then their spelling

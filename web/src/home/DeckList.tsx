@@ -4,7 +4,7 @@ import styles from './HomeScreen.module.css';
 
 /**
  * The course's levels as Anki's deck list: per deck, today's new words, cards in learning steps
- * and reviews due. Tapping a deck studies it; a locked level says what opens it (ADR 0014).
+ * and reviews due. Tapping a deck opens its page (ADR 0020); a locked level says what opens it.
  */
 export function DeckList({
   decks,
@@ -46,7 +46,6 @@ export function DeckList({
                 <strong>{deck.title}</strong>
                 <span className={styles.deckMeta}>
                   {deck.level && `${deck.level} · `}
-                  {deck.group_name && `${sourceOf(deck)} · `}
                   {deck.locked && index > 0 ? (
                     `после уровня «${decks[index - 1].title}»`
                   ) : (
@@ -73,13 +72,6 @@ export function DeckList({
       </ul>
     </section>
   );
-}
-
-/** Where a teacher's deck comes from, in a few words: mine, someone's, or just the group. */
-function sourceOf(deck: Deck): string {
-  if (deck.is_mine) return `ваш набор · ${deck.group_name}`;
-  if (deck.author) return `от ${deck.author} · ${deck.group_name}`;
-  return `группа ${deck.group_name}`;
 }
 
 function Count({ value, className, name }: { value: number; className: string; name: string }) {

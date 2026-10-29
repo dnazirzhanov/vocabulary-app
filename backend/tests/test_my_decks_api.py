@@ -50,8 +50,9 @@ def test_anyone_writes_a_deck_and_studies_it_by_opening_it(client: TestClient) -
     lesson = client.post("/api/sessions", json={"kind": "study"}, headers=as_("pavel")).json()
     new = [card["word"]["headword"] for card in cards(lesson) if card["new"]]
     assert "teapot" not in new and new[0] == "house"
-    # Not on «Сегодня», and nobody else's.
-    assert all(d["kind"] == "course" for d in client.get("/api/decks", headers=as_("pavel")).json())
+    # Not on home (course levels only), and nobody else's.
+    home = client.get("/api/decks", headers=as_("pavel")).json()
+    assert deck["id"] not in [d["id"] for d in home]
     for path in (f"/api/decks/{deck['id']}/words", f"/api/decks/{deck['id']}/edit"):
         assert client.get(path, headers=as_("ivan")).status_code == 404
     stranger = client.post(

@@ -8,8 +8,8 @@ export interface Course {
 }
 
 export function courseOf(decks: Deck[]): Course {
-  // A teacher's decks are not part of the course or its sourced goal (ADR 0017).
-  const levels = decks.filter((deck) => deck.kind === 'course');
+  // Home's decks are the course's levels (ADR 0020).
+  const levels = decks;
   return {
     course_goal: levels.find((deck) => deck.course_goal)?.course_goal ?? null,
     word_count: levels.reduce((sum, deck) => sum + deck.word_count, 0),

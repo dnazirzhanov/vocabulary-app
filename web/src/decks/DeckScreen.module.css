@@ -1,0 +1,236 @@
+/*
+ * A deck's page (ADR 0020): one reading column — where I am with the deck (a figure and a two-tone
+ * bar, as on the progress page), today's cards, then quiet links; the study button waits in the
+ * bar at the bottom, the screen's one orange.
+ */
+.screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.topbar {
+  width: 100%;
+  max-width: calc(var(--width-column) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: max(var(--space-2), env(safe-area-inset-top)) var(--gutter) 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: rgb(38 38 38 / 0.06);
+}
+
+.main {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--gutter) var(--space-6);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.title {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.title:focus {
+  outline: none;
+}
+
+/* --- where I am ------------------------------------------------------------------------------ */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.figure {
+  font-size: var(--text-option);
+}
+
+.figure strong {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.bar {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--color-activity-none);
+}
+
+.barMet,
+.barKnown {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.barMet {
+  background: var(--color-activity-some);
+}
+
+.barKnown {
+  background: var(--color-activity-goal);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.keyKnown,
+.keyMet {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.keyMet {
+  margin-left: var(--space-2);
+  background: var(--color-activity-some);
+}
+
+.keyKnown {
+  background: var(--color-activity-goal);
+}
+
+/* --- today ----------------------------------------------------------------------------------- */
+
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.note {
+  color: var(--color-text-muted);
+}
+
+/* --- quiet links ----------------------------------------------------------------------------- */
+
+.links {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.03);
+}
+
+.link > svg:first-child {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary-strong);
+}
+
+.link > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.link strong {
+  font-weight: var(--weight-display);
+}
+
+.link small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.chevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+}
+
+/* --- the study button ------------------------------------------------------------------------ */
+
+.actions {
+  padding: var(--space-3) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+.actionsInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.action {
+  width: 100%;
+}
+
+.error {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}

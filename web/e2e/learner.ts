@@ -38,6 +38,12 @@ export { expect };
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
+/** Opens a deck's page from home (ADR 0020): lessons are started there, one deck at a time. */
+export async function openDeck(page: Page, title = 'Основа') {
+  await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+}
+
 export type RatingLabel = 'Снова' | 'Трудно' | 'Хорошо' | 'Легко';
 
 /** Words seen in this test, by their Russian meaning: a spelling recall shows only the meaning. */

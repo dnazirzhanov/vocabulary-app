@@ -37,6 +37,7 @@ from app.schemas.learning import (
     CardExercise,
     CourseGoalOut,
     DeckOut,
+    DeckStatsOut,
     ExerciseOut,
     HintIn,
     HintOut,
@@ -58,7 +59,7 @@ from app.schemas.learning import (
     SummaryWord,
     WordOut,
 )
-from app.services import decks, groups, pace, spelling
+from app.services import decks, groups, pace, progress_view, spelling
 from app.services.learning import (
     HARD_CARDS_PER_SESSION,
     REQUEUE_WITHIN_SECONDS,
@@ -75,6 +76,8 @@ from app.services.scheduling import (
     AGAIN,
     LEARNING,
     RELEARNING,
+    REVIEW,
+    WELL_LEARNED_STABILITY_DAYS,
     CardState,
     local_date,
     previews,
@@ -305,17 +308,10 @@ def _current_index(rows: list[Any]) -> int:
     return max(0, len(rows) - 1)
 
 
-def _deck_out(
-    row: Any, *, locked: bool, new_today: int, given: decks.GivenDeck | None = None
-) -> DeckOut:
+def _deck_out(row: Any, *, locked: bool, new_today: int) -> DeckOut:
     deck, words, met, due_now, learning, upcoming = row
     return DeckOut(
         id=deck.id,
-        # On «Сегодня», a user deck is there because a group was given it.
-        kind="group" if given else "course",
-        group_name=given.group_name if given else None,
-        author=given.author if given else None,
-        is_mine=given.is_mine if given else False,
         title=deck.title,
         description=deck.description,
         level=deck.level,
@@ -337,25 +333,76 @@ def _deck_out(
 
 
 def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> list[DeckOut]:
-    """Decks given to my groups first, then the course's levels. Today's new words go to the
-    given decks first, then to the current level, as the daily lesson takes them (ADR 0017)."""
+    """The course's levels, for home (ADR 0020): decks I wrote or my groups were given are in
+    «Мои колоды». Today's new words are offered by the current level."""
     rows = _course_rows(db, user, now)
     if not rows:
         return []
     current = _current_index(rows)
-    today = pace.day_plan(db, user, rows[current][0].id, now, time_zone)
-    allowance = 0 if today.blocked_by_reviews else today.remaining
-    out: list[DeckOut] = []
-    for row, given in _assigned_rows(db, user, now):
-        _, words, met, *_ = row
-        new = min(allowance, words - met)
-        allowance -= new
-        out.append(_deck_out(row, locked=False, new_today=new, given=given))
-    for index, row in enumerate(rows):
-        _, words, met, *_ = row
-        new = min(allowance, words - met) if index == current else 0
-        out.append(_deck_out(row, locked=index > current, new_today=new))
-    return out
+    allowance = _allowance(db, user, rows, now, time_zone)
+    return [
+        _deck_out(
+            row,
+            locked=index > current,
+            new_today=min(allowance, row[1] - row[2]) if index == current else 0,
+        )
+        for index, row in enumerate(rows)
+    ]
+
+
+def _allowance(db: Session, user: User, rows: list[Any], now: datetime, time_zone: ZoneInfo) -> int:
+    """New words today's pace still allows, anywhere (0 while too many reviews are due)."""
+    if not rows:
+        return 0
+    today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+    return 0 if today.blocked_by_reviews else today.remaining
+
+
+def deck_stats(
+    db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
+) -> DeckStatsOut:
+    """A deck's page (ADR 0020): my progress on it and what studying it would bring today."""
+    deck = decks.visible_deck(db, user, deck_id)
+    rows = _course_rows(db, user, now)
+    row = db.execute(_counted_decks(user, now).where(Deck.id == deck.id)).one()
+    _, words, met, due_now, learning, upcoming = row
+    locked = False
+    new_today = min(_allowance(db, user, rows, now, time_zone), words - met)
+    if deck.kind == "course":
+        index = next((i for i, course_row in enumerate(rows) if course_row[0].id == deck.id), 0)
+        locked = index > _current_index(rows)
+        if locked:
+            new_today = 0
+    known = db.scalar(
+        select(func.count())
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+        .where(
+            DeckWord.deck_id == deck.id,
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.fsrs_state == REVIEW,
+            UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS,
+        )
+    )
+    given = next((item for item in decks.assigned_decks(db, user) if item.deck.id == deck.id), None)
+    return DeckStatsOut(
+        id=deck.id,
+        title=deck.title,
+        kind="course" if deck.kind == "course" else "user",
+        level=deck.level,
+        is_mine=deck.owner_id == user.id,
+        author=given.author if given else None,
+        group_name=given.group_name if given else None,
+        word_count=words,
+        introduced_count=met,
+        learning_count=learning,
+        review_count=due_now - learning,
+        well_learned=int(known or 0),
+        new_today=new_today,
+        next_due_at=upcoming,
+        locked=locked,
+        spelling_today=progress_view.spelling_today(db, user, now, time_zone),
+    )
 
 
 def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LibraryOut:
@@ -413,9 +460,9 @@ def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
 ) -> tuple[str, list[PlannedExercise], int]:
     """One deck: its due cards, most overdue first, then its new words as today's pace allows
-    (ADR 0010). No deck («Продолжить»): due cards of every level, then new words: those of decks
-    given to my groups first (ADR 0017), then the current level's, so earlier levels keep coming
-    back (ADR 0014). Also returns the day's plan to record (pace.recorded_target)."""
+    (ADR 0010). The web always names a deck (ADR 0020); with none, due cards of every level, then
+    the current level's new words (ADR 0014). Also returns the day's plan to record
+    (pace.recorded_target)."""
     rows = _course_rows(db, user, now)
     current = _current_index(rows)
     if request.deck_id is None:
@@ -448,9 +495,6 @@ def _study_plan(
             db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
         )
         order = [word.id for word in _deck_words(db, deck.id)]
-        if request.deck_id is None:
-            # A course word a teacher linked comes with the teacher's deck, and only once.
-            order = list(dict.fromkeys(decks.assigned_words(db, user) + order))
         new = pick_new_words(order, introduced, today.next_lesson_size)
     if not due and not new:
         if today.blocked_by_reviews:
@@ -480,7 +524,15 @@ def _spelling_plan(
     words = [word_id for word_id, _ in learned]
     if not words:
         raise ApiError(409, "nothing_to_spell", "No new words learned today yet")
-    deck = db.scalar(select(DeckWord.deck_id).where(DeckWord.word_id == words[0]).limit(1))
+    # The session is about today's words from any deck; it names one the learner can see: a course
+    # level when the word is in one (a teacher may have linked it into someone else's deck).
+    deck = db.scalar(
+        select(DeckWord.deck_id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(DeckWord.word_id == words[0])
+        .order_by((Deck.kind == "course").desc(), DeckWord.deck_id)
+        .limit(1)
+    )
     assert deck is not None
     return deck, plan_spelling(words, _tile_maker(db, user, now))
 

@@ -1,8 +1,9 @@
-import { button, expect, finishSession, study, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, study, test } from './learner.ts';
 
 test('a new learner studies five flashcards and the progress survives a reload', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('0 из 100');
+  await openDeck(page);
   // Each new card says its word by itself, from the recorded file.
   const spoken = page.waitForRequest(/\/audio\/words\/house\.mp3$/);
   await button(page, 'Начать урок · 5 слов').click();
@@ -23,13 +24,17 @@ test('a new learner studies five flashcards and the progress survives a reload',
   await expect(page.getByText(/^Новых — 5\sслов/)).toBeVisible();
   await button(page, 'На главную').click();
 
+  // Back on the deck's page; after a reload, home and the page still know.
   await page.reload();
   await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('5 из 100');
+  await openDeck(page);
+  await expect(page.getByText(/5\s*из 100\sслов встречено/)).toBeVisible();
   await expect(button(page, 'Ещё 5 слов')).toBeVisible(); // the daily target is met: a bonus lesson
 });
 
 test('a card rated «Снова» comes back later in the same session', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await study(page, 'Снова'); // house
   await study(page, 'Легко'); // water
@@ -41,6 +46,7 @@ test('a card rated «Снова» comes back later in the same session', async (
 
 test('every word of the example opens its meaning, and a tap elsewhere closes it', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await button(page, 'Показать ответ').click();
 
@@ -59,6 +65,7 @@ test('every word of the example opens its meaning, and a tap elsewhere closes it
 
 test('the keyboard works like Anki: Space shows the answer, number keys rate', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
   await page.keyboard.press('Space');
@@ -69,16 +76,19 @@ test('the keyboard works like Anki: Space shows the answer, number keys rate', a
 
 test('an unfinished session resumes where the learner left off', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await study(page, 'Легко');
   await study(page, 'Легко');
   await page.reload();
+  await openDeck(page);
   await button(page, 'Продолжить урок').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('friend');
 });
 
 test('hard words are summarised and can be practised straight away', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page, { house: 'Снова' });
   await expect(page.getByRole('heading', { name: 'Готово!' })).toBeVisible();
@@ -89,6 +99,7 @@ test('hard words are summarised and can be practised straight away', async ({ pa
 
 test('a lost connection keeps the rating and the learner can retry', async ({ page }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await page.route('**/attempts', (route) => route.abort('internetdisconnected'));
   await button(page, 'Показать ответ').click();

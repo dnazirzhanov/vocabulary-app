@@ -16,15 +16,9 @@ export interface CourseGoal {
   coverage_percent: number;
 }
 
+/** A course level on home (ADR 0020); other decks are in «Мои колоды». */
 export interface Deck {
   id: string;
-  /** 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed first. */
-  kind: 'course' | 'group';
-  /** Where a group deck comes from: its group, its author's nickname there (null once they left),
-   * and whether I wrote it. */
-  group_name: string | null;
-  author: string | null;
-  is_mine: boolean;
   title: string;
   description: string;
   /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
@@ -327,6 +321,29 @@ export interface GenerateResult {
   skipped: { headword: string; reason: 'duplicate' | 'invalid' | 'too_long' | 'full' }[];
   /** 'demo': placeholder cards, made without any service (development only). */
   provider: 'deepseek' | 'demo';
+}
+
+/** A deck's page (ADR 0020): my progress on it and what studying it brings today. */
+export interface DeckStats {
+  id: string;
+  title: string;
+  kind: 'course' | 'user';
+  level: string | null;
+  is_mine: boolean;
+  author: string | null;
+  group_name: string | null;
+  word_count: number;
+  introduced_count: number;
+  learning_count: number;
+  review_count: number;
+  /** Remembered well (FSRS), as on the progress page. */
+  well_learned: number;
+  /** New words studying it would bring today, within the daily pace. */
+  new_today: number;
+  next_due_at: string | null;
+  locked: boolean;
+  /** Today's spelling covers words learned today from any deck. */
+  spelling_today: { words: number; done: number };
 }
 
 /** A card filled in from a word for the manual form; not saved (ADR 0019). */

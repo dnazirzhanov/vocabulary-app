@@ -177,18 +177,6 @@ def shared_groups(db: Session, user: User) -> dict[str, list[AssignedGroupOut]]:
     return shared
 
 
-def assigned_words(db: Session, user: User) -> list[str]:
-    """Every word of the decks given to my groups, in the order to meet them: the oldest
-    assignment first, each in its deck's order."""
-    given = _active_assignments(user).subquery()
-    ids = db.scalars(
-        select(DeckWord.word_id)
-        .join(given, given.c.deck_id == DeckWord.deck_id)
-        .order_by(given.c.assigned_at, DeckWord.deck_id, DeckWord.position)
-    )
-    return list(dict.fromkeys(ids))
-
-
 # --- writing a deck -------------------------------------------------------------------------
 
 

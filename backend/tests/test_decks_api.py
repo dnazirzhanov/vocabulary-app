@@ -12,7 +12,7 @@ from app.models import UserWordProgress
 from tests.support import at, cards, finish
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
-CONTINUE = {"kind": "study"}  # «Продолжить»: every level's reviews, then the day's new words
+CONTINUE = {"kind": "study"}  # no deck: every level's reviews, then the current level's words
 
 SETBACK = {
     "headword": "setback",
@@ -71,15 +71,19 @@ def give(client: TestClient, deck: dict[str, Any], group_id: str) -> dict[str, A
     return published
 
 
-def new_words(client: TestClient, user: str) -> list[str]:
-    """The new words of the user's next lesson, in order (the lesson is left open)."""
-    session = client.post("/api/sessions", json=CONTINUE, headers=as_(user)).json()
+def lesson_of(deck: dict[str, Any] | None) -> dict[str, str]:
+    return CONTINUE | {"deck_id": deck["id"]} if deck else CONTINUE
+
+
+def new_words(client: TestClient, user: str, deck: dict[str, Any] | None = None) -> list[str]:
+    """The new words of the user's next lesson of `deck`, in order (the lesson is left open)."""
+    session = client.post("/api/sessions", json=lesson_of(deck), headers=as_(user)).json()
     return [card["word"]["headword"] for card in cards(session) if card["new"]]
 
 
-def learn(client: TestClient, user: str) -> None:
-    """One whole lesson for `user`, every card «Хорошо»."""
-    session = client.post("/api/sessions", json=CONTINUE, headers=as_(user)).json()
+def learn(client: TestClient, user: str, deck: dict[str, Any] | None = None) -> None:
+    """One whole lesson of `deck` for `user`, every card «Хорошо»."""
+    session = client.post("/api/sessions", json=lesson_of(deck), headers=as_(user)).json()
     finish(client, session, as_(user))
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_(user))
 
@@ -152,36 +156,63 @@ def test_a_course_word_is_linked_not_copied(client: TestClient) -> None:
         assert response.status_code == 422, bad
 
 
-def test_given_words_come_first_within_the_learners_own_pace(client: TestClient) -> None:
+def test_a_given_deck_is_studied_by_opening_it(client: TestClient) -> None:
     group = class_group(client)
     deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
     assert deck["status"] == "published" and deck["groups"][0]["name"] == "7Б английский"
     # Giving it again changes nothing.
     assert give(client, deck, group["id"])["groups"] == deck["groups"]
 
+    # Home lists the course's levels only (ADR 0020); the deck is in «Мои колоды».
     listed = client.get("/api/decks", headers=as_("pavel")).json()
-    given = listed[0]
-    assert (given["kind"], given["word_count"]) == ("group", 3)
-    # Where it comes from: the group, and its author's nickname there.
-    assert (given["group_name"], given["author"], given["is_mine"]) == (
-        "7Б английский",
+    assert deck["id"] not in [d["id"] for d in listed]
+    (theirs,) = client.get("/api/decks/library", headers=as_("pavel")).json()["from_groups"]
+    assert (theirs["id"], theirs["author"], theirs["group_name"]) == (
+        deck["id"],
         "Ольга",
-        False,
+        "7Б английский",
     )
-    # Today's five new words: the teacher's three, then two of the course (money only once).
-    assert [(d["kind"], d["new_today"]) for d in listed[:2]] == [("group", 3), ("course", 2)]
-    assert new_words(client, "pavel") == ["setback", "carry out", "money", "house", "water"]
+    # Opened, it brings its own words, within the pace; the course lesson stays the course's.
+    assert new_words(client, "pavel", deck) == ["setback", "carry out", "money"]
+    assert new_words(client, "ivan") == ["house", "water", "friend", "buy", "cheap"]
+    # Whoever gave it learns it the same way.
+    assert new_words(client, "olga", deck) == ["setback", "carry out", "money"]
 
-    # Whoever gave the words is a member too: the deck is hers to learn, at her own pace.
-    hers = client.get("/api/decks", headers=as_("olga")).json()[0]
-    assert (hers["kind"], hers["author"], hers["is_mine"]) == ("group", "Ольга", True)
-    assert new_words(client, "olga") == ["setback", "carry out", "money", "house", "water"]
+
+def test_a_decks_page_shows_my_progress_on_it(client: TestClient) -> None:
+    group = class_group(client)
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
+    stats = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("pavel")).json()
+    assert (stats["title"], stats["kind"], stats["author"], stats["group_name"]) == (
+        "Unit 4",
+        "user",
+        "Ольга",
+        "7Б английский",
+    )
+    assert (stats["word_count"], stats["introduced_count"], stats["new_today"]) == (3, 0, 3)
+    assert not stats["is_mine"] and not stats["locked"]
+
+    learn(client, "pavel", deck)
+    stats = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("pavel")).json()
+    # All three met: nothing new left in it, though today's pace has room for two more.
+    assert (stats["introduced_count"], stats["well_learned"], stats["new_today"]) == (3, 0, 0)
+    # Spelling covers today's words, whichever deck they came from.
+    assert stats["spelling_today"] == {"words": 3, "done": 0}
+    assert client.get(f"/api/decks/{deck['id']}/stats", headers=as_("olga")).json()["is_mine"]
+    stranger = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("stranger"))
+    assert stranger.status_code == 404
+
+    # A later level is locked: nothing new there yet.
+    levels = client.get("/api/decks", headers=as_("pavel")).json()
+    later = client.get(f"/api/decks/{levels[1]['id']}/stats", headers=as_("pavel")).json()
+    assert (later["kind"], later["locked"], later["new_today"]) == ("course", True, 0)
 
 
 def test_a_phrase_is_spelled_with_its_gaps(client: TestClient) -> None:
     group = class_group(client)
     give(client, write_deck(client, group["id"], [CARRY_OUT]), group["id"])
-    learn(client, "pavel")
+    deck = client.get("/api/decks/library", headers=as_("pavel")).json()["from_groups"][0]
+    learn(client, "pavel", deck)
     session = client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel")).json()
     card = session["exercises"][0]
     assert card["prompt"]["translation"] == "проводить, выполнять"
@@ -206,8 +237,8 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
     client: TestClient,
 ) -> None:
     group = class_group(client)
-    give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
-    learn(client, "pavel")
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
+    learn(client, "pavel", deck)
 
     mine = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
     (given,) = mine["assignments"]
@@ -232,10 +263,10 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
 
 def test_progress_toward_the_course_goal_counts_course_words_only(client: TestClient) -> None:
     group = class_group(client)
-    give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
-    learn(client, "pavel")
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
+    learn(client, "pavel", deck)
     words = client.get("/api/progress", headers=as_("pavel")).json()["words"]
-    assert words["introduced"] == 3  # money, house and water; not setback or carry out
+    assert words["introduced"] == 1  # money, a course word; not setback or carry out
 
 
 def test_corrections_reach_learners_and_taking_back_stops_new_words(
@@ -244,7 +275,7 @@ def test_corrections_reach_learners_and_taking_back_stops_new_words(
     group = class_group(client)
     deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT]), group["id"])
     setback_id, carry_id = (w["word"]["id"] for w in deck["words"])
-    learn(client, "pavel")
+    learn(client, "pavel", deck)
 
     fixed = client.put(
         f"/api/decks/{deck['id']}/words/{setback_id}",
@@ -264,11 +295,12 @@ def test_corrections_reach_learners_and_taking_back_stops_new_words(
 
     taken = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("olga"))
     assert taken.status_code == 204
-    # Taken back: gone for everyone, whoever gave it included.
-    for user in ("ivan", "olga"):
-        listed = client.get("/api/decks", headers=as_(user)).json()
-        assert all(d["kind"] == "course" for d in listed), user
-    assert new_words(client, "ivan") == ["house", "water", "friend", "buy", "cheap"]
+    # Taken back: gone from «Из моих групп» for everyone; the author keeps it as hers.
+    library = client.get("/api/decks/library", headers=as_("ivan")).json()
+    assert library["from_groups"] == []
+    assert client.get(f"/api/decks/{deck['id']}/stats", headers=as_("ivan")).status_code == 404
+    hers = client.get("/api/decks/library", headers=as_("olga")).json()["mine"][0]
+    assert (hers["id"], hers["groups"]) == (deck["id"], [])
     again = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("olga"))
     assert again.status_code == 404
     member = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("pavel"))
