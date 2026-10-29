@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { serverNow } from '../lib/clock.ts';
 import { api } from '../lib/api.ts';
 import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
-import { startOfDay, type RoadmapInput } from '../lib/roadmap.ts';
 import type { Deck, Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { RoadmapView } from '../roadmap/RoadmapView.tsx';
+import { planInput } from '../plan/planInput.ts';
+import { PlanView } from '../plan/PlanView.tsx';
 import { CoverageSentence } from './CoverageSentence.tsx';
 import { PacePicker, type PaceChoice } from './PacePicker.tsx';
 import styles from './GoalScreen.module.css';
 
+/** First run: the promise, the pace, then the plan. Later changes happen on «План» (PlanScreen). */
 interface GoalScreenProps {
-  /** First run: the promise, the pace, then the plan. Later ("Моя цель"): pace and plan together. */
-  mode: 'onboarding' | 'edit';
   deck: Deck;
   me: Me;
   onDone: (me: Me) => void;
-  onBack?: () => void;
 }
 
 const thousands = (n: number) => n.toLocaleString('ru-RU');
@@ -84,30 +81,14 @@ function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }
 type Step = 'promise' | 'pace' | 'plan';
 const STEPS: Step[] = ['promise', 'pace', 'plan'];
 
-// API timestamps are UTC instants; the ramp counts the learner's local calendar days.
-const localDay = (iso: string | null) => (iso ? startOfDay(new Date(iso)) : null);
-
-export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: GoalScreenProps) {
-  const [step, setStep] = useState<Step>(mode === 'onboarding' ? 'promise' : 'pace');
-  // "Моя цель" is opened after lessons: fresh counts make the plan start from today's real position.
-  const [deck, setDeck] = useState(initialDeck);
-  const [today, setToday] = useState({ metToday: 0, seconds: DEFAULT_SECONDS_PER_EXERCISE });
-  useEffect(() => {
-    if (mode !== 'edit') return;
-    void Promise.all([api.listDecks(), api.pace(initialDeck.id)])
-      .then(([decks, pace]) => {
-        setDeck(decks.find((candidate) => candidate.id === initialDeck.id) ?? initialDeck);
-        setToday({ metToday: pace.new_words_today, seconds: pace.seconds_per_exercise });
-      })
-      .catch(() => undefined); // the plan still works from the counts already loaded
-  }, [mode, initialDeck]);
-  const seconds = today.seconds;
-  const initial: PaceChoice = {
+export function GoalScreen({ deck, me, onDone }: GoalScreenProps) {
+  const [step, setStep] = useState<Step>('promise');
+  const seconds = DEFAULT_SECONDS_PER_EXERCISE; // a new learner has no answering time to measure yet
+  const [choice, setChoice] = useState<PaceChoice>({
     words: me.daily_target_words ?? 5,
     days: me.study_days_per_week,
     ramp: me.ramp_enabled,
-  };
-  const [choice, setChoice] = useState<PaceChoice>(initial);
+  });
   const { run, busy, error } = useAsyncAction();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -117,8 +98,6 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
     mainRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
   }, [step]);
 
-  const unchanged =
-    mode === 'edit' && choice.words === initial.words && choice.days === initial.days && choice.ramp === initial.ramp;
   const save = () =>
     run(async () =>
       onDone(
@@ -129,19 +108,7 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
         }),
       ),
     );
-
-  const back = mode === 'onboarding' && step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : onBack;
-  const roadmapInput: RoadmapInput = {
-    today: startOfDay(serverNow()),
-    totalWords: deck.word_count,
-    introduced: deck.introduced_count,
-    metToday: today.metToday,
-    wordsPerDay: choice.words,
-    studyDaysPerWeek: choice.days,
-    ramp: choice.ramp,
-    rampStartedOn: localDay(me.onboarded_at) ?? startOfDay(serverNow()),
-  };
-  const plan = <RoadmapView input={roadmapInput} courseWords={deck.course_goal?.target_words ?? null} />;
+  const back = step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : undefined;
 
   return (
     <div className={styles.screen}>
@@ -153,21 +120,19 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
         ) : (
           <span />
         )}
-        {mode === 'onboarding' && (
-          <p className={styles.steps}>
-            <span className="visually-hidden">
-              Шаг {STEPS.indexOf(step) + 1} из {STEPS.length}
-            </span>
-            {STEPS.map((candidate, index) => (
-              <span
-                key={candidate}
-                aria-hidden="true"
-                className={styles.dot}
-                data-active={index <= STEPS.indexOf(step)}
-              />
-            ))}
-          </p>
-        )}
+        <p className={styles.steps}>
+          <span className="visually-hidden">
+            Шаг {STEPS.indexOf(step) + 1} из {STEPS.length}
+          </span>
+          {STEPS.map((candidate, index) => (
+            <span
+              key={candidate}
+              aria-hidden="true"
+              className={styles.dot}
+              data-active={index <= STEPS.indexOf(step)}
+            />
+          ))}
+        </p>
       </header>
 
       <main ref={mainRef} className={styles.main}>
@@ -181,6 +146,18 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
           </div>
           <div className={styles.content}>
             {step === 'promise' && <CoursePromise deck={deck} />}
+            {step === 'pace' && (
+              <>
+                <h1 className={styles.heading} tabIndex={-1} data-autofocus>
+                  Сколько новых слов в день?
+                </h1>
+                <p className={styles.lead}>
+                  Это план, а не предел: после цели всегда можно взять ещё слов. Если темп окажется слишком быстрым или
+                  медленным, приложение подскажет.
+                </p>
+                <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
+              </>
+            )}
             {step === 'plan' && (
               <>
                 <h1 className={styles.heading} tabIndex={-1} data-autofocus>
@@ -188,33 +165,9 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
                 </h1>
                 <p className={styles.lead}>
                   {wordsLabel(choice.words)} в день, {choice.days}&nbsp;дней в неделю. Темп можно поменять в любой
-                  момент — план пересчитается.
+                  момент в разделе «План» — даты пересчитаются.
                 </p>
-                {plan}
-              </>
-            )}
-            {step === 'pace' && (
-              <>
-                {mode === 'edit' && deck.course_goal && (
-                  <p className={styles.goalLine}>
-                    Цель — {thousands(deck.course_goal.target_words)} самых частых слов, около{' '}
-                    {deck.course_goal.coverage_percent}% слов в обычных текстах. Сейчас доступно {deck.word_count}.
-                  </p>
-                )}
-                <h1 className={styles.heading} tabIndex={-1} data-autofocus>
-                  {mode === 'edit' ? 'Мой темп' : 'Сколько новых слов в день?'}
-                </h1>
-                <p className={styles.lead}>
-                  Это план, а не предел: после цели всегда можно взять ещё слов. Если темп окажется слишком быстрым или
-                  медленным, приложение подскажет.
-                </p>
-                <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
-                {mode === 'edit' && (
-                  <div className={styles.editPlan}>
-                    <h2 className={styles.subheading}>План при этом темпе</h2>
-                    {plan}
-                  </div>
-                )}
+                <PlanView input={planInput(deck, choice, 0, me.onboarded_at)} deckWords={deck.word_count} />
               </>
             )}
           </div>
@@ -238,20 +191,14 @@ export function GoalScreen({ mode, deck: initialDeck, me, onDone, onBack }: Goal
               Выбрать темп
             </PrimaryButton>
           )}
-          {step === 'pace' && mode === 'onboarding' && (
+          {step === 'pace' && (
             <PrimaryButton type="button" className={styles.action} onClick={() => setStep('plan')}>
               Дальше: мой план
             </PrimaryButton>
           )}
-          {(step === 'plan' || mode === 'edit') && (
-            <PrimaryButton
-              type="button"
-              className={styles.action}
-              disabled={busy || unchanged}
-              aria-busy={busy}
-              onClick={save}
-            >
-              {busy ? 'Сохраняем…' : mode === 'edit' ? 'Сохранить' : 'Начать'}
+          {step === 'plan' && (
+            <PrimaryButton type="button" className={styles.action} disabled={busy} aria-busy={busy} onClick={save}>
+              {busy ? 'Сохраняем…' : 'Начать'}
             </PrimaryButton>
           )}
         </div>

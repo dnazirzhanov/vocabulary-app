@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
+import { PlanScreen } from './plan/PlanScreen.tsx';
 import { BoardScreen } from './groups/BoardScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
@@ -19,7 +20,7 @@ type Screen =
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress'; deckId: string }
-  | { name: 'goal' }
+  | { name: 'plan' }
   | { name: 'words' }
   | { name: 'groups' }
   | { name: 'board'; groupId: string }
@@ -131,19 +132,20 @@ function Learning({ email }: { email: string | null }) {
   }
   if (!profile) return null;
   const { me, deck } = profile;
-  if (deck && (!me.onboarded || screen.name === 'goal')) {
+  if (deck && !me.onboarded) {
     return (
       <GoalScreen
-        mode={me.onboarded ? 'edit' : 'onboarding'}
         deck={deck}
         me={me}
         onDone={(updated) => {
           setProfile({ me: updated, deck });
           setScreen(startScreen());
         }}
-        onBack={me.onboarded ? goHome : undefined}
       />
     );
+  }
+  if (screen.name === 'plan' && deck) {
+    return <PlanScreen deckId={deck.id} onBack={goHome} onSaved={(updated) => setProfile({ me: updated, deck })} />;
   }
 
   if (screen.name === 'session') {
@@ -222,7 +224,7 @@ function Learning({ email }: { email: string | null }) {
     <HomeScreen
       onSession={showSession}
       onProgress={(deckId) => setScreen({ name: 'progress', deckId })}
-      onGoal={() => setScreen({ name: 'goal' })}
+      onPlan={() => setScreen({ name: 'plan' })}
       onWords={() => setScreen({ name: 'words' })}
       onFriends={(groupId) => setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' })}
     />

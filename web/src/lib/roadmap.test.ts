@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildRoadmap, calendarMonths, courseFinish, restDays, targetOn, type RoadmapInput } from './roadmap.ts';
+import {
+  buildRoadmap,
+  calendarWeeks,
+  courseFinish,
+  milestones,
+  restDays,
+  targetOn,
+  type RoadmapInput,
+} from './roadmap.ts';
 
 // Monday 2 November 2026.
 const MONDAY = new Date(2026, 10, 2);
@@ -93,27 +101,55 @@ test('nothing left to learn: no finish date', () => {
   assert.equal(plan.weeks.length, 0);
 });
 
-test('the plan as month calendars, Monday first, only the weeks the plan covers', () => {
-  // From Monday 2 November: 30 words by Saturday 7th, all firm by Wednesday 18th.
-  const [november, ...rest] = calendarMonths(buildRoadmap(base));
-  assert.equal(rest.length, 0);
-  assert.equal(november.month, 10);
-  // The week of Sunday 1 November (before the plan) and the weeks after the 18th are left out.
-  assert.deepEqual(
-    november.weeks.map((week) => week[0]?.date.getDate()),
-    [2, 9, 16],
-  );
-  const day = (n: number) => november.weeks.flat().find((cell) => cell?.date.getDate() === n)!;
-  assert.deepEqual([day(2).today, day(2).met, day(2).newWords], [true, 5, 5]);
-  assert.deepEqual([day(7).finish, day(7).met], [true, 30]);
-  assert.equal(day(18).allFirm, true);
-  assert.equal(day(22).kind, 'after');
+test('each day shows the running total at this pace, up to the goal', () => {
+  // 10 words known already, 20 a day, every day: 30 on the first day, 50 on the next…
+  const roadmap = buildRoadmap({ ...base, totalWords: 130, introduced: 10, wordsPerDay: 20 });
+  const weeks = calendarWeeks(roadmap, milestones(roadmap, 130, 10));
+  assert.equal(weeks.length, 1);
+  const day = (n: number) => weeks.flat().find((cell) => cell.date.getDate() === n)!;
+  assert.deepEqual([day(2).today, day(2).total], [true, 30]);
+  assert.equal(day(3).total, 50);
+  assert.deepEqual([day(7).total, day(7).finish], [130, true]);
+  assert.equal(day(8).kind, 'after');
+  // 30, 50, 70, 90, 110: 50 is first reached on the 3rd, 100 on the 6th.
+  assert.deepEqual([day(3).milestone, day(5).milestone, day(6).milestone], [50, null, 100]);
 });
 
-test('a plan crossing a month end spans two calendars', () => {
-  const months = calendarMonths(buildRoadmap({ ...base, today: new Date(2026, 10, 28) }));
+test('the weeks start on the Monday of this week, whatever the day', () => {
+  const roadmap = buildRoadmap({ ...base, today: new Date(2026, 9, 29), totalWords: 100 }); // a Thursday
+  const [first] = calendarWeeks(roadmap);
+  assert.equal(first[0].date.getDate(), 26);
   assert.deepEqual(
-    months.map((month) => month.month),
-    [10, 11],
+    first.map((cell) => cell.kind),
+    ['before', 'before', 'before', 'plan', 'plan', 'plan', 'plan'],
   );
+});
+
+test('milestones mark the days round numbers are first reached, then the goal', () => {
+  const input = { ...base, totalWords: 1300, introduced: 30, wordsPerDay: 20 };
+  const roadmap = buildRoadmap(input);
+  const marks = milestones(roadmap, 1300, 30);
+  assert.deepEqual(
+    marks.map((mark) => [mark.words, mark.date.getMonth(), mark.date.getDate()]),
+    [
+      [50, 10, 2],
+      [100, 10, 5],
+      [250, 10, 12],
+      [500, 10, 25],
+      [750, 11, 7],
+      [1000, 11, 20],
+      [1300, 0, 4],
+    ],
+  );
+  assert.equal(marks[marks.length - 1].goal, true);
+});
+
+test('a long plan runs week by week to the finish week', () => {
+  const roadmap = buildRoadmap({ ...base, totalWords: 1300, introduced: 30, wordsPerDay: 20 });
+  const weeks = calendarWeeks(roadmap);
+  assert.equal(
+    weeks.at(-1)!.some((cell) => cell.finish),
+    true,
+  );
+  assert.equal(weeks.length, 10); // 2 November to the week of 4 January
 });

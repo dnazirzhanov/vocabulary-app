@@ -45,11 +45,20 @@ certainty about the process (what, in which order, when you finish), never fluen
   first study day it falls due. Words met before today are treated as met today (never optimistic).
 - Weekly rows (with the ramp's lower targets), month-end totals, and a projection of the whole
   course at the same pace, labelled as such because the course is still being written.
-- Shown as a month calendar (Monday first), only the weeks the plan covers. Each day shows the
-  words known by its end and the new words that day. Rest days are plain, and days after the last
-  new word are muted (only reviews). The finish day carries a flag, and the day everything is
-  well remembered carries a check. Every cell has a full text label for screen readers. The
-  calendar replaced an earlier line chart after owner feedback: people plan by dates, not curves.
+- **The plan counts toward the course goal** (1,300 words), not the 30 words written so far, and
+  each calendar day shows one number: the words known by the end of that day if the pace holds
+  (10 known at 20 a day → 30, 50, 70…). The screen says that the rest of the course is still
+  being added.
+- **«План» is its own screen**, opened from a home card («1 300 слов — к 8 января») and the top
+  bar. It puts the goal date first, then the pace controls (words a day, days a week, warm-up),
+  then a calendar that redraws as the pace changes; saving is a separate, explicit step.
+- **The calendar shows five weeks at a time, starting with this week** (Monday first), so it
+  never opens on empty past weeks. The 1st of each month names its month, rest days keep the
+  previous total in grey, a green dot marks a round number reached (50, 100, 250…), and the
+  goal day is orange with a flag. A milestones strip lists those dates. Every cell has a full
+  text label for screen readers.
+- History: a line chart, then a per-month calendar showing new words per day, were replaced
+  after owner feedback — learners plan by dates and running totals, not curves or increments.
 
 ## Consequences
 - All thresholds are pilot hypotheses; they live as named constants in one module with tests.

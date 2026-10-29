@@ -74,17 +74,16 @@ export const AlertIcon = (props: IconProps) => (
   </svg>
 );
 
-export const TargetIcon = (props: IconProps) => (
-  <svg {...base} {...props}>
-    <circle cx="12" cy="12" r="8.5" />
-    <circle cx="12" cy="12" r="4.5" />
-    <circle cx="12" cy="12" r="0.8" fill="currentColor" />
-  </svg>
-);
-
 export const FlagIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <path d="M6 21V4" />
     <path d="M6 4h11l-2.5 4L17 12H6" fill="currentColor" />
+  </svg>
+);
+
+export const CalendarIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <rect x="3.5" y="5" width="17" height="15" rx="3" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
   </svg>
 );

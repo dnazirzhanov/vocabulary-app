@@ -7,12 +7,13 @@ import { wordsLabel } from '../lib/pace.ts';
 import type { Deck, DeckWord, Pace, Progress, Session } from '../lib/types.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { ChartIcon, FlameIcon, TargetIcon } from '../ui/icons.tsx';
+import { CalendarIcon, ChartIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { PathView } from '../path/PathView.tsx';
 import styles from './HomeScreen.module.css';
 import { FriendsCard } from './FriendsCard.tsx';
+import { PlanCard } from './PlanCard.tsx';
 import { SuggestionCard } from './SuggestionCard.tsx';
 
 type Loaded = {
@@ -27,12 +28,12 @@ type Action = { label: string; run: () => Promise<void> };
 interface HomeScreenProps {
   onSession: (session: Session) => void;
   onProgress: (deckId: string) => void;
-  onGoal: () => void;
+  onPlan: () => void;
   onWords: () => void;
   onFriends: (groupId: string | null) => void;
 }
 
-export function HomeScreen({ onSession, onProgress, onGoal, onWords, onFriends }: HomeScreenProps) {
+export function HomeScreen({ onSession, onProgress, onPlan, onWords, onFriends }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -159,8 +160,8 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords, onFriends }
           )}
         </span>
         <nav className={styles.links} aria-label="Разделы">
-          <button type="button" className={styles.progressLink} onClick={onGoal}>
-            <TargetIcon aria-hidden="true" /> <span className={styles.linkLabel}>Цель</span>
+          <button type="button" className={styles.progressLink} onClick={onPlan}>
+            <CalendarIcon aria-hidden="true" /> <span className={styles.linkLabel}>План</span>
           </button>
           <button type="button" className={styles.progressLink} onClick={() => onProgress(deck.id)}>
             <ChartIcon aria-hidden="true" /> <span className={styles.linkLabel}>Прогресс</span>
@@ -202,6 +203,7 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords, onFriends }
                 />
               </div>
             )}
+            <PlanCard deck={deck} pace={pace} onOpen={onPlan} />
             <FriendsCard onOpen={onFriends} />
             <button type="button" className={styles.wordsLink} onClick={onWords}>
               Все слова колоды · {deck.word_count}

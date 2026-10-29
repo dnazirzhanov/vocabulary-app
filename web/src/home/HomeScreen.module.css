@@ -125,6 +125,7 @@
   font-size: var(--text-meta);
 }
 
+.planCard,
 .friends {
   display: flex;
   flex-direction: column;
@@ -141,13 +142,21 @@
   cursor: pointer;
 }
 
+.planCard strong,
 .friends strong {
   font-size: var(--text-option);
   font-weight: var(--weight-display);
 }
 
+.planCard span,
 .friends span {
   color: var(--color-text-muted);
+}
+
+.planCard .planEyebrow {
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
 }
 
 .suggestion {
