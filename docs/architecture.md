@@ -101,12 +101,12 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
 | `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
 | `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
-| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group (my words met; everyone's for the owner, ADR 0017); members only; no points |
+| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group: author, my words met, the group's progress, and each member's met and well-remembered words for the owner (ADR 0017, 0019); members only; no points |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
 | `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
 | `POST /api/sessions/{id}/attempts` | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any |
 | `POST /api/sessions/{id}/exercises/{exercise_id}/hint` | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016) |
-| `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title, group_id?}`: personal for anyone, for a group only by its owner (ADR 0017, 0019) |
+| `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019) |
 | `GET /api/decks/library` | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019) |
 | `POST /api/decks/{id}/words/fill`, `POST …/words/suggest` | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019) |
 | `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |

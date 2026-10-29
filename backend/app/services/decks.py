@@ -45,9 +45,10 @@ from app.schemas.decks import (
     TeacherWordOut,
     valid_headword,
 )
-from app.schemas.groups import AssignmentMemberOut, AssignmentOut
+from app.schemas.groups import AssignmentMemberOut, AssignmentOut, GroupProgressOut
 from app.schemas.learning import WordOut
 from app.services.generation import DraftCard, Provider, flags
+from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS
 
 MAX_WORDS_PER_DECK = 50
 MAX_DECKS_PER_USER = 100
@@ -225,9 +226,7 @@ def _teacher_word(deck: Deck, word: Word) -> TeacherWordOut:
 
 
 def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> TeacherDeckOut:
-    """Anyone makes a personal deck (ADR 0019); from a group's board, only its owner."""
-    if body.group_id is not None:
-        _owned_group(db, user, body.group_id)
+    """Anyone makes a deck; it is theirs until they give it to a group they own (ADR 0019)."""
     count = db.scalar(select(func.count()).where(Deck.owner_id == user.id))
     if (count or 0) >= MAX_DECKS_PER_USER:
         raise ApiError(409, "too_many_decks", "Too many decks")
@@ -547,10 +546,18 @@ def board_assignments(
             .group_by(DeckWord.deck_id)
         ).all()
     )
-    met: dict[tuple[str, UUID], int] = {
-        (deck_id, user_id): int(count)
-        for deck_id, user_id, count in db.execute(
-            select(DeckWord.deck_id, UserWordProgress.user_id, func.count())
+    well_learned = (UserWordProgress.fsrs_state == REVIEW) & (
+        UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS
+    )
+    counts: dict[tuple[str, UUID], tuple[int, int]] = {
+        (deck_id, user_id): (int(met), int(known))
+        for deck_id, user_id, met, known in db.execute(
+            select(
+                DeckWord.deck_id,
+                UserWordProgress.user_id,
+                func.count(),
+                func.count().filter(well_learned),
+            )
             .join(
                 UserWordProgress,
                 and_(
@@ -562,19 +569,33 @@ def board_assignments(
             .group_by(DeckWord.deck_id, UserWordProgress.user_id)
         ).all()
     }
-    return [
-        AssignmentOut(
+    nicknames = {member.user_id: member.nickname for member in members}
+
+    def out(assignment: DeckAssignment, deck: Deck) -> AssignmentOut:
+        size = int(sizes.get(deck.id, 0))
+        each = {member.user_id: counts.get((deck.id, member.user_id), (0, 0)) for member in members}
+        return AssignmentOut(
             deck_id=deck.id,
             title=deck.title,
-            word_count=int(sizes.get(deck.id, 0)),
+            author=nicknames.get(deck.owner_id) if deck.owner_id else None,
+            is_mine=deck.owner_id == me.user_id,
+            word_count=size,
             assigned_at=assignment.assigned_at,
-            mine=met.get((deck.id, me.user_id), 0),
+            mine=each[me.user_id][0],
+            group=GroupProgressOut(
+                met=sum(min(met, size) for met, _ in each.values()),
+                total=size * len(members),
+                finished=sum(1 for met, _ in each.values() if size and met >= size),
+                learners=len(members),
+            ),
             members=[
-                AssignmentMemberOut(member_id=member.id, met=met.get((deck.id, member.user_id), 0))
+                AssignmentMemberOut(
+                    member_id=member.id, met=each[member.user_id][0], known=each[member.user_id][1]
+                )
                 for member in members
             ]
             if me.role == "owner"
             else None,
         )
-        for assignment, deck in given
-    ]
+
+    return [out(assignment, deck) for assignment, deck in given]

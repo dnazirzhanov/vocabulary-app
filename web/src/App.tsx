@@ -27,8 +27,8 @@ type Screen =
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
   | { name: 'library' }
-  // A deck's editor: for a group (from its board) or, with no group, a personal deck (ADR 0019).
-  | { name: 'deck'; deckId: string; groupId: string | null; groupName: string | null }
+  // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there.
+  | { name: 'deck'; deckId: string; groupId: string | null }
   | { name: 'join'; code: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
@@ -241,7 +241,7 @@ function Learning({ email }: { email: string | null }) {
           onOpenProfile={(memberId, nickname) =>
             setProfileTarget({ kind: 'member', groupId: screen.groupId, memberId, nickname })
           }
-          onOpenDeck={(deckId, groupName) => setScreen({ name: 'deck', deckId, groupId: screen.groupId, groupName })}
+          onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
             refreshNav();
@@ -256,8 +256,7 @@ function Learning({ email }: { email: string | null }) {
         <DeckEditor
           key={screen.deckId}
           deckId={screen.deckId}
-          groupId={groupId}
-          groupName={screen.groupName}
+          backLabel={groupId ? 'К группе' : 'Мои колоды'}
           onDone={() => setScreen(groupId ? { name: 'board', groupId } : { name: 'library' })}
           onStudy={(session) => startSession(session, screen.deckId)}
         />
@@ -268,7 +267,7 @@ function Learning({ email }: { email: string | null }) {
         <LibraryScreen
           onBack={goHome}
           onSession={startSession}
-          onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null, groupName: null })}
+          onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         />
       );
     }

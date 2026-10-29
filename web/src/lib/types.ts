@@ -284,12 +284,18 @@ export interface Board {
 export interface Assignment {
   deck_id: string;
   title: string;
+  /** Its author's nickname in the group (null once they left), and whether that is me. */
+  author: string | null;
+  is_mine: boolean;
   word_count: number;
   assigned_at: string;
   /** Words of it I have met (whoever gave it learns it too). */
   mine: number;
-  /** Every member's count, the owner's too, for the group's owner only. */
-  members: { member_id: string; met: number }[] | null;
+  /** The whole group on it: words met against everyone meeting every word; members done. */
+  group: { met: number; total: number; finished: number; learners: number };
+  /** Every member's counts, the owner's too, for the group's owner only: met, and remembered
+   * well (FSRS, as on the progress page). */
+  members: { member_id: string; met: number; known: number }[] | null;
 }
 
 export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'other';

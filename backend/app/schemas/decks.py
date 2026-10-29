@@ -43,10 +43,9 @@ Translation = Annotated[str, StringConstraints(strip_whitespace=True, max_length
 
 
 class NewDeckIn(_Input):
+    """Every deck starts as its author's own; giving it to a group is a separate step (ADR 0019)."""
+
     title: Title
-    # Written for a group from its board: only the group's owner. None: a personal deck, anyone's
-    # (ADR 0019).
-    group_id: UUID | None = None
 
 
 class RenameDeckIn(_Input):

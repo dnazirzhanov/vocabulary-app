@@ -121,9 +121,8 @@ export const api = {
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
   // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
   myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
-  /** A deck for a group I own, or with no group a personal deck (ADR 0019). */
-  createDeck: (title: string, groupId: string | null) =>
-    request<TeacherDeck>('POST', '/decks', groupId ? { title, group_id: groupId } : { title }),
+  /** A new deck, mine until I give it to a group I own (ADR 0019). */
+  createDeck: (title: string) => request<TeacherDeck>('POST', '/decks', { title }),
   library: () => request<Library>('GET', '/decks/library'),
   /** Full cards from the words named, saved to the deck. */
   fillWords: (deckId: string, words: string[], level: string) =>

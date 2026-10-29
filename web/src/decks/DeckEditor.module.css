@@ -473,7 +473,36 @@
   height: 18px;
 }
 
-/* A personal deck given to a group I own. */
+/* The groups the deck is given to, each with a way to take it back. */
+.givenTo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.givenTo li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-success);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.givenTo li span {
+  flex: 1;
+}
+
+.givenTo svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* A deck given to a group I own. */
 .giveRow {
   display: flex;
   flex-wrap: wrap;

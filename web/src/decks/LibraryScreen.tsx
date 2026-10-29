@@ -66,7 +66,7 @@ export function LibraryScreen({ onBack, onSession, onOpenDeck }: LibraryScreenPr
     event.preventDefault();
     const clean = title.trim();
     if (clean.length < 2) return;
-    run(async () => onOpenDeck((await api.createDeck(clean, null)).id));
+    run(async () => onOpenDeck((await api.createDeck(clean)).id));
   };
   // An empty deck has nothing to study yet: it opens for adding words.
   const open = (deck: LibraryDeck, mine: boolean) =>

@@ -10,10 +10,8 @@ const SKIPPED: Record<GenerateResult['skipped'][number]['reason'], string> = {
 };
 
 /** What a draft added, what it couldn't, and a word when the cards are demo placeholders. */
-export function DraftResult({ result, forGroup }: { result: GenerateResult; forGroup: boolean }) {
-  const review = forGroup
-    ? 'Проверьте их в списке — ученики увидят слова, только когда вы зададите набор.'
-    : 'Проверьте их в списке.';
+export function DraftResult({ result }: { result: GenerateResult }) {
+  const review = 'Проверьте их в списке.';
   return (
     <>
       <p className={styles.done}>

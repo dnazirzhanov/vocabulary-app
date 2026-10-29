@@ -67,8 +67,21 @@ class GroupGoal(BaseModel):
 
 class AssignmentMemberOut(BaseModel):
     member_id: UUID
-    # Words of the deck this member has met.
+    # Words of the deck this member has met, and of those the ones they now remember well
+    # (FSRS stability ≥ 21 days, as on the progress page).
     met: int
+    known: int
+
+
+class GroupProgressOut(BaseModel):
+    """The whole group on one deck, for every member: co-operative, like the week's shared goal."""
+
+    # Words met by everyone together, against every member meeting every word.
+    met: int
+    total: int
+    # Members who have met every word of it, out of all members.
+    finished: int
+    learners: int
 
 
 class AssignmentOut(BaseModel):
@@ -77,11 +90,15 @@ class AssignmentOut(BaseModel):
 
     deck_id: str
     title: str
+    # Its author's nickname in the group (None once they left), and whether that is me.
+    author: str | None
+    is_mine: bool
     word_count: int
     assigned_at: datetime
     # Words of it I have met (whoever gave it learns it too).
     mine: int
-    # Every learner's count, for the group's owner only; null for everyone else.
+    group: GroupProgressOut
+    # Every member's counts, for the group's owner only; null for everyone else.
     members: list[AssignmentMemberOut] | None
 
 

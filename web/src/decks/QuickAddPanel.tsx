@@ -12,15 +12,7 @@ const MAX_WORDS = 20;
  * The fast way (ADR 0019): name the words, get full cards — meaning, part of speech, an example
  * and its translation — saved to the deck for review. The device reads them aloud.
  */
-export function QuickAddPanel({
-  deckId,
-  forGroup,
-  onAdded,
-}: {
-  deckId: string;
-  forGroup: boolean;
-  onAdded: (result: GenerateResult) => void;
-}) {
+export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (result: GenerateResult) => void }) {
   const [typed, setTyped] = useState('');
   const [level, setLevel] = useState('B1');
   const [busy, setBusy] = useState(false);
@@ -90,7 +82,7 @@ export function QuickAddPanel({
       <div role="status" className={styles.generateStatus}>
         {tooMany && <p className={styles.note}>За один раз — до {MAX_WORDS} слов.</p>}
         {busy && <p className={styles.note}>Составляем карточки — обычно несколько секунд.</p>}
-        {!busy && last && <DraftResult result={last} forGroup={forGroup} />}
+        {!busy && last && <DraftResult result={last} />}
       </div>
       {error && (
         <p className={styles.problem} role="alert">

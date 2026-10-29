@@ -39,9 +39,8 @@ const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', examp
 
 interface DeckEditorProps {
   deckId: string;
-  /** Opened from a group's board: the deck is for that group. None: a personal deck (ADR 0019). */
-  groupId: string | null;
-  groupName: string | null;
+  /** Where «Назад» leads: «Мои колоды», or the group board it was opened from. */
+  backLabel: string;
   onDone: () => void;
   /** Studying this deck now (a personal deck's main action). */
   onStudy: (session: Session) => void;
@@ -52,7 +51,7 @@ interface DeckEditorProps {
  * correct one, and one action that gives the deck to the group. Students meet the words first in
  * their own daily lesson, at their own pace. Course words are linked, not copied.
  */
-export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: DeckEditorProps) {
+export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -67,7 +66,6 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
   const [giveTo, setGiveTo] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [justGiven, setJustGiven] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstField = useRef<HTMLInputElement>(null);
@@ -85,7 +83,6 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
     void load();
   }, [load]);
   useEffect(() => {
-    if (groupId) return;
     api.groups().then(
       (groups) => {
         const owned = groups.filter((group) => group.role === 'owner');
@@ -94,7 +91,7 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
       },
       () => setOwnGroups([]),
     );
-  }, [groupId]);
+  }, []);
   const focused = useRef(false);
   useEffect(() => {
     if (!deck || focused.current) return;
@@ -120,8 +117,6 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
     );
   }
 
-  const forGroup = groupId !== null;
-  const given = forGroup && deck.groups.some((group) => group.id === groupId);
   const count = deck.words.length;
   const field = <K extends keyof DeckWordInput>(key: K, value: DeckWordInput[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -172,7 +167,6 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
     setFormError(null);
     try {
       show(editing ? await api.editDeckWord(deck.id, editing, word) : await api.addDeckWord(deck.id, word));
-      setJustGiven(false);
       resetForm();
       firstField.current?.focus();
     } catch (caught) {
@@ -184,7 +178,6 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
   // On a phone the list sits above the panel: bring the new cards into view for review.
   const drafted = (result: GenerateResult) => {
     show(result.deck);
-    setJustGiven(false);
     if (result.added > 0 && window.matchMedia('(max-width: 1023px)').matches) {
       const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       // Only the editor's own scrolling area moves (scrollIntoView would shift the whole page).
@@ -208,13 +201,13 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onDone}>
-          <BackIcon aria-hidden="true" /> {forGroup ? 'К группе' : 'Мои колоды'}
+          <BackIcon aria-hidden="true" /> {backLabel}
         </button>
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
           <section ref={listRef} className={styles.listColumn} aria-labelledby="deck-title">
-            <p className={styles.eyebrow}>{forGroup ? `Слова для группы «${groupName}»` : 'Моя колода'}</p>
+            <p className={styles.eyebrow}>Моя колода</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
             </h1>
@@ -229,13 +222,14 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
               />
             </label>
             <p className={styles.lead}>
-              {forGroup
-                ? 'Ученики встретят эти слова первыми в своём ежедневном уроке — в своём темпе, без лишней нагрузки.'
-                : 'Колода учится, когда вы её открываете: новые слова — в пределах вашего темпа.'}
+              Колода учится, когда вы её открываете. Дайте её своей группе — участники встретят слова первыми в
+              ежедневном уроке, в своём темпе.
             </p>
 
             {count === 0 ? (
-              <p className={styles.empty}>Пока ни одного слова. Вставьте текст урока — карточки появятся здесь.</p>
+              <p className={styles.empty}>
+                Пока ни одного слова. Напишите слова в «Быстро добавить» или вставьте текст — карточки появятся здесь.
+              </p>
             ) : (
               <ol className={styles.words}>
                 {deck.words.map(({ word, from_course, source_sentence, flags }, index) => (
@@ -301,8 +295,8 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
           </section>
 
           <div className={styles.side}>
-            <QuickAddPanel deckId={deck.id} forGroup={forGroup} onAdded={drafted} />
-            <GeneratePanel deckId={deck.id} forGroup={forGroup} onDrafted={drafted} />
+            <QuickAddPanel deckId={deck.id} onAdded={drafted} />
+            <GeneratePanel deckId={deck.id} onDrafted={drafted} />
             <details
               className={styles.manual}
               open={manualOpen}
@@ -426,73 +420,60 @@ export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: Deck
               {error}
             </p>
           )}
-          {!forGroup ? (
-            <>
-              {deck.groups.length > 0 && (
-                <p className={styles.status} role="status">
-                  <CheckIcon aria-hidden="true" />В группе {deck.groups.map((group) => `«${group.name}»`).join(', ')}
-                </p>
-              )}
-              {ownGroups.length > 0 && count > 0 && (
-                <div className={styles.giveRow}>
-                  <label className={styles.giveLabel}>
-                    <span>Дать группе</span>
-                    <select value={giveTo} onChange={(event) => setGiveTo(event.target.value)}>
-                      {ownGroups.map((group) => (
-                        <option key={group.id} value={group.id}>
-                          {group.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+          {deck.groups.length > 0 && (
+            <ul className={styles.givenTo} aria-label="Задано группам">
+              {deck.groups.map((group) => (
+                <li key={group.id}>
+                  <CheckIcon aria-hidden="true" />
+                  <span>Задано группе «{group.name}» — правки сразу видны участникам</span>
                   <button
                     type="button"
-                    className={styles.outlineButton}
-                    disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
-                    onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
+                    className={styles.linkButton}
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await api.takeBackDeck(group.id, deck.id);
+                        await load();
+                      })
+                    }
                   >
-                    {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
+                    Забрать
                   </button>
-                </div>
-              )}
-              <PrimaryButton
-                type="button"
-                className={styles.action}
-                disabled={busy || count === 0}
-                aria-busy={busy}
-                onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
-              >
-                {count === 0 ? 'Учить' : `Учить · ${wordsLabel(count)}`}
-              </PrimaryButton>
-            </>
-          ) : given ? (
-            <>
-              <p className={styles.status} role="status">
-                <CheckIcon aria-hidden="true" />
-                {justGiven
-                  ? `Задано группе «${groupName}»: ${wordsLabel(count)}`
-                  : `Группе «${groupName}» задано. Правки сразу видны ученикам.`}
-              </p>
-              <PrimaryButton type="button" className={styles.action} onClick={onDone}>
-                Готово
-              </PrimaryButton>
-            </>
-          ) : (
-            <PrimaryButton
-              type="button"
-              className={styles.action}
-              disabled={busy || count === 0}
-              aria-busy={busy}
-              onClick={() =>
-                run(async () => {
-                  show(await api.giveDeck(deck.id, groupId));
-                  setJustGiven(true);
-                })
-              }
-            >
-              {count === 0 ? 'Задать группе' : `Задать группе · ${wordsLabel(count)}`}
-            </PrimaryButton>
+                </li>
+              ))}
+            </ul>
           )}
+          {ownGroups.length > 0 && count > 0 && (
+            <div className={styles.giveRow}>
+              <label className={styles.giveLabel}>
+                <span>Дать группе</span>
+                <select value={giveTo} onChange={(event) => setGiveTo(event.target.value)}>
+                  {ownGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className={styles.outlineButton}
+                disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
+                onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
+              >
+                {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
+              </button>
+            </div>
+          )}
+          <PrimaryButton
+            type="button"
+            className={styles.action}
+            disabled={busy || count === 0}
+            aria-busy={busy}
+            onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
+          >
+            {count === 0 ? 'Учить' : `Учить · ${wordsLabel(count)}`}
+          </PrimaryButton>
         </div>
       </footer>
     </div>

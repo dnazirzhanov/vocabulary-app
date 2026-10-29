@@ -53,7 +53,7 @@ def write_deck(
     client: TestClient, group_id: str, words: list[dict[str, str]], title: str = "Unit 4"
 ) -> dict[str, Any]:
     deck: dict[str, Any] = client.post(
-        "/api/decks", json={"title": title, "group_id": group_id}, headers=as_("olga")
+        "/api/decks", json={"title": title}, headers=as_("olga")
     ).json()
     for word in words:
         response = client.post(f"/api/decks/{deck['id']}/words", json=word, headers=as_("olga"))
@@ -84,16 +84,23 @@ def learn(client: TestClient, user: str) -> None:
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_(user))
 
 
-def test_only_a_groups_owner_writes_and_gives_decks(client: TestClient) -> None:
+def test_anyone_writes_a_deck_only_a_groups_owner_gives_it(client: TestClient) -> None:
     group = class_group(client)
+    # Pavel writes a deck of his own, but the group isn't his to give words to.
+    pavels = client.post("/api/decks", json={"title": "Мой"}, headers=as_("pavel")).json()
+    client.post(f"/api/decks/{pavels['id']}/words", json=SETBACK, headers=as_("pavel"))
     member = client.post(
-        "/api/decks", json={"title": "Мой", "group_id": group["id"]}, headers=as_("pavel")
+        f"/api/decks/{pavels['id']}/publish", json={"group_id": group["id"]}, headers=as_("pavel")
     )
     assert (member.status_code, member.json()["error"]["code"]) == (403, "not_group_owner")
-    stranger = client.post(
-        "/api/decks", json={"title": "Мой", "group_id": group["id"]}, headers=as_("stranger")
+    stranger = client.post("/api/decks", json={"title": "Чужой"}, headers=as_("stranger")).json()
+    client.post(f"/api/decks/{stranger['id']}/words", json=SETBACK, headers=as_("stranger"))
+    outside = client.post(
+        f"/api/decks/{stranger['id']}/publish",
+        json={"group_id": group["id"]},
+        headers=as_("stranger"),
     )
-    assert stranger.status_code == 404
+    assert outside.status_code == 404
 
     deck = write_deck(client, group["id"], [])
     assert deck["status"] == "draft" and deck["groups"] == []
@@ -204,20 +211,19 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
 
     mine = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
     (given,) = mine["assignments"]
-    assert (given["title"], given["word_count"], given["mine"], given["members"]) == (
-        "Unit 4",
-        3,
-        3,
-        None,
-    )
+    assert (given["title"], given["author"], given["is_mine"]) == ("Unit 4", "Ольга", False)
+    assert (given["word_count"], given["mine"], given["members"]) == (3, 3, None)
+    # The whole group on the deck, for every member: 3 of 9 words met, one of three done.
+    assert given["group"] == {"met": 3, "total": 9, "finished": 1, "learners": 3}
     owner = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     (given,) = owner["assignments"]
-    assert given["mine"] == 0  # she learns it too, and hasn't started
+    assert given["mine"] == 0 and given["is_mine"]  # she learns it too, and hasn't started
     nicknames = {row["member_id"]: row["nickname"] for row in owner["rows"]}
-    assert {nicknames[m["member_id"]]: m["met"] for m in given["members"]} == {
-        "Ольга": 0,
-        "Павел": 3,
-        "Иван": 0,
+    # Met today, so nothing is remembered well yet (that takes weeks of reviews).
+    assert {nicknames[m["member_id"]]: (m["met"], m["known"]) for m in given["members"]} == {
+        "Ольга": (0, 0),
+        "Павел": (3, 0),
+        "Иван": (0, 0),
     }
     # Places are the board's own rule: Pavel answered this week, so he alone has one.
     first = owner["rows"][0]

@@ -37,11 +37,8 @@ def as_(name: str) -> dict[str, str]:
 
 
 def draft_deck(client: TestClient) -> dict[str, Any]:
-    group = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
-    ).json()
     deck: dict[str, Any] = client.post(
-        "/api/decks", json={"title": "Unit 4", "group_id": group["id"]}, headers=as_("olga")
+        "/api/decks", json={"title": "Unit 4"}, headers=as_("olga")
     ).json()
     return deck
 

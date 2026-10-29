@@ -27,8 +27,8 @@ interface BoardScreenProps {
   inviteOnOpen?: boolean;
   /** A tap on a member opens their profile window (ADR 0015). */
   onOpenProfile: (memberId: string, nickname: string) => void;
-  /** The owner opens one of their decks for the group (ADR 0017). */
-  onOpenDeck: (deckId: string, groupName: string) => void;
+  /** The author opens their deck, given to this group, in the editor (ADR 0019). */
+  onOpenDeck: (deckId: string) => void;
   onBack: () => void;
   onLeft: () => void;
 }
@@ -200,7 +200,7 @@ export function BoardScreen({
               </p>
             </section>
 
-            <GroupDecks board={board} onOpenDeck={(deckId) => onOpenDeck(deckId, group.name)} />
+            <GroupDecks board={board} onOpenDeck={onOpenDeck} />
 
             <h2 className={styles.sectionTitle}>Эта неделя</h2>
             <p className={styles.hint}>Место — по доле обещанных дней, в которые выполнен план.</p>

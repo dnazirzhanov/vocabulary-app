@@ -2,6 +2,14 @@ import { type Page } from '@playwright/test';
 import { button, DEMO, expect, finishSession, spellToday, test } from './learner.ts';
 
 /** «Друзья» opens the board straight away once it knows the group, the list of groups before. */
+async function newDeck(page: Page, title: string) {
+  await page.getByRole('button', { name: /^Мои колоды/ }).click();
+  await page.getByRole('button', { name: 'Новая колода' }).click();
+  await page.getByLabel('Название новой колоды').fill(title);
+  await button(page, 'Создать').click();
+  await expect(page.getByText('Моя колода')).toBeVisible();
+}
+
 async function openGroup(page: Page) {
   await page
     .getByRole('button', { name: /Друзья/ })
@@ -29,13 +37,9 @@ test('a teacher gives words to a group and a student learns them first', async (
   await student.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
   await student.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname: 'Анна' } });
 
-  // The teacher writes the deck from the group's board.
+  // The teacher writes a deck of her own in «Мои колоды», then gives it to her group.
   await page.goto('/');
-  await openGroup(page);
-  await button(page, 'Дать слова группе').click();
-  const title = page.getByLabel('Название набора');
-  await title.fill('Unit 4');
-  await title.press('Enter');
+  await newDeck(page, 'Unit 4');
 
   await page.getByText('Добавить слово вручную').click();
   await page.getByLabel('Слово или выражение').fill('Carry out');
@@ -58,11 +62,15 @@ test('a teacher gives words to a group and a student learns them first', async (
   await button(page, 'Сохранить').click();
   await expect(words).toContainText('проводить, выполнять');
 
-  await button(page, 'Задать группе · 2 слова').click();
-  await expect(page.getByRole('status')).toContainText('Задано группе «7Б английский»');
-  await button(page, 'Готово').click();
-  await expect(page.getByRole('heading', { name: 'Слова для группы' })).toBeVisible();
-  await expect(page.getByRole('list', { name: /Кто сколько слов встретил/ })).toContainText('Анна0 из 2');
+  await page.getByLabel('Дать группе').selectOption({ label: '7Б английский' });
+  await button(page, 'Задать').click();
+  await expect(page.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  await page.goto('/');
+  await openGroup(page);
+  // The board: no button to make decks there; each deck with the group's progress on it.
+  await expect(page.getByRole('heading', { name: 'Колоды группы' })).toBeVisible();
+  await expect(button(page, 'Дать слова группе')).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна0 из 2');
 
   // The student meets the teacher's words first, within their own five a day.
   const learner = await student.newPage();
@@ -84,18 +92,14 @@ test('a teacher gives words to a group and a student learns them first', async (
     /ваш набор · 7Б английский · 0 из 2/,
   );
   await openGroup(page);
-  await expect(page.getByRole('list', { name: /Кто сколько слов встретил/ })).toContainText('Анна2 из 2');
+  await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна2 из 2');
+  await expect(page.getByText(/Группа: встречено 2 из 4 · все слова встретили 1 из 2/)).toBeVisible();
 });
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).
-test('a teacher drafts cards from a lesson text and reviews them', async ({ page, context }) => {
-  await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } });
-
-  // From the group's board: a new deck for the group opens in the editor.
+test('a teacher drafts cards from a lesson text and reviews them', async ({ page }) => {
   await page.goto('/');
-  await openGroup(page);
-  await button(page, 'Дать слова группе').click();
-  await expect(page.getByText('Слова для группы «7Б английский»')).toBeVisible();
+  await newDeck(page, 'Unit 4');
   await page
     .getByLabel('Текст урока')
     .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');
@@ -112,5 +116,5 @@ test('a teacher drafts cards from a lesson text and reviews them', async ({ page
   await page.getByLabel('Перевод', { exact: true }).fill('несколько');
   await button(page, 'Сохранить').click();
   await expect(words.getByRole('listitem').first()).toContainText('несколько');
-  await expect(button(page, 'Задать группе · 5\u00a0слов')).toBeEnabled();
+  await expect(button(page, 'Учить · 5\u00a0слов')).toBeEnabled();
 });
