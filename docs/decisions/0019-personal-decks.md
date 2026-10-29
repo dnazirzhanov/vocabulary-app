@@ -42,6 +42,13 @@ English word and the app writes the rest. Decks need a place of their own, not t
 - **Removing a word.** A deck's own word nobody has met is deleted; one someone met stays, so
   they keep reviewing it (a personal deck is studied while still a draft).
 
+- **Deleting a deck.** Only its author, from the bottom of its editor, and only after a window that
+  names what goes: its own cards and everyone's progress and answers on them, its unfinished
+  lessons, its assignments (members of those groups lose it too, and the window says so).
+  «Отмена» has focus first, so a reflexive Enter changes nothing. Finished lessons stay as history
+  with no deck, so the day's plan and answers on a course word linked into the deck keep counting;
+  the course word itself is untouched.
+
 ## Consequences
 - A group board no longer makes or lists drafts: every deck I wrote is in «Мои колоды».
 - The quality of filled cards is the model's; flags point at the obvious problems and the learner

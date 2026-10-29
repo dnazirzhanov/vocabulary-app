@@ -126,6 +126,8 @@ export const api = {
   /** A new deck, mine until I give it to a group I own (ADR 0019). */
   createDeck: (title: string) => request<TeacherDeck>('POST', '/decks', { title }),
   library: () => request<Library>('GET', '/decks/library'),
+  /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
+  deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
   /** Full cards from the words named, saved to the deck. */
   fillWords: (deckId: string, words: string[], level: string) =>
     request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level }, 120_000),

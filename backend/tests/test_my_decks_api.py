@@ -145,3 +145,58 @@ def test_a_word_someone_met_stays_when_taken_out(client: TestClient, db: Session
     assert after.status_code == 200 and after.json()["words"] == []
     kept = db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.word_id == word_id))
     assert list(kept) == [word_id]  # still reviewed
+
+
+MONEY = {"headword": "money", "pos": "noun", "translation": "деньги", "example": "No money."}
+
+
+def progress_on(db: Session, user_id_words: list[str]) -> list[str]:
+    return list(
+        db.scalars(
+            select(UserWordProgress.word_id).where(UserWordProgress.word_id.in_(user_id_words))
+        )
+    )
+
+
+def test_deleting_a_deck_takes_its_cards_and_their_progress(
+    client: TestClient, db: Session
+) -> None:
+    group = client.post(
+        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+    ).json()
+    client.post(
+        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+    )
+    deck = personal_deck(client, "olga", "Unit 4")
+    add(client, deck, KETTLE, "olga")
+    deck = add(client, deck, MONEY, "olga")  # a course word: linked, not the deck's own
+    teapot = next(w["word"]["id"] for w in deck["words"] if not w["from_course"])
+    client.post(
+        f"/api/decks/{deck['id']}/publish", json={"group_id": group["id"]}, headers=as_("olga")
+    )
+    # Pavel learns it and leaves today's spelling half done: it shows the deck's word.
+    session = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": deck["id"]}, headers=as_("pavel")
+    ).json()
+    finish(client, session, as_("pavel"))
+    client.post(f"/api/sessions/{session['id']}/complete", headers=as_("pavel"))
+    client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel"))
+
+    # Only its author deletes it.
+    for user in ("pavel", "stranger"):
+        refused = client.delete(f"/api/decks/{deck['id']}", headers=as_(user))
+        assert refused.status_code == 404, user
+    assert client.delete(f"/api/decks/{deck['id']}", headers=as_("olga")).status_code == 204
+
+    assert client.get(f"/api/decks/{deck['id']}/edit", headers=as_("olga")).status_code == 404
+    assert client.get("/api/decks/library", headers=as_("pavel")).json()["from_groups"] == []
+    board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
+    assert board["assignments"] == []
+    # Its own card and the progress on it are gone; the course word stays everyone's.
+    assert progress_on(db, [teapot]) == []
+    assert progress_on(db, ["money"]) == ["money"]
+    # The unfinished spelling that showed its card is gone too; the next one starts cleanly.
+    assert client.get("/api/sessions/active", headers=as_("pavel")).json()["session"] is None
+    spelling = client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel")).json()
+    assert spelling["kind"] == "spelling" and len(spelling["exercises"]) == 1  # money
+    assert client.delete(f"/api/decks/{deck['id']}", headers=as_("olga")).status_code == 404

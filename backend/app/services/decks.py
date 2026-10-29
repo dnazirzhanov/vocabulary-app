@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, and_, delete, func, select
+from sqlalchemy import Select, and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
@@ -27,6 +27,8 @@ from app.models import (
     DeckWord,
     Group,
     GroupMember,
+    LearningSession,
+    ReviewAttempt,
     User,
     UserWordProgress,
     Word,
@@ -468,6 +470,35 @@ def remove_word(db: Session, user: User, deck_id: str, word_id: str) -> TeacherD
         db.delete(word)
     db.commit()
     return _deck_out(db, deck)
+
+
+def delete_deck(db: Session, user: User, deck_id: str) -> None:
+    """Deletes my deck for good (ADR 0019): its own words and everyone's progress and answers on
+    them, its unfinished lessons, and its assignments to groups. Finished lessons stay as history
+    (their deck becomes null), so answers on a course word linked into it keep counting. One
+    transaction."""
+    deck = _owned_deck(db, user, deck_id)
+    own = select(Word.id).where(Word.owner_deck_id == deck.id)
+    words = list(db.scalars(own))
+    # Unfinished lessons of this deck, or that would still show one of its words (spelling covers
+    # today's words from any deck), can't be resumed: they go, with their answers.
+    shows_its_words = [
+        LearningSession.plan.op("@>")(
+            func.jsonb_build_array(func.jsonb_build_object("word_id", word))
+        )
+        for word in words
+    ]
+    db.execute(
+        delete(LearningSession).where(
+            LearningSession.completed_at.is_(None),
+            or_(LearningSession.deck_id == deck.id, *shows_its_words),
+        )
+    )
+    db.execute(delete(ReviewAttempt).where(ReviewAttempt.word_id.in_(own)))
+    db.execute(delete(UserWordProgress).where(UserWordProgress.word_id.in_(own)))
+    # The deck's rows in deck_words, its assignments and its own words go with it (cascade).
+    db.delete(deck)
+    db.commit()
 
 
 # --- giving a deck to a group ---------------------------------------------------------------

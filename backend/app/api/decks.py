@@ -53,6 +53,13 @@ def rename_deck(
     return decks.rename(db, user, deck_id, body.title)
 
 
+@router.delete("/decks/{deck_id}", status_code=204)
+def delete_deck(deck_id: DeckId, user: CurrentUser, db: DbSession) -> Response:
+    """My deck, for good: its own cards, everyone's progress on them, its lessons (ADR 0019)."""
+    decks.delete_deck(db, user, deck_id)
+    return Response(status_code=204)
+
+
 @router.post("/decks/{deck_id}/words", status_code=201)
 def add_word(deck_id: DeckId, body: DeckWordIn, user: CurrentUser, db: DbSession) -> TeacherDeckOut:
     return decks.add_word(db, user, deck_id, body)

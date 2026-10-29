@@ -166,7 +166,7 @@ class AttemptResultOut(BaseModel):
 class SessionOut(BaseModel):
     id: UUID
     kind: SessionKind
-    deck_id: str
+    deck_id: str | None  # null for a finished lesson whose deck was deleted
     completed: bool
     exercises: list[ExerciseOut]
     # One per rated exercise, in exercise order; the client resumes after the last one.
@@ -238,7 +238,7 @@ class RatingCounts(BaseModel):
 class SummaryOut(BaseModel):
     session_id: UUID
     kind: SessionKind
-    deck_id: str
+    deck_id: str | None  # null for a finished lesson whose deck was deleted
     words: list[SummaryWord]
     new_words: int
     reviewed_words: int

@@ -108,6 +108,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/sessions/{id}/attempts` | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any |
 | `POST /api/sessions/{id}/exercises/{exercise_id}/hint` | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016) |
 | `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019) |
+| `DELETE /api/decks/{id}` | my deck, for good: its own cards and everyone's progress on them, its unfinished lessons and assignments; finished lessons stay without a deck (ADR 0019) |
 | `GET /api/decks/library` | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019) |
 | `POST /api/decks/{id}/words/fill`, `POST …/words/suggest` | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019) |
 | `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |

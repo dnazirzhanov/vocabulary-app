@@ -12,7 +12,8 @@ import type {
 } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
-import { AlertIcon, BackIcon, CheckIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { Dialog } from '../ui/Dialog.tsx';
+import { AlertIcon, BackIcon, CheckIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { GeneratePanel } from './GeneratePanel.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -70,6 +71,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
   // A personal deck can be given to a group I own.
   const [ownGroups, setOwnGroups] = useState<Group[]>([]);
   const [giveTo, setGiveTo] = useState('');
+  // Deleting asks first, in a window: a deck and the progress on it can't be brought back.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { run, busy, error } = useAsyncAction();
@@ -433,7 +436,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
                 Группы
               </h2>
               <p className={styles.note}>
-                Участники группы встретят слова колоды первыми в ежедневном уроке, в своём темпе.
+                Участники группы найдут колоду у себя в «Мои колоды» и будут учить её в своём темпе.
               </p>
               {deck.groups.length > 0 && (
                 <ul className={styles.givenTo} aria-label="Задано группам">
@@ -482,6 +485,15 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
               )}
             </section>
           )}
+          <section className={styles.danger} aria-labelledby="danger-title">
+            <h2 id="danger-title" className={styles.sectionTitle}>
+              Удалить колоду
+            </h2>
+            <p className={styles.note}>Карточки и прогресс по ним удалятся навсегда.</p>
+            <button type="button" className={styles.dangerButton} onClick={() => setConfirmDelete(true)}>
+              <TrashIcon aria-hidden="true" /> Удалить колоду
+            </button>
+          </section>
         </div>
       </main>
 
@@ -503,6 +515,54 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
           </button>
         </div>
       </footer>
+
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={`Удалить колоду «${deck.title}»?`}>
+        <div className={styles.confirm}>
+          <p>
+            {count > 0
+              ? `${wordsLabel(count)} и прогресс по ${count === 1 ? 'нему' : 'ним'} удалятся навсегда — вернуть их не получится.`
+              : 'Колода удалится навсегда.'}
+          </p>
+          {deck.groups.length > 0 && (
+            <p className={styles.confirmWarning}>
+              <AlertIcon aria-hidden="true" />
+              Колода задана {deck.groups.length === 1 ? 'группе' : 'группам'}{' '}
+              {deck.groups.map((group) => `«${group.name}»`).join(', ')} — у участников она тоже пропадёт.
+            </p>
+          )}
+          <div className={styles.confirmActions}>
+            {/* Cancel takes focus first, so a reflexive Enter never deletes. */}
+            <button
+              type="button"
+              className={styles.outlineButton}
+              data-autofocus
+              onClick={() => setConfirmDelete(false)}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              className={styles.dangerSolid}
+              disabled={busy}
+              aria-busy={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.deleteDeck(deck.id);
+                  setConfirmDelete(false);
+                  onDone();
+                })
+              }
+            >
+              {busy ? 'Удаляем…' : 'Удалить колоду'}
+            </button>
+          </div>
+          {error && (
+            <p className={styles.problem} role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      </Dialog>
     </div>
   );
 }

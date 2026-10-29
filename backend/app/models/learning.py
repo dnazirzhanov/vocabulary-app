@@ -71,7 +71,9 @@ class LearningSession(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    deck_id: Mapped[str] = mapped_column(ForeignKey("decks.id"))
+    # The deck it was studied from; null once that deck was deleted (ADR 0019): a finished lesson
+    # stays as history, so the day's plan and answers on course words keep counting.
+    deck_id: Mapped[str | None] = mapped_column(ForeignKey("decks.id", ondelete="SET NULL"))
     kind: Mapped[str] = mapped_column(String(16))
     # The ordered exercises including answer keys; never sent to clients as-is.
     plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
