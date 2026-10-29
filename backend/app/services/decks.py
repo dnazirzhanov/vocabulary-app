@@ -2,8 +2,8 @@
 
 A teacher (a group's owner) writes a deck of words for a lesson, publishes it and gives it to the
 group. Its members meet the words in their own daily lesson, before the course's next words and
-within the same daily pace, so the day's promise and the board stay as they are. Each learner's
-schedule stays their own.
+within the same daily pace, so the day's promise and the board stay as they are. Whoever gave a
+deck is a member too and learns it the same way. Each learner's schedule stays their own.
 
 A word the course already has (same spelling and part of speech) is linked rather than copied,
 so nobody learns it twice. A published deck can be corrected and added to; a word taken out of
@@ -12,12 +12,13 @@ it is no longer introduced, while learners keep what they learned.
 
 import secrets
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, and_, delete, func, or_, select
+from sqlalchemy import Select, and_, delete, func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.core.errors import ApiError
 from app.models import (
@@ -93,7 +94,8 @@ def _owned_group(db: Session, user: User, group_id: UUID) -> Group:
 
 
 def _active_assignments(user: User) -> Select[str, datetime, UUID]:
-    """Decks given to groups I am in, by someone else (whoever gives words doesn't learn them)."""
+    """Decks given to groups I am in, mine included: the giver learns them too, at their own
+    pace."""
     return (
         select(DeckAssignment.deck_id, DeckAssignment.assigned_at, DeckAssignment.group_id)
         .join(GroupMember, GroupMember.group_id == DeckAssignment.group_id)
@@ -102,7 +104,6 @@ def _active_assignments(user: User) -> Select[str, datetime, UUID]:
             GroupMember.user_id == user.id,
             DeckAssignment.removed_at.is_(None),
             Deck.status == "published",
-            or_(DeckAssignment.assigned_by.is_(None), DeckAssignment.assigned_by != user.id),
         )
     )
 
@@ -123,19 +124,34 @@ def visible_deck(db: Session, user: User, deck_id: str) -> Deck:
 # --- what learners get ----------------------------------------------------------------------
 
 
-def assigned_decks(db: Session, user: User) -> list[tuple[Deck, str]]:
-    """Decks given to my groups, oldest first, with the group's name (the first group to give a
-    deck names it)."""
+@dataclass(frozen=True)
+class GivenDeck:
+    """A deck given to one of my groups and where it comes from."""
+
+    deck: Deck
+    group_name: str
+    # The author's nickname in that group; None once they left it or deleted their account.
+    author: str | None
+    is_mine: bool
+
+
+def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
+    """Decks given to my groups, oldest first, with their group and author (the first group to
+    give a deck names it)."""
     given = _active_assignments(user).subquery()
+    author = aliased(GroupMember)
     rows = db.execute(
-        select(Deck, Group.name)
+        select(Deck, Group.name, author.nickname)
         .join(given, given.c.deck_id == Deck.id)
         .join(Group, Group.id == given.c.group_id)
+        .outerjoin(author, and_(author.group_id == Group.id, author.user_id == Deck.owner_id))
         .order_by(given.c.assigned_at, Deck.id)
     ).all()
-    seen: dict[str, tuple[Deck, str]] = {}
-    for deck, group_name in rows:
-        seen.setdefault(deck.id, (deck, group_name))
+    seen: dict[str, GivenDeck] = {}
+    for deck, group_name, nickname in rows:
+        seen.setdefault(
+            deck.id, GivenDeck(deck, group_name, nickname, is_mine=deck.owner_id == user.id)
+        )
     return list(seen.values())
 
 
@@ -434,7 +450,8 @@ def take_back(db: Session, user: User, group_id: UUID, deck_id: str, now: dateti
 def board_assignments(
     db: Session, group_id: UUID, me: GroupMember, members: Sequence[GroupMember]
 ) -> list[AssignmentOut]:
-    """Decks given to the group, with my own count of words met; the owner sees everyone's."""
+    """Decks given to the group, with my own count of words met; the owner sees everyone's,
+    their own included."""
     given = db.execute(
         select(DeckAssignment, Deck)
         .join(Deck, Deck.id == DeckAssignment.deck_id)
@@ -472,13 +489,10 @@ def board_assignments(
             title=deck.title,
             word_count=int(sizes.get(deck.id, 0)),
             assigned_at=assignment.assigned_at,
-            mine=None
-            if assignment.assigned_by == me.user_id
-            else met.get((deck.id, me.user_id), 0),
+            mine=met.get((deck.id, me.user_id), 0),
             members=[
                 AssignmentMemberOut(member_id=member.id, met=met.get((deck.id, member.user_id), 0))
                 for member in members
-                if member.user_id != assignment.assigned_by
             ]
             if me.role == "owner"
             else None,

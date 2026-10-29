@@ -32,12 +32,14 @@ the same deck.
   decks given to their groups first (oldest first, in deck order), then from the current course
   level, all within the daily pace they chose (ADR 0010). The day's plan, plan days (ADR 0015) and
   the board's ranking are unchanged: a teacher's words are just the day's new words. Whoever gave
-  a deck does not get its words in their own lesson.
+  a deck is a member too and learns it the same way, at their own pace (changed on Oct 29 2026 at
+  the owner's request: first the giver was left out).
 - **Not the course.** A teacher's own words never count toward the course's sourced goal (about
   1,300 words, ADR 0010) or the progress figure measured against it. Home lists given decks first,
-  with the group's name, and their Anki-style counts include today's new words from them.
-- **On the board.** Each given deck is listed with its word count. A member sees how many of its
-  words they have met; the owner sees every learner's count, listed by name, not by number, since
+  saying where each comes from («ваш набор · 7Б», «от Ольга · 7Б», or «группа 7Б» once the
+  author has left), and their Anki-style counts include today's new words from them.
+- **On the board.** Each given deck is listed with its word count. Every member, the giver too, sees
+  how many of its words they have met; the owner sees everyone's count, listed by name, not by number, since
   the board rewards promises kept, never volume.
 - **Phrases.** A headword may be a phrase: lowercase letters, words joined by one space, hyphen or
   apostrophe (`carry out`, `well-known`). Spelling shows the separators as fixed gaps, never tiles;

@@ -46,10 +46,12 @@ export function DeckList({
                 <strong>{deck.title}</strong>
                 <span className={styles.deckMeta}>
                   {deck.level && `${deck.level} · `}
-                  {deck.group_name && `от группы «${deck.group_name}» · `}
-                  {deck.locked && index > 0
-                    ? `после уровня «${decks[index - 1].title}»`
-                    : `${deck.introduced_count} из ${deck.word_count}`}
+                  {deck.group_name && `${sourceOf(deck)} · `}
+                  {deck.locked && index > 0 ? (
+                    `после уровня «${decks[index - 1].title}»`
+                  ) : (
+                    <span className={styles.nowrap}>{`${deck.introduced_count} из ${deck.word_count}`}</span>
+                  )}
                 </span>
               </span>
               {deck.locked ? (
@@ -71,6 +73,13 @@ export function DeckList({
       </ul>
     </section>
   );
+}
+
+/** Where a teacher's deck comes from, in a few words: mine, someone's, or just the group. */
+function sourceOf(deck: Deck): string {
+  if (deck.is_mine) return `ваш набор · ${deck.group_name}`;
+  if (deck.author) return `от ${deck.author} · ${deck.group_name}`;
+  return `группа ${deck.group_name}`;
 }
 
 function Count({ value, className, name }: { value: number; className: string; name: string }) {

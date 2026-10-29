@@ -7,6 +7,8 @@ const deck = (id: string, fields: Partial<Deck> = {}): Deck => ({
   id,
   kind: 'course',
   group_name: null,
+  author: null,
+  is_mine: false,
   title: id,
   description: '',
   level: null,

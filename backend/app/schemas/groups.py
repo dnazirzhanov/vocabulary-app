@@ -79,8 +79,8 @@ class AssignmentOut(BaseModel):
     title: str
     word_count: int
     assigned_at: datetime
-    # Words of it I have met; null for whoever gave it (they set the words, they don't learn them).
-    mine: int | None
+    # Words of it I have met (whoever gave it learns it too).
+    mine: int
     # Every learner's count, for the group's owner only; null for everyone else.
     members: list[AssignmentMemberOut] | None
 

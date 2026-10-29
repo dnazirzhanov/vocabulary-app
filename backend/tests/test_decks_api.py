@@ -153,18 +153,22 @@ def test_given_words_come_first_within_the_learners_own_pace(client: TestClient)
     assert give(client, deck, group["id"])["groups"] == deck["groups"]
 
     listed = client.get("/api/decks", headers=as_("pavel")).json()
-    assert (listed[0]["kind"], listed[0]["group_name"], listed[0]["word_count"]) == (
-        "group",
+    given = listed[0]
+    assert (given["kind"], given["word_count"]) == ("group", 3)
+    # Where it comes from: the group, and its author's nickname there.
+    assert (given["group_name"], given["author"], given["is_mine"]) == (
         "7Б английский",
-        3,
+        "Ольга",
+        False,
     )
     # Today's five new words: the teacher's three, then two of the course (money only once).
     assert [(d["kind"], d["new_today"]) for d in listed[:2]] == [("group", 3), ("course", 2)]
     assert new_words(client, "pavel") == ["setback", "carry out", "money", "house", "water"]
 
-    # Whoever gave the words doesn't get them in their own lesson.
-    assert all(d["kind"] == "course" for d in client.get("/api/decks", headers=as_("olga")).json())
-    assert new_words(client, "olga") == ["house", "water", "friend", "buy", "cheap"]
+    # Whoever gave the words is a member too: the deck is hers to learn, at her own pace.
+    hers = client.get("/api/decks", headers=as_("olga")).json()[0]
+    assert (hers["kind"], hers["author"], hers["is_mine"]) == ("group", "Ольга", True)
+    assert new_words(client, "olga") == ["setback", "carry out", "money", "house", "water"]
 
 
 def test_a_phrase_is_spelled_with_its_gaps(client: TestClient) -> None:
@@ -208,9 +212,10 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
     )
     owner = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     (given,) = owner["assignments"]
-    assert given["mine"] is None  # she set the words
+    assert given["mine"] == 0  # she learns it too, and hasn't started
     nicknames = {row["member_id"]: row["nickname"] for row in owner["rows"]}
     assert {nicknames[m["member_id"]]: m["met"] for m in given["members"]} == {
+        "Ольга": 0,
         "Павел": 3,
         "Иван": 0,
     }
@@ -253,7 +258,10 @@ def test_corrections_reach_learners_and_taking_back_stops_new_words(
 
     taken = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("olga"))
     assert taken.status_code == 204
-    assert all(d["kind"] == "course" for d in client.get("/api/decks", headers=as_("ivan")).json())
+    # Taken back: gone for everyone, whoever gave it included.
+    for user in ("ivan", "olga"):
+        listed = client.get("/api/decks", headers=as_(user)).json()
+        assert all(d["kind"] == "course" for d in listed), user
     assert new_words(client, "ivan") == ["house", "water", "friend", "buy", "cheap"]
     again = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("olga"))
     assert again.status_code == 404

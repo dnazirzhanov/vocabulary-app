@@ -68,7 +68,7 @@ test('a teacher gives words to a group and a student learns them first', async (
   const learner = await student.newPage();
   await learner.goto('/');
   await expect(learner.getByRole('button', { name: /^Unit 4/ })).toHaveAccessibleName(
-    /от группы «7Б английский» · 0 из 2 2 новых/,
+    /от Ольга · 7Б английский · 0 из 2 2 новых/,
   );
   await button(learner, 'Начать урок · 5 слов').click();
   await expect(learner.getByRole('heading', { level: 1 })).toHaveText('carry out');
@@ -78,7 +78,11 @@ test('a teacher gives words to a group and a student learns them first', async (
   await spellToday(learner);
   await student.close();
 
+  // The teacher is a member too: her deck is on her own «Сегодня», marked as hers.
   await page.reload();
+  await expect(page.getByRole('button', { name: /^Unit 4/ })).toHaveAccessibleName(
+    /ваш набор · 7Б английский · 0 из 2/,
+  );
   await openGroup(page);
   await expect(page.getByRole('list', { name: /Кто сколько слов встретил/ })).toContainText('Анна2 из 2');
 });

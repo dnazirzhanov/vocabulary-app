@@ -20,8 +20,11 @@ export interface Deck {
   id: string;
   /** 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed first. */
   kind: 'course' | 'group';
-  /** A group deck's group. */
+  /** Where a group deck comes from: its group, its author's nickname there (null once they left),
+   * and whether I wrote it. */
   group_name: string | null;
+  author: string | null;
+  is_mine: boolean;
   title: string;
   description: string;
   /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
@@ -283,9 +286,9 @@ export interface Assignment {
   title: string;
   word_count: number;
   assigned_at: string;
-  /** Words of it I have met; null for whoever gave it. */
-  mine: number | null;
-  /** Every learner's count, for the group's owner only. */
+  /** Words of it I have met (whoever gave it learns it too). */
+  mine: number;
+  /** Every member's count, the owner's too, for the group's owner only. */
   members: { member_id: string; met: number }[] | null;
 }
 
