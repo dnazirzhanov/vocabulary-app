@@ -23,14 +23,21 @@ _recent: dict[tuple[str, UUID], deque[float]] = defaultdict(deque)
 _lock = Lock()
 
 
-def _check(bucket: str, user_id: UUID, limit: int, message: str) -> None:
+def _check(
+    bucket: str,
+    user_id: UUID,
+    limit: int,
+    message: str,
+    window: float = WINDOW_SECONDS,
+    code: str = "rate_limited",
+) -> None:
     now = time.monotonic()
     with _lock:
         stamps = _recent[(bucket, user_id)]
-        while stamps and now - stamps[0] > WINDOW_SECONDS:
+        while stamps and now - stamps[0] > window:
             stamps.popleft()
         if len(stamps) >= limit:
-            raise ApiError(429, "rate_limited", message)
+            raise ApiError(429, code, message)
         stamps.append(now)
 
 
@@ -42,6 +49,20 @@ def limit_attempts(user: CurrentUser, settings: Annotated[Settings, Depends(get_
 
 def limit_joins(user: CurrentUser) -> None:
     _check("joins", user.id, JOINS_PER_MINUTE, "Too many invite codes tried; wait a minute")
+
+
+def limit_generations(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """Each draft costs a model call (ADR 0018)."""
+    _check(
+        "generations",
+        user.id,
+        settings.generations_per_day,
+        "Too many drafts today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="generation_limit",
+    )
 
 
 def reset_limits() -> None:

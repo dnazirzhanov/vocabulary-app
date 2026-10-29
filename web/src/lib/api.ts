@@ -19,6 +19,7 @@ import type {
   Summary,
   TeacherDeck,
   DeckWordInput,
+  GenerateResult,
 } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
@@ -43,6 +44,7 @@ async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
+  timeoutMs = TIMEOUT_MS,
 ): Promise<T> {
   const token = await accessToken();
   let response: Response;
@@ -55,7 +57,7 @@ async function request<T>(
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new ApiError('network', 0, 'network_error', 'The request did not reach the server');
@@ -125,6 +127,9 @@ export const api = {
     request<TeacherDeck>('PUT', `/decks/${deckId}/words/${wordId}`, word),
   removeDeckWord: (deckId: string, wordId: string) =>
     request<TeacherDeck>('DELETE', `/decks/${deckId}/words/${wordId}`),
+  /** Drafts cards from a teacher's text into the deck (ADR 0018); a model call can take a minute. */
+  generateDeck: (deckId: string, text: string, count: number, level: string) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level }, 120_000),
   /** Publish and give to a group I own; safe to repeat. */
   giveDeck: (deckId: string, groupId: string) =>
     request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId }),
@@ -146,6 +151,13 @@ const MESSAGES: Record<string, string> = {
   deck_empty: 'Сначала добавьте хотя бы одно слово.',
   course_word: 'Это слово из курса: его перевод и пример менять нельзя.',
   not_group_owner: 'Давать слова группе может только её создатель.',
+  generation_limit: 'На сегодня подбор слов исчерпан (20 раз в день). Попробуйте завтра.',
+  generation_unavailable: 'Подбор слов пока не настроен на сервере.',
+  generation_busy: 'Сервис подбора слов сейчас занят. Попробуйте через минуту.',
+  generation_failed: 'Сервис подбора слов не ответил. Попробуйте ещё раз.',
+  generation_too_long: 'Текст оказался слишком большим за один раз. Вставьте часть текста или выберите меньше слов.',
+  generation_no_credits: 'На счёте сервиса подбора слов закончились средства.',
+  generation_refused: 'Из этого текста не получилось составить карточки. Попробуйте другой отрывок.',
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */

@@ -116,23 +116,21 @@ function AssignmentItem({
       ) : (
         <div className={styles.itemStatic}>{heading}</div>
       )}
-      {mine !== null && (
-        <div className={styles.mine}>
-          <p>
-            Вы встретили <strong>{mine}</strong> из {total}
-          </p>
-          <div
-            className={styles.track}
-            role="progressbar"
-            aria-label={`«${title}»: встречено слов`}
-            aria-valuemin={0}
-            aria-valuemax={total}
-            aria-valuenow={mine}
-          >
-            <span style={{ width: `${total ? (mine / total) * 100 : 0}%` }} />
-          </div>
+      <div className={styles.mine}>
+        <p>
+          Вы встретили <strong>{mine}</strong> из {total}
+        </p>
+        <div
+          className={styles.track}
+          role="progressbar"
+          aria-label={`«${title}»: встречено слов`}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={mine}
+        >
+          <span style={{ width: `${total ? (mine / total) * 100 : 0}%` }} />
         </div>
-      )}
+      </div>
       {learners.length > 0 && (
         <ul className={styles.learners} aria-label={`Кто сколько слов встретил: «${title}»`}>
           {learners.map((learner) => (

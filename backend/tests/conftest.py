@@ -11,6 +11,8 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://localhost/vocab_test"
 )
+# Never a real model call from tests, whatever .env holds (ADR 0018).
+os.environ["GENERATION_PROVIDER"] = "demo"
 
 from alembic import command
 from alembic.config import Config

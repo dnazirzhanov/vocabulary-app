@@ -20,9 +20,13 @@ Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, ma
 _HEADWORD = re.compile(r"[a-z]+([ '-][a-z]+)*")
 
 
+def valid_headword(value: str) -> bool:
+    return _HEADWORD.fullmatch(value) is not None
+
+
 def _headword(value: str) -> str:
     # Checked after trimming and lowercasing, so "Setback " is "setback".
-    if not _HEADWORD.fullmatch(value):
+    if not valid_headword(value):
         raise ValueError("letters a-z; a phrase's words joined by one space, hyphen or apostrophe")
     return value
 
@@ -61,11 +65,23 @@ class PublishIn(_Input):
     group_id: UUID
 
 
+class GenerateIn(_Input):
+    """A teacher's lesson material to draft cards from (ADR 0018). Read once, never stored."""
+
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=20, max_length=20_000)]
+    count: Literal[5, 10, 15, 20] = 10
+    level: Literal["A1", "A2", "B1", "B2", "C1"] = "B1"
+
+
 class TeacherWordOut(BaseModel):
     word: WordOut
     # A course word with the same spelling and part of speech: linked, not copied, so learners
     # never meet it twice; its content is the course's and is not edited here.
     from_course: bool
+    # The sentence of the teacher's material it was drafted from (ADR 0018).
+    source_sentence: str | None = None
+    # What the teacher should check: translation_not_russian, example_without_word, example_long.
+    flags: list[str] = []
 
 
 class AssignedGroupOut(BaseModel):
@@ -81,3 +97,17 @@ class TeacherDeckOut(BaseModel):
     words: list[TeacherWordOut]
     # Groups it is given to now.
     groups: list[AssignedGroupOut]
+
+
+class SkippedOut(BaseModel):
+    headword: str
+    # duplicate (already in the deck), invalid (not a headword we can spell), too_long, full
+    reason: Literal["duplicate", "invalid", "too_long", "full"]
+
+
+class GenerateOut(BaseModel):
+    deck: TeacherDeckOut
+    added: int
+    skipped: list[SkippedOut]
+    # "demo": placeholder cards, made without any service.
+    provider: Literal["deepseek", "demo"]

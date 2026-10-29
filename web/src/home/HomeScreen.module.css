@@ -258,6 +258,11 @@
   font-size: var(--text-meta);
 }
 
+/* "3 из 10" stays on one line. */
+.nowrap {
+  white-space: nowrap;
+}
+
 .deckRow[data-locked] strong {
   color: var(--color-text-muted);
 }

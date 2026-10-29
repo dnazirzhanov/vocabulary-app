@@ -36,8 +36,11 @@ class DeckOut(BaseModel):
     # 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed
     # first: its words come before the course's in the daily lesson.
     kind: Literal["course", "group"]
-    # A group deck's group, so the learner knows where it came from.
+    # Where a group deck comes from: its group, its author's nickname there (None once they left)
+    # and whether I wrote it.
     group_name: str | None = None
+    author: str | None = None
+    is_mine: bool = False
     title: str
     description: str
     # The course level ("A1–A2") and its order; a later level is locked until the one before is

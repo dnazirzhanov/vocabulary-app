@@ -20,8 +20,11 @@ export interface Deck {
   id: string;
   /** 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed first. */
   kind: 'course' | 'group';
-  /** A group deck's group. */
+  /** Where a group deck comes from: its group, its author's nickname there (null once they left),
+   * and whether I wrote it. */
   group_name: string | null;
+  author: string | null;
+  is_mine: boolean;
   title: string;
   description: string;
   /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
@@ -283,9 +286,9 @@ export interface Assignment {
   title: string;
   word_count: number;
   assigned_at: string;
-  /** Words of it I have met; null for whoever gave it. */
-  mine: number | null;
-  /** Every learner's count, for the group's owner only. */
+  /** Words of it I have met (whoever gave it learns it too). */
+  mine: number;
+  /** Every member's count, the owner's too, for the group's owner only. */
   members: { member_id: string; met: number }[] | null;
 }
 
@@ -300,6 +303,26 @@ export interface DeckWordInput {
   example_ru: string;
 }
 
+export type WordFlag = 'translation_not_russian' | 'example_without_word' | 'example_long';
+
+export interface TeacherWord {
+  word: Word;
+  from_course: boolean;
+  /** The sentence of the teacher's material it was drafted from (ADR 0018). */
+  source_sentence: string | null;
+  /** What the teacher should check. */
+  flags: WordFlag[];
+}
+
+/** Cards drafted from a teacher's text (ADR 0018), added to the deck for review. */
+export interface GenerateResult {
+  deck: TeacherDeck;
+  added: number;
+  skipped: { headword: string; reason: 'duplicate' | 'invalid' | 'too_long' | 'full' }[];
+  /** 'demo': placeholder cards, made without any service (development only). */
+  provider: 'deepseek' | 'demo';
+}
+
 /** A teacher's deck as its author edits it. */
 export interface TeacherDeck {
   id: string;
@@ -307,7 +330,7 @@ export interface TeacherDeck {
   status: 'draft' | 'published';
   created_at: string;
   /** `from_course`: the course's own word, linked; its content is not edited here. */
-  words: { word: Word; from_course: boolean }[];
+  words: TeacherWord[];
   groups: { id: string; name: string }[];
 }
 

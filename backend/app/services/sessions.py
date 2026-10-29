@@ -280,18 +280,19 @@ def _course_rows(db: Session, user: User, now: datetime) -> list[Any]:
     )
 
 
-def _assigned_rows(db: Session, user: User, now: datetime) -> list[tuple[Any, str]]:
-    """Decks given to my groups (ADR 0017), oldest first: counted rows and the group's name."""
+def _assigned_rows(db: Session, user: User, now: datetime) -> list[tuple[Any, decks.GivenDeck]]:
+    """Decks given to my groups (ADR 0017), oldest first: counted rows and where each comes
+    from."""
     given = decks.assigned_decks(db, user)
     if not given:
         return []
     rows = {
         row[0].id: row
         for row in db.execute(
-            _counted_decks(user, now).where(Deck.id.in_([deck.id for deck, _ in given]))
+            _counted_decks(user, now).where(Deck.id.in_([item.deck.id for item in given]))
         )
     }
-    return [(rows[deck.id], group_name) for deck, group_name in given]
+    return [(rows[item.deck.id], item) for item in given]
 
 
 def _current_index(rows: list[Any]) -> int:
@@ -303,12 +304,16 @@ def _current_index(rows: list[Any]) -> int:
     return max(0, len(rows) - 1)
 
 
-def _deck_out(row: Any, *, locked: bool, new_today: int, group_name: str | None = None) -> DeckOut:
+def _deck_out(
+    row: Any, *, locked: bool, new_today: int, given: decks.GivenDeck | None = None
+) -> DeckOut:
     deck, words, met, due_now, learning, upcoming = row
     return DeckOut(
         id=deck.id,
         kind=deck.kind,
-        group_name=group_name,
+        group_name=given.group_name if given else None,
+        author=given.author if given else None,
+        is_mine=given.is_mine if given else False,
         title=deck.title,
         description=deck.description,
         level=deck.level,
@@ -339,11 +344,11 @@ def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> l
     today = pace.day_plan(db, user, rows[current][0].id, now, time_zone)
     allowance = 0 if today.blocked_by_reviews else today.remaining
     out: list[DeckOut] = []
-    for row, group_name in _assigned_rows(db, user, now):
+    for row, given in _assigned_rows(db, user, now):
         _, words, met, *_ = row
         new = min(allowance, words - met)
         allowance -= new
-        out.append(_deck_out(row, locked=False, new_today=new, group_name=group_name))
+        out.append(_deck_out(row, locked=False, new_today=new, given=given))
     for index, row in enumerate(rows):
         _, words, met, *_ = row
         new = min(allowance, words - met) if index == current else 0

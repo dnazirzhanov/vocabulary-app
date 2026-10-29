@@ -56,7 +56,7 @@ All timestamps are `timestamptz`, stored and compared in UTC.
 |---|---|---|
 | `users` | `id uuid`, `auth_subject text`, `display_name text null`, `created_at` | `UNIQUE(auth_subject)` |
 | `decks` | `id text` (stable slug; a teacher's deck `g-…`), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int`, `kind` (`course` \| `group`), `owner_id null` (a group deck's author), `created_at` | `kind` check |
-| `words` | `id text` (stable slug; a teacher's word `t-…`), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null`, `owner_deck_id null` (a teacher's word belongs to its deck) | |
+| `words` | `id text` (stable slug; a teacher's word `t-…`), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null`, `owner_deck_id null` (a teacher's word belongs to its deck), `source_sentence null` (the line of the teacher's text it was drafted from) | |
 | `deck_assignments` | `id uuid`, `group_id`, `deck_id`, `assigned_by null`, `assigned_at`, `removed_at null` | `UNIQUE(group_id, deck_id)`; a deck taken back keeps its row (ADR 0017) |
 | `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
 | `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count`, `stage`, `due_at`, `last_reviewed_at`, `review_count`, `lapses` | `PK(user_id, word_id)`; `stage BETWEEN 1 AND 5`; index `(user_id, due_at)` |
@@ -91,7 +91,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 |---|---|
 | `GET /api/health/live` | process is up |
 | `GET /api/health/ready` | database reachable |
-| `GET /api/decks` | decks given to my groups first (`kind: group`, `group_name`), then the course's levels, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0017) |
+| `GET /api/decks` | decks given to any of my groups first, mine included (`kind: group`, `group_name`, `author`, `is_mine`), then the course's levels, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0017) |
 | `GET /api/sessions/active` | `{ "session": … }` or `{ "session": null }` |
 | `POST /api/sessions` | `{kind: "study", deck_id}` (due cards from every deck, then new words sized by the daily pace) or `{kind: "hard", deck_id}` (practice on the hardest words; schedule unchanged); returns the open session if one exists; `409 nothing_to_study` / `409 nothing_to_practice` |
 | `GET /api/sessions/{id}` | session with exercises and results so far |
@@ -109,6 +109,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/decks/mine`, `POST /api/decks` | a teacher's decks; a new draft `{title, group_id}`, only for a group's owner (ADR 0017) |
 | `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |
 | `POST /api/decks/{id}/words`, `PUT …/words/{word_id}`, `DELETE …/words/{word_id}` | add (a course word is linked), correct, take out a word |
+| `POST /api/decks/{id}/generate` | draft cards from a teacher's text `{text, count, level}` into the deck: added cards, skipped ones with reasons, the provider; the text is not stored; 20 a day (ADR 0018) |
 | `POST /api/decks/{id}/publish`, `DELETE /api/groups/{group_id}/decks/{deck_id}` | publish and give to a group I own `{group_id}` (idempotent); take back |
 | `GET /api/me/profile`, `GET /api/groups/{id}/members/{member_id}/profile` | a learner's week against their own promise and the learning beyond it (ADR 0015); one's own for everyone, a member's for members of that group only; nickname, no ids or e-mail |
 | `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
