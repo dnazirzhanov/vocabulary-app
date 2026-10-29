@@ -110,4 +110,4 @@ class GenerateOut(BaseModel):
     added: int
     skipped: list[SkippedOut]
     # "demo": placeholder cards, made without any service.
-    provider: Literal["claude", "demo"]
+    provider: Literal["deepseek", "demo"]

@@ -111,7 +111,7 @@ export function GeneratePanel({ deckId, onDrafted }: { deckId: string; onDrafted
             )}
             {last.provider === 'demo' && (
               <p className={styles.demo}>
-                Демо-режим: переводы ненастоящие. Чтобы карточки составлял Claude, добавьте ANTHROPIC_API_KEY в .env
+                Демо-режим: переводы ненастоящие. Чтобы карточки составлял DeepSeek, добавьте DEEPSEEK_API_KEY в .env
                 сервера.
               </p>
             )}

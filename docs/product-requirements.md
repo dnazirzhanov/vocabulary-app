@@ -65,7 +65,7 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 
 - Collect only what the product needs: an auth-provider identifier, an optional display name, learning records. No birth date, phone number or location.
 - Typed answers are evaluated and discarded; only correct/incorrect is stored.
-- A teacher's lesson text pasted for drafting a deck is sent to Anthropic (Claude) and not stored by us; only each card's source sentence is kept (ADR 0018). Anthropic's data-handling terms must be confirmed before real school material is used.
+- A teacher's lesson text pasted for drafting a deck is sent to DeepSeek and not stored by us; only each card's source sentence is kept (ADR 0018). DeepSeek's data-handling terms (a service based in China) must be checked against the data law that applies to schools before real school material is used.
 - No third-party analytics, advertising or tracking SDKs. Product analytics come from our own learning records.
 - Account deletion removes the user's progress and attempts (required before any public launch).
 - Before the pilot collects real student data: decide the account model (self sign-up vs teacher-created accounts) and confirm obligations under the personal-data law of the Kyrgyz Republic, including consent for minors. Not yet done.

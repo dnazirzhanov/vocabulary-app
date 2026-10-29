@@ -317,7 +317,7 @@ export interface GenerateResult {
   added: number;
   skipped: { headword: string; reason: 'duplicate' | 'invalid' | 'too_long' | 'full' }[];
   /** 'demo': placeholder cards, made without any service (development only). */
-  provider: 'claude' | 'demo';
+  provider: 'deepseek' | 'demo';
 }
 
 /** A teacher's deck as its author edits it. */

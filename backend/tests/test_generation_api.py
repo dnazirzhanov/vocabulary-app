@@ -2,8 +2,11 @@
 course words are linked, doubtful cards are flagged and unusable ones reported, never dropped."""
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
 
+import httpx2
+import openai
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,7 +14,15 @@ from app.api.decks import get_provider
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.main import create_app
-from app.services.generation import DemoProvider, DraftCard, Level, Pos, flags, provider_for
+from app.services.generation import (
+    DeepSeekProvider,
+    DemoProvider,
+    DraftCard,
+    Level,
+    Pos,
+    flags,
+    provider_for,
+)
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -38,7 +49,7 @@ def draft_deck(client: TestClient) -> dict[str, Any]:
 class FixedProvider:
     """Answers as a model might, mistakes included."""
 
-    name = "claude"
+    name = "deepseek"
 
     def __init__(self) -> None:
         self.asked: dict[str, Any] = {}
@@ -136,15 +147,15 @@ def test_drafts_are_limited_per_day(client: TestClient) -> None:
 
 def settings(**values: Any) -> Settings:
     # Explicit values win over the environment and .env, so a developer's own key changes nothing.
-    values = {"anthropic_api_key": None, "generation_provider": "auto"} | values
+    values = {"deepseek_api_key": None, "generation_provider": "auto"} | values
     return Settings(database_url="postgresql+psycopg://localhost/x", **values)
 
 
 def test_which_provider_drafts() -> None:
     assert isinstance(provider_for(settings()), DemoProvider)
-    assert provider_for(settings(anthropic_api_key="k")).name == "claude"
+    assert provider_for(settings(deepseek_api_key="k")).name == "deepseek"
     assert isinstance(
-        provider_for(settings(generation_provider="demo", anthropic_api_key="k")), DemoProvider
+        provider_for(settings(generation_provider="demo", deepseek_api_key="k")), DemoProvider
     )
     production = {
         "environment": "production",
@@ -168,3 +179,78 @@ def test_flags_point_at_what_to_check() -> None:
 
 def test_the_app_starts_without_a_key() -> None:
     assert create_app() is not None
+
+
+# --- DeepSeek, with its client stood in for (no key here, no network in tests) -----------------
+
+CARD_JSON = (
+    '{"cards": [{"headword": "carry out", "pos": "phrase", "translation": "проводить",'
+    ' "example": "They carried out the test.", "example_ru": "Они провели тест.",'
+    ' "source_sentence": "The company managed to carry out the experiment."}]}'
+)
+
+
+class Completions:
+    """Plays back answers in order; an exception is raised instead of answered."""
+
+    def __init__(self, *answers: Any) -> None:
+        self.answers = list(answers)
+        self.requests: list[dict[str, Any]] = []
+
+    def create(self, **request: Any) -> Any:
+        self.requests.append(request)
+        answer = self.answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        content, finish = answer if isinstance(answer, tuple) else (answer, "stop")
+        message = SimpleNamespace(content=content)
+        return SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason=finish)])
+
+
+def deepseek(completions: Completions) -> DeepSeekProvider:
+    provider = DeepSeekProvider("k", "deepseek-flash")
+    provider._client = SimpleNamespace(chat=SimpleNamespace(completions=completions))  # type: ignore[assignment]
+    return provider
+
+
+def status_error(status: int) -> openai.APIStatusError:
+    response = httpx2.Response(status, request=httpx2.Request("POST", "https://api.deepseek.com"))
+    cls = {401: openai.AuthenticationError, 429: openai.RateLimitError}.get(
+        status, openai.APIStatusError
+    )
+    return cls("error", response=response, body=None)
+
+
+def test_deepseek_asks_for_json_and_reads_the_cards() -> None:
+    completions = Completions(CARD_JSON)
+    cards = deepseek(completions).draft(TEXT, 10, "B1", ["setback"])
+    assert [card.headword for card in cards] == ["carry out"]
+    request = completions.requests[0]
+    assert request["model"] == "deepseek-flash"
+    assert request["response_format"] == {"type": "json_object"}
+    assert "json" in request["messages"][0]["content"]  # JSON mode needs the word and an example
+    assert "Already in the deck: setback." in request["messages"][1]["content"]
+
+
+def test_deepseek_tries_once_more_after_an_empty_answer() -> None:
+    assert len(deepseek(Completions("", CARD_JSON)).draft(TEXT, 10, "B1", [])) == 1
+    with pytest.raises(ApiError) as empty:
+        deepseek(Completions("", "  ")).draft(TEXT, 10, "B1", [])
+    assert empty.value.code == "generation_failed"
+
+
+@pytest.mark.parametrize(
+    ("answer", "code"),
+    [
+        ('{"words": []}', "generation_failed"),  # not the asked shape
+        ((CARD_JSON[:40], "length"), "generation_failed"),  # cut off
+        (status_error(401), "generation_unavailable"),
+        (status_error(402), "generation_no_credits"),
+        (status_error(429), "generation_busy"),
+        (status_error(500), "generation_failed"),
+    ],
+)
+def test_deepseek_failures_say_what_happened(answer: Any, code: str) -> None:
+    with pytest.raises(ApiError) as failed:
+        deepseek(Completions(answer)).draft(TEXT, 10, "B1", [])
+    assert failed.value.code == code

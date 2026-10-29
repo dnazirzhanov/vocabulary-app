@@ -13,13 +13,16 @@ and spelling rules is not, and is done in code.
   picks how many words (5, 10, 15 or 20) and the learners' level (A1–C1). The drafted cards are
   added to the deck for review; nothing reaches students until the teacher gives the deck to the
   group. Pasting again adds more, never repeating a word the deck has.
-- **One model call, a fixed answer shape.** Claude (`claude-sonnet-5-5`, the owner's choice) reads
-  the text and returns cards through structured output: the dictionary form (managed → manage,
-  carried out → carry out), part of speech, a short Russian meaning that fits this text, an example
-  at the learners' level (the source sentence when it is short and clear), its Russian
-  translation, and the source sentence. Effort is `medium`. A request the model declines is
-  retried on a fallback model by the API (`fallbacks: "default"`). The text is treated as data:
-  the prompt says to ignore instructions inside it.
+- **One model call, a JSON answer.** DeepSeek (the owner's choice: they hold credits there;
+  OpenAI-compatible API, `deepseek-flash` by default, `DEEPSEEK_MODEL` switches to
+  `deepseek-v4-pro`) reads the text and returns cards in JSON mode. The prompt gives the shape with
+  an example, as DeepSeek's JSON mode needs: the dictionary form (managed → manage, carried out →
+  carry out), part of speech, a short Russian meaning that fits this text, an example at the
+  learners' level (the source sentence when it is short and clear), its Russian translation, and
+  the source sentence. The answer is validated against that shape in code; an empty answer, which
+  DeepSeek's JSON mode may now and then return, is asked again once. Errors name what happened:
+  wrong key, busy, out of credit, no answer. The text is treated as data: the prompt says to
+  ignore instructions inside it.
 - **Checked in code, never dropped in silence.** A card whose headword can't be spelled, that
   repeats a word or doesn't fit the columns is not saved and is listed with the reason. A saved
   card can carry flags for the teacher: the meaning isn't Russian, the example lacks the word, the
@@ -27,9 +30,9 @@ and spelling rules is not, and is done in code.
   disappear once fixed. Course words are linked as in ADR 0017.
 - **The text is not kept.** It is read once for the request; each card keeps only its own source
   sentence, shown to the teacher as «Из текста». Texts are never logged.
-- **Providers behind one interface.** `claude` needs `ANTHROPIC_API_KEY`; `demo` makes placeholder
+- **Providers behind one interface.** `deepseek` needs `DEEPSEEK_API_KEY`; `demo` makes placeholder
   cards from the text's own words, labelled as such, so development and tests need no service.
-  `auto` (the default) uses Claude with a key, the demo without one outside production, and no
+  `auto` (the default) uses DeepSeek with a key, the demo without one outside production, and no
   generation in production without a key. Tests always use the demo.
 - **Cost.** 20 drafts per teacher per day (in-process limit, one instance).
 - **Synchronous for now.** The request waits for the model (up to about a minute; the client
@@ -37,8 +40,9 @@ and spelling rules is not, and is done in code.
   problem in the pilot.
 
 ## Consequences
-- The teacher's text is sent to Anthropic. Its data-handling terms must be confirmed by the owner
-  before real lesson material from schools is used (see product requirements, Privacy).
+- The teacher's text is sent to DeepSeek, a service in China. Its data-handling terms and the
+  data law for schools must be checked by the owner before real lesson material is used (see
+  product requirements, Privacy).
 - Quality is not measured yet: we don't record which drafted cards a teacher changed or removed.
 - One call does choosing and writing together; if choices are poor, splitting it into a choosing
   call and a writing call is the next step.
