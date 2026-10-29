@@ -1,6 +1,7 @@
 # 0017 — Teachers' decks, given to a group, met first within the learner's own pace
 
 **Status:** Accepted. Amends ADR 0014 (which decks a learner sees) and ADR 0016 (phrases).
+Amended by ADR 0019: anyone writes decks (kind `group` renamed `user`); drafts live in «Мои колоды».
 
 ## Context
 A teacher told us how he prepares vocabulary homework today: he asks ChatGPT for the words in

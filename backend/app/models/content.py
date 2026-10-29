@@ -19,7 +19,7 @@ from app.models.base import Base
 
 class Deck(Base):
     __tablename__ = "decks"
-    __table_args__ = (CheckConstraint("kind IN ('course', 'group')", name="kind_values"),)
+    __table_args__ = (CheckConstraint("kind IN ('course', 'user')", name="kind_values"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
@@ -34,10 +34,10 @@ class Deck(Base):
     # The course goal promised to learners (deck.yaml `course_goal`), only when it has a source.
     goal_words: Mapped[int | None]
     goal_coverage_percent: Mapped[int | None]
-    # 'course': the levels, loaded from content/. 'group': a teacher's deck, given to a group's
-    # members through an assignment (ADR 0017); never part of the course or its goal.
+    # 'course': the levels, loaded from content/. 'user': a deck someone wrote (ADR 0019), personal
+    # until given to a group through an assignment (ADR 0017); never part of the course or its goal.
     kind: Mapped[str] = mapped_column(String(8), server_default=text("'course'"))
-    # A group deck's author, the only one who may edit it; kept when the author's account goes.
+    # A user deck's author, the only one who may edit it; kept when the author's account goes.
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
+import { LibraryScreen } from './decks/LibraryScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
 import { BoardScreen } from './groups/BoardScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
@@ -25,7 +26,9 @@ type Screen =
   | { name: 'progress' }
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
-  | { name: 'deck'; deckId: string; groupId: string; groupName: string }
+  | { name: 'library' }
+  // A deck's editor: for a group (from its board) or, with no group, a personal deck (ADR 0019).
+  | { name: 'deck'; deckId: string; groupId: string | null; groupName: string | null }
   | { name: 'join'; code: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
@@ -255,7 +258,17 @@ function Learning({ email }: { email: string | null }) {
           deckId={screen.deckId}
           groupId={groupId}
           groupName={screen.groupName}
-          onDone={() => setScreen({ name: 'board', groupId })}
+          onDone={() => setScreen(groupId ? { name: 'board', groupId } : { name: 'library' })}
+          onStudy={(session) => startSession(session, screen.deckId)}
+        />
+      );
+    }
+    if (screen.name === 'library') {
+      return (
+        <LibraryScreen
+          onBack={goHome}
+          onSession={startSession}
+          onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null, groupName: null })}
         />
       );
     }
@@ -272,13 +285,14 @@ function Learning({ email }: { email: string | null }) {
         />
       );
     }
-    return <HomeScreen onSession={startSession} />;
+    return <HomeScreen onSession={startSession} onOpenLibrary={() => setScreen({ name: 'library' })} />;
   }
 }
 
 /** The navigation entry a screen belongs to: decks and their words are part of today. */
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (screen.name === 'groups' || screen.name === 'board' || screen.name === 'deck') return 'friends';
+  if (screen.name === 'groups' || screen.name === 'board') return 'friends';
+  if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';
 }

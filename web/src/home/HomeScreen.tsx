@@ -7,7 +7,7 @@ import { courseCounts, currentDeck, lessonDecks, newInSession, nextDueAt, studyL
 import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CardCounts } from '../today/CardCounts.tsx';
-import { CheckIcon, FlameIcon, PencilIcon } from '../ui/icons.tsx';
+import { CheckIcon, FlameIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { DeckList } from './DeckList.tsx';
 import { SuggestionCard } from './SuggestionCard.tsx';
@@ -15,6 +15,8 @@ import styles from './HomeScreen.module.css';
 
 type Loaded = {
   decks: Deck[];
+  /** Decks in «Мои колоды»: mine and my groups'; null if that count didn't load. */
+  library: number | null;
   active: Session | null;
   progress: Progress | null;
   pace: Pace | null;
@@ -23,6 +25,8 @@ type Loaded = {
 interface HomeScreenProps {
   /** `scope` is the deck a session was started for; null is the whole course. */
   onSession: (session: Session, scope: string | null) => void;
+  /** «Мои колоды» (ADR 0019). */
+  onOpenLibrary: () => void;
 }
 
 /**
@@ -31,7 +35,7 @@ interface HomeScreenProps {
  * it (ADR 0014). The plan and
  * friends live in the navigation around it.
  */
-export function HomeScreen({ onSession }: HomeScreenProps) {
+export function HomeScreen({ onSession, onOpenLibrary }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -48,7 +52,11 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
             api.progress().catch(() => null),
             current ? api.pace(current.id).catch(() => null) : null,
           ]);
-          setLoaded({ decks, active: active.session, progress, pace });
+          const library = await api.library().then(
+            (found) => found.mine.length + found.from_groups.length,
+            () => null,
+          );
+          setLoaded({ decks, library, active: active.session, progress, pace });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [],
@@ -187,11 +195,22 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
               </div>
             )}
           </section>
-          <DeckList
-            decks={decks}
-            busy={busy}
-            onStart={(deckId) => run(async () => onSession(await api.startStudySession(deckId), deckId))}
-          />
+          <div className={styles.deckArea}>
+            <DeckList
+              decks={decks}
+              busy={busy}
+              onStart={(deckId) => run(async () => onSession(await api.startStudySession(deckId), deckId))}
+            />
+            <button type="button" className={styles.libraryLink} onClick={onOpenLibrary}>
+              <span className={styles.libraryText}>
+                <strong>Мои колоды{loaded.library ? ` · ${loaded.library}` : ''}</strong>
+                <span>
+                  {loaded.library ? 'Свои колоды и колоды из групп' : 'Создайте свою колоду — слова и карточки с ИИ'}
+                </span>
+              </span>
+              <ForwardIcon className={styles.chevron} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </main>
       {(primary || error) && (

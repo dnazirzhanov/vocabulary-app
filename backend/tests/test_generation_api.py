@@ -277,3 +277,13 @@ def test_a_dev_header_asks_for_the_demo_whatever_the_server_holds() -> None:
         auth_mode="jwt", auth_issuer="https://x.supabase.co/auth/v1",
     )  # fmt: skip
     assert get_provider(asked, production).name == "deepseek"  # type: ignore[arg-type]
+
+
+def test_deepseek_fills_cards_for_the_words_named() -> None:
+    completions = Completions(CARD_JSON)
+    cards = deepseek(completions).fill(["carry out", "reluctant"], "A2")
+    assert [card.headword for card in cards] == ["carry out"]
+    system, user = (message["content"] for message in completions.requests[0]["messages"])
+    assert "The learner names the words" in system and "json" in system
+    assert "Learners' level: A2." in user and "- carry out\n- reluctant" in user
+    assert completions.requests[0]["extra_body"] == {"thinking": {"type": "disabled"}}

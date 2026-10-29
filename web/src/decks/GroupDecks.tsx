@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { Assignment, Board, TeacherDeck } from '../lib/types.ts';
+import type { Assignment, Board } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { PencilIcon } from '../ui/icons.tsx';
 import styles from './GroupDecks.module.css';
@@ -17,21 +16,11 @@ interface GroupDecksProps {
 /**
  * Words the group's teacher gave it (ADR 0017). A member sees how many of each deck they have met;
  * the owner sees every learner's count, by name rather than by number, since the board ranks
- * promises kept, never volume. The owner also starts a deck here and finds their drafts.
+ * promises kept, never volume. The owner also starts a deck here; unfinished ones wait in «Мои колоды».
  */
 export function GroupDecks({ board, onOpenDeck }: GroupDecksProps) {
   const owner = board.group.role === 'owner';
-  const [drafts, setDrafts] = useState<TeacherDeck[]>([]);
   const { run, busy, error } = useAsyncAction();
-
-  useEffect(() => {
-    if (!owner) return;
-    // Drafts are secondary: if they don't load, the section still works.
-    api.myDecks().then(
-      (decks) => setDrafts(decks.filter((deck) => deck.status === 'draft')),
-      () => setDrafts([]),
-    );
-  }, [owner]);
 
   if (!owner && board.assignments.length === 0) return null;
   const nicknames = new Map(board.rows.map((row) => [row.member_id, row.nickname]));
@@ -54,7 +43,7 @@ export function GroupDecks({ board, onOpenDeck }: GroupDecksProps) {
           </button>
         )}
       </div>
-      {owner && board.assignments.length === 0 && drafts.length === 0 && (
+      {owner && board.assignments.length === 0 && (
         <p className={styles.hint}>
           Соберите слова к уроку — ученики встретят их первыми в своём ежедневном уроке, в своём темпе.
         </p>
@@ -72,14 +61,6 @@ export function GroupDecks({ board, onOpenDeck }: GroupDecksProps) {
             nicknames={nicknames}
             onOpen={owner ? () => onOpenDeck(assignment.deck_id) : null}
           />
-        ))}
-        {drafts.map((deck) => (
-          <li key={deck.id} className={styles.item}>
-            <button type="button" className={styles.itemButton} onClick={() => onOpenDeck(deck.id)}>
-              <span className={styles.itemTitle}>{deck.title}</span>
-              <span className={styles.meta}>Черновик · {wordsLabel(deck.words.length)} · продолжить</span>
-            </button>
-          </li>
         ))}
       </ul>
     </section>

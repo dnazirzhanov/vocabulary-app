@@ -323,6 +323,34 @@ export interface GenerateResult {
   provider: 'deepseek' | 'demo';
 }
 
+/** A card filled in from a word for the manual form; not saved (ADR 0019). */
+export interface SuggestedCard extends DeckWordInput {
+  flags: WordFlag[];
+  provider: 'deepseek' | 'demo';
+}
+
+/** A deck in «Мои колоды», with my counts on it. */
+export interface LibraryDeck {
+  id: string;
+  title: string;
+  word_count: number;
+  introduced_count: number;
+  learning_count: number;
+  review_count: number;
+  /** New words opening it would bring today, within the daily pace. */
+  new_today: number;
+  next_due_at: string | null;
+  /** Mine: the groups it is given to. From a group: that group and its author's nickname. */
+  groups: { id: string; name: string }[];
+  group_name: string | null;
+  author: string | null;
+}
+
+export interface Library {
+  mine: LibraryDeck[];
+  from_groups: LibraryDeck[];
+}
+
 /** A teacher's deck as its author edits it. */
 export interface TeacherDeck {
   id: string;

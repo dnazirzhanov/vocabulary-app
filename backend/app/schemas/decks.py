@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.learning import WordOut
 
@@ -44,8 +44,9 @@ Translation = Annotated[str, StringConstraints(strip_whitespace=True, max_length
 
 class NewDeckIn(_Input):
     title: Title
-    # The group it is written for: only its owner may make a deck (v1 creators are teachers).
-    group_id: UUID
+    # Written for a group from its board: only the group's owner. None: a personal deck, anyone's
+    # (ADR 0019).
+    group_id: UUID | None = None
 
 
 class RenameDeckIn(_Input):
@@ -71,6 +72,36 @@ class GenerateIn(_Input):
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=20, max_length=20_000)]
     count: Literal[5, 10, 15, 20] = 10
     level: Literal["A1", "A2", "B1", "B2", "C1"] = "B1"
+
+
+Level = Literal["A1", "A2", "B1", "B2", "C1"]
+
+
+class FillIn(_Input):
+    """Words to make full cards from (ADR 0019): the AI writes the rest of each card."""
+
+    words: Annotated[
+        list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]],
+        Field(min_length=1, max_length=20),
+    ]
+    level: Level = "B1"
+
+
+class SuggestIn(_Input):
+    headword: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    level: Level = "B1"
+
+
+class SuggestOut(BaseModel):
+    """A card filled in for the manual form, not saved: the learner reviews it first."""
+
+    headword: str
+    pos: Literal["noun", "verb", "adjective", "adverb", "phrase", "other"]
+    translation: str
+    example: str
+    example_ru: str
+    flags: list[str]
+    provider: Literal["deepseek", "demo"]
 
 
 class TeacherWordOut(BaseModel):
@@ -111,3 +142,26 @@ class GenerateOut(BaseModel):
     skipped: list[SkippedOut]
     # "demo": placeholder cards, made without any service.
     provider: Literal["deepseek", "demo"]
+
+
+class LibraryDeckOut(BaseModel):
+    """A deck in «Мои колоды», with the learner's own counts on it."""
+
+    id: str
+    title: str
+    word_count: int
+    introduced_count: int
+    learning_count: int
+    review_count: int
+    # New words opening it would bring today, within the daily pace.
+    new_today: int
+    next_due_at: datetime | None
+    # Mine: the groups it is given to. From a group: that group and the author's nickname there.
+    groups: list[AssignedGroupOut]
+    group_name: str | None = None
+    author: str | None = None
+
+
+class LibraryOut(BaseModel):
+    mine: list[LibraryDeckOut]
+    from_groups: list[LibraryDeckOut]

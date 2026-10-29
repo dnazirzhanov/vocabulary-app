@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { DeckWordInput, GenerateResult, PartOfSpeech, TeacherDeck, WordFlag } from '../lib/types.ts';
+import type {
+  DeckWordInput,
+  GenerateResult,
+  Group,
+  PartOfSpeech,
+  Session,
+  TeacherDeck,
+  WordFlag,
+} from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { AlertIcon, BackIcon, CheckIcon } from '../ui/icons.tsx';
+import { playAudio } from '../lib/audio.ts';
+import { AlertIcon, BackIcon, CheckIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { GeneratePanel } from './GeneratePanel.tsx';
+import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 
@@ -29,9 +39,12 @@ const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', examp
 
 interface DeckEditorProps {
   deckId: string;
-  groupId: string;
-  groupName: string;
+  /** Opened from a group's board: the deck is for that group. None: a personal deck (ADR 0019). */
+  groupId: string | null;
+  groupName: string | null;
   onDone: () => void;
+  /** Studying this deck now (a personal deck's main action). */
+  onStudy: (session: Session) => void;
 }
 
 /**
@@ -39,7 +52,7 @@ interface DeckEditorProps {
  * correct one, and one action that gives the deck to the group. Students meet the words first in
  * their own daily lesson, at their own pace. Course words are linked, not copied.
  */
-export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorProps) {
+export function DeckEditor({ deckId, groupId, groupName, onDone, onStudy }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -47,6 +60,11 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
   const [editing, setEditing] = useState<string | null>(null); // a word id
   // The manual form, folded away: drafting from the lesson's text comes first (ADR 0018).
   const [manualOpen, setManualOpen] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestNote, setSuggestNote] = useState<string | null>(null);
+  // A personal deck can be given to a group I own.
+  const [ownGroups, setOwnGroups] = useState<Group[]>([]);
+  const [giveTo, setGiveTo] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [justGiven, setJustGiven] = useState(false);
@@ -66,6 +84,17 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (groupId) return;
+    api.groups().then(
+      (groups) => {
+        const owned = groups.filter((group) => group.role === 'owner');
+        setOwnGroups(owned);
+        setGiveTo(owned[0]?.id ?? '');
+      },
+      () => setOwnGroups([]),
+    );
+  }, [groupId]);
   const focused = useRef(false);
   useEffect(() => {
     if (!deck || focused.current) return;
@@ -91,7 +120,8 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
     );
   }
 
-  const given = deck.groups.some((group) => group.id === groupId);
+  const forGroup = groupId !== null;
+  const given = forGroup && deck.groups.some((group) => group.id === groupId);
   const count = deck.words.length;
   const field = <K extends keyof DeckWordInput>(key: K, value: DeckWordInput[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -103,10 +133,35 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
     if (clean.length < 2 || clean === deck.title) return setTitle(deck.title);
     run(async () => show(await api.renameDeck(deck.id, clean)));
   };
+  // The rest of the card from the typed word, for review before adding (nothing is saved).
+  const suggest = async () => {
+    if (suggesting || !headword || headwordInvalid) return;
+    setSuggesting(true);
+    setSuggestNote(null);
+    setFormError(null);
+    try {
+      const card = await api.suggestWord(deck.id, headword, 'B1');
+      setForm({
+        headword: card.headword,
+        pos: card.pos,
+        translation: card.translation,
+        example: card.example,
+        example_ru: card.example_ru,
+      });
+      const notes = card.flags.map((flag) => FLAGS[flag]);
+      if (card.provider === 'demo') notes.push('демо-режим, перевод ненастоящий');
+      setSuggestNote(notes.length ? `Проверьте: ${notes.join(', ')}.` : 'Готово — проверьте и добавьте.');
+    } catch (caught) {
+      setFormError(describeError(caught));
+    } finally {
+      setSuggesting(false);
+    }
+  };
   const resetForm = () => {
     setForm(EMPTY);
     setEditing(null);
     setFormError(null);
+    setSuggestNote(null);
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -153,13 +208,13 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onDone}>
-          <BackIcon aria-hidden="true" /> К группе
+          <BackIcon aria-hidden="true" /> {forGroup ? 'К группе' : 'Мои колоды'}
         </button>
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
           <section ref={listRef} className={styles.listColumn} aria-labelledby="deck-title">
-            <p className={styles.eyebrow}>Слова для группы «{groupName}»</p>
+            <p className={styles.eyebrow}>{forGroup ? `Слова для группы «${groupName}»` : 'Моя колода'}</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
             </h1>
@@ -174,7 +229,9 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
               />
             </label>
             <p className={styles.lead}>
-              Ученики встретят эти слова первыми в своём ежедневном уроке — в своём темпе, без лишней нагрузки.
+              {forGroup
+                ? 'Ученики встретят эти слова первыми в своём ежедневном уроке — в своём темпе, без лишней нагрузки.'
+                : 'Колода учится, когда вы её открываете: новые слова — в пределах вашего темпа.'}
             </p>
 
             {count === 0 ? (
@@ -189,6 +246,14 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
                     <div className={styles.wordBody}>
                       <p className={styles.wordHead}>
                         <strong lang="en">{word.headword}</strong>
+                        <button
+                          type="button"
+                          className={styles.listen}
+                          onClick={() => void playAudio('words', word.id, word.headword)}
+                          aria-label={`Послушать: ${word.headword}`}
+                        >
+                          <SpeakerIcon aria-hidden="true" />
+                        </button>
                         <span className={styles.pos}>{posLabel(word.pos)}</span>
                         {from_course && <span className={styles.courseTag}>из курса</span>}
                       </p>
@@ -236,7 +301,8 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
           </section>
 
           <div className={styles.side}>
-            <GeneratePanel deckId={deck.id} onDrafted={drafted} />
+            <QuickAddPanel deckId={deck.id} forGroup={forGroup} onAdded={drafted} />
+            <GeneratePanel deckId={deck.id} forGroup={forGroup} onDrafted={drafted} />
             <details
               className={styles.manual}
               open={manualOpen}
@@ -267,6 +333,20 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
                     onChange={(event) => field('headword', event.target.value)}
                   />
                 </label>
+                <button
+                  type="button"
+                  className={styles.linkButton}
+                  disabled={suggesting || !headword || headwordInvalid}
+                  aria-busy={suggesting}
+                  onClick={() => void suggest()}
+                >
+                  {suggesting ? 'Заполняем…' : 'Заполнить с ИИ'}
+                </button>
+                {suggestNote && (
+                  <p className={styles.note} role="status">
+                    {suggestNote}
+                  </p>
+                )}
                 <label className={styles.field}>
                   <span>Часть речи</span>
                   <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
@@ -346,7 +426,46 @@ export function DeckEditor({ deckId, groupId, groupName, onDone }: DeckEditorPro
               {error}
             </p>
           )}
-          {given ? (
+          {!forGroup ? (
+            <>
+              {deck.groups.length > 0 && (
+                <p className={styles.status} role="status">
+                  <CheckIcon aria-hidden="true" />В группе {deck.groups.map((group) => `«${group.name}»`).join(', ')}
+                </p>
+              )}
+              {ownGroups.length > 0 && count > 0 && (
+                <div className={styles.giveRow}>
+                  <label className={styles.giveLabel}>
+                    <span>Дать группе</span>
+                    <select value={giveTo} onChange={(event) => setGiveTo(event.target.value)}>
+                      {ownGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.outlineButton}
+                    disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
+                    onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
+                  >
+                    {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
+                  </button>
+                </div>
+              )}
+              <PrimaryButton
+                type="button"
+                className={styles.action}
+                disabled={busy || count === 0}
+                aria-busy={busy}
+                onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
+              >
+                {count === 0 ? 'Учить' : `Учить · ${wordsLabel(count)}`}
+              </PrimaryButton>
+            </>
+          ) : given ? (
             <>
               <p className={styles.status} role="status">
                 <CheckIcon aria-hidden="true" />

@@ -6,19 +6,23 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, Response
 
 from app.core.auth import CurrentUser, DbSession
-from app.core.clock import Now
+from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.ratelimit import limit_generations
 from app.schemas.decks import (
     DeckWordIn,
+    FillIn,
     GenerateIn,
     GenerateOut,
+    LibraryOut,
     NewDeckIn,
     PublishIn,
     RenameDeckIn,
+    SuggestIn,
+    SuggestOut,
     TeacherDeckOut,
 )
-from app.services import decks
+from app.services import decks, sessions
 from app.services.generation import DemoProvider, Provider, provider_for
 
 router = APIRouter(tags=["decks"])
@@ -77,6 +81,36 @@ def generate(
 ) -> GenerateOut:
     """Draft cards from the teacher's text into the deck (ADR 0018); the text is not stored."""
     return decks.generate(db, user, deck_id, body, provider)
+
+
+@router.get("/decks/library")
+def library(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> LibraryOut:
+    """«Мои колоды»: decks I wrote and decks given to my groups (ADR 0019)."""
+    return sessions.library(db, user, now, time_zone)
+
+
+@router.post("/decks/{deck_id}/words/fill", dependencies=[Depends(limit_generations)])
+def fill(
+    deck_id: DeckId,
+    body: FillIn,
+    user: CurrentUser,
+    db: DbSession,
+    provider: Annotated[Provider, Depends(get_provider)],
+) -> GenerateOut:
+    """Full cards from the words I name, saved to the deck (ADR 0019)."""
+    return decks.fill(db, user, deck_id, body, provider)
+
+
+@router.post("/decks/{deck_id}/words/suggest", dependencies=[Depends(limit_generations)])
+def suggest(
+    deck_id: DeckId,
+    body: SuggestIn,
+    user: CurrentUser,
+    db: DbSession,
+    provider: Annotated[Provider, Depends(get_provider)],
+) -> SuggestOut:
+    """One card filled in for the manual form; not saved."""
+    return decks.suggest(db, user, deck_id, body, provider)
 
 
 @router.put("/decks/{deck_id}/words/{word_id}")

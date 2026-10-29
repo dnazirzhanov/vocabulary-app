@@ -20,6 +20,8 @@ import type {
   TeacherDeck,
   DeckWordInput,
   GenerateResult,
+  Library,
+  SuggestedCard,
 } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
@@ -119,7 +121,16 @@ export const api = {
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
   // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
   myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
-  createDeck: (title: string, groupId: string) => request<TeacherDeck>('POST', '/decks', { title, group_id: groupId }),
+  /** A deck for a group I own, or with no group a personal deck (ADR 0019). */
+  createDeck: (title: string, groupId: string | null) =>
+    request<TeacherDeck>('POST', '/decks', groupId ? { title, group_id: groupId } : { title }),
+  library: () => request<Library>('GET', '/decks/library'),
+  /** Full cards from the words named, saved to the deck. */
+  fillWords: (deckId: string, words: string[], level: string) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level }, 120_000),
+  /** One card filled in for the manual form, not saved. */
+  suggestWord: (deckId: string, headword: string, level: string) =>
+    request<SuggestedCard>('POST', `/decks/${deckId}/words/suggest`, { headword, level }, 60_000),
   teacherDeck: (deckId: string) => request<TeacherDeck>('GET', `/decks/${deckId}/edit`),
   renameDeck: (deckId: string, title: string) => request<TeacherDeck>('PATCH', `/decks/${deckId}`, { title }),
   addDeckWord: (deckId: string, word: DeckWordInput) => request<TeacherDeck>('POST', `/decks/${deckId}/words`, word),
@@ -146,6 +157,8 @@ const MESSAGES: Record<string, string> = {
   too_many_groups: 'Можно состоять не больше чем в 5 группах.',
   group_full: 'В этой группе уже 50 участников.',
   rate_limited: 'Слишком много попыток. Подождите минуту.',
+  nothing_to_study: 'В этой колоде сейчас нечего учить: новые слова уже встречены, а повторений пока нет.',
+  reviews_first: 'Сначала повторите слова, которые ждут, — новые вернутся сразу после этого.',
   word_in_deck: 'Это слово уже есть в наборе.',
   deck_full: 'В наборе может быть не больше 50 слов.',
   deck_empty: 'Сначала добавьте хотя бы одно слово.',

@@ -313,6 +313,49 @@
   color: var(--color-text-muted);
 }
 
+/* The deck list and the way to «Мои колоды» under it. */
+.deckArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.libraryLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-control) dashed var(--color-option-edge-hover);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.libraryLink:hover {
+  background: rgb(38 38 38 / 0.04);
+}
+
+.libraryText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libraryText strong {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.libraryText span {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
 /* --- The action bar and messages ------------------------------------------------------------ */
 
 .actions {

@@ -89,17 +89,13 @@ test('a teacher gives words to a group and a student learns them first', async (
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).
 test('a teacher drafts cards from a lesson text and reviews them', async ({ page, context }) => {
-  const group = await (
-    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
-  ).json();
-  const deck = await (
-    await context.request.post('/api/decks', { data: { title: 'Unit 4', group_id: group.id } })
-  ).json();
-  expect(deck.status).toBe('draft');
+  await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } });
 
+  // From the group's board: a new deck for the group opens in the editor.
   await page.goto('/');
   await openGroup(page);
-  await page.getByRole('button', { name: /^Unit 4/ }).click();
+  await button(page, 'Дать слова группе').click();
+  await expect(page.getByText('Слова для группы «7Б английский»')).toBeVisible();
   await page
     .getByLabel('Текст урока')
     .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');

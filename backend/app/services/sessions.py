@@ -29,6 +29,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
+from app.schemas.decks import LibraryDeckOut, LibraryOut
 from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
@@ -310,7 +311,8 @@ def _deck_out(
     deck, words, met, due_now, learning, upcoming = row
     return DeckOut(
         id=deck.id,
-        kind=deck.kind,
+        # On «Сегодня», a user deck is there because a group was given it.
+        kind="group" if given else "course",
         group_name=given.group_name if given else None,
         author=given.author if given else None,
         is_mine=given.is_mine if given else False,
@@ -354,6 +356,45 @@ def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> l
         new = min(allowance, words - met) if index == current else 0
         out.append(_deck_out(row, locked=index > current, new_today=new))
     return out
+
+
+def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LibraryOut:
+    """«Мои колоды» (ADR 0019): decks I wrote, newest first, and decks others gave my groups.
+    Each shows what opening it would bring today, within the daily pace."""
+    rows = _course_rows(db, user, now)
+    allowance = 0
+    if rows:
+        today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+        allowance = 0 if today.blocked_by_reviews else today.remaining
+    shared = decks.shared_groups(db, user)
+
+    def out(row: Any, given: decks.GivenDeck | None = None) -> LibraryDeckOut:
+        deck, words, met, due_now, learning, upcoming = row
+        return LibraryDeckOut(
+            id=deck.id,
+            title=deck.title,
+            word_count=words,
+            introduced_count=met,
+            learning_count=learning,
+            review_count=due_now - learning,
+            new_today=min(allowance, words - met),
+            next_due_at=upcoming,
+            groups=shared.get(deck.id, []),
+            group_name=given.group_name if given else None,
+            author=given.author if given else None,
+        )
+
+    mine = db.execute(
+        _counted_decks(user, now)
+        .where(Deck.kind == "user", Deck.owner_id == user.id)
+        .order_by(Deck.created_at.desc(), Deck.id)
+    )
+    return LibraryOut(
+        mine=[out(row) for row in mine],
+        from_groups=[
+            out(row, given) for row, given in _assigned_rows(db, user, now) if not given.is_mine
+        ],
+    )
 
 
 def active_session(db: Session, user: User, now: datetime) -> ActiveSessionOut:

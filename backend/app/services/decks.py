@@ -34,17 +34,20 @@ from app.models import (
 from app.schemas.decks import (
     AssignedGroupOut,
     DeckWordIn,
+    FillIn,
     GenerateIn,
     GenerateOut,
     NewDeckIn,
     SkippedOut,
+    SuggestIn,
+    SuggestOut,
     TeacherDeckOut,
     TeacherWordOut,
     valid_headword,
 )
 from app.schemas.groups import AssignmentMemberOut, AssignmentOut
 from app.schemas.learning import WordOut
-from app.services.generation import Provider, flags
+from app.services.generation import DraftCard, Provider, flags
 
 MAX_WORDS_PER_DECK = 50
 MAX_DECKS_PER_USER = 100
@@ -72,7 +75,7 @@ def _word_out(word: Word) -> WordOut:
 def _owned_deck(db: Session, user: User, deck_id: str) -> Deck:
     # Someone else's deck is indistinguishable from a missing one.
     deck = db.scalar(
-        select(Deck).where(Deck.id == deck_id, Deck.kind == "group", Deck.owner_id == user.id)
+        select(Deck).where(Deck.id == deck_id, Deck.kind == "user", Deck.owner_id == user.id)
     )
     if deck is None:
         raise ApiError(404, "deck_not_found", "Deck not found")
@@ -110,10 +113,13 @@ def _active_assignments(user: User) -> Select[str, datetime, UUID]:
 
 def visible_deck(db: Session, user: User, deck_id: str) -> Deck:
     """A deck I may study or browse: a published course level, a deck given to one of my groups,
-    or one I wrote."""
+    or one I wrote (in any state)."""
     deck = db.get(Deck, deck_id)
+    # My own deck is mine to study from the start; a personal deck is never "published".
+    if deck is not None and deck.owner_id == user.id:
+        return deck
     if deck is not None and deck.status == "published":
-        if deck.kind == "course" or deck.owner_id == user.id:
+        if deck.kind == "course":
             return deck
         given = _active_assignments(user).where(DeckAssignment.deck_id == deck_id).limit(1)
         if db.execute(given).first() is not None:
@@ -153,6 +159,21 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
             deck.id, GivenDeck(deck, group_name, nickname, is_mine=deck.owner_id == user.id)
         )
     return list(seen.values())
+
+
+def shared_groups(db: Session, user: User) -> dict[str, list[AssignedGroupOut]]:
+    """For each of my decks, the groups it is given to now."""
+    rows = db.execute(
+        select(Deck.id, Group.id, Group.name)
+        .join(DeckAssignment, DeckAssignment.deck_id == Deck.id)
+        .join(Group, Group.id == DeckAssignment.group_id)
+        .where(Deck.owner_id == user.id, DeckAssignment.removed_at.is_(None))
+        .order_by(DeckAssignment.assigned_at)
+    )
+    shared: dict[str, list[AssignedGroupOut]] = {}
+    for deck_id, group_id, name in rows:
+        shared.setdefault(deck_id, []).append(AssignedGroupOut(id=group_id, name=name))
+    return shared
 
 
 def assigned_words(db: Session, user: User) -> list[str]:
@@ -204,7 +225,9 @@ def _teacher_word(deck: Deck, word: Word) -> TeacherWordOut:
 
 
 def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> TeacherDeckOut:
-    _owned_group(db, user, body.group_id)
+    """Anyone makes a personal deck (ADR 0019); from a group's board, only its owner."""
+    if body.group_id is not None:
+        _owned_group(db, user, body.group_id)
     count = db.scalar(select(func.count()).where(Deck.owner_id == user.id))
     if (count or 0) >= MAX_DECKS_PER_USER:
         raise ApiError(409, "too_many_decks", "Too many decks")
@@ -218,7 +241,7 @@ def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> Teac
         content_version=1,
         level=None,
         level_order=0,
-        kind="group",
+        kind="user",
         owner_id=user.id,
         created_at=now,
     )
@@ -230,7 +253,7 @@ def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> Teac
 def my_decks(db: Session, user: User) -> list[TeacherDeckOut]:
     decks = db.scalars(
         select(Deck)
-        .where(Deck.kind == "group", Deck.owner_id == user.id)
+        .where(Deck.kind == "user", Deck.owner_id == user.id)
         .order_by(Deck.created_at.desc(), Deck.id)
     )
     return [_deck_out(db, deck) for deck in decks]
@@ -322,16 +345,33 @@ def generate(
     """Draft cards from the teacher's text into the deck (ADR 0018). The text is read once and
     not kept; each card keeps only its own sentence. Cards that cannot be saved are reported."""
     deck = _owned_deck(db, user, deck_id)
-    present = db.scalars(
-        select(func.lower(Word.headword))
-        .join(DeckWord, DeckWord.word_id == Word.id)
-        .where(DeckWord.deck_id == deck.id)
-    ).all()
+    present = _present(db, deck)
     room = MAX_WORDS_PER_DECK - len(present)
     if room <= 0:
         raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
     cards = provider.draft(body.text, min(body.count, room), body.level, list(present))
-    taken = set(present)
+    added, skipped = _save_drafts(db, deck, cards, set(present), room)
+    db.commit()
+    return GenerateOut(
+        deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
+    )
+
+
+def _present(db: Session, deck: Deck) -> list[str]:
+    return list(
+        db.scalars(
+            select(func.lower(Word.headword))
+            .join(DeckWord, DeckWord.word_id == Word.id)
+            .where(DeckWord.deck_id == deck.id)
+        )
+    )
+
+
+def _save_drafts(
+    db: Session, deck: Deck, cards: list[DraftCard], taken: set[str], room: int
+) -> tuple[int, list[SkippedOut]]:
+    """Checked cards into the deck; the caller commits. Unusable ones are reported, not dropped
+    in silence."""
     added = 0
     skipped: list[SkippedOut] = []
     for card in cards:
@@ -355,9 +395,47 @@ def generate(
             _append(db, deck, fields, card.source_sentence.strip() or None)
             taken.add(headword)
             added += 1
+    return added, skipped
+
+
+def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider) -> GenerateOut:
+    """Full cards from words the learner names (ADR 0019): the AI writes meaning, part of speech
+    and example; the same checks as a draft from text."""
+    deck = _owned_deck(db, user, deck_id)
+    present = _present(db, deck)
+    room = MAX_WORDS_PER_DECK - len(present)
+    if room <= 0:
+        raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
+    # One card per word, however it was typed («Reluctant», «reluctant »), before paying for it.
+    named: dict[str, str] = {}
+    for word in body.words:
+        named.setdefault(" ".join(word.lower().split()), word)
+    cards = provider.fill(list(named.values()), body.level)
+    added, skipped = _save_drafts(db, deck, cards, set(present), room)
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
+    )
+
+
+def suggest(
+    db: Session, user: User, deck_id: str, body: SuggestIn, provider: Provider
+) -> SuggestOut:
+    """One card filled in for the manual form; nothing is saved until the learner adds it."""
+    _owned_deck(db, user, deck_id)
+    cards = provider.fill([body.headword], body.level)
+    if not cards:
+        raise ApiError(422, "generation_refused", "No card could be made for this word")
+    card = cards[0]
+    headword = " ".join(card.headword.strip().lower().split())
+    return SuggestOut(
+        headword=headword,
+        pos=card.pos,
+        translation=card.translation.strip()[:120],
+        example=card.example.strip()[:300],
+        example_ru=card.example_ru.strip()[:300],
+        flags=flags(headword, card.translation, card.example),
+        provider=provider.name,
     )
 
 
@@ -393,12 +471,13 @@ def edit_word(
 
 
 def remove_word(db: Session, user: User, deck_id: str, word_id: str) -> TeacherDeckOut:
-    """Out of the deck: no longer introduced. A draft's own word is deleted; a published deck's
-    stays, so learners who met it keep reviewing it."""
+    """Out of the deck: no longer introduced. A deck's own word nobody has met yet is deleted;
+    one somebody met stays, so they keep reviewing it (a personal deck is studied as a draft)."""
     deck = _owned_deck(db, user, deck_id)
     word = _deck_word(db, deck, word_id)
     db.execute(delete(DeckWord).where(DeckWord.deck_id == deck.id, DeckWord.word_id == word.id))
-    if deck.status != "published" and word.owner_deck_id == deck.id:
+    met = db.scalar(select(UserWordProgress.word_id).where(UserWordProgress.word_id == word.id))
+    if word.owner_deck_id == deck.id and met is None:
         db.delete(word)
     db.commit()
     return _deck_out(db, deck)
