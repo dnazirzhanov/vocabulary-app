@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import Group, GroupMember, User
 from app.schemas.groups import BoardOut, BoardRow, GroupGoal, GroupOut, GroupPreviewOut
+from app.services.decks import board_assignments
 from app.services.pace import target_of
 from app.services.plan_days import (
     HISTORY_DAYS,
@@ -322,4 +323,5 @@ def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
         week_end=days[-1],
         rows=rank(rows, active),
         goal=GroupGoal(done=goal_done, target=max(GOAL_FLOOR, goal_target)),
+        assignments=board_assignments(db, group.id, me, [member for member, _ in members]),
     )

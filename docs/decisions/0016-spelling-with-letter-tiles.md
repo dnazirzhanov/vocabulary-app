@@ -39,7 +39,7 @@ is best, so those choices are product defaults.
 
 ## Consequences
 - Days from before this rule whose words were never spelled no longer count toward the plan.
-- Spelling covers single plain words today (every headword is `^[a-z]+$`); spaces, hyphens and
-  apostrophes as fixed separators come with content that needs them.
+- Spelling covers single plain words and, since ADR 0017, phrases: spaces, hyphens and
+  apostrophes are fixed gaps between the slots, never tiles, and a hint counts letters only.
 - A few meanings stand for more than one course word (дом: house, home); the number of slots
   narrows it down, and a mistake shows the intended word.

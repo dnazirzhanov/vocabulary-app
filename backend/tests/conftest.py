@@ -55,14 +55,17 @@ def database(starter_content: DeckContent) -> None:
 
 @pytest.fixture
 def db(database: None) -> Iterator[Session]:
-    # Learner data is wiped before each test; content stays loaded.
+    # Learner data and teachers' decks are wiped before each test; the course stays loaded. Users
+    # go by DELETE: a TRUNCATE would cascade to every deck, since decks name their author.
     with get_engine().begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE users, learning_sessions, review_attempts, user_word_progress,"
-                " pace_dismissals, groups, group_members CASCADE"
+                "TRUNCATE learning_sessions, review_attempts, user_word_progress,"
+                " pace_dismissals, groups, group_members, deck_assignments CASCADE"
             )
         )
+        connection.execute(text("DELETE FROM decks WHERE kind = 'group'"))
+        connection.execute(text("DELETE FROM users"))
     with get_sessionmaker()() as session:
         yield session
 

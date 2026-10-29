@@ -22,7 +22,7 @@ from app.schemas.learning import (
     StartSessionIn,
     SummaryOut,
 )
-from app.services import progress_view, sessions, words
+from app.services import decks, progress_view, sessions, words
 from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["learning"])
@@ -103,7 +103,7 @@ def course_progress(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZ
 
 @router.get("/decks/{deck_id}/words")
 def deck_words(deck_id: str, user: CurrentUser, db: DbSession) -> list[DeckWordOut]:
-    sessions.require_published_deck(db, deck_id)
+    decks.visible_deck(db, user, deck_id)
     return words.deck_words(db, user, deck_id)
 
 

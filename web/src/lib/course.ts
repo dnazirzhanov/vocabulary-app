@@ -7,11 +7,15 @@ export interface Course {
   introduced_count: number;
 }
 
-export const courseOf = (decks: Deck[]): Course => ({
-  course_goal: decks.find((deck) => deck.course_goal)?.course_goal ?? null,
-  word_count: decks.reduce((sum, deck) => sum + deck.word_count, 0),
-  introduced_count: decks.reduce((sum, deck) => sum + deck.introduced_count, 0),
-});
+export function courseOf(decks: Deck[]): Course {
+  // A teacher's decks are not part of the course or its sourced goal (ADR 0017).
+  const levels = decks.filter((deck) => deck.kind === 'course');
+  return {
+    course_goal: levels.find((deck) => deck.course_goal)?.course_goal ?? null,
+    word_count: levels.reduce((sum, deck) => sum + deck.word_count, 0),
+    introduced_count: levels.reduce((sum, deck) => sum + deck.introduced_count, 0),
+  };
+}
 
 /** The course goal (1,300 words) when there is a sourced one, otherwise the words in the app. */
 export const goalWordsOf = (course: Course) => Math.max(course.course_goal?.target_words ?? 0, course.word_count);

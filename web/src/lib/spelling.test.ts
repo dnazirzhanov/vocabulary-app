@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { answerOf, backspace, differences, pick, removeAt, tileForKey } from './spelling.ts';
+import { answerOf, backspace, differences, pick, removeAt, slotWords, tileForKey, withSeparators } from './spelling.ts';
 
 // "apple" from a bank with two separate p tiles.
 const TILES = ['a', 'c', 'e', 'l', 'p', 'p', 'r', 't'];
@@ -37,4 +37,21 @@ test('the letters that differ are marked', () => {
     differences('aplpe', 'apple').map((d) => d.differs),
     [false, false, true, true, false],
   );
+});
+
+test("a phrase's gaps are put back between its letters", () => {
+  assert.equal(withSeparators('carryout', [{ after: 5, char: ' ' }]), 'carry out');
+  assert.equal(withSeparators('wellknown', [{ after: 4, char: '-' }]), 'well-known');
+  assert.equal(withSeparators('house', []), 'house');
+  // Half-built: a gap appears once a letter follows it.
+  assert.equal(withSeparators('carry', [{ after: 5, char: ' ' }]), 'carry');
+});
+
+test("a phrase's slots are grouped by word; hyphens stay inside a word", () => {
+  assert.deepEqual(slotWords(8, [{ after: 5, char: ' ' }]), [
+    [0, 1, 2, 3, 4],
+    [5, 6, 7],
+  ]);
+  assert.deepEqual(slotWords(9, [{ after: 4, char: '-' }]), [[0, 1, 2, 3, 4, 5, 6, 7, 8]]);
+  assert.deepEqual(slotWords(3, []), [[0, 1, 2]]);
 });

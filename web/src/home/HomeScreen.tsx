@@ -3,7 +3,7 @@ import { plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
-import { courseCounts, currentDeck, newInSession, nextDueAt, studyLabel } from '../lib/today.ts';
+import { courseCounts, currentDeck, lessonDecks, newInSession, nextDueAt, studyLabel } from '../lib/today.ts';
 import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CardCounts } from '../today/CardCounts.tsx';
@@ -96,11 +96,13 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
 
   const counts = courseCounts(decks);
   const due = counts.learning + counts.review;
-  const newLeft = current.introduced_count < current.word_count;
+  // New words come from decks given to my groups first, then the current level (ADR 0017).
+  const sources = lessonDecks(decks);
+  const newLeft = sources.some((deck) => deck.introduced_count < deck.word_count);
   const bonus = pace?.bonus ?? false;
   // Too many reviews due: new words wait, so what was learned is not forgotten.
   const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
-  const fresh = newInSession(current, pace);
+  const fresh = newInSession(sources, pace);
   const started = decks.some((deck) => deck.introduced_count > 0);
   const label = active ? 'Продолжить урок' : studyLabel({ due, fresh, started, bonus });
   // One session for everything due on every level, then the current level's new words.

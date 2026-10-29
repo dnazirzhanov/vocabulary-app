@@ -17,6 +17,8 @@ import type {
   Rating,
   Session,
   Summary,
+  TeacherDeck,
+  DeckWordInput,
 } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
@@ -37,7 +39,11 @@ const TIMEOUT_MS = 15_000;
 // The server counts days (daily goal, streaks) in the learner's own time zone.
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-async function request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const token = await accessToken();
   let response: Response;
   try {
@@ -109,6 +115,20 @@ export const api = {
   leaveGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}/members/me`),
   removeMember: (groupId: string, memberId: string) =>
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
+  // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
+  myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
+  createDeck: (title: string, groupId: string) => request<TeacherDeck>('POST', '/decks', { title, group_id: groupId }),
+  teacherDeck: (deckId: string) => request<TeacherDeck>('GET', `/decks/${deckId}/edit`),
+  renameDeck: (deckId: string, title: string) => request<TeacherDeck>('PATCH', `/decks/${deckId}`, { title }),
+  addDeckWord: (deckId: string, word: DeckWordInput) => request<TeacherDeck>('POST', `/decks/${deckId}/words`, word),
+  editDeckWord: (deckId: string, wordId: string, word: DeckWordInput) =>
+    request<TeacherDeck>('PUT', `/decks/${deckId}/words/${wordId}`, word),
+  removeDeckWord: (deckId: string, wordId: string) =>
+    request<TeacherDeck>('DELETE', `/decks/${deckId}/words/${wordId}`),
+  /** Publish and give to a group I own; safe to repeat. */
+  giveDeck: (deckId: string, groupId: string) =>
+    request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId }),
+  takeBackDeck: (groupId: string, deckId: string) => request<null>('DELETE', `/groups/${groupId}/decks/${deckId}`),
   /** Deletes the learner's account data on our server (sessions, answers, progress). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };
@@ -121,6 +141,11 @@ const MESSAGES: Record<string, string> = {
   too_many_groups: 'Можно состоять не больше чем в 5 группах.',
   group_full: 'В этой группе уже 50 участников.',
   rate_limited: 'Слишком много попыток. Подождите минуту.',
+  word_in_deck: 'Это слово уже есть в наборе.',
+  deck_full: 'В наборе может быть не больше 50 слов.',
+  deck_empty: 'Сначала добавьте хотя бы одно слово.',
+  course_word: 'Это слово из курса: его перевод и пример менять нельзя.',
+  not_group_owner: 'Давать слова группе может только её создатель.',
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */

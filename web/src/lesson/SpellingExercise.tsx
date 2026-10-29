@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   answerOf,
   backspace,
@@ -6,8 +6,10 @@ import {
   pick,
   removeAt,
   savePicks,
+  slotWords,
   savedPicks,
   tileForKey,
+  withSeparators,
 } from '../lib/spelling.ts';
 import { describeError } from '../lib/api.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
@@ -51,7 +53,7 @@ export function SpellingExercise({
   const [hint, setHint] = useState<Hint | null>(exercise.hint);
   const [hinting, setHinting] = useState(false);
   const [hintNote, setHintNote] = useState<string | null>(null);
-  const answer = answerOf(exercise.tiles, picked);
+  const answer = withSeparators(answerOf(exercise.tiles, picked), exercise.separators);
   const full = picked.length === exercise.slots;
   const word = result?.answer ?? null;
   const builtRight = again && full && answer === word;
@@ -130,30 +132,44 @@ export function SpellingExercise({
         )}
       </div>
 
-      <ol className={styles.slots} aria-label={`Ответ: ${picked.length} из ${exercise.slots} букв`}>
-        {Array.from({ length: exercise.slots }, (_, slot) => {
-          const tile = picked[slot];
-          const letter = tile === undefined ? null : exercise.tiles[tile];
-          return (
-            <li key={slot}>
-              {letter === null ? (
-                <span className={styles.slot} data-empty aria-label={`Буква ${slot + 1}: пусто`} />
-              ) : (
-                <button
-                  type="button"
-                  className={styles.slot}
-                  data-hinted={slot === hintedSlot || undefined}
-                  disabled={!editable}
-                  onClick={() => setPicked((current) => removeAt(current, slot))}
-                  aria-label={`Буква ${slot + 1}: ${letter}${slot === hintedSlot ? ' (подсказка)' : ''}, убрать`}
-                >
-                  {letter}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+      {/* One list per word of a phrase, so a line breaks between words, never inside one. */}
+      <div className={styles.slots} role="group" aria-label={`Ответ: ${picked.length} из ${exercise.slots} букв`}>
+        {slotWords(exercise.slots, exercise.separators).map((slots, index) => (
+          <ol key={index} className={styles.slotWord}>
+            {slots.map((slot) => {
+              const tile = picked[slot];
+              const letter = tile === undefined ? null : exercise.tiles[tile];
+              // A hyphen or apostrophe inside a word (well-known, o'clock): built in, never a tile.
+              const mark = exercise.separators.find((s) => s.after === slot && s.char !== ' ' && slot > 0);
+              return (
+                <Fragment key={slot}>
+                  {mark && (
+                    <li className={styles.mark} aria-label={mark.char}>
+                      {mark.char}
+                    </li>
+                  )}
+                  <li>
+                    {letter === null ? (
+                      <span className={styles.slot} data-empty aria-label={`Буква ${slot + 1}: пусто`} />
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.slot}
+                        data-hinted={slot === hintedSlot || undefined}
+                        disabled={!editable}
+                        onClick={() => setPicked((current) => removeAt(current, slot))}
+                        aria-label={`Буква ${slot + 1}: ${letter}${slot === hintedSlot ? ' (подсказка)' : ''}, убрать`}
+                      >
+                        {letter}
+                      </button>
+                    )}
+                  </li>
+                </Fragment>
+              );
+            })}
+          </ol>
+        ))}
+      </div>
 
       {feedback && result ? (
         <Feedback right={Boolean(result.correct) || builtRight} built={answer} word={word ?? ''} />

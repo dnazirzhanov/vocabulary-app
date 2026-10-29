@@ -20,6 +20,28 @@ export const backspace = (picked: Picked): Picked => picked.slice(0, -1);
 
 export const answerOf = (tiles: string[], picked: Picked): string => picked.map((tile) => tiles[tile]).join('');
 
+/** A phrase's slots split into its words at the spaces, so a line never breaks inside a word. */
+export function slotWords(slots: number, separators: { after: number; char: string }[]): number[][] {
+  const starts = new Set(separators.filter((s) => s.char === ' ').map((s) => s.after));
+  const words: number[][] = [[]];
+  for (let slot = 0; slot < slots; slot += 1) {
+    if (starts.has(slot) && slot > 0) words.push([]);
+    words[words.length - 1].push(slot);
+  }
+  return words;
+}
+
+/** The built letters with a phrase's fixed spaces, hyphens and apostrophes put back in. */
+export function withSeparators(letters: string, separators: { after: number; char: string }[]): string {
+  let built = '';
+  let next = 0;
+  [...letters].forEach((letter, index) => {
+    while (next < separators.length && separators[next].after === index) built += separators[next++].char;
+    built += letter;
+  });
+  return built;
+}
+
 /** A typed letter picks the first tile with it still in the bank (repeated letters too). */
 export function tileForKey(tiles: string[], picked: Picked, key: string): number | null {
   const letter = key.toLowerCase();

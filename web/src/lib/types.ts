@@ -18,6 +18,10 @@ export interface CourseGoal {
 
 export interface Deck {
   id: string;
+  /** 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed first. */
+  kind: 'course' | 'group';
+  /** A group deck's group. */
+  group_name: string | null;
   title: string;
   description: string;
   /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
@@ -58,10 +62,17 @@ export interface SpellingExercise {
   prompt: { translation: string; pos: string };
   /** Letters in the word. */
   slots: number;
+  /** A phrase's spaces, hyphens and apostrophes: fixed gaps after `after` letters, never tiles. */
+  separators: Separator[];
   /** Letter tiles in display order; a tile is known by its position. */
   tiles: string[];
   /** The card's one hint, once given: a slot and its letter. */
   hint: Hint | null;
+}
+
+export interface Separator {
+  after: number;
+  char: string;
 }
 
 export interface Hint {
@@ -263,6 +274,41 @@ export interface Board {
   week_end: string;
   rows: BoardRow[];
   goal: { done: number; target: number };
+  assignments: Assignment[];
+}
+
+/** A deck given to the group (ADR 0017); its words never change a place on the board. */
+export interface Assignment {
+  deck_id: string;
+  title: string;
+  word_count: number;
+  assigned_at: string;
+  /** Words of it I have met; null for whoever gave it. */
+  mine: number | null;
+  /** Every learner's count, for the group's owner only. */
+  members: { member_id: string; met: number }[] | null;
+}
+
+export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'other';
+
+/** A word as a teacher writes it (backend/app/schemas/decks.py). */
+export interface DeckWordInput {
+  headword: string;
+  pos: PartOfSpeech;
+  translation: string;
+  example: string;
+  example_ru: string;
+}
+
+/** A teacher's deck as its author edits it. */
+export interface TeacherDeck {
+  id: string;
+  title: string;
+  status: 'draft' | 'published';
+  created_at: string;
+  /** `from_course`: the course's own word, linked; its content is not edited here. */
+  words: { word: Word; from_course: boolean }[];
+  groups: { id: string; name: string }[];
 }
 
 /** A word form from an example sentence (backend glossary). */
