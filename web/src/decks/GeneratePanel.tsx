@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import type { GenerateResult } from '../lib/types.ts';
+import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
 
@@ -38,10 +39,7 @@ export function GeneratePanel({ deckId, onDrafted }: { deckId: string; onDrafted
   };
 
   return (
-    <form className={styles.panel} onSubmit={(event) => void submit(event)} aria-labelledby="generate-title">
-      <h2 id="generate-title" className={styles.formTitle}>
-        Слова из текста урока
-      </h2>
+    <form className={styles.paneForm} onSubmit={(event) => void submit(event)} aria-labelledby="tab-text">
       <p className={styles.note}>
         Вставьте текст, упражнение или список слов — подберём слова и составим карточки с переводом и примером. Текст не
         сохраняется.
@@ -86,9 +84,9 @@ export function GeneratePanel({ deckId, onDrafted }: { deckId: string; onDrafted
           </select>
         </label>
       </div>
-      <button type="submit" className={styles.outlineButton} disabled={busy || !ready} aria-busy={busy}>
+      <PrimaryButton type="submit" disabled={busy || !ready} aria-busy={busy}>
         {busy ? 'Подбираем слова…' : 'Подобрать слова'}
-      </button>
+      </PrimaryButton>
       <div role="status" className={styles.generateStatus}>
         {busy && <p className={styles.note}>Читаем текст и составляем карточки — это может занять до минуты.</p>}
         {!busy && last && <DraftResult result={last} />}

@@ -35,6 +35,12 @@ const FLAGS: Record<WordFlag, string> = {
   example_without_word: 'в примере нет этого слова',
   example_long: 'длинный пример',
 };
+type ComposerMode = 'words' | 'text' | 'manual';
+const COMPOSER_MODES: { value: ComposerMode; label: string }[] = [
+  { value: 'words', label: 'Слова' },
+  { value: 'text', label: 'Текст' },
+  { value: 'manual', label: 'Вручную' },
+];
 const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', example: '', example_ru: '' };
 
 interface DeckEditorProps {
@@ -57,8 +63,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
   const [title, setTitle] = useState('');
   const [form, setForm] = useState<DeckWordInput>(EMPTY);
   const [editing, setEditing] = useState<string | null>(null); // a word id
-  // The manual form, folded away: drafting from the lesson's text comes first (ADR 0018).
-  const [manualOpen, setManualOpen] = useState(false);
+  // The composer's way of adding cards: from words (the fast default), from a text, or by hand.
+  const [mode, setMode] = useState<ComposerMode>('words');
   const [suggesting, setSuggesting] = useState(false);
   const [suggestNote, setSuggestNote] = useState<string | null>(null);
   // A personal deck can be given to a group I own.
@@ -70,6 +76,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstField = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLElement>(null);
+  const composerRef = useRef<HTMLElement>(null);
 
   const show = useCallback((loaded: TeacherDeck) => {
     setDeck(loaded);
@@ -175,16 +182,10 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
       setSaving(false);
     }
   };
-  // On a phone the list sits above the panel: bring the new cards into view for review.
+  // New cards are listed first, under the composer: bring them into view if they're below it.
   const drafted = (result: GenerateResult) => {
     show(result.deck);
-    if (result.added > 0 && window.matchMedia('(max-width: 1023px)').matches) {
-      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Only the editor's own scrolling area moves (scrollIntoView would shift the whole page).
-      requestAnimationFrame(() =>
-        listRef.current?.closest('main')?.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' }),
-      );
-    }
+    if (result.added > 0) requestAnimationFrame(() => reveal(listRef.current));
   };
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);
@@ -193,8 +194,11 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
     setForm({ headword: h, pos: pos as PartOfSpeech, translation, example, example_ru });
     setEditing(id);
     setFormError(null);
-    setManualOpen(true);
-    requestAnimationFrame(() => firstField.current?.focus());
+    setMode('manual');
+    requestAnimationFrame(() => {
+      reveal(composerRef.current, true);
+      firstField.current?.focus({ preventScroll: true });
+    });
   };
 
   return (
@@ -205,8 +209,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
         </button>
       </header>
       <main className={styles.main}>
-        <div className={styles.layout}>
-          <section ref={listRef} className={styles.listColumn} aria-labelledby="deck-title">
+        <div className={styles.column}>
+          <div className={styles.intro}>
             <p className={styles.eyebrow}>Моя колода</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
@@ -221,22 +225,151 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
                 onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
               />
             </label>
-            <p className={styles.lead}>
-              Колода учится, когда вы её открываете. Дайте её своей группе — участники встретят слова первыми в
-              ежедневном уроке, в своём темпе.
-            </p>
+          </div>
 
-            {count === 0 ? (
-              <p className={styles.empty}>
-                Пока ни одного слова. Напишите слова в «Быстро добавить» или вставьте текст — карточки появятся здесь.
-              </p>
-            ) : (
-              <ol className={styles.words}>
-                {deck.words.map(({ word, from_course, source_sentence, flags }, index) => (
-                  <li key={word.id} className={styles.word} data-editing={editing === word.id || undefined}>
-                    <span className={styles.number} aria-hidden="true">
-                      {index + 1}
+          {/* The screen's main job: making cards. One way at a time, chosen by tabs. */}
+          <section ref={composerRef} className={styles.composer} aria-labelledby="composer-title">
+            <div className={styles.composerHead}>
+              <h2 id="composer-title" className={styles.composerTitle}>
+                {editing ? 'Изменить карточку' : 'Новые карточки'}
+              </h2>
+              <div className={styles.tabs} role="tablist" aria-label="Как добавить">
+                {COMPOSER_MODES.map((option) => (
+                  <button
+                    key={option.value}
+                    id={`tab-${option.value}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === option.value}
+                    aria-controls={`pane-${option.value}`}
+                    className={styles.tab}
+                    onClick={() => setMode(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div id={`pane-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`} className={styles.pane}>
+              {mode === 'words' && <QuickAddPanel deckId={deck.id} onAdded={drafted} />}
+              {mode === 'text' && <GeneratePanel deckId={deck.id} onDrafted={drafted} />}
+              {mode === 'manual' && (
+                <form
+                  className={styles.form}
+                  onSubmit={(event) => void submit(event)}
+                  aria-labelledby="tab-manual"
+                  noValidate
+                >
+                  <label className={styles.field}>
+                    <span>Слово или выражение</span>
+                    <input
+                      ref={firstField}
+                      lang="en"
+                      required
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      maxLength={64}
+                      placeholder="carry out"
+                      value={form.headword}
+                      aria-invalid={headwordInvalid || undefined}
+                      onChange={(event) => field('headword', event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.linkButton}
+                    disabled={suggesting || !headword || headwordInvalid}
+                    aria-busy={suggesting}
+                    onClick={() => void suggest()}
+                  >
+                    {suggesting ? 'Заполняем…' : 'Заполнить с ИИ'}
+                  </button>
+                  {suggestNote && (
+                    <p className={styles.note} role="status">
+                      {suggestNote}
+                    </p>
+                  )}
+                  <label className={styles.field}>
+                    <span>Часть речи</span>
+                    <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
+                      {POS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className={styles.field}>
+                    <span>Перевод</span>
+                    <input
+                      required
+                      maxLength={120}
+                      placeholder="проводить, выполнять"
+                      value={form.translation}
+                      onChange={(event) => field('translation', event.target.value)}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>Пример</span>
+                    <textarea
+                      lang="en"
+                      required
+                      rows={2}
+                      maxLength={300}
+                      placeholder="They carried out the experiment."
+                      value={form.example}
+                      onChange={(event) => field('example', event.target.value)}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>
+                      Перевод примера <span className={styles.optional}>— необязательно</span>
                     </span>
+                    <textarea
+                      rows={2}
+                      maxLength={300}
+                      value={form.example_ru}
+                      onChange={(event) => field('example_ru', event.target.value)}
+                    />
+                  </label>
+                  {!editing && (
+                    <p className={styles.note}>Слово из курса подставится само — ученики не выучат его дважды.</p>
+                  )}
+                  {formError && (
+                    <p className={styles.problem} role="alert">
+                      {formError}
+                    </p>
+                  )}
+                  <div className={styles.formActions}>
+                    <PrimaryButton
+                      type="submit"
+                      disabled={saving || !headword || !form.translation.trim() || !form.example.trim()}
+                      aria-busy={saving}
+                    >
+                      {saving ? 'Сохраняем…' : editing ? 'Сохранить' : 'Добавить слово'}
+                    </PrimaryButton>
+                    {editing && (
+                      <button type="button" className={styles.linkButton} onClick={resetForm}>
+                        Отмена
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+
+          <section ref={listRef} className={styles.cards} aria-labelledby="cards-title">
+            <h2 id="cards-title" className={styles.sectionTitle}>
+              Карточки в колоде{count > 0 && <span className={styles.sectionCount}> · {count}</span>}
+            </h2>
+            {count === 0 ? (
+              <p className={styles.empty}>Пока пусто. Добавленные карточки появятся здесь — новые сверху.</p>
+            ) : (
+              <ul className={styles.words}>
+                {[...deck.words].reverse().map(({ word, from_course, source_sentence, flags }) => (
+                  <li key={word.id} className={styles.word} data-editing={editing === word.id || undefined}>
                     <div className={styles.wordBody}>
                       <p className={styles.wordHead}>
                         <strong lang="en">{word.headword}</strong>
@@ -290,126 +423,65 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
                     </div>
                   </li>
                 ))}
-              </ol>
+              </ul>
             )}
           </section>
 
-          <div className={styles.side}>
-            <QuickAddPanel deckId={deck.id} onAdded={drafted} />
-            <GeneratePanel deckId={deck.id} onDrafted={drafted} />
-            <details
-              className={styles.manual}
-              open={manualOpen}
-              onToggle={(event) => setManualOpen(event.currentTarget.open)}
-            >
-              <summary className={styles.manualSummary}>
-                {editing ? 'Изменить слово' : 'Добавить слово вручную'}
-              </summary>
-              <form
-                className={styles.form}
-                onSubmit={(event) => void submit(event)}
-                aria-label={editing ? 'Изменить слово' : 'Добавить слово вручную'}
-                noValidate
-              >
-                <label className={styles.field}>
-                  <span>Слово или выражение</span>
-                  <input
-                    ref={firstField}
-                    lang="en"
-                    required
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    maxLength={64}
-                    placeholder="carry out"
-                    value={form.headword}
-                    aria-invalid={headwordInvalid || undefined}
-                    onChange={(event) => field('headword', event.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.linkButton}
-                  disabled={suggesting || !headword || headwordInvalid}
-                  aria-busy={suggesting}
-                  onClick={() => void suggest()}
-                >
-                  {suggesting ? 'Заполняем…' : 'Заполнить с ИИ'}
-                </button>
-                {suggestNote && (
-                  <p className={styles.note} role="status">
-                    {suggestNote}
-                  </p>
-                )}
-                <label className={styles.field}>
-                  <span>Часть речи</span>
-                  <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
-                    {POS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  <span>Перевод</span>
-                  <input
-                    required
-                    maxLength={120}
-                    placeholder="проводить, выполнять"
-                    value={form.translation}
-                    onChange={(event) => field('translation', event.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Пример</span>
-                  <textarea
-                    lang="en"
-                    required
-                    rows={2}
-                    maxLength={300}
-                    placeholder="They carried out the experiment."
-                    value={form.example}
-                    onChange={(event) => field('example', event.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>
-                    Перевод примера <span className={styles.optional}>— необязательно</span>
-                  </span>
-                  <textarea
-                    rows={2}
-                    maxLength={300}
-                    value={form.example_ru}
-                    onChange={(event) => field('example_ru', event.target.value)}
-                  />
-                </label>
-                {!editing && (
-                  <p className={styles.note}>Слово из курса подставится само — ученики не выучат его дважды.</p>
-                )}
-                {formError && (
-                  <p className={styles.problem} role="alert">
-                    {formError}
-                  </p>
-                )}
-                <div className={styles.formActions}>
+          {(deck.groups.length > 0 || (ownGroups.length > 0 && count > 0)) && (
+            <section className={styles.sharing} aria-labelledby="sharing-title">
+              <h2 id="sharing-title" className={styles.sectionTitle}>
+                Группы
+              </h2>
+              <p className={styles.note}>
+                Участники группы встретят слова колоды первыми в ежедневном уроке, в своём темпе.
+              </p>
+              {deck.groups.length > 0 && (
+                <ul className={styles.givenTo} aria-label="Задано группам">
+                  {deck.groups.map((group) => (
+                    <li key={group.id}>
+                      <CheckIcon aria-hidden="true" />
+                      <span>Задано группе «{group.name}» — правки сразу видны участникам</span>
+                      <button
+                        type="button"
+                        className={styles.linkButton}
+                        disabled={busy}
+                        onClick={() =>
+                          run(async () => {
+                            await api.takeBackDeck(group.id, deck.id);
+                            await load();
+                          })
+                        }
+                      >
+                        Забрать
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {ownGroups.length > 0 && count > 0 && (
+                <div className={styles.giveRow}>
+                  <label className={styles.giveLabel}>
+                    <span>Дать группе</span>
+                    <select value={giveTo} onChange={(event) => setGiveTo(event.target.value)}>
+                      {ownGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
-                    type="submit"
+                    type="button"
                     className={styles.outlineButton}
-                    disabled={saving || !headword || !form.translation.trim() || !form.example.trim()}
-                    aria-busy={saving}
+                    disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
+                    onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
                   >
-                    {saving ? 'Сохраняем…' : editing ? 'Сохранить' : 'Добавить слово'}
+                    {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
                   </button>
-                  {editing && (
-                    <button type="button" className={styles.linkButton} onClick={resetForm}>
-                      Отмена
-                    </button>
-                  )}
                 </div>
-              </form>
-            </details>
-          </div>
+              )}
+            </section>
+          )}
         </div>
       </main>
 
@@ -420,62 +492,28 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
               {error}
             </p>
           )}
-          {deck.groups.length > 0 && (
-            <ul className={styles.givenTo} aria-label="Задано группам">
-              {deck.groups.map((group) => (
-                <li key={group.id}>
-                  <CheckIcon aria-hidden="true" />
-                  <span>Задано группе «{group.name}» — правки сразу видны участникам</span>
-                  <button
-                    type="button"
-                    className={styles.linkButton}
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api.takeBackDeck(group.id, deck.id);
-                        await load();
-                      })
-                    }
-                  >
-                    Забрать
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {ownGroups.length > 0 && count > 0 && (
-            <div className={styles.giveRow}>
-              <label className={styles.giveLabel}>
-                <span>Дать группе</span>
-                <select value={giveTo} onChange={(event) => setGiveTo(event.target.value)}>
-                  {ownGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className={styles.outlineButton}
-                disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
-                onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
-              >
-                {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
-              </button>
-            </div>
-          )}
-          <PrimaryButton
+          <button
             type="button"
-            className={styles.action}
+            className={styles.study}
             disabled={busy || count === 0}
             aria-busy={busy}
             onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
           >
             {count === 0 ? 'Учить' : `Учить · ${wordsLabel(count)}`}
-          </PrimaryButton>
+          </button>
         </div>
       </footer>
     </div>
   );
+}
+
+/** Scrolls the editor's own area (not the page) so `element` is in view; `top`: to its top. */
+function reveal(element: HTMLElement | null, top = false) {
+  const main = element?.closest('main');
+  if (!element || !main) return;
+  const box = element.getBoundingClientRect();
+  const view = main.getBoundingClientRect();
+  if (!top && box.top >= view.top && box.top < view.bottom - 120) return;
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  main.scrollTo({ top: main.scrollTop + box.top - view.top - 16, behavior: still ? 'auto' : 'smooth' });
 }

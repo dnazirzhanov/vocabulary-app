@@ -19,7 +19,7 @@ test('a learner makes a deck from words and studies it', async ({ page }) => {
   await expect(words.getByRole('button', { name: 'Послушать: luggage' })).toBeVisible();
 
   // One more by hand, with the rest of the card suggested for review.
-  await page.getByText('Добавить слово вручную').click();
+  await page.getByRole('tab', { name: 'Вручную' }).click();
   await page.getByLabel('Слово или выражение').fill('Passport');
   await button(page, 'Заполнить с ИИ').click();
   await expect(page.getByLabel('Перевод', { exact: true })).toHaveValue(/passport/);

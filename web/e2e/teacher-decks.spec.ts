@@ -41,7 +41,7 @@ test('a teacher gives words to a group and a student learns them first', async (
   await page.goto('/');
   await newDeck(page, 'Unit 4');
 
-  await page.getByText('Добавить слово вручную').click();
+  await page.getByRole('tab', { name: 'Вручную' }).click();
   await page.getByLabel('Слово или выражение').fill('Carry out');
   await page.getByLabel('Часть речи').selectOption('phrase');
   await page.getByLabel('Перевод', { exact: true }).fill('выполнять');
@@ -100,6 +100,7 @@ test('a teacher gives words to a group and a student learns them first', async (
 test('a teacher drafts cards from a lesson text and reviews them', async ({ page }) => {
   await page.goto('/');
   await newDeck(page, 'Unit 4');
+  await page.getByRole('tab', { name: 'Текст' }).click();
   await page
     .getByLabel('Текст урока')
     .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');

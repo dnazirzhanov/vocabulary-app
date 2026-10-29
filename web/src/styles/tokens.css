@@ -100,6 +100,7 @@
   --gutter: clamp(16px, 4vw, 32px);
   --width-lesson: 1120px;
   --width-column: 560px;
+  --width-editor: 720px;          /* a deck's editor: room for the composer to lead */
   --width-prompt: 440px;
   --topbar-height: 64px;
   --tap-min: 48px;

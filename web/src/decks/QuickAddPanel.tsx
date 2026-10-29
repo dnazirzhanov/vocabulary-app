@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsIn } from '../lib/quickAdd.ts';
 import type { GenerateResult } from '../lib/types.ts';
+import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
 
@@ -39,10 +40,7 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
   };
 
   return (
-    <form className={styles.panel} onSubmit={(event) => void submit(event)} aria-labelledby="quick-title">
-      <h2 id="quick-title" className={styles.formTitle}>
-        Быстро добавить
-      </h2>
+    <form className={styles.paneForm} onSubmit={(event) => void submit(event)} aria-labelledby="tab-words">
       <p className={styles.note}>Напишите слова — ИИ составит карточки: перевод, пример и его перевод.</p>
       <label className={styles.field}>
         <span className="visually-hidden">Слова для карточек</span>
@@ -70,14 +68,9 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
             ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className={styles.outlineButton}
-          disabled={busy || words.length === 0 || tooMany}
-          aria-busy={busy}
-        >
+        <PrimaryButton type="submit" disabled={busy || words.length === 0 || tooMany} aria-busy={busy}>
           {busy ? 'Составляем…' : words.length > 1 ? `Создать карточки · ${words.length}` : 'Создать карточку'}
-        </button>
+        </PrimaryButton>
       </div>
       <div role="status" className={styles.generateStatus}>
         {tooMany && <p className={styles.note}>За один раз — до {MAX_WORDS} слов.</p>}
