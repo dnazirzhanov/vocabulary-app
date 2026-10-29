@@ -3,8 +3,7 @@ import { button, DEMO, expect, finishSession, spellToday, test } from './learner
 
 /** «Друзья» opens the board straight away once it knows the group, the list of groups before. */
 async function newDeck(page: Page, title: string) {
-  await page.getByRole('button', { name: /^Мои колоды/ }).click();
-  await page.getByRole('button', { name: 'Новая колода' }).click();
+  await page.getByRole('button', { name: /^Создать колоду/ }).click();
   await page.getByLabel('Название новой колоды').fill(title);
   await button(page, 'Создать').click();
   await expect(page.getByText('Моя колода')).toBeVisible();
@@ -75,7 +74,6 @@ test('a teacher gives words to a group and a student learns them first', async (
   // The student finds it in «Мои колоды» and studies it from its page, within their own pace.
   const learner = await student.newPage();
   await learner.goto('/');
-  await learner.getByRole('button', { name: /^Мои колоды/ }).click();
   await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText('от Ольга · 7Б английский');
   await learner.getByRole('button', { name: /^Unit 4/ }).click();
   await expect(learner.getByText('от Ольга · 7Б английский')).toBeVisible();
@@ -89,7 +87,6 @@ test('a teacher gives words to a group and a student learns them first', async (
 
   // The teacher finds it among her own decks, given to the group.
   await page.goto('/');
-  await page.getByRole('button', { name: /^Мои колоды/ }).click();
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
   await openGroup(page);
   await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна2 из 2');

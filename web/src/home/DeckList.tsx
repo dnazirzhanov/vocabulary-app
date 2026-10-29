@@ -1,6 +1,6 @@
 import type { Deck } from '../lib/types.ts';
 import { ForwardIcon, LockIcon } from '../ui/icons.tsx';
-import styles from './HomeScreen.module.css';
+import styles from './CourseScreen.module.css';
 
 /**
  * The course's levels as Anki's deck list: per deck, today's new words, cards in learning steps
@@ -19,7 +19,7 @@ export function DeckList({
     <section className={styles.decks} aria-labelledby="decks-title">
       <div className={styles.deckGrid}>
         <h2 id="decks-title" className={styles.sectionTitle}>
-          Колоды
+          Уровни
         </h2>
         {/* Anki's short column names; each number repeats its full name for screen readers. */}
         <span className={`${styles.colHead} ${styles.fresh}`} aria-hidden="true">

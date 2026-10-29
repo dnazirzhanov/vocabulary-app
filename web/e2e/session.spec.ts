@@ -2,6 +2,7 @@ import { button, expect, finishSession, openDeck, study, test } from './learner.
 
 test('a new learner studies five flashcards and the progress survives a reload', async ({ page }) => {
   await page.goto('/');
+  await button(page, 'Открыть курс').click();
   await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('0 из 100');
   await openDeck(page);
   // Each new card says its word by itself, from the recorded file.
@@ -26,6 +27,7 @@ test('a new learner studies five flashcards and the progress survives a reload',
 
   // Back on the deck's page; after a reload, home and the page still know.
   await page.reload();
+  await button(page, 'Открыть курс').click();
   await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('5 из 100');
   await openDeck(page);
   await expect(page.getByText(/5\s*из 100\sслов встречено/)).toBeVisible();

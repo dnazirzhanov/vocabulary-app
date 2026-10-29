@@ -1,0 +1,267 @@
+/*
+ * Home answers "what now?": today's three numbers lead, the decks follow with their own counts,
+ * and the one primary action sits centred in the bottom bar. Screens fill the navigation shell's
+ * content area (NavShell).
+ */
+.screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr); /* never wider than the viewport */
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+  padding: max(var(--space-2), env(safe-area-inset-top)) var(--gutter) 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: rgb(38 38 38 / 0.06);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pageTitle {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.pageTitle:focus {
+  outline: none;
+}
+
+.lead {
+  color: var(--color-text-muted);
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--gutter) var(--space-6);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+/* --- Today ------------------------------------------------------------------------------ */
+
+/* --- Decks: one panel, a row per deck; the header and rows share the same columns --------- */
+
+.deckGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 2.5rem) 20px;
+  column-gap: var(--space-2);
+  align-items: center;
+}
+
+.decks > .deckGrid {
+  margin-bottom: var(--space-2);
+  /* The column names line up with the rows' numbers: their padding plus the panel's border. */
+  padding-right: calc(var(--space-4) + var(--border-control));
+}
+
+.sectionTitle {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.colHead {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.deckList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  box-shadow: 0 3px 0 var(--color-option-edge);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.deckList li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.deckRow {
+  width: 100%;
+  min-height: 68px;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deckRow:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.04);
+}
+
+/* A locked level is not pressable; while a lesson loads, none is. */
+.deckRow:disabled {
+  cursor: default;
+}
+
+/* The panel clips its corners, so the focus ring is drawn inside the row. */
+.deckRow:focus-visible {
+  outline-offset: -3px;
+}
+
+.deckName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deckName strong {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.deckMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* "3 из 10" stays on one line. */
+.nowrap {
+  white-space: nowrap;
+}
+
+.deckRow[data-locked] strong {
+  color: var(--color-text-muted);
+}
+
+.deckRow[data-locked] .deckName {
+  grid-column: 1 / 4;
+}
+
+.count {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.fresh {
+  color: var(--color-count-new);
+}
+
+.learning {
+  color: var(--color-count-learning);
+}
+
+.review {
+  color: var(--color-count-review);
+}
+
+.count[data-zero] {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+}
+
+.locked {
+  grid-column: 4;
+  justify-self: center;
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
+.locked svg {
+  width: 20px;
+  height: 20px;
+}
+
+.chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+}
+
+/* --- The action bar and messages ------------------------------------------------------------ */
+
+.message {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--gutter);
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+  text-align: center;
+}
+
+.messageTitle {
+  color: var(--color-text);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+/* Narrow phones: tighter deck columns. */
+@media (max-width: 374px) {
+  .deckGrid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 2.25rem) 16px;
+    column-gap: var(--space-1);
+  }
+
+  .colHead {
+    font-size: 0.8125rem;
+  }
+
+  .deckRow {
+    padding-inline: var(--space-3);
+  }
+
+  .decks > .deckGrid {
+    padding-right: calc(var(--space-3) + var(--border-control));
+  }
+}
+
+/* Desktop: the same single column, centred, with more air; the action centred under it. */
+@media (min-width: 1024px) {
+  .main {
+    padding: var(--space-6) var(--gutter);
+  }
+
+  .layout {
+    gap: var(--space-7);
+  }
+}

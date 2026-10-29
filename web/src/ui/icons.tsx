@@ -95,6 +95,12 @@ export const PeopleIcon = (props: IconProps) => (
   </svg>
 );
 
+export const PlusIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 export const ForwardIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <path d="M9 18l6-6-6-6" />

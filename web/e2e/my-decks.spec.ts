@@ -4,9 +4,8 @@ import { button, DEMO, expect, finishSession, test } from './learner.ts';
 // (demo provider here), studied by opening the deck.
 test('a learner makes a deck from words and studies it', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /^Мои колоды/ }).click();
   await expect(page.getByRole('heading', { name: 'Мои колоды' })).toBeFocused();
-  await page.getByRole('button', { name: 'Новая колода' }).click();
+  await page.getByRole('button', { name: /^Создать колоду/ }).click();
   await page.getByLabel('Название новой колоды').fill('Путешествия');
   await button(page, 'Создать').click();
 
@@ -33,8 +32,7 @@ test('a learner makes a deck from words and studies it', async ({ page }) => {
   await finishSession(page);
   await button(page, 'На главную').click(); // back on the deck's page
   await expect(page.getByText(/3\s*из 3\sслова встречено/)).toBeVisible();
-  await button(page, 'Колоды').click();
-  await page.getByRole('button', { name: /^Мои колоды · 1/ }).click();
+  await button(page, 'Мои колоды').click(); // home: the learner's own decks
   await expect(page.getByRole('button', { name: /^Путешествия/ })).toContainText('встречено 3');
 });
 
@@ -55,12 +53,10 @@ test('a deck given to a group is in its members’ «Мои колоды»', asy
   await member.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname: 'Анна' } });
   const learner = await member.newPage();
   await learner.goto('/');
-  await learner.getByRole('button', { name: /^Мои колоды/ }).click();
   await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText('от Ольга · 7Б английский');
   await member.close();
 
   // The author finds it among her own, with the group it went to.
   await page.goto('/');
-  await page.getByRole('button', { name: /^Мои колоды/ }).click();
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
 });

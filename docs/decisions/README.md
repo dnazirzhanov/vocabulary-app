@@ -24,3 +24,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0018](0018-drafting-decks-from-text.md) | Drafting a deck from a teacher's text with DeepSeek; checked in code, reviewed by the teacher | Accepted |
 | [0019](0019-personal-decks.md) | Personal decks anyone writes, «Мои колоды», full cards from a word with AI | Accepted |
 | [0020](0020-deck-pages.md) | Deck pages: home is the course's levels; every lesson belongs to one deck | Accepted |
+| [0021](0021-own-decks-first.md) | Home is «Мои колоды»; the course is offered below, one tap away | Accepted |

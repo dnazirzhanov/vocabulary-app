@@ -38,9 +38,15 @@ export { expect };
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
-/** Opens a deck's page from home (ADR 0020): lessons are started there, one deck at a time. */
+/** Opens a course level's page (ADR 0020): from home, through «Открыть курс» (ADR 0021). Lessons
+ * are started there, one deck at a time. */
 export async function openDeck(page: Page, title = 'Основа') {
-  await page.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+  const course = page.getByRole('button', { name: 'Открыть курс' });
+  const row = page.getByRole('button', { name: new RegExp(`^${title}`) });
+  // Home (with the course button) or the course already: whichever has loaded.
+  await expect(course.or(row).first()).toBeVisible();
+  if (await course.isVisible()) await course.click();
+  await row.click();
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 }
 
