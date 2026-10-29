@@ -10,15 +10,17 @@ test('progress answers two questions: how many words, and how steadily', async (
   await expect(page.getByRole('heading', { name: 'Прогресс' })).toBeFocused();
   await expect(page.getByRole('meter', { name: 'Слов изучено' })).toHaveAttribute('aria-valuenow', '0');
   await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^0\s*из 6 дней/);
-  await expect(page.getByRole('img', { name: /^0 дней с выполненной целью/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /^0 дней с выполненным планом/ })).toBeVisible();
+  await expect(page.getByText('День засчитывается, когда выполнен ваш план: 5 слов за день.')).toBeVisible();
   await expect(page.getByText('Ещё 6 дней до цели недели')).toBeVisible();
   await button(page, 'Сегодня').click();
 
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
-  await expect(page.getByText('+50 очков')).toBeVisible();
+  await expect(page.getByText('План на сегодня выполнен')).toBeVisible();
   await button(page, 'На главную').click();
-  await expect(page.getByText('1 день подряд')).toBeVisible();
+  // One day of six promised: no week kept yet, so no streak to show.
+  await expect(page.getByText(/подряд/)).toHaveCount(0);
 
   await button(page, 'Прогресс').click();
   await expect(page.getByRole('meter', { name: 'Слов изучено' })).toHaveAttribute('aria-valuenow', '5');
@@ -29,7 +31,7 @@ test('progress answers two questions: how many words, and how steadily', async (
 
   // Today counts toward the week and the calendar; the week is a commitment, not a streak.
   await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^1\s*из 6 дней/);
-  await expect(page.getByRole('listitem', { name: /цель выполнена/ })).toHaveAttribute('aria-current', 'date');
-  await expect(page.getByRole('img', { name: /^1 день с выполненной целью/ })).toBeVisible();
+  await expect(page.getByRole('listitem', { name: /план выполнен/ })).toHaveAttribute('aria-current', 'date');
+  await expect(page.getByRole('img', { name: /^1 день с выполненным планом/ })).toBeVisible();
   await expect(page.getByText('Ещё 5 дней до цели недели')).toBeVisible();
 });

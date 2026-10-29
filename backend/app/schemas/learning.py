@@ -153,9 +153,8 @@ class SummaryOut(BaseModel):
     new_words: int
     reviewed_words: int
     ratings: RatingCounts
-    points: int
-    today_points: int
-    daily_goal: int
+    # Today's plan once this session is done (ADR 0015); practice sessions are never part of it.
+    today: "TodayPlanOut"
 
 
 class WordStages(BaseModel):
@@ -167,9 +166,23 @@ class WordStages(BaseModel):
     due: int
 
 
-class DayActivity(BaseModel):
+class PlanDayOut(BaseModel):
+    """One local day (ADR 0015): any answers at all, and whether the day's plan was done."""
+
     date: date
-    points: int
+    active: bool
+    plan_done: bool
+    new_words: int
+    # New words the plan asked for that day (0: no new word was possible; reviews were the plan).
+    target: int
+
+
+class TodayPlanOut(BaseModel):
+    new_words: int
+    target: int
+    plan_done: bool
+    # New words beyond today's target: extra, never part of the plan.
+    extra_new: int
 
 
 class RecallRate(BaseModel):
@@ -185,13 +198,13 @@ class ProgressOut(BaseModel):
     """The whole course: where the learner stands on its words and how steadily they practise."""
 
     words: WordStages
-    today: DayActivity
-    daily_goal: int
-    streak_days: int
-    # Days with any points in the last year, oldest first; the calendar fills the gaps with zeros.
-    activity: list[DayActivity]
-    # The weekly commitment the learner chose (days per week with the daily goal met).
-    study_days_per_week: int
+    today: PlanDayOut
+    # Weeks in a row with the promise kept (ADR 0015).
+    streak_weeks: int
+    # Days with answers in the last year, oldest first; the calendar fills the gaps.
+    activity: list[PlanDayOut]
+    # This week's promise: days with the plan done.
+    promised_days: int
     recall: RecallRate
 
 

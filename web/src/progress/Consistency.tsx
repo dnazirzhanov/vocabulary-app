@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import { plural } from '../i18n/plural.ts';
+import { daysAfterOf, plural } from '../i18n/plural.ts';
+import { wordsLabel } from '../lib/pace.ts';
 import { buildCalendar, weekProgress, type Cell, type Level } from '../lib/consistency.ts';
 import type { Progress } from '../lib/types.ts';
 import { CheckIcon } from '../ui/icons.tsx';
@@ -8,7 +9,7 @@ import styles from './Progress.module.css';
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 // Weekday names are shown on alternate rows, as on GitHub's calendar.
 const LABELLED_ROWS = new Set([0, 2, 4]);
-const LEVEL_NAME: Record<Level, string> = { 0: 'без занятий', 1: 'меньше цели', 2: 'цель выполнена' };
+const LEVEL_NAME: Record<Level, string> = { 0: 'без занятий', 1: 'были занятия', 2: 'план выполнен' };
 const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const dayWord = (n: number) => plural(n, { one: 'день', few: 'дня', many: 'дней' });
 const describe = (cell: Cell) => `${dayName.format(Date.parse(`${cell.date}T00:00:00Z`))}: ${LEVEL_NAME[cell.level]}`;
@@ -23,14 +24,14 @@ const subscribe = (notify: () => void) => {
 const useWeekCount = () => (useSyncExternalStore(subscribe, () => window.matchMedia(WIDE).matches) ? 26 : 18);
 
 /**
- * Consistency without a streak to lose: this week against the learner's own weekly commitment, and
- * a calendar of the weeks before. A day with the goal met is solid, a lighter one was practised.
+ * Consistency without a streak to lose: this week against the days the learner promised, and a
+ * calendar of the weeks before. A day with the plan done is solid, a lighter one had some learning.
  */
 export function Consistency({ progress }: { progress: Progress }) {
-  const goal = progress.daily_goal;
   const today = progress.today.date;
-  const week = weekProgress(progress.activity, goal, today, progress.study_days_per_week);
-  const calendar = buildCalendar(progress.activity, goal, today, useWeekCount());
+  const target = progress.today.target;
+  const week = weekProgress(progress.activity, today, progress.promised_days);
+  const calendar = buildCalendar(progress.activity, today, useWeekCount());
   const left = week.target - week.done;
 
   return (
@@ -41,7 +42,7 @@ export function Consistency({ progress }: { progress: Progress }) {
       <p className={styles.hero}>
         <strong>{week.done}</strong>{' '}
         <span>
-          из {week.target} {dayWord(week.target)} на этой неделе
+          из {week.target} {daysAfterOf(week.target)} на этой неделе
         </span>
       </p>
       <ol className={styles.week} aria-label="Дни этой недели">
@@ -77,7 +78,7 @@ export function Consistency({ progress }: { progress: Progress }) {
       <div
         className={styles.calendar}
         role="img"
-        aria-label={`${calendar.goalDays} ${dayWord(calendar.goalDays)} с выполненной целью за ${calendar.weeks.length} недель`}
+        aria-label={`${calendar.goalDays} ${dayWord(calendar.goalDays)} с выполненным планом за ${calendar.weeks.length} недель`}
         style={{ gridTemplateColumns: `auto repeat(${calendar.weeks.length}, minmax(0, 1fr))` }}
       >
         {calendar.months.map((month) => (
@@ -106,13 +107,17 @@ export function Consistency({ progress }: { progress: Progress }) {
       </div>
       <p className={styles.legend}>
         <span>
-          <i className={styles.cell} data-level="1" aria-hidden="true" /> меньше цели
+          <i className={styles.cell} data-level="1" aria-hidden="true" /> были занятия
         </span>
         <span>
-          <i className={styles.cell} data-level="2" aria-hidden="true" /> цель выполнена
+          <i className={styles.cell} data-level="2" aria-hidden="true" /> план выполнен
         </span>
       </p>
-      <p className={styles.footnote}>День засчитывается, когда набрано {goal} очков, — примерно один урок.</p>
+      <p className={styles.footnote}>
+        {target > 0
+          ? `День засчитывается, когда выполнен ваш план: ${wordsLabel(target)} за день.`
+          : 'Сегодня план — повторения: день засчитается, когда урок закончен.'}
+      </p>
     </section>
   );
 }

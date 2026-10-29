@@ -20,7 +20,7 @@ from app.schemas.learning import (
     StartSessionIn,
     SummaryOut,
 )
-from app.services import progress, sessions, words
+from app.services import progress_view, sessions, words
 from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["learning"])
@@ -78,7 +78,7 @@ def delete_account(user: CurrentUser, db: DbSession) -> Response:
 
 @router.get("/progress")
 def course_progress(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> ProgressOut:
-    return progress.course_progress(db, user, now, time_zone)
+    return progress_view.course_progress(db, user, now, time_zone)
 
 
 @router.get("/decks/{deck_id}/words")

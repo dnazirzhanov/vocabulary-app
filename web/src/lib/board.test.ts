@@ -11,10 +11,10 @@ const rows = (count: number, me: number): BoardRow[] =>
     role: 'member',
     is_me: index === me,
     rank: index + 1,
-    days_practised: 7 - Math.min(6, index),
+    plan_days: 7 - Math.min(6, index),
+    promised_days: 7,
     week: Array(7).fill(false),
-    points: 100 - index,
-    streak_days: 0,
+    streak_weeks: 0,
   }));
 const shape = (lines: ReturnType<typeof visibleLines>) =>
   lines.map((line) => (line.kind === 'gap' ? `…${line.hidden}` : line.row.nickname));

@@ -46,17 +46,20 @@ class BoardRow(BaseModel):
     nickname: str
     role: Literal["owner", "member"]
     is_me: bool
-    # Null for members with no points yet this week: they are listed without a place.
+    # Null for members with no answers yet this week: they are listed without a place.
     rank: int | None
-    days_practised: int
-    # Monday … Sunday of the group's week: was the 30-point daily goal met that day?
+    # Days this week with the member's own plan done, against the days they promised (ADR 0015).
+    plan_days: int
+    promised_days: int
+    # Monday … Sunday of the group's week: was the plan done that day?
     week: list[bool]
-    points: int
-    streak_days: int
+    # Weeks in a row with the promise kept.
+    streak_weeks: int
 
 
 class GroupGoal(BaseModel):
-    """Co-operative: new words met by everyone this week, against everyone's plans combined."""
+    """Co-operative: new words met by everyone this week within their own plans (extra words do
+    not count), against everyone's plans combined."""
 
     done: int
     target: int

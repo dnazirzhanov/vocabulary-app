@@ -46,7 +46,8 @@ from app.services.learning import (
     plan_cards,
     requeue,
 )
-from app.services.progress import DAILY_GOAL_POINTS, card_points, points_today, session_points
+from app.services.progress import card_points
+from app.services.progress_view import today_plan
 from app.services.scheduling import AGAIN, LEARNING, RELEARNING, CardState, previews, review
 
 # --- reading ---------------------------------------------------------------------------------
@@ -540,9 +541,7 @@ def complete_session(
         new_words=sum(1 for step in plan if step.new),
         reviewed_words=len({attempt.word_id for attempt in rated if attempt.was_review}),
         ratings=RatingCounts(again=counts[0], hard=counts[1], good=counts[2], easy=counts[3]),
-        points=session_points(db, session.id),
-        today_points=points_today(db, user, now, time_zone),
-        daily_goal=DAILY_GOAL_POINTS,
+        today=today_plan(db, user, now, time_zone),
     )
 
 

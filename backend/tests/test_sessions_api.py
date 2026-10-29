@@ -82,7 +82,9 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
     client: TestClient, play: Play
 ) -> None:
     summary = play(STUDY, DAY0, ratings={"water": 4, "friend": 1})
-    assert (summary["new_words"], summary["reviewed_words"], summary["points"]) == (5, 0, 50)
+    assert (summary["new_words"], summary["reviewed_words"]) == (5, 0)
+    # Five new words: today's plan of five is done, nothing extra (ADR 0015).
+    assert summary["today"] == {"new_words": 5, "target": 5, "plan_done": True, "extra_new": 0}
     assert summary["ratings"]["easy"] == 1
     by_word = {row["word"]["headword"]: row for row in summary["words"]}
     # «Легко» graduates at once; the others needed a second showing, «Снова» a third.
@@ -102,7 +104,7 @@ def test_due_cards_come_back_first_and_score_as_reviews(client: TestClient, play
     assert [card["new"] for card in cards] == [False] * 5 + [True] * 5
     summary = play(STUDY, later, ratings={"house": 1})
     assert summary["reviewed_words"] == 5
-    assert summary["points"] == 5 * 5 + 5 * 10  # reviews, then today's new words
+    assert summary["today"]["new_words"] == 5  # the reviews came first, then today's new words
 
 
 def test_a_repeated_rating_counts_once_and_the_first_one_stands(client: TestClient) -> None:
@@ -133,7 +135,7 @@ def test_hard_word_practice_does_not_move_the_schedule(
     # The learner's hardest words first: the forgotten one, then the hard one.
     assert [card["word"]["headword"] for card in practice["exercises"]][:2] == ["friend", "buy"]
     summary = play(HARD, DAY0 + timedelta(hours=1), ratings={"friend": 1})
-    assert summary["points"] == 0
+    assert summary["today"]["new_words"] == 5  # practice adds nothing to the plan
     db.expire_all()
     assert {p.word_id: p.due_at for p in db.scalars(select(UserWordProgress))} == before
 
@@ -170,7 +172,7 @@ def test_completion_rules(client: TestClient, play: Play) -> None:
     assert (early.status_code, early.json()["error"]["code"]) == (409, "session_incomplete")
     summary = play(STUDY, DAY0)  # resumes and finishes the open session
     again = client.post(f"/api/sessions/{summary['session_id']}/complete", headers=at(DAY0))
-    assert again.json()["points"] == summary["points"]
+    assert again.json()["today"] == summary["today"]
 
 
 def test_nothing_to_study_when_the_deck_is_done_and_nothing_is_due(

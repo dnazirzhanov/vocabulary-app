@@ -1,5 +1,5 @@
-"""Progress, points, the daily goal and streaks through the API, including day boundaries in the
-learner's time zone."""
+"""Progress through the API (ADR 0015): words, plan days against the learner's own promise, the
+weekly streak, and day boundaries in the learner's time zone."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -24,47 +24,53 @@ def progress(client: TestClient, moment: datetime, time_zone: str = "UTC") -> di
 
 
 def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
+    client.patch("/api/me", json={"daily_target_words": 5})
     report = progress(client, DAY0)
     assert report["words"] == {"introduced": 0, "reviewing": 0, "well_learned": 0, "due": 0}
-    assert report["today"] == {"date": "2026-11-02", "points": 0}
-    assert (report["daily_goal"], report["streak_days"]) == (30, 0)
-    assert report["activity"] == []  # only days with practice are listed
-    assert report["study_days_per_week"] == 6  # the default weekly commitment
+    assert report["today"] == {
+        "date": "2026-11-02",
+        "active": False,
+        "plan_done": False,
+        "new_words": 0,
+        "target": 5,
+    }
+    assert report["streak_weeks"] == 0
+    assert report["activity"] == []  # only days with answers are listed
+    assert report["promised_days"] == 6  # the default weekly promise
     assert report["recall"] == {"recalled": 0, "reviewed": 0, "days": 30}
+    assert "points" not in str(report)
 
 
-def test_a_lesson_earns_points_and_meets_the_daily_goal(client: TestClient, play: Play) -> None:
-    summary = play(START, DAY0)
-    assert (summary["points"], summary["today_points"], summary["daily_goal"]) == (50, 50, 30)
-
+def test_a_lesson_does_today_s_plan(client: TestClient, play: Play) -> None:
+    play(START, DAY0)
     report = progress(client, DAY0)
     assert report["words"] == {"introduced": 5, "reviewing": 5, "well_learned": 0, "due": 0}
-    assert report["today"]["points"] == 50
-    assert report["streak_days"] == 1
-    assert report["activity"] == [{"date": "2026-11-02", "points": 50}]
+    today = {"date": "2026-11-02", "active": True, "plan_done": True, "new_words": 5, "target": 5}
+    assert report["today"] == today
+    assert report["activity"] == [today]
 
 
-def test_practice_earns_nothing(client: TestClient, play: Play) -> None:
+def test_practice_alone_is_a_day_with_answers_but_not_a_plan_day(
+    client: TestClient, play: Play
+) -> None:
     play(START, DAY0)
-    practice = play(HARD, DAY0 + timedelta(hours=1))
-    assert practice["points"] == 0
-    assert progress(client, DAY0)["activity"] == [{"date": "2026-11-02", "points": 50}]
+    tuesday = DAY0 + timedelta(days=1)
+    play(HARD, tuesday)
+    report = progress(client, tuesday)
+    assert (report["today"]["active"], report["today"]["plan_done"]) == (True, False)
 
 
-def test_reviews_earn_points_whatever_the_rating_and_recall_is_measured(
+def test_reviews_count_as_recall_and_a_gap_does_not_undo_past_days(
     client: TestClient, play: Play
 ) -> None:
     play(START, DAY0)
     later = DAY0 + timedelta(days=10)
-    session = play(START, later, ratings={"house": 1, "water": 4})  # house forgotten
-    assert session["points"] == 5 * 5 + 5 * 10
-
+    play(START, later, ratings={"house": 1, "water": 4})  # house forgotten
     report = progress(client, later)
     assert report["recall"] == {"recalled": 4, "reviewed": 5, "days": 30}
-    assert report["streak_days"] == 1  # a gap of ten days broke the streak
-    assert report["activity"] == [
-        {"date": "2026-11-02", "points": 50},
-        {"date": "2026-11-12", "points": 75},
+    assert [day["date"] for day in report["activity"] if day["plan_done"]] == [
+        "2026-11-02",
+        "2026-11-12",
     ]
 
 
@@ -78,13 +84,16 @@ def test_well_learned_once_stable_for_three_weeks(client: TestClient, play: Play
     assert words["well_learned"] >= 5
 
 
-def test_a_missed_day_breaks_the_streak(client: TestClient, play: Play) -> None:
-    play(START, DAY0)
-    play(START, DAY0 + timedelta(days=2))  # day 1 skipped
-    assert progress(client, DAY0 + timedelta(days=2))["streak_days"] == 1
-    # The streak survives until today's practice could still happen.
-    assert progress(client, DAY0 + timedelta(days=3))["streak_days"] == 1
-    assert progress(client, DAY0 + timedelta(days=4))["streak_days"] == 0
+def test_the_streak_counts_weeks_with_the_promise_kept(client: TestClient, play: Play) -> None:
+    client.patch("/api/me", json={"study_days_per_week": 2})
+    for week in range(2):  # two weeks, the two days promised each: Monday and Tuesday
+        for n in range(2):
+            play(START, DAY0 + timedelta(days=7 * week + n))
+    second_wednesday = DAY0 + timedelta(days=9)
+    assert progress(client, second_wednesday)["streak_weeks"] == 2
+    # The next week is not broken while it is under way, and ends the streak once it is over.
+    assert progress(client, DAY0 + timedelta(days=16))["streak_weeks"] == 2
+    assert progress(client, DAY0 + timedelta(days=21))["streak_weeks"] == 0
 
 
 def test_days_are_counted_in_the_learners_time_zone(client: TestClient, play: Play) -> None:
@@ -92,8 +101,8 @@ def test_days_are_counted_in_the_learners_time_zone(client: TestClient, play: Pl
     play(START, late, time_zone="Asia/Bishkek")
     bishkek = progress(client, late, "Asia/Bishkek")
     utc = progress(client, late, "UTC")
-    assert bishkek["today"] == {"date": "2026-11-03", "points": 50}
-    assert utc["today"] == {"date": "2026-11-02", "points": 50}
+    assert (bishkek["today"]["date"], bishkek["today"]["new_words"]) == ("2026-11-03", 5)
+    assert (utc["today"]["date"], utc["today"]["new_words"]) == ("2026-11-02", 5)
 
 
 def test_a_daylight_saving_night_is_one_local_day(client: TestClient, play: Play) -> None:
@@ -103,7 +112,7 @@ def test_a_daylight_saving_night_is_one_local_day(client: TestClient, play: Play
     play(START, early, time_zone="Europe/Berlin")
     play(START, late, time_zone="Europe/Berlin")
     activity = progress(client, late, "Europe/Berlin")["activity"]
-    assert activity == [{"date": "2026-10-25", "points": 100}]
+    assert [(day["date"], day["new_words"]) for day in activity] == [("2026-10-25", 10)]
 
 
 def test_an_unknown_time_zone_falls_back_to_utc(client: TestClient) -> None:
@@ -135,6 +144,6 @@ def test_words_count_across_every_level(client: TestClient, db: Session) -> None
     assert (words["introduced"], words["well_learned"]) == (6, 6)
 
 
-def test_the_weekly_commitment_follows_the_chosen_pace(client: TestClient) -> None:
+def test_the_weekly_promise_follows_the_chosen_pace(client: TestClient) -> None:
     client.patch("/api/me", json={"study_days_per_week": 4})
-    assert progress(client, DAY0)["study_days_per_week"] == 4
+    assert progress(client, DAY0)["promised_days"] == 4

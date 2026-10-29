@@ -96,11 +96,11 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/sessions/{id}` | session with exercises and results so far |
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response: {kind: "rating", rating: 1–4}}` → `{rating, next_due_at, appended, appended_index}` (a card due again within minutes is inserted later in the session) |
 | `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
-| `GET /api/progress` | the whole course: word stages (met, reviewing, well learned, due), today's points vs goal, streak, a year of days with practice, the weekly commitment, delayed-recall rate over 30 days |
+| `GET /api/progress` | the whole course: word stages (met, reviewing, well learned, due), today's plan, a year of days (plan done or not, ADR 0015), this week's promise, weeks kept in a row, delayed-recall rate over 30 days |
 | `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
 | `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
 | `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
-| `GET /api/groups/{id}/board` | the week's board: places by days practised then points, week dots, streaks, the shared goal; members only |
+| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words; members only; no points |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
 | `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
 | `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |

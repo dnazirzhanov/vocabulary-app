@@ -28,7 +28,7 @@ function AccountSection({ email, onSignOut, onAccountDeleted }: AccountProps) {
       {confirming ? (
         <div className={styles.confirm} role="group" aria-labelledby="delete-warning">
           <p id="delete-warning">
-            Все слова, повторения и очки будут удалены, восстановить их будет нельзя.
+            Все слова, повторения и результаты будут удалены, восстановить их будет нельзя.
             {email && ' Чтобы удалить и e-mail для входа, напишите организатору.'}
           </p>
           <div className={styles.confirmActions}>

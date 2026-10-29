@@ -27,6 +27,8 @@ from app.services.scheduling import local_date
 
 # Practice («Трудные слова») is extra by definition; every other kind of session is study.
 PRACTICE = "hard"
+# How far back days are read: a year, enough for any weekly streak shown.
+HISTORY_DAYS = 366
 
 
 @dataclass(frozen=True)

@@ -29,8 +29,9 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await expect(button(page, 'Пригласить друзей')).toBeFocused();
   const me = page.getByRole('listitem').filter({ hasText: 'Ёжик' });
   await expect(me).toContainText('вы');
-  await expect(me).toContainText('1 день');
-  await expect(me).toContainText('50 очков');
+  // One day of the six promised, measured against her own plan; no points anywhere.
+  await expect(me).toContainText('1 из 6 дней');
+  await expect(page.getByRole('main')).not.toContainText('очк');
 
   // A friend (a different learner) opens the link.
   const friendContext = await browser.newContext({ extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}` } });

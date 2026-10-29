@@ -2,13 +2,15 @@
 
 Motivation comes largely from other people, so learners can study alongside friends or a class.
 Learners may be minors, so a group shows nicknames only, has no chat, and is joined by an invite
-code. The board ranks by days practised this week (then points), so showing up beats speed: a
-learner on 3 words a day can top a board that also holds a 100-words-a-day learner.
+code. The board ranks by the share of each member's own promise kept this week (ADR 0015), so
+keeping a pace beats volume: a learner on 3 words a day, 3 days a week, can top a board that
+also holds a 100-words-a-day learner.
 """
 
 import re
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
+from fractions import Fraction
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -17,11 +19,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import Group, GroupMember, ReviewAttempt, User
+from app.models import Group, GroupMember, User
 from app.schemas.groups import BoardOut, BoardRow, GroupGoal, GroupOut, GroupPreviewOut
 from app.services.pace import target_of
-from app.services.plan_days import week_of
-from app.services.progress import DAILY_GOAL_POINTS, INTRODUCTION, STREAK_HISTORY_DAYS, streak
+from app.services.plan_days import (
+    HISTORY_DAYS,
+    days_by_user,
+    promises_by_user,
+    week_of,
+    week_plan,
+    week_streak,
+    zone_of,
+)
 from app.services.scheduling import local_date
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
@@ -234,25 +243,28 @@ def leave_all(db: Session, user: User) -> None:
 # --- the board ------------------------------------------------------------------------------
 
 
-def rank(rows: list[BoardRow]) -> list[BoardRow]:
-    """Days practised, then points; equal results share a place (1, 2, 2, 4). Members with no
-    points this week get no place and come last, by nickname."""
-    active = sorted(
-        (row for row in rows if row.points > 0),
-        key=lambda row: (-row.days_practised, -row.points, row.nickname.casefold()),
+def rank(rows: list[BoardRow], active: set[UUID]) -> list[BoardRow]:
+    """The share of the promise kept this week (ADR 0015): 3 of 4 days is ahead of 1 of 6, and
+    days beyond the promise add nothing. Equal shares share a place (1, 2, 2, 4). Members with no
+    answers this week get no place and come last; within a place, by nickname."""
+
+    def kept(row: BoardRow) -> Fraction:
+        return Fraction(min(row.plan_days, row.promised_days), row.promised_days)
+
+    ordered = sorted(
+        (row for row in rows if row.member_id in active),
+        key=lambda row: (-kept(row), row.nickname.casefold()),
     )
     ranked: list[BoardRow] = []
-    for index, row in enumerate(active):
+    for index, row in enumerate(ordered):
         previous = ranked[-1] if ranked else None
-        same = previous is not None and (previous.days_practised, previous.points) == (
-            row.days_practised,
-            row.points,
-        )
+        same = previous is not None and kept(previous) == kept(row)
         ranked.append(
             row.model_copy(update={"rank": previous.rank if same and previous else index + 1})
         )
     resting = sorted(
-        (row for row in rows if row.points == 0), key=lambda row: row.nickname.casefold()
+        (row for row in rows if row.member_id not in active),
+        key=lambda row: row.nickname.casefold(),
     )
     return ranked + [row.model_copy(update={"rank": None}) for row in resting]
 
@@ -266,36 +278,21 @@ def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
     ).all()
     days = week_of(local_date(now, ZoneInfo(group.time_zone)))
 
-    # One query for everyone: points and new words per member per local day, each member's days
-    # counted in their own time zone (stored zones are checked against PostgreSQL's list).
-    zone = func.coalesce(User.time_zone, "UTC")
-    local_day = func.date(func.timezone(zone, ReviewAttempt.answered_at))
-    history = db.execute(
-        select(
-            ReviewAttempt.user_id,
-            local_day,
-            func.sum(ReviewAttempt.points),
-            func.count().filter(INTRODUCTION),
-        )
-        .join(User, User.id == ReviewAttempt.user_id)
-        .where(
-            ReviewAttempt.user_id.in_([member_user.id for _, member_user in members]),
-            ReviewAttempt.answered_at >= now - timedelta(days=STREAK_HISTORY_DAYS + 1),
-        )
-        .group_by(ReviewAttempt.user_id, local_day)
-    )
-    points: dict[UUID, dict[date, int]] = {}
-    new_words: dict[UUID, dict[date, int]] = {}
-    for user_id, day, day_points, introduced in history:
-        points.setdefault(user_id, {})[day] = int(day_points or 0)
-        new_words.setdefault(user_id, {})[day] = int(introduced or 0)
+    # Everyone's days, each member's counted in their own time zone (ADR 0011, 0015).
+    users = [member_user for _, member_user in members]
+    since = now - timedelta(days=HISTORY_DAYS + 1)
+    plan_days = days_by_user(db, users, since)
+    promises = promises_by_user(db, users, since)
 
     rows: list[BoardRow] = []
+    active: set[UUID] = set()
     goal_done = goal_target = 0
     for member, member_user in members:
-        by_day = points.get(member_user.id, {})
-        met = [by_day.get(day, 0) >= DAILY_GOAL_POINTS for day in days]
-        member_today = local_date(now, ZoneInfo(member_user.time_zone or "UTC"))
+        promised = promises[member_user.id].get(days[0], member_user.study_days_per_week)
+        week = week_plan(plan_days[member_user.id], days, promised)
+        if week.active:
+            active.add(member.id)
+        member_today = local_date(now, zone_of(member_user))
         rows.append(
             BoardRow(
                 member_id=member.id,
@@ -303,22 +300,26 @@ def board(db: Session, user: User, group_id: UUID, now: datetime) -> BoardOut:
                 role=member.role,
                 is_me=member.id == me.id,
                 rank=None,
-                days_practised=sum(met),
-                week=met,
-                points=sum(by_day.get(day, 0) for day in days),
-                streak_days=streak(
-                    (day for day, total in by_day.items() if total >= DAILY_GOAL_POINTS),
+                plan_days=week.plan_days,
+                promised_days=promised,
+                week=week.done,
+                streak_weeks=week_streak(
+                    plan_days[member_user.id],
+                    promises[member_user.id],
+                    member_user.study_days_per_week,
                     member_today,
                 ),
             )
         )
-        goal_done += sum(new_words.get(member_user.id, {}).get(day, 0) for day in days)
-        goal_target += target_of(member_user) * member_user.study_days_per_week
+        # Each member moves the shared bar by their planned words, at most their week's plan.
+        week_target = target_of(member_user) * promised
+        goal_done += min(week.planned_new, week_target)
+        goal_target += week_target
 
     return BoardOut(
         group=_group_out(db, group, me),
         week_start=days[0],
         week_end=days[-1],
-        rows=rank(rows),
+        rows=rank(rows, active),
         goal=GroupGoal(done=goal_done, target=max(GOAL_FLOOR, goal_target)),
     )

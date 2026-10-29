@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { plural } from '../i18n/plural.ts';
+import { plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
@@ -131,12 +131,12 @@ export function HomeScreen({ onSession }: HomeScreenProps) {
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        {/* A streak appears once there is one; "0 days" would only greet newcomers with a zero. */}
+        {/* Weeks with the promise kept (ADR 0015); "0 weeks" would only greet newcomers with a zero. */}
         <span className={styles.streak}>
-          {progress && progress.streak_days > 0 && (
+          {progress && progress.streak_weeks > 0 && (
             <>
               <FlameIcon aria-hidden="true" />
-              {`${progress.streak_days}\u00a0${plural(progress.streak_days, { one: 'день', few: 'дня', many: 'дней' })} подряд`}
+              {`${progress.streak_weeks}\u00a0${weeksWord(progress.streak_weeks)} подряд`}
             </>
           )}
         </span>

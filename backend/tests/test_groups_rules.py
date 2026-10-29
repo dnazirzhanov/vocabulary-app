@@ -64,30 +64,30 @@ def test_the_week_runs_monday_to_sunday() -> None:
     assert (days[0], days[-1]) == (date(2026, 11, 2), date(2026, 11, 8))
 
 
-def row(nickname: str, days: int, points: int) -> BoardRow:
+def row(nickname: str, plan_days: int, promised: int) -> BoardRow:
     return BoardRow(
         member_id=uuid4(),
         nickname=nickname,
         role="member",
         is_me=False,
         rank=None,
-        days_practised=days,
+        plan_days=plan_days,
+        promised_days=promised,
         week=[False] * 7,
-        points=points,
-        streak_days=0,
+        streak_weeks=0,
     )
 
 
-def test_showing_up_beats_speed_and_ties_share_a_place() -> None:
-    ranked = rank(
-        [
-            row("Fast", 2, 900),  # 100 words a day, twice
-            row("Steady", 5, 150),  # 3 words a day, five days
-            row("Also steady", 5, 150),
-            row("Resting", 0, 0),
-            row("Busy", 4, 200),
-        ]
-    )
+def test_keeping_one_s_own_promise_beats_volume_and_equal_shares_share_a_place() -> None:
+    rows = [
+        row("Fast", 1, 6),  # 100 words once, but promised six days
+        row("Steady", 3, 3),  # 3 words a day, the three days promised
+        row("Also steady", 5, 4),  # one day beyond the promise adds nothing
+        row("Resting", 0, 3),
+        row("Busy", 3, 4),
+    ]
+    active = {r.member_id for r in rows if r.nickname != "Resting"}
+    ranked = rank(rows, active)
     assert [(r.nickname, r.rank) for r in ranked] == [
         ("Also steady", 1),
         ("Steady", 1),
