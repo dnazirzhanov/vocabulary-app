@@ -26,8 +26,8 @@ router = APIRouter(tags=["learning"])
 
 
 @router.get("/decks")
-def list_decks(user: CurrentUser, db: DbSession, now: Now) -> list[DeckOut]:
-    return sessions.list_decks(db, user, now)
+def list_decks(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> list[DeckOut]:
+    return sessions.list_decks(db, user, now, time_zone)
 
 
 # Declared before /sessions/{session_id} so "active" is not parsed as an id.
@@ -73,12 +73,9 @@ def delete_account(user: CurrentUser, db: DbSession) -> Response:
     return Response(status_code=204)
 
 
-@router.get("/decks/{deck_id}/progress")
-def deck_progress(
-    deck_id: str, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
-) -> ProgressOut:
-    sessions.require_published_deck(db, deck_id)
-    return progress.deck_progress(db, user, deck_id, now, time_zone)
+@router.get("/progress")
+def course_progress(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> ProgressOut:
+    return progress.course_progress(db, user, now, time_zone)
 
 
 @router.get("/decks/{deck_id}/words")

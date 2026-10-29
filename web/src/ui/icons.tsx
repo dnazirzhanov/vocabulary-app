@@ -52,6 +52,41 @@ export const ChartIcon = (props: IconProps) => (
   </svg>
 );
 
+export const HomeIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" />
+  </svg>
+);
+
+export const PersonPlusIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="9" cy="8.5" r="3.5" />
+    <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+    <path d="M19 8v6M16 11h6" />
+  </svg>
+);
+
+export const PeopleIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="9" cy="8.5" r="3.5" />
+    <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+    <path d="M16 5.2a3.5 3.5 0 0 1 0 6.6M18.5 14.2A6.5 6.5 0 0 1 21.5 20" />
+  </svg>
+);
+
+export const ForwardIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+
+export const LockIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </svg>
+);
+
 export const BackIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <path d="M15 18l-6-6 6-6" />

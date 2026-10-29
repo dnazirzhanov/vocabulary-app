@@ -1,0 +1,104 @@
+# B1–B2 words from the CEFR-J Vocabulary Profile 1.5 (Tono Laboratory, TUFS; free use with
+# citation), ordered by NGSL frequency. Translations and examples are original drafts for review.
+# Field reference: content/a1-a2/words.yaml.
+
+- {id: decision, headword: decision, pos: noun, translation: "решение", example: "It was a difficult decision.", example_ru: "Это было трудное решение."}
+- {id: relationship, headword: relationship, pos: noun, translation: "отношения", example: "They have a good relationship with their neighbours.", example_ru: "У них хорошие отношения с соседями."}
+- {id: community, headword: community, pos: noun, translation: "сообщество, местные жители", example: "The whole community helped after the flood.", example_ru: "После наводнения помогали все местные жители."}
+- {id: amount, headword: amount, pos: noun, translation: "количество, сумма", example: "Drink a small amount of water every hour.", example_ru: "Каждый час пейте немного воды."}
+- {id: project, headword: project, pos: noun, translation: "проект", example: "Our team finished the project on time.", example_ru: "Наша команда закончила проект вовремя."}
+- {id: benefit, headword: benefit, pos: noun, translation: "польза, выгода", example: "Walking has many health benefits, and one benefit is better sleep.", example_ru: "У ходьбы много пользы для здоровья, и одна из них — лучший сон."}
+- {id: risk, headword: risk, pos: noun, translation: "риск", example: "There is a risk of rain this afternoon.", example_ru: "Днём есть риск дождя."}
+- {id: demand, headword: demand, pos: noun, translation: "спрос, требование", example: "There is a big demand for nurses.", example_ru: "На медсестёр большой спрос."}
+- {id: limit, headword: limit, pos: noun, translation: "предел, ограничение", example: "The speed limit here is sixty.", example_ru: "Ограничение скорости здесь — шестьдесят."}
+- {id: employee, headword: employee, pos: noun, translation: "сотрудник, работник", example: "Every employee gets a free lunch.", example_ru: "Каждый сотрудник получает бесплатный обед."}
+- {id: region, headword: region, pos: noun, translation: "регион, область", example: "This region is famous for its apples.", example_ru: "Этот регион славится яблоками."}
+- {id: growth, headword: growth, pos: noun, translation: "рост", example: "The city saw fast growth last year.", example_ru: "В прошлом году город быстро рос."}
+- {id: respect, headword: respect, pos: noun, translation: "уважение", example: "Children should show respect to their teachers.", example_ru: "Дети должны проявлять уважение к учителям."}
+- {id: economy, headword: economy, pos: noun, translation: "экономика", example: "Tourism is important for the economy.", example_ru: "Туризм важен для экономики."}
+- {id: environment, headword: environment, pos: noun, translation: "окружающая среда; обстановка", example: "We must protect the environment.", example_ru: "Мы должны защищать окружающую среду."}
+- {id: contract, headword: contract, pos: noun, translation: "договор, контракт", example: "Read the contract before you sign it.", example_ru: "Прочитай договор, прежде чем подписать."}
+- {id: season, headword: season, pos: noun, translation: "время года, сезон", example: "Autumn is my favourite season.", example_ru: "Осень — моё любимое время года."}
+- {id: agreement, headword: agreement, pos: noun, translation: "соглашение, согласие", example: "The two companies reached an agreement.", example_ru: "Две компании пришли к соглашению."}
+- {id: aim, headword: aim, pos: noun, translation: "цель", example: "My aim is to speak English fluently.", example_ru: "Моя цель — свободно говорить по-английски."}
+- {id: access, headword: access, pos: noun, translation: "доступ", example: "All students have access to the library.", example_ru: "У всех студентов есть доступ к библиотеке."}
+- {id: loss, headword: loss, pos: noun, translation: "потеря, убыток", example: "The company made a loss this year.", example_ru: "В этом году компания понесла убыток."}
+- {id: treatment, headword: treatment, pos: noun, translation: "лечение; обращение", example: "The treatment takes two weeks.", example_ru: "Лечение длится две недели."}
+- {id: supply, headword: supply, pos: noun, translation: "запас, поставка", example: "We have a good supply of food for the trip.", example_ru: "У нас хороший запас еды на поездку."}
+- {id: energy, headword: energy, pos: noun, translation: "энергия, силы", example: "I have no energy after work.", example_ru: "После работы у меня нет сил."}
+- {id: option, headword: option, pos: noun, translation: "вариант, выбор", example: "Taking the bus is the cheapest option.", example_ru: "Автобус — самый дешёвый вариант."}
+- {id: theory, headword: theory, pos: noun, translation: "теория", example: "In theory, the plan is perfect.", example_ru: "В теории план идеален."}
+- {id: career, headword: career, pos: noun, translation: "карьера", example: "She started her career as a teacher.", example_ru: "Она начала карьеру учителем."}
+- {id: profit, headword: profit, pos: noun, translation: "прибыль", example: "The shop makes a small profit.", example_ru: "Магазин приносит небольшую прибыль."}
+- {id: resource, headword: resource, pos: noun, translation: "ресурс, средство", example: "Water is a precious resource.", example_ru: "Вода — ценный ресурс."}
+- {id: disease, headword: disease, pos: noun, translation: "болезнь, заболевание", example: "Doctors are studying the disease.", example_ru: "Врачи изучают это заболевание."}
+- {id: balance, headword: balance, pos: noun, translation: "равновесие, баланс", example: "I try to keep a balance between work and rest.", example_ru: "Я стараюсь соблюдать баланс между работой и отдыхом."}
+- {id: damage, headword: damage, pos: noun, translation: "ущерб, повреждение", example: "The storm caused a lot of damage.", example_ru: "Буря причинила большой ущерб."}
+- {id: income, headword: income, pos: noun, translation: "доход", example: "Their income is higher than last year.", example_ru: "Их доход выше, чем в прошлом году."}
+- {id: conclusion, headword: conclusion, pos: noun, translation: "вывод, заключение", example: "What is your conclusion?", example_ru: "Какой ваш вывод?"}
+- {id: possibility, headword: possibility, pos: noun, translation: "возможность", example: "There is a possibility of snow tomorrow.", example_ru: "Завтра возможен снег."}
+- {id: variety, headword: variety, pos: noun, translation: "разнообразие", example: "The market sells a variety of fruit.", example_ru: "На рынке продают разные фрукты."}
+- {id: responsibility, headword: responsibility, pos: noun, translation: "ответственность, обязанность", example: "Cleaning the kitchen is my responsibility.", example_ru: "Уборка кухни — моя обязанность."}
+- {id: stress, headword: stress, pos: noun, translation: "стресс, напряжение", example: "Exams cause a lot of stress.", example_ru: "Экзамены вызывают сильный стресс."}
+- {id: equipment, headword: equipment, pos: noun, translation: "оборудование, снаряжение", example: "The gym has new equipment.", example_ru: "В спортзале новое оборудование."}
+- {id: connection, headword: connection, pos: noun, translation: "связь, соединение", example: "The internet connection is slow today.", example_ru: "Сегодня интернет-соединение медленное."}
+- {id: progress, headword: progress, pos: noun, translation: "прогресс, успехи", example: "You are making good progress.", example_ru: "У тебя хорошие успехи."}
+- {id: distance, headword: distance, pos: noun, translation: "расстояние", example: "What is the distance between the two cities?", example_ru: "Какое расстояние между этими городами?"}
+- {id: pain, headword: pain, pos: noun, translation: "боль", example: "I have a pain in my back.", example_ru: "У меня болит спина."}
+- {id: surface, headword: surface, pos: noun, translation: "поверхность", example: "The surface of the table is wet.", example_ru: "Поверхность стола мокрая."}
+- {id: edge, headword: edge, pos: noun, translation: "край", example: "Don't stand near the edge.", example_ru: "Не стой у края."}
+- {id: reality, headword: reality, pos: noun, translation: "реальность, действительность", example: "In reality, the trip was very tiring.", example_ru: "На самом деле поездка была очень утомительной."}
+- {id: conflict, headword: conflict, pos: noun, translation: "конфликт", example: "They solved the conflict by talking.", example_ru: "Они разрешили конфликт разговором."}
+- {id: colleague, headword: colleague, pos: noun, translation: "коллега", example: "My colleague helped me with the report.", example_ru: "Коллега помог мне с отчётом."}
+- {id: safety, headword: safety, pos: noun, translation: "безопасность", example: "Safety comes first.", example_ru: "Безопасность прежде всего."}
+- {id: location, headword: location, pos: noun, translation: "местоположение, место", example: "The hotel has a great location.", example_ru: "У отеля отличное расположение."}
+- {id: involve, headword: involve, pos: verb, translation: "включать, вовлекать", example: "The job will involve some travel.", example_ru: "Эта работа будет включать поездки."}
+- {id: require, headword: require, pos: verb, translation: "требовать, нуждаться", example: "This recipe will require two eggs.", example_ru: "Для этого рецепта понадобятся два яйца."}
+- {id: reduce, headword: reduce, pos: verb, translation: "уменьшать, сокращать", example: "We want to reduce our costs.", example_ru: "Мы хотим сократить расходы."}
+- {id: suppose, headword: suppose, pos: verb, translation: "полагать, предполагать", example: "I suppose you are right.", example_ru: "Полагаю, ты прав."}
+- {id: affect, headword: affect, pos: verb, translation: "влиять", example: "Bad weather can affect your mood.", example_ru: "Плохая погода может влиять на настроение."}
+- {id: contain, headword: contain, pos: verb, translation: "содержать", example: "These biscuits contain nuts.", example_ru: "Это печенье содержит орехи."}
+- {id: determine, headword: determine, pos: verb, translation: "определять", example: "Tests will determine the cause of the problem.", example_ru: "Анализы определят причину проблемы."}
+- {id: occur, headword: occur, pos: verb, translation: "происходить, случаться", example: "Earthquakes can occur at any time.", example_ru: "Землетрясения могут случиться в любое время."}
+- {id: recognize, headword: recognize, pos: verb, translation: "узнавать, признавать", example: "I didn't recognize you with short hair!", example_ru: "Я не узнал тебя с короткой стрижкой!"}
+- {id: prove, headword: prove, pos: verb, translation: "доказывать", example: "Can you prove it?", example_ru: "Можешь это доказать?"}
+- {id: identify, headword: identify, pos: verb, translation: "определять, опознавать", example: "Can you identify this bird?", example_ru: "Можешь определить эту птицу?"}
+- {id: attend, headword: attend, pos: verb, translation: "посещать, присутствовать", example: "I attend English classes twice a week.", example_ru: "Я хожу на английский два раза в неделю."}
+- {id: suffer, headword: suffer, pos: verb, translation: "страдать", example: "Many people suffer from headaches.", example_ru: "Многие страдают от головной боли."}
+- {id: assume, headword: assume, pos: verb, translation: "предполагать, считать", example: "I assume the shop is closed on Sunday.", example_ru: "Полагаю, в воскресенье магазин закрыт."}
+- {id: protect, headword: protect, pos: verb, translation: "защищать", example: "Sunglasses protect your eyes.", example_ru: "Солнцезащитные очки защищают глаза."}
+- {id: maintain, headword: maintain, pos: verb, translation: "поддерживать, сохранять", example: "It is hard to maintain a healthy diet.", example_ru: "Трудно поддерживать здоровое питание."}
+- {id: announce, headword: announce, pos: verb, translation: "объявлять", example: "They will announce the winner tonight.", example_ru: "Сегодня вечером объявят победителя."}
+- {id: recommend, headword: recommend, pos: verb, translation: "советовать, рекомендовать", example: "Can you recommend a good book?", example_ru: "Можешь посоветовать хорошую книгу?"}
+- {id: remove, headword: remove, pos: verb, translation: "убирать, удалять, снимать", example: "Please remove your shoes at the door.", example_ru: "Пожалуйста, снимите обувь у двери."}
+- {id: deliver, headword: deliver, pos: verb, translation: "доставлять", example: "They deliver pizza until midnight.", example_ru: "Пиццу доставляют до полуночи."}
+- {id: observe, headword: observe, pos: verb, translation: "наблюдать, соблюдать", example: "Scientists observe the stars at night.", example_ru: "Учёные наблюдают за звёздами ночью."}
+- {id: warn, headword: warn, pos: verb, translation: "предупреждать", example: "I must warn you about the dog.", example_ru: "Я должен предупредить тебя о собаке."}
+- {id: ensure, headword: ensure, pos: verb, translation: "обеспечивать, гарантировать", example: "Please ensure that the door is locked.", example_ru: "Пожалуйста, убедитесь, что дверь заперта."}
+- {id: contribute, headword: contribute, pos: verb, translation: "вносить вклад, способствовать", example: "Everyone can contribute to the project.", example_ru: "Каждый может внести вклад в проект."}
+- {id: attract, headword: attract, pos: verb, translation: "привлекать", example: "The festival will attract many tourists.", example_ru: "Фестиваль привлечёт много туристов."}
+- {id: able, headword: able, pos: adjective, translation: "способный, в состоянии", example: "Will you be able to come tomorrow?", example_ru: "Ты сможешь прийти завтра?"}
+- {id: available, headword: available, pos: adjective, translation: "доступный, свободный", example: "Is this seat available?", example_ru: "Это место свободно?"}
+- {id: main, headword: main, pos: adjective, translation: "главный, основной", example: "The main problem is money.", example_ru: "Главная проблема — деньги."}
+- {id: particular, headword: particular, pos: adjective, translation: "особый, определённый", example: "Is there a particular film you want to see?", example_ru: "Есть какой-то определённый фильм, который ты хочешь посмотреть?"}
+- {id: current, headword: current, pos: adjective, translation: "текущий, нынешний", example: "What is your current address?", example_ru: "Какой у вас нынешний адрес?"}
+- {id: various, headword: various, pos: adjective, translation: "различный, разный", example: "The shop sells various kinds of bread.", example_ru: "В магазине продают разные виды хлеба."}
+- {id: serious, headword: serious, pos: adjective, translation: "серьёзный", example: "This is a serious problem.", example_ru: "Это серьёзная проблема."}
+- {id: potential, headword: potential, pos: adjective, translation: "возможный, потенциальный", example: "We talked to a potential customer.", example_ru: "Мы поговорили с потенциальным клиентом."}
+- {id: positive, headword: positive, pos: adjective, translation: "положительный, позитивный", example: "Try to stay positive.", example_ru: "Старайся сохранять позитивный настрой."}
+- {id: huge, headword: huge, pos: adjective, translation: "огромный", example: "They live in a huge house.", example_ru: "Они живут в огромном доме."}
+- {id: previous, headword: previous, pos: adjective, translation: "предыдущий", example: "My previous job was in a bank.", example_ru: "Моя предыдущая работа была в банке."}
+- {id: independent, headword: independent, pos: adjective, translation: "независимый, самостоятельный", example: "She is very independent for her age.", example_ru: "Она очень самостоятельная для своего возраста."}
+- {id: effective, headword: effective, pos: adjective, translation: "эффективный, действенный", example: "This medicine is very effective.", example_ru: "Это лекарство очень эффективное."}
+- {id: aware, headword: aware, pos: adjective, translation: "осведомлённый, знающий", example: "Are you aware of the new rules?", example_ru: "Ты знаешь о новых правилах?"}
+- {id: complex, headword: complex, pos: adjective, translation: "сложный", example: "The problem is more complex than we thought.", example_ru: "Проблема сложнее, чем мы думали."}
+- {id: responsible, headword: responsible, pos: adjective, translation: "ответственный", example: "Who is responsible for this room?", example_ru: "Кто отвечает за эту комнату?"}
+- {id: essential, headword: essential, pos: adjective, translation: "необходимый, важнейший", example: "Water is essential for life.", example_ru: "Вода необходима для жизни."}
+- {id: obvious, headword: obvious, pos: adjective, translation: "очевидный", example: "The answer is obvious.", example_ru: "Ответ очевиден."}
+- {id: sometimes, headword: sometimes, pos: adverb, translation: "иногда", example: "I sometimes walk to work.", example_ru: "Иногда я хожу на работу пешком."}
+- {id: completely, headword: completely, pos: adverb, translation: "полностью, совершенно", example: "I completely forgot about the meeting.", example_ru: "Я совершенно забыл о встрече."}
+- {id: immediately, headword: immediately, pos: adverb, translation: "немедленно, сразу", example: "Call me immediately if you need help.", example_ru: "Позвони мне сразу, если нужна помощь."}
+- {id: suddenly, headword: suddenly, pos: adverb, translation: "вдруг, внезапно", example: "Suddenly, the lights went out.", example_ru: "Вдруг погас свет."}
+- {id: directly, headword: directly, pos: adverb, translation: "прямо, напрямую", example: "This bus goes directly to the airport.", example_ru: "Этот автобус идёт прямо в аэропорт."}
+- {id: slightly, headword: slightly, pos: adverb, translation: "слегка, немного", example: "The shirt is slightly too big.", example_ru: "Рубашка немного великовата."}
+- {id: eventually, headword: eventually, pos: adverb, translation: "в конце концов", example: "We eventually found the hotel.", example_ru: "В конце концов мы нашли отель."}

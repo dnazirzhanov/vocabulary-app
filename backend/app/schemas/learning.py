@@ -35,10 +35,20 @@ class DeckOut(BaseModel):
     id: str
     title: str
     description: str
+    # The course level ("A1–A2") and its order; a later level is locked until the one before is
+    # done (ADR 0014).
+    level: str | None
+    level_order: int
+    locked: bool
     course_goal: CourseGoalOut | None
     word_count: int
     introduced_count: int
     due_count: int
+    # Due cards split as in Anki: still in short learning steps, and long-term reviews.
+    learning_count: int
+    review_count: int
+    # New cards this deck offers today (what is left of the daily pace; 0 on other levels).
+    new_today: int
     # The earliest upcoming review, when nothing is due yet.
     next_due_at: datetime | None
 
@@ -90,10 +100,11 @@ class ActiveSessionOut(BaseModel):
 
 
 class StartStudySession(_Input):
-    """Due reviews from every deck, then new words of this deck up to today's pace."""
+    """One deck: its due cards, then its new words up to today's pace. No deck: every level's
+    due cards, then the current level's new words («Продолжить»)."""
 
     kind: Literal["study"]
-    deck_id: Annotated[str, StringConstraints(max_length=64)]
+    deck_id: Annotated[str, StringConstraints(max_length=64)] | None = None
 
 
 class StartHardSession(_Input):
@@ -171,15 +182,17 @@ class RecallRate(BaseModel):
 
 
 class ProgressOut(BaseModel):
-    deck_id: str
+    """The whole course: where the learner stands on its words and how steadily they practise."""
+
     words: WordStages
     today: DayActivity
     daily_goal: int
     streak_days: int
-    # The last 7 local days, oldest first.
-    week: list[DayActivity]
+    # Days with any points in the last year, oldest first; the calendar fills the gaps with zeros.
+    activity: list[DayActivity]
+    # The weekly commitment the learner chose (days per week with the daily goal met).
+    study_days_per_week: int
     recall: RecallRate
-    points_total: int
 
 
 class DeckWordOut(BaseModel):

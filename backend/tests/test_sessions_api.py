@@ -12,8 +12,8 @@ from app.models import DeckWord, User, UserWordProgress
 from tests.support import Play, at, rate
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-STUDY = {"kind": "study", "deck_id": "starter"}
-HARD = {"kind": "hard", "deck_id": "starter"}
+STUDY = {"kind": "study", "deck_id": "a1-a2"}
+HARD = {"kind": "hard", "deck_id": "a1-a2"}
 OTHER_USER = {"X-Dev-User": "other"}
 
 
@@ -40,8 +40,10 @@ def test_a_first_session_shows_new_cards_with_their_answer_and_interval_hints(
     client: TestClient,
 ) -> None:
     decks = client.get("/api/decks").json()
-    assert [(d["id"], d["word_count"], d["introduced_count"]) for d in decks] == [
-        ("starter", 30, 0)
+    assert [(d["id"], d["level"], d["word_count"], d["locked"]) for d in decks] == [
+        ("a1-a2", "A1–A2", 100, False),
+        ("b1-b2", "B1–B2", 100, True),
+        ("c1", "C1", 100, True),
     ]
 
     session = start(client).json()
@@ -176,7 +178,7 @@ def test_nothing_to_study_when_the_deck_is_done_and_nothing_is_due(
 ) -> None:
     client.get("/api/decks")  # creates the dev user
     user = db.scalars(select(User)).one()
-    for word_id in db.scalars(select(DeckWord.word_id).where(DeckWord.deck_id == "starter")):
+    for word_id in db.scalars(select(DeckWord.word_id).where(DeckWord.deck_id == "a1-a2")):
         db.add(
             UserWordProgress(
                 user_id=user.id,

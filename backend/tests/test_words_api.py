@@ -7,18 +7,18 @@ from fastapi.testclient import TestClient
 from tests.support import Play, at
 
 DAY_1 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-NEW = {"kind": "study", "deck_id": "starter"}
+NEW = {"kind": "study", "deck_id": "a1-a2"}
 
 
 def statuses(client: TestClient, moment: datetime) -> dict[str, str]:
-    rows = client.get("/api/decks/starter/words", headers=at(moment)).json()
+    rows = client.get("/api/decks/a1-a2/words", headers=at(moment)).json()
     return {row["word"]["id"]: row["status"] for row in rows}
 
 
 def test_every_word_is_listed_in_deck_order_with_nothing_hidden(client: TestClient) -> None:
-    rows = client.get("/api/decks/starter/words").json()
-    assert len(rows) == 30
-    assert [row["position"] for row in rows] == list(range(30))
+    rows = client.get("/api/decks/a1-a2/words").json()
+    assert len(rows) == 100
+    assert [row["position"] for row in rows] == list(range(100))
     assert rows[0]["word"]["headword"] == "house"
     assert rows[0]["word"]["translation"]  # translations are visible before learning
     assert {row["status"] for row in rows} == {"not_started"}
@@ -42,7 +42,7 @@ def test_status_follows_learning(client: TestClient, play: Play) -> None:
 
 def test_another_learner_sees_only_their_own_status(client: TestClient, play: Play) -> None:
     play(NEW, DAY_1)
-    other = client.get("/api/decks/starter/words", headers={"X-Dev-User": "someone-else"}).json()
+    other = client.get("/api/decks/a1-a2/words", headers={"X-Dev-User": "someone-else"}).json()
     assert {row["status"] for row in other} == {"not_started"}
 
 

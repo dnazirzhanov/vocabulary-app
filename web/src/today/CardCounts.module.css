@@ -1,0 +1,44 @@
+/* Three numbers side by side, separated by space alone: the numbers are the content. */
+.counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* The number reads first, its name under it; the markup keeps name → value for screen readers. */
+.count {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end; /* numbers share a top line even when a name wraps */
+  gap: var(--space-1);
+}
+
+.value {
+  margin: 0;
+  font-size: clamp(2.25rem, 1.8rem + 1.6vw, 3rem);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.fresh {
+  color: var(--color-count-new);
+}
+
+.learning {
+  color: var(--color-count-learning);
+}
+
+.review {
+  color: var(--color-count-review);
+}
+
+.count[data-zero] .value {
+  color: var(--color-text-muted);
+}

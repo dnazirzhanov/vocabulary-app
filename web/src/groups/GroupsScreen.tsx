@@ -4,7 +4,6 @@ import { api, describeError } from '../lib/api.ts';
 import { suggestNicknames } from '../lib/nickname.ts';
 import type { Group } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import styles from './Groups.module.css';
@@ -12,13 +11,13 @@ import styles from './Groups.module.css';
 const members = (n: number) => `${n}\u00a0${plural(n, { one: 'участник', few: 'участника', many: 'участников' })}`;
 
 interface GroupsScreenProps {
-  onBack: () => void;
-  onOpen: (groupId: string) => void;
+  /** `created`: the group was just made, so its invitation is the next thing to show. */
+  onOpen: (groupId: string, created: boolean) => void;
   onJoinCode: (code: string) => void;
 }
 
 /** The learner's groups, plus creating one or joining by code. */
-export function GroupsScreen({ onBack, onOpen, onJoinCode }: GroupsScreenProps) {
+export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -34,17 +33,12 @@ export function GroupsScreen({ onBack, onOpen, onJoinCode }: GroupsScreenProps) 
 
   const create = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => onOpen((await api.createGroup(name, nickname)).id));
+    void run(async () => onOpen((await api.createGroup(name, nickname)).id, true));
   };
   const cleanCode = code.replace(/[\s-]/g, '').toUpperCase();
 
   return (
-    <div className={styles.screen}>
-      <header className={styles.topbar}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> На главную
-        </button>
-      </header>
+    <div className={`${styles.screen} ${styles.root}`}>
       <main className={styles.main}>
         <div className={styles.column}>
           <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
@@ -60,7 +54,7 @@ export function GroupsScreen({ onBack, onOpen, onJoinCode }: GroupsScreenProps) 
             <ul className={styles.groupList}>
               {groups.map((group) => (
                 <li key={group.id}>
-                  <button type="button" className={styles.groupCard} onClick={() => onOpen(group.id)}>
+                  <button type="button" className={styles.groupCard} onClick={() => onOpen(group.id, false)}>
                     <strong>{group.name}</strong>
                     <span>
                       {members(group.member_count)} · вы — {group.nickname}

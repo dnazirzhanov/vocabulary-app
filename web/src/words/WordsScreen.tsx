@@ -61,7 +61,7 @@ export function WordsScreen({ deckId, deckTitle, onBack }: WordsScreenProps) {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> На главную
+          <BackIcon aria-hidden="true" /> Назад
         </button>
       </header>
       <main className={styles.main}>

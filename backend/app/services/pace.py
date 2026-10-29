@@ -24,7 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import DeckWord, PaceDismissal, ReviewAttempt, User, UserWordProgress
+from app.models import Deck, DeckWord, PaceDismissal, ReviewAttempt, User, UserWordProgress
 from app.schemas.me import PaceOut, SuggestionOut
 from app.services.progress import INTRODUCTION, local_day_bounds, recall_counts
 from app.services.scheduling import local_date
@@ -195,16 +195,12 @@ def _new_words_by_local_day(
     return {day: int(count) for day, count in rows}
 
 
-def _due_count(db: Session, user: User, deck_id: str, now: datetime) -> int:
+def _due_count(db: Session, user: User, now: datetime) -> int:
+    """Review debt counts every level: reviews of earlier levels are just as due."""
     count = db.scalar(
         select(func.count())
         .select_from(UserWordProgress)
-        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
-        .where(
-            DeckWord.deck_id == deck_id,
-            UserWordProgress.user_id == user.id,
-            UserWordProgress.due_at <= now,
-        )
+        .where(UserWordProgress.user_id == user.id, UserWordProgress.due_at <= now)
     )
     return int(count or 0)
 
@@ -221,14 +217,18 @@ def _answer_gaps(db: Session, user: User, since: datetime) -> list[float]:
     return [float(gap) for gap in db.scalars(select(gaps.c.gap).where(gaps.c.gap.is_not(None)))]
 
 
-def _words_left(db: Session, user: User, deck_id: str) -> int:
+def _words_left(db: Session, user: User) -> int:
+    """New words still to meet in the whole course (every published level)."""
     introduced = (
         select(UserWordProgress.word_id)
         .where(UserWordProgress.user_id == user.id)
         .scalar_subquery()
     )
     left = db.scalar(
-        select(func.count()).where(DeckWord.deck_id == deck_id, DeckWord.word_id.not_in(introduced))
+        select(func.count())
+        .select_from(DeckWord)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(Deck.status == "published", DeckWord.word_id.not_in(introduced))
     )
     return int(left or 0)
 
@@ -256,7 +256,7 @@ def day_plan(db: Session, user: User, deck_id: str, now: datetime, time_zone: Zo
     target = target_of(user)
     started = local_date(user.onboarded_at, time_zone) if user.onboarded_at else None
     week = ramp_week(target, user.ramp_enabled, started, today)
-    return plan_day(target, week, int(new_today or 0), _due_count(db, user, deck_id, now))
+    return plan_day(target, week, int(new_today or 0), _due_count(db, user, now))
 
 
 def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> PaceOut:
@@ -269,7 +269,7 @@ def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: Z
     ]
     # A pace is about new words: once the deck has none left, there is nothing to adjust.
     suggestion = None
-    if _words_left(db, user, deck_id) > 0:
+    if _words_left(db, user) > 0:
         suggestion = suggest(
             plan.target,
             history,

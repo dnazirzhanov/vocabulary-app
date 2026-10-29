@@ -96,7 +96,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/sessions/{id}` | session with exercises and results so far |
 | `POST /api/sessions/{id}/attempts` | `{exercise_id, response: {kind: "rating", rating: 1–4}}` → `{rating, next_due_at, appended, appended_index}` (a card due again within minutes is inserted later in the session) |
 | `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
-| `GET /api/decks/{id}/progress` | word stages (met, reviewing, well learned, due), today's points vs goal, streak, the last 7 local days, delayed-recall rate over 30 days, total points |
+| `GET /api/progress` | the whole course: word stages (met, reviewing, well learned, due), today's points vs goal, streak, a year of days with practice, the weekly commitment, delayed-recall rate over 30 days |
 | `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
 | `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
 | `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |

@@ -9,7 +9,7 @@ import { chromium } from 'playwright-core';
 
 const baseUrl = process.env.BASE_URL ?? 'http://localhost:5173/';
 const outDir = fileURLToPath(new URL('../screenshots/', import.meta.url));
-const wordsFile = fileURLToPath(new URL('../../content/starter-deck/words.yaml', import.meta.url));
+const wordsFile = fileURLToPath(new URL('../../content/a1-a2/words.yaml', import.meta.url));
 
 const viewports = [
   { name: '320-small-mobile', width: 320, height: 568, mobile: true },
@@ -34,7 +34,7 @@ async function loadAnswers() {
 // Plays whole study sessions through the API (same user as the page), rating every card «Легко».
 async function fastForward(request, lessons, _answers, headers) {
   for (let n = 0; n < lessons; n += 1) {
-    const response = await request.post('/api/sessions', { data: { kind: 'study', deck_id: 'starter' }, headers });
+    const response = await request.post('/api/sessions', { data: { kind: 'study' }, headers });
     const session = await response.json();
     for (const card of session.exercises) {
       await request.post(`/api/sessions/${session.id}/attempts`, {
@@ -140,7 +140,7 @@ try {
       await button('Прогресс').click();
       await page.getByRole('heading', { name: 'Прогресс' }).waitFor();
       await shot('06-progress');
-      await button('На главную').click();
+      await button('Сегодня').click();
 
       if (viewport.review) {
         // Ten days later: the five words met above are due and come first.
@@ -159,7 +159,10 @@ try {
       if (viewport.picture) {
         // Up to word 20 via the API; the next lesson's third new word ("key") has a picture.
         const known = async () =>
-          (await (await context.request.get('/api/decks', { headers })).json())[0].introduced_count;
+          (await (await context.request.get('/api/decks', { headers })).json()).reduce(
+            (sum, deck) => sum + deck.introduced_count,
+            0,
+          );
         while ((await known()) < 20) await fastForward(context.request, 1, answers, headers);
         await page.reload();
         await page.getByRole('button', { name: /^(Новые слова|Ещё|Учить)/ }).click();

@@ -31,12 +31,14 @@ from app.services.content import (
 from tests.support import Play, Ratings, at, rate
 
 BACKEND = Path(__file__).resolve().parents[1]
-STARTER_DECK = BACKEND.parent / "content" / "starter-deck"
+CONTENT = BACKEND.parent / "content"
+LEVELS = ("a1-a2", "b1-b2", "c1")
 
 
 @pytest.fixture(scope="session")
 def starter_content() -> DeckContent:
-    return parse_deck(STARTER_DECK)
+    """The first level (A1–A2): the deck most tests study."""
+    return parse_deck(CONTENT / "a1-a2")
 
 
 @pytest.fixture(scope="session")
@@ -46,8 +48,9 @@ def database(starter_content: DeckContent) -> None:
     command.downgrade(config, "base")
     command.upgrade(config, "head")
     with get_sessionmaker()() as db:
-        import_deck(db, starter_content)
-        import_glossary(db, parse_glossary(STARTER_DECK.parent / "glossary.yaml"))
+        for level in LEVELS:
+            import_deck(db, parse_deck(CONTENT / level))
+        import_glossary(db, parse_glossary(CONTENT / "glossary.yaml"))
 
 
 @pytest.fixture

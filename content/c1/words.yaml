@@ -1,0 +1,105 @@
+# C1 words from the Octanove Vocabulary Profile C1/C2 1.0 (Octanove Labs), used under the
+# Creative Commons Attribution-ShareAlike 4.0 International License; this file is therefore
+# shared under CC BY-SA 4.0 as well. Translations and examples are original drafts for review.
+# Field reference: content/a1-a2/words.yaml.
+
+- {id: innovation, headword: innovation, pos: noun, translation: "нововведение, инновация", example: "The company is known for innovation.", example_ru: "Компания известна своими инновациями."}
+- {id: constraint, headword: constraint, pos: noun, translation: "ограничение", example: "Time is our main constraint.", example_ru: "Время — наше главное ограничение."}
+- {id: diversity, headword: diversity, pos: noun, translation: "разнообразие", example: "The city is famous for its cultural diversity.", example_ru: "Город славится культурным разнообразием."}
+- {id: complexity, headword: complexity, pos: noun, translation: "сложность", example: "The complexity of the task surprised us.", example_ru: "Сложность задачи нас удивила."}
+- {id: voluntary, headword: voluntary, pos: adjective, translation: "добровольный", example: "Taking part in the survey is voluntary.", example_ru: "Участие в опросе добровольное."}
+- {id: comprise, headword: comprise, pos: verb, translation: "состоять из, включать", example: "The course will comprise ten lessons.", example_ru: "Курс будет состоять из десяти уроков."}
+- {id: isolate, headword: isolate, pos: verb, translation: "изолировать, отделять", example: "Doctors had to isolate the sick patient.", example_ru: "Врачам пришлось изолировать больного."}
+- {id: hence, headword: hence, pos: adverb, translation: "следовательно, поэтому", example: "The road was closed, hence the delay.", example_ru: "Дорогу закрыли, поэтому и задержка."}
+- {id: mechanism, headword: mechanism, pos: noun, translation: "механизм", example: "The clock has a simple mechanism.", example_ru: "У часов простой механизм."}
+- {id: premise, headword: premise, pos: noun, translation: "предпосылка, исходная мысль", example: "The premise of the film is very original.", example_ru: "Исходная идея фильма очень оригинальна."}
+- {id: trauma, headword: trauma, pos: noun, translation: "травма (психологическая)", example: "It took years to recover from the trauma.", example_ru: "Чтобы оправиться от травмы, понадобились годы."}
+- {id: eccentric, headword: eccentric, pos: adjective, translation: "эксцентричный, чудаковатый", example: "Our neighbour is a kind but eccentric old man.", example_ru: "Наш сосед — добрый, но чудаковатый старик."}
+- {id: compel, headword: compel, pos: verb, translation: "вынуждать, заставлять", example: "Nobody can compel you to sign.", example_ru: "Никто не может заставить вас подписать."}
+- {id: conceive, headword: conceive, pos: verb, translation: "задумать, представить себе", example: "I can't conceive of a better plan.", example_ru: "Я не могу представить себе плана лучше."}
+- {id: assertion, headword: assertion, pos: noun, translation: "утверждение", example: "His assertion was not supported by facts.", example_ru: "Его утверждение не подтверждалось фактами."}
+- {id: conformity, headword: conformity, pos: noun, translation: "соответствие, подчинение нормам", example: "The school values creativity over conformity.", example_ru: "Школа ценит творчество выше подчинения нормам."}
+- {id: unconventional, headword: unconventional, pos: adjective, translation: "нестандартный, необычный", example: "She has an unconventional way of teaching.", example_ru: "У неё необычный подход к преподаванию."}
+- {id: resent, headword: resent, pos: verb, translation: "обижаться, возмущаться", example: "I resent being treated like a child.", example_ru: "Меня возмущает, когда со мной обращаются как с ребёнком."}
+- {id: wary, headword: wary, pos: adjective, translation: "настороженный, осторожный", example: "Be wary of strangers online.", example_ru: "Остерегайтесь незнакомцев в интернете."}
+- {id: perpetuate, headword: perpetuate, pos: verb, translation: "увековечивать, сохранять (нежелательное)", example: "Old jokes can perpetuate harmful ideas.", example_ru: "Старые шутки могут закреплять вредные представления."}
+- {id: effortless, headword: effortless, pos: adjective, translation: "лёгкий, не требующий усилий", example: "She makes dancing look effortless.", example_ru: "У неё танец выглядит лёгким, без усилий."}
+- {id: respite, headword: respite, pos: noun, translation: "передышка", example: "The rain gave us a short respite from the heat.", example_ru: "Дождь дал нам короткую передышку от жары."}
+- {id: suffice, headword: suffice, pos: verb, translation: "быть достаточным", example: "A short answer will suffice.", example_ru: "Короткого ответа будет достаточно."}
+- {id: specimen, headword: specimen, pos: noun, translation: "образец, экземпляр", example: "The museum has a rare specimen of this plant.", example_ru: "В музее есть редкий экземпляр этого растения."}
+- {id: enormously, headword: enormously, pos: adverb, translation: "чрезвычайно, очень сильно", example: "Your help was enormously useful.", example_ru: "Ваша помощь была чрезвычайно полезной."}
+- {id: vertical, headword: vertical, pos: adjective, translation: "вертикальный", example: "Draw a vertical line in the middle of the page.", example_ru: "Проведите вертикальную линию посередине страницы."}
+- {id: knowledgeable, headword: knowledgeable, pos: adjective, translation: "знающий, сведущий", example: "Our guide was very knowledgeable about history.", example_ru: "Наш гид очень хорошо разбирался в истории."}
+- {id: formulate, headword: formulate, pos: verb, translation: "формулировать, разрабатывать", example: "We need to formulate a clear plan.", example_ru: "Нам нужно сформулировать чёткий план."}
+- {id: sacrifice, headword: sacrifice, pos: noun, translation: "жертва", example: "Her parents made a big sacrifice for her education.", example_ru: "Ради её образования родители пошли на большую жертву."}
+- {id: continuity, headword: continuity, pos: noun, translation: "непрерывность, преемственность", example: "The new manager promised continuity.", example_ru: "Новый руководитель пообещал преемственность."}
+- {id: tactful, headword: tactful, pos: adjective, translation: "тактичный", example: "Try to be tactful when you give advice.", example_ru: "Старайся быть тактичным, когда даёшь советы."}
+- {id: beforehand, headword: beforehand, pos: adverb, translation: "заранее", example: "Please call us beforehand.", example_ru: "Пожалуйста, позвоните нам заранее."}
+- {id: gadget, headword: gadget, pos: noun, translation: "гаджет, устройство", example: "He loves every new kitchen gadget.", example_ru: "Он обожает любое новое кухонное устройство."}
+- {id: expire, headword: expire, pos: verb, translation: "истекать (о сроке)", example: "My passport will expire next year.", example_ru: "Срок действия моего паспорта истекает в следующем году."}
+- {id: portable, headword: portable, pos: adjective, translation: "портативный, переносной", example: "We took a portable speaker to the beach.", example_ru: "Мы взяли на пляж портативную колонку."}
+- {id: appliance, headword: appliance, pos: noun, translation: "бытовой прибор", example: "The washing machine is our most useful appliance.", example_ru: "Стиральная машина — наш самый полезный прибор."}
+- {id: relinquish, headword: relinquish, pos: verb, translation: "отказываться, уступать", example: "He refused to relinquish control of the company.", example_ru: "Он отказался уступить контроль над компанией."}
+- {id: tedious, headword: tedious, pos: adjective, translation: "утомительный, нудный", example: "Filling in forms is a tedious job.", example_ru: "Заполнять анкеты — нудная работа."}
+- {id: exert, headword: exert, pos: verb, translation: "оказывать (давление, влияние)", example: "Parents exert a strong influence on children.", example_ru: "Родители оказывают сильное влияние на детей."}
+- {id: alleviate, headword: alleviate, pos: verb, translation: "облегчать, смягчать", example: "This medicine will alleviate the pain.", example_ru: "Это лекарство облегчит боль."}
+- {id: elaborate, headword: elaborate, pos: adjective, translation: "сложный, тщательно продуманный", example: "They prepared an elaborate dinner for the guests.", example_ru: "Они приготовили для гостей изысканный ужин."}
+- {id: detest, headword: detest, pos: verb, translation: "ненавидеть, терпеть не мочь", example: "I detest waiting in long queues.", example_ru: "Терпеть не могу стоять в длинных очередях."}
+- {id: agreeable, headword: agreeable, pos: adjective, translation: "приятный; согласный", example: "We spent an agreeable evening with friends.", example_ru: "Мы провели приятный вечер с друзьями."}
+- {id: speculate, headword: speculate, pos: verb, translation: "строить догадки, рассуждать", example: "It is too early to speculate about the results.", example_ru: "Строить догадки о результатах ещё рано."}
+- {id: disdain, headword: disdain, pos: noun, translation: "презрение, пренебрежение", example: "She looked at the mess with disdain.", example_ru: "Она с презрением посмотрела на беспорядок."}
+- {id: exploit, headword: exploit, pos: verb, translation: "эксплуатировать, использовать", example: "Some companies exploit their workers.", example_ru: "Некоторые компании эксплуатируют своих работников."}
+- {id: offspring, headword: offspring, pos: noun, translation: "потомство, дети", example: "The bird feeds its offspring every hour.", example_ru: "Птица кормит своё потомство каждый час."}
+- {id: oblige, headword: oblige, pos: verb, translation: "обязывать; оказывать услугу", example: "The law will oblige drivers to wear seat belts.", example_ru: "Закон обяжет водителей пристёгиваться."}
+- {id: collaborate, headword: collaborate, pos: verb, translation: "сотрудничать", example: "The two schools collaborate on art projects, and they collaborate well.", example_ru: "Две школы сотрудничают в арт-проектах, и сотрудничают успешно."}
+- {id: advantageous, headword: advantageous, pos: adjective, translation: "выгодный, благоприятный", example: "The new rules are advantageous for small shops.", example_ru: "Новые правила выгодны для маленьких магазинов."}
+- {id: customary, headword: customary, pos: adjective, translation: "обычный, принятый", example: "It is customary to bring a gift.", example_ru: "Принято приносить подарок."}
+- {id: insightful, headword: insightful, pos: adjective, translation: "проницательный, глубокий", example: "Thank you for your insightful comments.", example_ru: "Спасибо за ваши глубокие замечания."}
+- {id: notable, headword: notable, pos: adjective, translation: "заметный, примечательный", example: "There was a notable change in his behaviour.", example_ru: "В его поведении произошла заметная перемена."}
+- {id: vicious, headword: vicious, pos: adjective, translation: "злобный, жестокий", example: "The dog looked vicious, but it was friendly.", example_ru: "Собака выглядела злобной, но оказалась дружелюбной."}
+- {id: withdrawn, headword: withdrawn, pos: adjective, translation: "замкнутый", example: "After the move, the boy became quiet and withdrawn.", example_ru: "После переезда мальчик стал тихим и замкнутым."}
+- {id: depict, headword: depict, pos: verb, translation: "изображать", example: "The painting will depict a winter village.", example_ru: "На картине будет изображена зимняя деревня."}
+- {id: upheaval, headword: upheaval, pos: noun, translation: "потрясение, переворот", example: "Moving abroad was a big upheaval for the family.", example_ru: "Переезд за границу стал для семьи большим потрясением."}
+- {id: pertinent, headword: pertinent, pos: adjective, translation: "уместный, относящийся к делу", example: "Please ask only pertinent questions.", example_ru: "Пожалуйста, задавайте только вопросы по делу."}
+- {id: simplicity, headword: simplicity, pos: noun, translation: "простота", example: "I love the simplicity of this design.", example_ru: "Мне нравится простота этого дизайна."}
+- {id: protagonist, headword: protagonist, pos: noun, translation: "главный герой", example: "The protagonist of the novel is a young doctor.", example_ru: "Главный герой романа — молодой врач."}
+- {id: blockbuster, headword: blockbuster, pos: noun, translation: "блокбастер, кассовый фильм", example: "The film became a summer blockbuster.", example_ru: "Фильм стал летним блокбастером."}
+- {id: resonate, headword: resonate, pos: verb, translation: "находить отклик", example: "Her words resonate with many young people, and they resonate deeply.", example_ru: "Её слова находят отклик у многих молодых людей, и глубокий отклик."}
+- {id: sequel, headword: sequel, pos: noun, translation: "продолжение (фильма, книги)", example: "The sequel was better than the first book.", example_ru: "Продолжение оказалось лучше первой книги."}
+- {id: irony, headword: irony, pos: noun, translation: "ирония", example: "The irony is that the fire station burned down.", example_ru: "Ирония в том, что сгорела пожарная часть."}
+- {id: align, headword: align, pos: verb, translation: "выравнивать, согласовывать", example: "We need to align our plans with the budget.", example_ru: "Нам нужно согласовать планы с бюджетом."}
+- {id: alienate, headword: alienate, pos: verb, translation: "отталкивать, отчуждать", example: "Rude comments can alienate your customers.", example_ru: "Грубые замечания могут оттолкнуть клиентов."}
+- {id: inexplicable, headword: inexplicable, pos: adjective, translation: "необъяснимый", example: "The noise in the attic was inexplicable.", example_ru: "Шум на чердаке был необъяснимым."}
+- {id: harass, headword: harass, pos: verb, translation: "преследовать, донимать", example: "It is illegal to harass people at work.", example_ru: "Преследовать людей на работе незаконно."}
+- {id: hostile, headword: hostile, pos: adjective, translation: "враждебный", example: "The crowd was hostile to the new idea.", example_ru: "Толпа враждебно встретила новую идею."}
+- {id: methodical, headword: methodical, pos: adjective, translation: "методичный", example: "She is a methodical worker who checks everything.", example_ru: "Она методичный работник и всё проверяет."}
+- {id: ruthless, headword: ruthless, pos: adjective, translation: "безжалостный", example: "The villain in the story is ruthless.", example_ru: "Злодей в этой истории безжалостен."}
+- {id: talkative, headword: talkative, pos: adjective, translation: "разговорчивый", example: "My little sister is very talkative.", example_ru: "Моя младшая сестра очень разговорчивая."}
+- {id: dismay, headword: dismay, pos: verb, translation: "огорчать, приводить в смятение", example: "The news will dismay many fans.", example_ru: "Эта новость огорчит многих поклонников."}
+- {id: ferocious, headword: ferocious, pos: adjective, translation: "свирепый, яростный", example: "A ferocious storm hit the coast.", example_ru: "На побережье обрушился яростный шторм."}
+- {id: smug, headword: smug, pos: adjective, translation: "самодовольный", example: "He gave a smug smile after winning.", example_ru: "После победы он самодовольно улыбнулся."}
+- {id: deceit, headword: deceit, pos: noun, translation: "обман, лживость", example: "Their friendship ended because of deceit.", example_ru: "Их дружба закончилась из-за обмана."}
+- {id: persecute, headword: persecute, pos: verb, translation: "преследовать (за убеждения)", example: "No one should persecute people for their beliefs.", example_ru: "Никто не должен преследовать людей за их убеждения."}
+- {id: reluctantly, headword: reluctantly, pos: adverb, translation: "неохотно", example: "He reluctantly agreed to help.", example_ru: "Он неохотно согласился помочь."}
+- {id: timid, headword: timid, pos: adjective, translation: "робкий", example: "The timid girl hid behind her mother.", example_ru: "Робкая девочка спряталась за маму."}
+- {id: avid, headword: avid, pos: adjective, translation: "заядлый, страстный", example: "My grandfather is an avid reader.", example_ru: "Мой дедушка — заядлый читатель."}
+- {id: marvel, headword: marvel, pos: verb, translation: "восхищаться, изумляться", example: "Tourists marvel at the mountains.", example_ru: "Туристы восхищаются горами."}
+- {id: enviable, headword: enviable, pos: adjective, translation: "завидный", example: "She has an enviable job in Paris.", example_ru: "У неё завидная работа в Париже."}
+- {id: accustomed, headword: accustomed, pos: adjective, translation: "привыкший", example: "I am accustomed to getting up early.", example_ru: "Я привык вставать рано."}
+- {id: conform, headword: conform, pos: verb, translation: "соответствовать, подчиняться (правилам)", example: "All products must conform to safety rules.", example_ru: "Все товары должны соответствовать правилам безопасности."}
+- {id: vegetation, headword: vegetation, pos: noun, translation: "растительность", example: "The desert has very little vegetation.", example_ru: "В пустыне очень мало растительности."}
+- {id: fossil, headword: fossil, pos: noun, translation: "окаменелость, ископаемое", example: "The children found a fossil on the beach.", example_ru: "Дети нашли на пляже окаменелость."}
+- {id: ego, headword: ego, pos: noun, translation: "самолюбие, эго", example: "Losing the game hurt his ego.", example_ru: "Проигрыш задел его самолюбие."}
+- {id: puzzle, headword: puzzle, pos: verb, translation: "озадачивать, ставить в тупик", example: "His strange answer will puzzle the teacher.", example_ru: "Его странный ответ озадачит учителя."}
+- {id: exterior, headword: exterior, pos: noun, translation: "внешняя сторона, фасад", example: "The exterior of the house is painted white.", example_ru: "Снаружи дом выкрашен в белый цвет."}
+- {id: coverage, headword: coverage, pos: noun, translation: "освещение (в СМИ); охват", example: "The match got a lot of coverage on TV.", example_ru: "Матч широко освещали по телевизору."}
+- {id: clinical, headword: clinical, pos: adjective, translation: "клинический", example: "The new drug is in clinical trials.", example_ru: "Новое лекарство проходит клинические испытания."}
+- {id: structural, headword: structural, pos: adjective, translation: "структурный, конструктивный", example: "The bridge has serious structural problems.", example_ru: "У моста серьёзные проблемы с конструкцией."}
+- {id: concur, headword: concur, pos: verb, translation: "соглашаться", example: "The doctors concur that rest is the best treatment.", example_ru: "Врачи сходятся во мнении, что отдых — лучшее лечение."}
+- {id: quirk, headword: quirk, pos: noun, translation: "причуда, странность", example: "Wearing odd socks is one of his quirks, and every quirk makes him unique.", example_ru: "Разные носки — одна из его причуд, и каждая причуда делает его особенным."}
+- {id: claustrophobic, headword: claustrophobic, pos: adjective, translation: "тесный, вызывающий клаустрофобию", example: "The tiny office felt claustrophobic.", example_ru: "В крошечном офисе было тесно и душно."}
+- {id: headstrong, headword: headstrong, pos: adjective, translation: "упрямый, своевольный", example: "Their headstrong son never listens to advice.", example_ru: "Их упрямый сын никогда не слушает советов."}
+- {id: gem, headword: gem, pos: noun, translation: "драгоценный камень; жемчужина", example: "This small café is a real gem.", example_ru: "Это маленькое кафе — настоящая жемчужина."}
+- {id: explanatory, headword: explanatory, pos: adjective, translation: "пояснительный", example: "Read the explanatory notes at the end of the book.", example_ru: "Прочитайте пояснительные примечания в конце книги."}
+- {id: subtly, headword: subtly, pos: adverb, translation: "тонко, едва заметно", example: "The colours change subtly in the evening light.", example_ru: "В вечернем свете цвета едва заметно меняются."}
+- {id: extravagance, headword: extravagance, pos: noun, translation: "расточительность, излишество", example: "A new car every year is pure extravagance.", example_ru: "Новая машина каждый год — чистое расточительство."}

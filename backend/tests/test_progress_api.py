@@ -5,16 +5,19 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.models import DeckWord, User, UserWordProgress
 from tests.support import Play, at
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
-START = {"kind": "study", "deck_id": "starter"}
-HARD = {"kind": "hard", "deck_id": "starter"}
+START = {"kind": "study", "deck_id": "a1-a2"}
+HARD = {"kind": "hard", "deck_id": "a1-a2"}
 
 
 def progress(client: TestClient, moment: datetime, time_zone: str = "UTC") -> dict[str, Any]:
-    response = client.get("/api/decks/starter/progress", headers=at(moment, time_zone))
+    response = client.get("/api/progress", headers=at(moment, time_zone))
     assert response.status_code == 200
     result: dict[str, Any] = response.json()
     return result
@@ -24,17 +27,9 @@ def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
     report = progress(client, DAY0)
     assert report["words"] == {"introduced": 0, "reviewing": 0, "well_learned": 0, "due": 0}
     assert report["today"] == {"date": "2026-11-02", "points": 0}
-    assert (report["daily_goal"], report["streak_days"], report["points_total"]) == (30, 0, 0)
-    assert [day["date"] for day in report["week"]] == [
-        "2026-10-27",
-        "2026-10-28",
-        "2026-10-29",
-        "2026-10-30",
-        "2026-10-31",
-        "2026-11-01",
-        "2026-11-02",
-    ]
-    assert all(day["points"] == 0 for day in report["week"])
+    assert (report["daily_goal"], report["streak_days"]) == (30, 0)
+    assert report["activity"] == []  # only days with practice are listed
+    assert report["study_days_per_week"] == 6  # the default weekly commitment
     assert report["recall"] == {"recalled": 0, "reviewed": 0, "days": 30}
 
 
@@ -46,14 +41,14 @@ def test_a_lesson_earns_points_and_meets_the_daily_goal(client: TestClient, play
     assert report["words"] == {"introduced": 5, "reviewing": 5, "well_learned": 0, "due": 0}
     assert report["today"]["points"] == 50
     assert report["streak_days"] == 1
-    assert report["week"][-1] == {"date": "2026-11-02", "points": 50}
+    assert report["activity"] == [{"date": "2026-11-02", "points": 50}]
 
 
 def test_practice_earns_nothing(client: TestClient, play: Play) -> None:
     play(START, DAY0)
     practice = play(HARD, DAY0 + timedelta(hours=1))
     assert practice["points"] == 0
-    assert progress(client, DAY0)["points_total"] == 50
+    assert progress(client, DAY0)["activity"] == [{"date": "2026-11-02", "points": 50}]
 
 
 def test_reviews_earn_points_whatever_the_rating_and_recall_is_measured(
@@ -67,7 +62,10 @@ def test_reviews_earn_points_whatever_the_rating_and_recall_is_measured(
     report = progress(client, later)
     assert report["recall"] == {"recalled": 4, "reviewed": 5, "days": 30}
     assert report["streak_days"] == 1  # a gap of ten days broke the streak
-    assert report["points_total"] == 50 + 75
+    assert report["activity"] == [
+        {"date": "2026-11-02", "points": 50},
+        {"date": "2026-11-12", "points": 75},
+    ]
 
 
 def test_well_learned_once_stable_for_three_weeks(client: TestClient, play: Play) -> None:
@@ -104,9 +102,8 @@ def test_a_daylight_saving_night_is_one_local_day(client: TestClient, play: Play
     late = datetime(2026, 10, 25, 22, 30, tzinfo=UTC)
     play(START, early, time_zone="Europe/Berlin")
     play(START, late, time_zone="Europe/Berlin")
-    week = progress(client, late, "Europe/Berlin")["week"]
-    assert week[-1] == {"date": "2026-10-25", "points": 100}
-    assert week[-2]["points"] == 0
+    activity = progress(client, late, "Europe/Berlin")["activity"]
+    assert activity == [{"date": "2026-10-25", "points": 100}]
 
 
 def test_an_unknown_time_zone_falls_back_to_utc(client: TestClient) -> None:
@@ -114,6 +111,30 @@ def test_an_unknown_time_zone_falls_back_to_utc(client: TestClient) -> None:
         assert progress(client, DAY0, bad)["today"]["date"] == "2026-11-02"
 
 
-def test_progress_for_an_unknown_deck(client: TestClient) -> None:
-    response = client.get("/api/decks/nope/progress")
-    assert (response.status_code, response.json()["error"]["code"]) == (404, "deck_not_found")
+def test_words_count_across_every_level(client: TestClient, db: Session) -> None:
+    client.get("/api/decks")  # creates the dev user
+    user = db.scalars(select(User)).one()
+    for deck_id in ("a1-a2", "b1-b2"):
+        for word_id in db.scalars(
+            select(DeckWord.word_id).where(DeckWord.deck_id == deck_id)
+        ).all()[:3]:
+            db.add(
+                UserWordProgress(
+                    user_id=user.id,
+                    word_id=word_id,
+                    introduced_at=DAY0,
+                    last_seen_at=DAY0,
+                    fsrs_state=2,
+                    stability=30.0,
+                    difficulty=5.0,
+                    due_at=DAY0 + timedelta(days=30),
+                )
+            )
+    db.commit()
+    words = progress(client, DAY0)["words"]
+    assert (words["introduced"], words["well_learned"]) == (6, 6)
+
+
+def test_the_weekly_commitment_follows_the_chosen_pace(client: TestClient) -> None:
+    client.patch("/api/me", json={"study_days_per_week": 4})
+    assert progress(client, DAY0)["study_days_per_week"] == 4

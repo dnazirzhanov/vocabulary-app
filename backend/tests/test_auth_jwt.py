@@ -129,7 +129,7 @@ def test_development_headers_are_ignored_in_jwt_mode(jwt_client: TestClient, db:
 def test_learners_with_different_tokens_are_isolated(jwt_client: TestClient) -> None:
     a, b = bearer(token("learner-a")), bearer(token("learner-b"))
     session = jwt_client.post(
-        "/api/sessions", json={"kind": "study", "deck_id": "starter"}, headers=a
+        "/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}, headers=a
     ).json()
     assert jwt_client.get(f"/api/sessions/{session['id']}", headers=b).status_code == 404
     assert jwt_client.get(f"/api/sessions/{session['id']}", headers=a).status_code == 200

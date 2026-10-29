@@ -1,29 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
-import { PlanScreen } from './plan/PlanScreen.tsx';
 import { BoardScreen } from './groups/BoardScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
+import { NavShell, type NavTab } from './nav/NavShell.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
+import { currentDeck } from './lib/today.ts';
 import type { Deck, Me, Session, Summary } from './lib/types.ts';
+import { courseOf } from './lib/course.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
-import { WordsScreen } from './words/WordsScreen.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 
 type Screen =
   | { name: 'home' }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
-  | { name: 'progress'; deckId: string }
-  | { name: 'plan' }
-  | { name: 'words' }
+  | { name: 'progress' }
   | { name: 'groups' }
-  | { name: 'board'; groupId: string }
+  | { name: 'board'; groupId: string; invite?: boolean }
   | { name: 'join'; code: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
@@ -88,16 +87,16 @@ export function App() {
   return <Learning key={account.email ?? 'dev'} email={account.email} />;
 }
 
-type Profile = { me: Me; deck: Deck | undefined };
+type Profile = { me: Me; decks: Deck[] };
 
-/** The learner's settings and the deck, which decide whether the first-run screens come first. */
+/** The learner's settings and the decks, which decide whether the first-run screens come first. */
 function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(
     () =>
       Promise.all([api.me(), api.listDecks()]).then(
-        ([me, decks]) => setProfile({ me, deck: decks[0] }),
+        ([me, decks]) => setProfile({ me, decks }),
         (caught: unknown) => setError(describeError(caught)),
       ),
     [],
@@ -116,9 +115,17 @@ function useProfile() {
 function Learning({ email }: { email: string | null }) {
   const { profile, setProfile, error, retry } = useProfile();
   const [screen, setScreen] = useState<Screen>(startScreen);
+  // The deck a study session was started for (null: the whole course), so «Дальше» keeps to it.
+  const [scope, setScope] = useState<string | null>(null);
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
   const showSession = useCallback((session: Session) => setScreen({ name: 'session', session }), []);
+  const startSession = useCallback((session: Session, from: string | null) => {
+    setScope(from);
+    setScreen({ name: 'session', session });
+  }, []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
+  // Bumped when the groups change, so the navigation's line about them refreshes.
+  const [navVersion, setNavVersion] = useState(0);
 
   if (error) {
     return (
@@ -131,23 +138,20 @@ function Learning({ email }: { email: string | null }) {
     );
   }
   if (!profile) return null;
-  const { me, deck } = profile;
-  if (deck && !me.onboarded) {
+  const { me, decks } = profile;
+  const current = currentDeck(decks);
+  if (current && !me.onboarded) {
     return (
       <GoalScreen
-        deck={deck}
+        course={courseOf(decks)}
         me={me}
         onDone={(updated) => {
-          setProfile({ me: updated, deck });
+          setProfile({ me: updated, decks });
           setScreen(startScreen());
         }}
       />
     );
   }
-  if (screen.name === 'plan' && deck) {
-    return <PlanScreen deckId={deck.id} onBack={goHome} onSaved={(updated) => setProfile({ me: updated, deck })} />;
-  }
-
   if (screen.name === 'session') {
     return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={goHome} />;
   }
@@ -160,7 +164,7 @@ function Learning({ email }: { email: string | null }) {
         onNext={async () => {
           // Another study session if anything is due or new words remain; otherwise home explains.
           try {
-            showSession(await api.startStudySession(summary.deck_id));
+            showSession(await api.startStudySession(scope));
           } catch (error) {
             if (error instanceof ApiError && error.status === 409) goHome();
             else throw error;
@@ -185,50 +189,68 @@ function Learning({ email }: { email: string | null }) {
       />
     );
   }
-  if (screen.name === 'groups') {
-    return (
-      <GroupsScreen
-        onBack={goHome}
-        onOpen={(groupId) => setScreen({ name: 'board', groupId })}
-        onJoinCode={(code) => setScreen({ name: 'join', code })}
-      />
-    );
-  }
-  if (screen.name === 'board') {
-    return (
-      <BoardScreen
-        key={screen.groupId}
-        groupId={screen.groupId}
-        onBack={goHome}
-        onLeft={() => setScreen({ name: 'groups' })}
-      />
-    );
-  }
-  if (screen.name === 'words' && deck) {
-    return <WordsScreen deckId={deck.id} deckTitle={deck.title} onBack={goHome} />;
-  }
-  if (screen.name === 'progress') {
-    const client = supabase;
-    return (
-      <ProgressScreen
-        deckId={screen.deckId}
-        email={email}
-        onBack={goHome}
-        onSignOut={client ? () => void client.auth.signOut() : undefined}
-        onAccountDeleted={() => {
-          if (client) void client.auth.signOut();
-          else goHome();
-        }}
-      />
-    );
-  }
+
+  // Every other screen sits in the navigation, which stays mounted while the screens change.
+  const refreshNav = () => setNavVersion((version) => version + 1);
+  // Moving between sections also refreshes the line about friends.
+  const navigate = (tab: NavTab, groupId: string | null) => {
+    refreshNav();
+    if (tab === 'today') goHome();
+    else if (tab === 'progress') setScreen({ name: 'progress' });
+    else setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' });
+  };
   return (
-    <HomeScreen
-      onSession={showSession}
-      onProgress={(deckId) => setScreen({ name: 'progress', deckId })}
-      onPlan={() => setScreen({ name: 'plan' })}
-      onWords={() => setScreen({ name: 'words' })}
-      onFriends={(groupId) => setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' })}
-    />
+    <NavShell tab={tabOf(screen)} version={navVersion} onNavigate={navigate}>
+      {tabScreen()}
+    </NavShell>
   );
+
+  function tabScreen() {
+    if (screen.name === 'groups') {
+      return (
+        <GroupsScreen
+          onOpen={(groupId, created) => {
+            refreshNav();
+            setScreen({ name: 'board', groupId, invite: created });
+          }}
+          onJoinCode={(code) => setScreen({ name: 'join', code })}
+        />
+      );
+    }
+    if (screen.name === 'board') {
+      return (
+        <BoardScreen
+          key={screen.groupId}
+          groupId={screen.groupId}
+          inviteOnOpen={screen.invite}
+          onBack={() => setScreen({ name: 'groups' })}
+          onLeft={() => {
+            refreshNav();
+            setScreen({ name: 'groups' });
+          }}
+        />
+      );
+    }
+    if (screen.name === 'progress') {
+      const client = supabase;
+      return (
+        <ProgressScreen
+          email={email}
+          onSignOut={client ? () => void client.auth.signOut() : undefined}
+          onAccountDeleted={() => {
+            if (client) void client.auth.signOut();
+            else goHome();
+          }}
+        />
+      );
+    }
+    return <HomeScreen onSession={startSession} />;
+  }
+}
+
+/** The navigation entry a screen belongs to: decks and their words are part of today. */
+function tabOf(screen: Screen): NavTab {
+  if (screen.name === 'progress') return 'progress';
+  if (screen.name === 'groups' || screen.name === 'board') return 'friends';
+  return 'today';
 }

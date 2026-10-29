@@ -30,7 +30,7 @@ def stale_once(real: Callable[..., Any], stale_value: Any) -> Callable[..., Any]
 def test_simultaneous_answers_to_one_exercise_count_once(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    session = client.post("/api/sessions", json={"kind": "study", "deck_id": "starter"}).json()
+    session = client.post("/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}).json()
     card = session["exercises"][0]
     first = client.post(
         f"/api/sessions/{session['id']}/attempts",
@@ -59,7 +59,7 @@ def test_simultaneous_answers_to_one_exercise_count_once(
 def test_simultaneous_starts_open_one_session(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    opened = client.post("/api/sessions", json={"kind": "study", "deck_id": "starter"}).json()
+    opened = client.post("/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}).json()
 
     # The second request did not see the first request's session yet.
     monkeypatch.setattr(sessions, "_open_session", stale_once(sessions._open_session, None))
@@ -67,7 +67,7 @@ def test_simultaneous_starts_open_one_session(
     again = sessions.start_session(
         db,
         user,
-        StartStudySession(kind="study", deck_id="starter"),
+        StartStudySession(kind="study", deck_id="a1-a2"),
         datetime.now(UTC),
         ZoneInfo("UTC"),
     )

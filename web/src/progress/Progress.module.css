@@ -1,0 +1,266 @@
+/* The two figures of the progress tab: words (a number and a bar) and consistency (a week and a
+   calendar). Shared bits: a big number with its unit beside it, small captions, quiet footnotes. */
+.sectionTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.hero strong {
+  font-size: clamp(3rem, 2.4rem + 3vw, 4.5rem);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hero span {
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+}
+
+/* --- Words ------------------------------------------------------------------------------- */
+
+.bar {
+  position: relative;
+  height: 12px;
+  margin-top: var(--space-4);
+  border-radius: 6px;
+  background: var(--color-activity-none);
+  overflow: hidden;
+}
+
+.barMet,
+.barKnown {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.barMet {
+  background: var(--color-activity-some);
+}
+
+.barKnown {
+  background: var(--color-activity-goal);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+}
+
+/* The number first, its caption under it; the markup keeps caption → number for screen readers. */
+.figures > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.figures dd {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.figures dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.dotKnown,
+.dotMet {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.dotKnown {
+  background: var(--color-activity-goal);
+}
+
+.dotMet {
+  background: var(--color-activity-some);
+}
+
+/* --- Consistency: this week ---------------------------------------------------------------- */
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weekDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.weekDot {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--color-activity-none);
+  color: var(--color-on-primary);
+}
+
+.weekDot svg {
+  width: 55%;
+  height: 55%;
+}
+
+.weekDay[data-level='1'] .weekDot {
+  background: var(--color-activity-some);
+}
+
+.weekDay[data-level='2'] .weekDot {
+  background: var(--color-activity-goal);
+}
+
+/* Days still to come are open outlines: a gap that has not happened yet is not a miss. */
+.weekDay[data-future] .weekDot {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-activity-none);
+}
+
+.weekDay[data-today] .weekDot {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.weekName {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.weekDay[data-today] .weekName {
+  color: var(--color-text);
+}
+
+.weekNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.4em;
+  margin: var(--space-3) 0 var(--space-6);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.weekNote svg {
+  width: 20px;
+  height: 20px;
+  color: var(--color-success);
+}
+
+/* --- Consistency: the calendar ------------------------------------------------------------- */
+
+.calendar {
+  display: grid;
+  grid-template-rows: auto repeat(7, auto);
+  gap: 3px;
+  align-items: center;
+}
+
+.month,
+.rowName {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: var(--weight-strong);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.month {
+  grid-row: 1;
+  padding-bottom: var(--space-1);
+}
+
+.rowName {
+  grid-column: 1;
+  padding-right: var(--space-2);
+}
+
+.cell {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--color-activity-none);
+}
+
+.cell[data-level='1'] {
+  background: var(--color-activity-some);
+}
+
+.cell[data-level='2'] {
+  background: var(--color-activity-goal);
+}
+
+.cell[data-future] {
+  background: transparent;
+}
+
+.cell[data-today] {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legend .cell {
+  width: 14px;
+}
+
+.footnote {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barMet,
+  .barKnown {
+    transition: none;
+  }
+}

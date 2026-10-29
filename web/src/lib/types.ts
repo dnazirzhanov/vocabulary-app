@@ -20,10 +20,19 @@ export interface Deck {
   id: string;
   title: string;
   description: string;
+  /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
+  level: string | null;
+  level_order: number;
+  locked: boolean;
   course_goal: CourseGoal | null;
   word_count: number;
   introduced_count: number;
+  /** Cards due now: `learning_count` still in short learning steps plus `review_count` long-term reviews. */
   due_count: number;
+  learning_count: number;
+  review_count: number;
+  /** New words this deck offers today (what is left of the daily pace; 0 on other levels). */
+  new_today: number;
   /** The earliest upcoming review when nothing is due yet. */
   next_due_at: string | null;
 }
@@ -92,17 +101,18 @@ export interface DayActivity {
   points: number;
 }
 
+/** The whole course (every published level). */
 export interface Progress {
-  deck_id: string;
   words: { introduced: number; reviewing: number; well_learned: number; due: number };
   today: DayActivity;
   daily_goal: number;
   streak_days: number;
-  /** The last 7 local days, oldest first */
-  week: DayActivity[];
+  /** Days with any points in the last year, oldest first; days without practice are absent. */
+  activity: DayActivity[];
+  /** The weekly commitment: days per week with the daily goal met. */
+  study_days_per_week: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
-  points_total: number;
 }
 
 // Mirrors backend/app/schemas/me.py.

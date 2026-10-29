@@ -9,108 +9,787 @@
 # The content validator fails if any word of any example is missing here.
 
 a: {ru: "неопределённый артикль: «один», «какой-то»", note: "перед согласным звуком"}
+able: {ru: "способный; be able to — мочь"}
+about: {ru: "о, об; около"}
+abroad: {ru: "за границей, за границу"}
+access: {ru: "доступ"}
+accustomed: {ru: "привыкший"}
+address: {ru: "адрес"}
+advantageous: {ru: "выгодный"}
+advice: {ru: "совет"}
+affect: {ru: "влиять"}
 after: {ru: "после"}
+afternoon: {ru: "день, время после полудня"}
+age: {ru: "возраст"}
+agreeable: {ru: "приятный"}
+agreed: {ru: "согласился", lemma: agree}
+agreement: {ru: "соглашение, согласие"}
+aim: {ru: "цель"}
+airport: {ru: "аэропорт"}
+alienate: {ru: "отталкивать, отчуждать"}
+align: {ru: "согласовывать, выравнивать"}
+all: {ru: "все, весь"}
+alleviate: {ru: "облегчать"}
+always: {ru: "всегда"}
+am: {ru: "есть, являюсь (форма be)", lemma: be}
+amount: {ru: "количество"}
+an: {ru: "неопределённый артикль перед гласным звуком", lemma: a}
+and: {ru: "и"}
+announce: {ru: "объявлять"}
+answer: {ru: "ответ"}
+any: {ru: "какой-нибудь, любой"}
+apples: {ru: "яблоки", lemma: apple}
+appliance: {ru: "бытовой прибор"}
 are: {ru: "есть, являешься (форма be)", lemma: be}
+around: {ru: "вокруг, по"}
+art: {ru: "искусство"}
+as: {ru: "как, в качестве"}
 ask: {ru: "спросить, задать (вопрос)"}
+assertion: {ru: "утверждение"}
+assume: {ru: "предполагать"}
 at: {ru: "в, на (место)"}
+attend: {ru: "посещать"}
+attic: {ru: "чердак"}
+attract: {ru: "привлекать"}
+autumn: {ru: "осень"}
+available: {ru: "доступный, свободный"}
+avid: {ru: "заядлый"}
+aware: {ru: "осведомлённый"}
+babies: {ru: "младенцы", lemma: baby}
+back: {ru: "спина; назад"}
+bad: {ru: "плохой"}
+bag: {ru: "сумка"}
+balance: {ru: "баланс, равновесие"}
 bank: {ru: "банк"}
+be: {ru: "быть"}
+beach: {ru: "пляж"}
+beautiful: {ru: "красивый"}
+became: {ru: "стал", lemma: become}
+because: {ru: "потому что"}
+bed: {ru: "кровать; before bed — перед сном"}
+before: {ru: "перед, до"}
+beforehand: {ru: "заранее"}
+behaviour: {ru: "поведение"}
+behind: {ru: "за, позади"}
+being: {ru: "будучи; being treated — когда со мной обращаются", lemma: be}
+beliefs: {ru: "убеждения", lemma: belief}
+belts: {ru: "ремни; seat belts — ремни безопасности", lemma: belt}
+benefit: {ru: "польза"}
+benefits: {ru: "польза, преимущества", lemma: benefit}
 best: {ru: "лучший", lemma: good, note: "превосходная степень от good"}
+better: {ru: "лучше", lemma: good}
+between: {ru: "между"}
 big: {ru: "большой"}
 biggest: {ru: "самый большой", lemma: big}
+bird: {ru: "птица"}
+biscuits: {ru: "печенье", lemma: biscuit}
 bishkek: {ru: "Бишкек"}
+blockbuster: {ru: "блокбастер"}
 book: {ru: "книга"}
 books: {ru: "книги", lemma: book}
+boy: {ru: "мальчик"}
 bread: {ru: "хлеб"}
+bridge: {ru: "мост"}
+bring: {ru: "приносить"}
+brother: {ru: "брат"}
+budget: {ru: "бюджет"}
+building: {ru: "здание"}
+burned: {ru: "сгорел", lemma: burn}
+bus: {ru: "автобус"}
 busy: {ru: "занятый"}
+but: {ru: "но"}
 buy: {ru: "покупать, купить"}
+by: {ru: "на (транспорте), к (сроку)"}
 café: {ru: "кафе"}
+call: {ru: "звонить"}
 can: {ru: "мочь, уметь"}
 "can't": {ru: "не может, не могу", lemma: can, note: "= cannot"}
 car: {ru: "машина, автомобиль"}
+career: {ru: "карьера"}
+careful: {ru: "осторожный"}
+cause: {ru: "причина"}
+caused: {ru: "причинил, вызвал", lemma: cause}
+change: {ru: "перемена, изменение"}
 cheap: {ru: "дешёвый"}
+cheapest: {ru: "самый дешёвый", lemma: cheap}
+checks: {ru: "проверяет", lemma: check}
+child: {ru: "ребёнок"}
+children: {ru: "дети", lemma: child}
+cities: {ru: "города", lemma: city}
 city: {ru: "город"}
+classes: {ru: "занятия, уроки", lemma: class}
+claustrophobic: {ru: "тесный, вызывающий клаустрофобию"}
+cleaning: {ru: "уборка", lemma: clean}
+clear: {ru: "ясный, чёткий"}
+clinical: {ru: "клинический"}
+clock: {ru: "часы (настенные)"}
 close: {ru: "закрывать, закрыть"}
+closed: {ru: "закрытый, закрыли", lemma: close}
+coast: {ru: "побережье"}
+coffee: {ru: "кофе"}
+cold: {ru: "холодный; холодно"}
+collaborate: {ru: "сотрудничать"}
+colleague: {ru: "коллега"}
+colours: {ru: "цвета", lemma: colour}
+come: {ru: "приходить"}
+comes: {ru: "приходит, идёт", lemma: come}
+comments: {ru: "замечания, комментарии", lemma: comment}
+community: {ru: "сообщество, местные жители"}
+companies: {ru: "компании", lemma: company}
+company: {ru: "компания"}
+compel: {ru: "заставлять"}
+completely: {ru: "совершенно"}
+complex: {ru: "сложный"}
+complexity: {ru: "сложность"}
+comprise: {ru: "состоять из"}
+conceive: {ru: "представить себе, задумать"}
+conclusion: {ru: "вывод"}
+concur: {ru: "соглашаться"}
+conflict: {ru: "конфликт"}
+conform: {ru: "соответствовать"}
+conformity: {ru: "подчинение нормам"}
+connection: {ru: "соединение, связь"}
+constraint: {ru: "ограничение"}
+contain: {ru: "содержать"}
+continuity: {ru: "преемственность"}
+contract: {ru: "договор"}
+contribute: {ru: "вносить вклад"}
+control: {ru: "контроль"}
+costs: {ru: "расходы", lemma: cost}
+country: {ru: "страна"}
+course: {ru: "курс"}
+coverage: {ru: "освещение в СМИ"}
+creativity: {ru: "творчество"}
+crowd: {ru: "толпа"}
+cultural: {ru: "культурный"}
+cup: {ru: "чашка"}
+current: {ru: "нынешний"}
+customary: {ru: "принятый, обычный"}
+customer: {ru: "клиент"}
+customers: {ru: "клиенты", lemma: customer}
+damage: {ru: "ущерб"}
+dancing: {ru: "танец, танцы", lemma: dance}
+day: {ru: "день"}
+deceit: {ru: "обман"}
+decision: {ru: "решение"}
+deeply: {ru: "глубоко"}
+delay: {ru: "задержка"}
 delicious: {ru: "очень вкусный"}
+deliver: {ru: "доставлять"}
+demand: {ru: "спрос"}
+depict: {ru: "изображать"}
+desert: {ru: "пустыня"}
+design: {ru: "дизайн"}
+determine: {ru: "определять"}
+detest: {ru: "терпеть не мочь"}
+"didn't": {ru: "не (в прошедшем времени)", lemma: do, note: "= did not"}
+diet: {ru: "питание, диета"}
+different: {ru: "разный, другой"}
+difficult: {ru: "трудный"}
+dinner: {ru: "ужин"}
+directly: {ru: "прямо"}
+disdain: {ru: "презрение"}
+disease: {ru: "болезнь"}
+dismay: {ru: "огорчать"}
+distance: {ru: "расстояние"}
+diversity: {ru: "разнообразие"}
+do: {ru: "делать; вспомогательный глагол вопроса"}
+doctor: {ru: "врач"}
+doctors: {ru: "врачи", lemma: doctor}
+does: {ru: "значит (в вопросе: does it mean)", lemma: do}
+dog: {ru: "собака"}
 "don't": {ru: "не (отрицание)", lemma: do, note: "= do not"}
 door: {ru: "дверь"}
+down: {ru: "вниз; burned down — сгорел дотла"}
+draw: {ru: "рисовать, проводить (линию)"}
 drink: {ru: "пить"}
+drivers: {ru: "водители", lemma: driver}
+drug: {ru: "лекарство"}
+early: {ru: "ранний; рано"}
+earthquakes: {ru: "землетрясения", lemma: earthquake}
+easy: {ru: "лёгкий"}
 eat: {ru: "есть, кушать"}
+eccentric: {ru: "чудаковатый"}
+economy: {ru: "экономика"}
+edge: {ru: "край"}
+education: {ru: "образование"}
+effective: {ru: "эффективный"}
+effortless: {ru: "лёгкий, без усилий"}
+eggs: {ru: "яйца", lemma: egg}
+ego: {ru: "самолюбие"}
+elaborate: {ru: "изысканный, тщательно продуманный"}
+employee: {ru: "сотрудник"}
 empty: {ru: "пустой"}
+end: {ru: "конец"}
+ended: {ru: "закончилась", lemma: end}
+energy: {ru: "энергия, силы"}
+english: {ru: "английский язык"}
+enormously: {ru: "чрезвычайно"}
 enough: {ru: "достаточно"}
+ensure: {ru: "убедиться, обеспечить"}
+enviable: {ru: "завидный"}
+environment: {ru: "окружающая среда"}
+equipment: {ru: "оборудование"}
+essential: {ru: "необходимый"}
+evening: {ru: "вечер"}
+eventually: {ru: "в конце концов"}
 every: {ru: "каждый"}
+everyone: {ru: "каждый, все"}
+everything: {ru: "всё"}
+exams: {ru: "экзамены", lemma: exam}
+exert: {ru: "оказывать (влияние)"}
 expensive: {ru: "дорогой"}
+expire: {ru: "истекать"}
+explanatory: {ru: "пояснительный"}
+exploit: {ru: "эксплуатировать"}
+exterior: {ru: "внешняя сторона"}
+extravagance: {ru: "расточительство"}
+eye: {ru: "глаз"}
+eyes: {ru: "глаза", lemma: eye}
+facts: {ru: "факты", lemma: fact}
 family: {ru: "семья"}
+famous: {ru: "знаменитый; famous for — славится"}
+fans: {ru: "поклонники", lemma: fan}
+fast: {ru: "быстрый"}
+father: {ru: "отец, папа"}
+favourite: {ru: "любимый"}
+feeds: {ru: "кормит", lemma: feed}
+felt: {ru: "был, ощущался", lemma: feel}
+ferocious: {ru: "яростный"}
+festival: {ru: "фестиваль"}
+filling: {ru: "заполнение; filling in — заполнять", lemma: fill}
+film: {ru: "фильм"}
 find: {ru: "находить, найти"}
+finished: {ru: "закончил(и)", lemma: finish}
+fire: {ru: "огонь, пожар; fire station — пожарная часть"}
+first: {ru: "первый"}
+flood: {ru: "наводнение"}
+fluently: {ru: "свободно (о речи)"}
 food: {ru: "еда"}
+football: {ru: "футбол"}
 for: {ru: "для, на, за"}
 forget: {ru: "забывать, забыть"}
+forgot: {ru: "забыл", lemma: forget}
+forms: {ru: "анкеты, бланки", lemma: form}
+formulate: {ru: "сформулировать"}
+fossil: {ru: "окаменелость"}
+found: {ru: "нашли", lemma: find}
+free: {ru: "бесплатный"}
 fridge: {ru: "холодильник"}
 friend: {ru: "друг, подруга"}
+friendly: {ru: "дружелюбный"}
+friends: {ru: "друзья", lemma: friend}
+friendship: {ru: "дружба"}
+from: {ru: "от, из"}
+fruit: {ru: "фрукты"}
+funny: {ru: "весёлый, смешной"}
+gadget: {ru: "устройство"}
+game: {ru: "игра"}
+gave: {ru: "дал", lemma: give}
+gem: {ru: "жемчужина, драгоценный камень"}
+get: {ru: "приходить (get home), получать"}
+gets: {ru: "получает", lemma: get}
+getting: {ru: "getting up — вставать", lemma: get}
+gift: {ru: "подарок"}
+girl: {ru: "девочка"}
+give: {ru: "дать"}
 glass: {ru: "стакан"}
+go: {ru: "идти"}
+goes: {ru: "ездит, идёт", lemma: go}
+good: {ru: "хороший"}
+got: {ru: "got — получил; the match got coverage — матч освещали", lemma: get}
+grammar: {ru: "грамматика"}
+grandfather: {ru: "дедушка"}
+grandmother: {ru: "бабушка"}
+great: {ru: "отличный"}
+green: {ru: "зелёный"}
+growth: {ru: "рост"}
+guests: {ru: "гости", lemma: guest}
+guide: {ru: "гид"}
+gym: {ru: "спортзал"}
+had: {ru: "пришлось (had to)", lemma: have}
+hair: {ru: "волосы; short hair — короткая стрижка"}
+hand: {ru: "рука"}
+happy: {ru: "рад, счастливый"}
+harass: {ru: "донимать, преследовать"}
+hard: {ru: "трудно"}
+harmful: {ru: "вредный"}
 has: {ru: "имеет, есть (у него/неё)", lemma: have}
 have: {ru: "иметь, есть (у меня)"}
+he: {ru: "он"}
+head: {ru: "голова"}
+headaches: {ru: "головные боли", lemma: headache}
+headstrong: {ru: "упрямый"}
+health: {ru: "здоровье"}
+healthy: {ru: "здоровый"}
+heat: {ru: "жара"}
 help: {ru: "помогать, помочь"}
+helped: {ru: "помогал(и)", lemma: help}
+hence: {ru: "поэтому"}
+her: {ru: "её, ей"}
 here: {ru: "здесь, тут"}
+hid: {ru: "спряталась", lemma: hide}
+higher: {ru: "выше", lemma: high}
+him: {ru: "его, ему"}
 his: {ru: "его"}
+history: {ru: "история"}
+hit: {ru: "обрушился (о буре)"}
+home: {ru: "дом; домой"}
 homework: {ru: "домашнее задание"}
+hospital: {ru: "больница"}
+hostile: {ru: "враждебный"}
 hot: {ru: "жаркий, горячий"}
+hotel: {ru: "отель"}
+hour: {ru: "час"}
 house: {ru: "дом"}
+huge: {ru: "огромный"}
 hungry: {ru: "голодный"}
+hurt: {ru: "задел"}
+hurts: {ru: "болит", lemma: hurt}
 i: {ru: "я"}
 "i'm": {ru: "я (есть)", lemma: be, note: "= I am"}
+idea: {ru: "идея"}
+ideas: {ru: "идеи, представления", lemma: idea}
+identify: {ru: "определить"}
+if: {ru: "если"}
+illegal: {ru: "незаконный"}
+immediately: {ru: "сразу, немедленно"}
+important: {ru: "важный"}
 in: {ru: "в"}
+income: {ru: "доход"}
+independent: {ru: "самостоятельный"}
+inexplicable: {ru: "необъяснимый"}
+influence: {ru: "влияние"}
+innovation: {ru: "инновация"}
+insightful: {ru: "глубокий, проницательный"}
 interesting: {ru: "интересный"}
+internet: {ru: "интернет"}
+involve: {ru: "включать"}
+irony: {ru: "ирония"}
 is: {ru: "есть, является (форма be)", lemma: be}
+isolate: {ru: "изолировать"}
+issyk: {ru: "Иссык (в названии озера Иссык-Куль)"}
+it: {ru: "это, он, она (о предмете)"}
 "it's": {ru: "это (есть)", lemma: be, note: "= it is"}
+its: {ru: "его, её (о предмете)"}
 jacket: {ru: "куртка"}
 job: {ru: "работа, должность"}
+jokes: {ru: "шутки", lemma: joke}
+keep: {ru: "соблюдать, держать"}
 key: {ru: "ключ"}
+kind: {ru: "добрый; kind of — вид"}
+kinds: {ru: "виды", lemma: kind}
+kitchen: {ru: "кухня"}
+know: {ru: "знать"}
+knowledgeable: {ru: "знающий"}
+known: {ru: "известный", lemma: know}
+kul: {ru: "Куль (в названии озера Иссык-Куль)"}
 kyrgyzstan: {ru: "Кыргызстан"}
+lake: {ru: "озеро"}
+last: {ru: "прошлый"}
+late: {ru: "опоздавший; поздно"}
+law: {ru: "закон"}
+learn: {ru: "учить, выучить"}
+leave: {ru: "оставлять, уходить"}
+lessons: {ru: "уроки", lemma: lesson}
 "let's": {ru: "давай(те)", lemma: let, note: "= let us"}
 library: {ru: "библиотека"}
+life: {ru: "жизнь"}
+light: {ru: "свет"}
+lights: {ru: "свет (лампы)", lemma: light}
+like: {ru: "нравиться; как"}
+limit: {ru: "ограничение"}
+line: {ru: "линия"}
+listens: {ru: "слушает", lemma: listen}
+little: {ru: "маленький, младший"}
 live: {ru: "жить"}
 lives: {ru: "живёт", lemma: live}
+location: {ru: "расположение"}
+locked: {ru: "заперта", lemma: lock}
+long: {ru: "длинный, долгий"}
+look: {ru: "выглядеть"}
+looked: {ru: "посмотрела; выглядела", lemma: look}
+losing: {ru: "проигрыш, проигрывать", lemma: lose}
+loss: {ru: "убыток, потеря"}
+lot: {ru: "a lot — много"}
+love: {ru: "любить, обожать"}
+loves: {ru: "обожает", lemma: love}
+lunch: {ru: "обед"}
+machine: {ru: "машина; washing machine — стиральная машина"}
+made: {ru: "сделал(и)", lemma: make}
+main: {ru: "главный"}
+maintain: {ru: "поддерживать"}
+makes: {ru: "делает, приносит", lemma: make}
+making: {ru: "делать; making progress — делать успехи", lemma: make}
+man: {ru: "мужчина"}
+manager: {ru: "руководитель"}
+many: {ru: "много"}
+market: {ru: "рынок"}
+marvel: {ru: "восхищаться"}
+match: {ru: "матч"}
 me: {ru: "меня, мне"}
+mean: {ru: "значить"}
+mechanism: {ru: "механизм"}
+medicine: {ru: "лекарство"}
+meet: {ru: "встречать; nice to meet you — приятно познакомиться"}
+meeting: {ru: "встреча"}
+mess: {ru: "беспорядок"}
+methodical: {ru: "методичный"}
+middle: {ru: "середина"}
+midnight: {ru: "полночь"}
 money: {ru: "деньги"}
+month: {ru: "месяц"}
+mood: {ru: "настроение"}
+more: {ru: "больше"}
 morning: {ru: "утро"}
+most: {ru: "самый"}
+mother: {ru: "мама"}
+mountains: {ru: "горы", lemma: mountain}
+move: {ru: "переезд"}
+moving: {ru: "переезд, переезжать", lemma: move}
+museum: {ru: "музей"}
+must: {ru: "должен"}
 my: {ru: "мой, моя, моё"}
 name: {ru: "имя"}
 near: {ru: "рядом, возле"}
 need: {ru: "нуждаться; нужно"}
+neighbour: {ru: "сосед"}
+neighbours: {ru: "соседи", lemma: neighbour}
+never: {ru: "никогда"}
 new: {ru: "новый"}
+news: {ru: "новость, новости"}
+next: {ru: "следующий"}
 nice: {ru: "хороший, приятный"}
+night: {ru: "ночь"}
+"no": {ru: "нет, никакой"}
+nobody: {ru: "никто"}
+noise: {ru: "шум"}
+not: {ru: "не"}
+notable: {ru: "заметный"}
+notes: {ru: "примечания", lemma: note}
+novel: {ru: "роман"}
+now: {ru: "сейчас"}
+number: {ru: "номер, число"}
+nurses: {ru: "медсёстры", lemma: nurse}
+nuts: {ru: "орехи", lemma: nut}
+"o'clock": {ru: "час (о времени): one o'clock — час дня"}
+oblige: {ru: "обязывать"}
+observe: {ru: "наблюдать"}
+obvious: {ru: "очевидный"}
+occur: {ru: "случаться"}
+odd: {ru: "непарный, разный (о носках)"}
 of: {ru: "(передаёт родительный падеж: стакан воды)"}
+"off": {ru: "выключить (turn off); off — прочь"}
+office: {ru: "офис"}
+offspring: {ru: "потомство"}
+old: {ru: "старый; ten years old — десять лет"}
 "on": {ru: "на"}
+one: {ru: "один"}
+online: {ru: "в интернете"}
+only: {ru: "только"}
 open: {ru: "открывать, открыть"}
+option: {ru: "вариант"}
+original: {ru: "оригинальный"}
 our: {ru: "наш"}
+out: {ru: "прочь; went out — погас"}
+over: {ru: "над, выше"}
+page: {ru: "страница"}
+pain: {ru: "боль"}
+painted: {ru: "покрашен", lemma: paint}
+painting: {ru: "картина"}
+parents: {ru: "родители", lemma: parent}
+paris: {ru: "Париж"}
+park: {ru: "парк"}
+part: {ru: "участие; take part — участвовать"}
+particular: {ru: "определённый, особый"}
+party: {ru: "вечеринка"}
+passport: {ru: "паспорт"}
+patient: {ru: "пациент, больной"}
+pen: {ru: "ручка"}
+people: {ru: "люди", lemma: person}
+perfect: {ru: "идеальный"}
+perpetuate: {ru: "закреплять, увековечивать"}
+persecute: {ru: "преследовать"}
+pertinent: {ru: "уместный, по делу"}
 phone: {ru: "телефон"}
+picnic: {ru: "пикник"}
+pizza: {ru: "пицца"}
+place: {ru: "место"}
+plan: {ru: "план"}
+plans: {ru: "планы", lemma: plan}
+plant: {ru: "растение"}
+play: {ru: "играть"}
 please: {ru: "пожалуйста"}
+portable: {ru: "портативный"}
+positive: {ru: "позитивный"}
+possibility: {ru: "возможность"}
+potential: {ru: "потенциальный"}
+precious: {ru: "ценный"}
+premise: {ru: "исходная идея"}
+prepared: {ru: "приготовили", lemma: prepare}
+previous: {ru: "предыдущий"}
+problem: {ru: "проблема"}
+problems: {ru: "проблемы", lemma: problem}
+products: {ru: "товары", lemma: product}
+profit: {ru: "прибыль"}
+progress: {ru: "успехи, прогресс"}
+project: {ru: "проект"}
+projects: {ru: "проекты", lemma: project}
+promised: {ru: "пообещал", lemma: promise}
+protagonist: {ru: "главный герой"}
+protect: {ru: "защищать"}
+prove: {ru: "доказать"}
+pure: {ru: "чистый"}
+puzzle: {ru: "озадачить"}
 question: {ru: "вопрос"}
+questions: {ru: "вопросы", lemma: question}
+queues: {ru: "очереди", lemma: queue}
 quiet: {ru: "тихий"}
+quirk: {ru: "причуда"}
+quirks: {ru: "причуды", lemma: quirk}
+rain: {ru: "дождь"}
+raise: {ru: "поднимать"}
+rare: {ru: "редкий"}
+reached: {ru: "достигли, пришли к", lemma: reach}
+read: {ru: "читать"}
+reader: {ru: "читатель"}
+real: {ru: "настоящий"}
+reality: {ru: "реальность"}
+recipe: {ru: "рецепт"}
+recognize: {ru: "узнать"}
+recommend: {ru: "посоветовать"}
+recover: {ru: "оправиться, выздороветь"}
+reduce: {ru: "сократить"}
+refused: {ru: "отказался", lemma: refuse}
+region: {ru: "регион"}
+relationship: {ru: "отношения"}
+relinquish: {ru: "уступить, отказаться"}
+reluctantly: {ru: "неохотно"}
 remember: {ru: "помнить"}
+remove: {ru: "снимать, убирать"}
+report: {ru: "отчёт"}
+require: {ru: "потребовать"}
+resent: {ru: "возмущаться, обижаться"}
+resonate: {ru: "находить отклик"}
+resource: {ru: "ресурс"}
+respect: {ru: "уважение"}
+respite: {ru: "передышка"}
+responsibility: {ru: "обязанность, ответственность"}
+responsible: {ru: "ответственный"}
+rest: {ru: "отдых"}
+results: {ru: "результаты", lemma: result}
+right: {ru: "прав, правый"}
+risk: {ru: "риск"}
 river: {ru: "река"}
+road: {ru: "дорога"}
+room: {ru: "комната"}
+rude: {ru: "грубый"}
+rules: {ru: "правила", lemma: rule}
+russian: {ru: "русский язык; по-русски"}
+ruthless: {ru: "безжалостный"}
+sacrifice: {ru: "жертва"}
+safety: {ru: "безопасность"}
+saw: {ru: "увидел; the city saw growth — город вырос", lemma: see}
 school: {ru: "школа"}
+schools: {ru: "школы", lemma: school}
+scientists: {ru: "учёные", lemma: scientist}
+season: {ru: "время года"}
+seat: {ru: "место (сиденье)"}
+see: {ru: "видеть; посмотреть"}
+sells: {ru: "продаёт", lemma: sell}
+sequel: {ru: "продолжение"}
+serious: {ru: "серьёзный"}
 she: {ru: "она"}
+shirt: {ru: "рубашка"}
+shoes: {ru: "обувь, туфли", lemma: shoe}
+shop: {ru: "магазин"}
+shops: {ru: "магазины", lemma: shop}
+short: {ru: "короткий"}
+should: {ru: "следует, должен"}
+show: {ru: "проявлять, показывать"}
+sick: {ru: "больной"}
+sign: {ru: "подписать"}
+simple: {ru: "простой"}
+simplicity: {ru: "простота"}
+sister: {ru: "сестра"}
+six: {ru: "шесть"}
+sixty: {ru: "шестьдесят"}
+sleep: {ru: "спать; сон"}
+sleeping: {ru: "спит", lemma: sleep}
+slightly: {ru: "немного"}
+slow: {ru: "медленный"}
 small: {ru: "маленький"}
+smile: {ru: "улыбка; улыбаться"}
+smiles: {ru: "улыбается", lemma: smile}
+smug: {ru: "самодовольный"}
+snow: {ru: "снег"}
+socks: {ru: "носки", lemma: sock}
+solved: {ru: "разрешили, решили", lemma: solve}
 some: {ru: "немного, несколько"}
+something: {ru: "что-то"}
+sometimes: {ru: "иногда"}
+son: {ru: "сын"}
+sorry: {ru: "извините, простите"}
+soup: {ru: "суп"}
+speak: {ru: "говорить"}
+speaker: {ru: "колонка (динамик)"}
+specimen: {ru: "экземпляр, образец"}
+speculate: {ru: "строить догадки"}
+speed: {ru: "скорость"}
+spent: {ru: "провели", lemma: spend}
+stand: {ru: "стоять"}
+stars: {ru: "звёзды", lemma: star}
+started: {ru: "начала", lemma: start}
+station: {ru: "станция; fire station — пожарная часть"}
+stay: {ru: "оставаться"}
+storm: {ru: "буря, шторм"}
+story: {ru: "история, рассказ"}
+strange: {ru: "странный"}
+strangers: {ru: "незнакомцы", lemma: stranger}
 street: {ru: "улица"}
+stress: {ru: "стресс"}
+strong: {ru: "сильный"}
+structural: {ru: "конструктивный"}
+students: {ru: "студенты", lemma: student}
+studying: {ru: "изучают", lemma: study}
+subtly: {ru: "едва заметно"}
+suddenly: {ru: "вдруг"}
+suffer: {ru: "страдать"}
+suffice: {ru: "быть достаточным"}
+summer: {ru: "лето"}
+sunday: {ru: "воскресенье"}
+sunglasses: {ru: "солнцезащитные очки"}
+supply: {ru: "запас"}
+supported: {ru: "подтверждалось", lemma: support}
+suppose: {ru: "полагать"}
+surface: {ru: "поверхность"}
+surprised: {ru: "удивил(а)", lemma: surprise}
+survey: {ru: "опрос"}
+table: {ru: "стол"}
+tactful: {ru: "тактичный"}
+take: {ru: "взять; take part — участвовать"}
+takes: {ru: "длится, занимает", lemma: take}
+taking: {ru: "ехать (на автобусе); принимать участие", lemma: take}
+talk: {ru: "разговаривать"}
+talkative: {ru: "разговорчивый"}
+talked: {ru: "поговорили", lemma: talk}
+talking: {ru: "разговор", lemma: talk}
+task: {ru: "задача"}
 taxi: {ru: "такси"}
 tea: {ru: "чай"}
+teacher: {ru: "учитель"}
+teachers: {ru: "учителя", lemma: teacher}
+teaching: {ru: "преподавание", lemma: teach}
+team: {ru: "команда"}
+tedious: {ru: "нудный"}
+tell: {ru: "рассказать"}
+ten: {ru: "десять"}
+test: {ru: "тест"}
+tests: {ru: "анализы, тесты", lemma: test}
+than: {ru: "чем"}
+thank: {ru: "благодарить; thank you — спасибо"}
+that: {ru: "тот, та; что"}
 the: {ru: "определённый артикль: «этот», «тот самый»"}
+their: {ru: "их"}
+theory: {ru: "теория"}
+there: {ru: "там; there is — есть"}
+these: {ru: "эти", lemma: this}
 they: {ru: "они"}
+think: {ru: "думать"}
 this: {ru: "этот, эта, это"}
+thought: {ru: "думали", lemma: think}
+time: {ru: "время"}
+timid: {ru: "робкий"}
+tiny: {ru: "крошечный"}
 tired: {ru: "уставший"}
+tiring: {ru: "утомительный"}
 to: {ru: "к, в; частица перед глаголом (to buy — купить)"}
 today: {ru: "сегодня"}
+tomorrow: {ru: "завтра"}
+tonight: {ru: "сегодня вечером"}
 too: {ru: "слишком; тоже"}
+took: {ru: "понадобилось (it took years); взяли", lemma: take}
+tourism: {ru: "туризм"}
+tourists: {ru: "туристы", lemma: tourist}
+trauma: {ru: "травма"}
+travel: {ru: "путешествовать; поездки"}
+treated: {ru: "обращаются", lemma: treat}
+treatment: {ru: "лечение"}
+trials: {ru: "испытания", lemma: trial}
+trip: {ru: "поездка"}
+try: {ru: "стараться"}
+turn: {ru: "повернуть; turn off — выключить"}
+tv: {ru: "телевизор; on TV — по телевизору"}
+twice: {ru: "дважды"}
+two: {ru: "два"}
 umbrella: {ru: "зонт"}
+uncle: {ru: "дядя"}
+unconventional: {ru: "необычный, нестандартный"}
+understand: {ru: "понимать"}
+unique: {ru: "особенный, уникальный"}
+until: {ru: "до (о времени)"}
+up: {ru: "вверх; get up — вставать"}
+upheaval: {ru: "потрясение"}
+us: {ru: "нас, нам", lemma: we}
+useful: {ru: "полезный"}
+usually: {ru: "обычно"}
+values: {ru: "ценит", lemma: value}
+variety: {ru: "разнообразие"}
+various: {ru: "разные"}
+vegetation: {ru: "растительность"}
+vertical: {ru: "вертикальный"}
 very: {ru: "очень"}
+vicious: {ru: "злобный"}
+village: {ru: "деревня"}
+villain: {ru: "злодей"}
+voluntary: {ru: "добровольный"}
 wait: {ru: "ждать, подождать"}
+waiting: {ru: "ждать, стоять в ожидании", lemma: wait}
+walk: {ru: "ходить пешком"}
+walking: {ru: "ходьба", lemma: walk}
+want: {ru: "хотеть"}
+wants: {ru: "хочет", lemma: want}
+warm: {ru: "тёплый"}
+warn: {ru: "предупредить"}
+wary: {ru: "осторожный, настороженный"}
+was: {ru: "был, была, было", lemma: be}
+washes: {ru: "моет", lemma: wash}
+washing: {ru: "стирка; washing machine — стиральная машина", lemma: wash}
 water: {ru: "вода"}
+way: {ru: "способ"}
+we: {ru: "мы"}
+wear: {ru: "носить; wear seat belts — пристёгиваться"}
+wearing: {ru: "носить", lemma: wear}
 weather: {ru: "погода"}
+week: {ru: "неделя"}
+weeks: {ru: "недели", lemma: week}
+well: {ru: "хорошо"}
+went: {ru: "went out — погас", lemma: go}
+wet: {ru: "мокрый"}
+what: {ru: "что, какой"}
+when: {ru: "когда"}
 where: {ru: "где, куда"}
+white: {ru: "белый"}
+who: {ru: "кто; который"}
+whole: {ru: "весь, целый"}
+will: {ru: "будет (будущее время)"}
 window: {ru: "окно"}
+winner: {ru: "победитель"}
+winning: {ru: "победа", lemma: win}
+winter: {ru: "зима"}
 with: {ru: "с"}
+withdrawn: {ru: "замкнутый"}
+woman: {ru: "женщина"}
+word: {ru: "слово"}
+words: {ru: "слова", lemma: word}
 work: {ru: "работа; работать"}
+worker: {ru: "работник"}
+workers: {ru: "работники", lemma: worker}
+world: {ru: "мир"}
+would: {ru: "бы; would like — хотел бы"}
+write: {ru: "написать"}
+year: {ru: "год"}
+years: {ru: "лет, годы", lemma: year}
 you: {ru: "ты, вы"}
+young: {ru: "молодой"}
 your: {ru: "твой, ваш"}

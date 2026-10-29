@@ -37,6 +37,17 @@
   --color-series-met: #fa5d19;
   --color-series-firm: #2d6db5;
 
+  /* Today's cards, in Anki's colours (each always next to its label): new, learning, review. */
+  --color-count-new: #2d6db5;        /* 5.03:1 on paper */
+  --color-count-learning: #b8440f;   /* 5.15:1 on paper */
+  --color-count-review: #1f7a3d;     /* 5.10:1 on paper */
+
+  /* Days practised (calendar, week): nothing, some practice, daily goal met. Each is also named in
+     text; the shades differ in lightness for readers who can't tell the hues apart. */
+  --color-activity-none: #ebe7e2;
+  --color-activity-some: #ffc9a8;
+  --color-activity-goal: #fa5d19;
+
   /* The path scene: calm water, so orange stays for the current stone and the action. */
   --color-water: #e3f0f9;
   --color-water-wave: #c9e0f1;

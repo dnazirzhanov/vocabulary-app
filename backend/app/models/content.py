@@ -1,4 +1,4 @@
-from sqlalchemy import ARRAY, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ARRAY, ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -14,6 +14,9 @@ class Deck(Base):
     explanation_language: Mapped[str] = mapped_column(String(8))
     status: Mapped[str] = mapped_column(String(16))
     content_version: Mapped[int]
+    # Course level ("A1–A2") and its order: learners go through levels in this order.
+    level: Mapped[str | None] = mapped_column(String(16))
+    level_order: Mapped[int] = mapped_column(server_default=text("0"))
     # The course goal promised to learners (deck.yaml `course_goal`), only when it has a source.
     goal_words: Mapped[int | None]
     goal_coverage_percent: Mapped[int | None]

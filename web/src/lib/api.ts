@@ -65,7 +65,9 @@ export const api = {
   listDecks: () => request<Deck[]>('GET', '/decks'),
   activeSession: () => request<{ session: Session | null }>('GET', '/sessions/active'),
   /** Due cards from every level, then today's new words of this deck (resumes an open session). */
-  startStudySession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'study', deck_id: deckId }),
+  /** One deck's cards, or with no deck every level's due cards and the current level's new words. */
+  startStudySession: (deckId: string | null) =>
+    request<Session>('POST', '/sessions', deckId ? { kind: 'study', deck_id: deckId } : { kind: 'study' }),
   /** Extra practice on the learner's hardest words; the schedule is not changed. */
   startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),
   // Safe to retry: the server keeps exactly one rating per showing.
@@ -75,7 +77,7 @@ export const api = {
       response: { kind: 'rating', rating },
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
-  deckProgress: (deckId: string) => request<Progress>('GET', `/decks/${deckId}/progress`),
+  progress: () => request<Progress>('GET', '/progress'),
   deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),
