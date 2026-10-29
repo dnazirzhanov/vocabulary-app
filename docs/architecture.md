@@ -102,6 +102,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
 | `GET /api/groups/{id}/board` | the week's board: places by days practised then points, week dots, streaks, the shared goal; members only |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
+| `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
 | `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
 | `GET /api/me/pace?deck_id=` | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion |
 | `POST /api/me/pace/dismiss` | `{kind: "lower" \| "raise"}`: that suggestion stays quiet for 7 days |

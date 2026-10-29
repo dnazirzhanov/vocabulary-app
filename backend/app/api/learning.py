@@ -14,6 +14,7 @@ from app.schemas.learning import (
     AttemptResultOut,
     DeckOut,
     DeckWordOut,
+    GlossaryEntryOut,
     ProgressOut,
     SessionOut,
     StartSessionIn,
@@ -84,3 +85,9 @@ def deck_progress(
 def deck_words(deck_id: str, user: CurrentUser, db: DbSession) -> list[DeckWordOut]:
     sessions.require_published_deck(db, deck_id)
     return words.deck_words(db, user, deck_id)
+
+
+@router.get("/glossary")
+def glossary(user: CurrentUser, db: DbSession) -> dict[str, GlossaryEntryOut]:
+    """Every word form used in example sentences, for tap-a-word (small: one request per visit)."""
+    return words.glossary(db)

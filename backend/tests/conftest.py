@@ -21,7 +21,13 @@ from sqlalchemy.orm import Session
 from app.core.db import get_engine, get_sessionmaker
 from app.core.ratelimit import reset_limits
 from app.main import create_app
-from app.services.content import DeckContent, import_deck, parse_deck
+from app.services.content import (
+    DeckContent,
+    import_deck,
+    import_glossary,
+    parse_deck,
+    parse_glossary,
+)
 from tests.support import Play, Ratings, at, rate
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -41,6 +47,7 @@ def database(starter_content: DeckContent) -> None:
     command.upgrade(config, "head")
     with get_sessionmaker()() as db:
         import_deck(db, starter_content)
+        import_glossary(db, parse_glossary(STARTER_DECK.parent / "glossary.yaml"))
 
 
 @pytest.fixture

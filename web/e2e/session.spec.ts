@@ -3,11 +3,13 @@ import { button, expect, finishSession, study, test } from './learner.ts';
 test('a new learner studies five flashcards and the progress survives a reload', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('0 из 30 слов')).toBeVisible();
+  // Each new card says its word by itself, from the recorded file.
+  const spoken = page.waitForRequest(/\/audio\/words\/house\.mp3$/);
   await button(page, 'Начать урок · 5 слов').click();
+  await spoken;
 
-  // The front shows only the word; the answer appears on request, with the ratings.
+  // The front shows only the word and its audio; the answer appears on request, with the ratings.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
-  await expect(page.getByText('Новое слово')).toBeVisible();
   await expect(page.getByText('дом')).toHaveCount(0);
   await button(page, 'Показать ответ').click();
   await expect(page.getByText('дом', { exact: true })).toBeVisible();
@@ -34,7 +36,25 @@ test('a card rated «Снова» comes back later in the same session', async (
   await study(page, 'Легко'); // friend
   await study(page, 'Легко'); // buy
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
-  await expect(page.getByText('Вспомните перевод')).toBeVisible();
+  await expect(page.getByText('дом', { exact: true })).toHaveCount(0); // the front again
+});
+
+test('every word of the example opens its meaning, and a tap elsewhere closes it', async ({ page }) => {
+  await page.goto('/');
+  await button(page, 'Начать урок · 5 слов').click();
+  await button(page, 'Показать ответ').click();
+
+  await page.getByRole('button', { name: 'river', exact: true }).click();
+  const popover = page.getByRole('dialog', { name: 'river: перевод' });
+  await expect(popover).toContainText('река');
+  const heard = page.waitForRequest(/\/audio\/glossary\/river\.mp3$/);
+  await popover.getByRole('button', { name: 'Послушать: river' }).click();
+  await heard;
+
+  await page.getByRole('button', { name: 'live', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'live: перевод' })).toContainText('жить');
+  await page.locator('[data-card]').click({ position: { x: 10, y: 10 } });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('the keyboard works like Anki: Space shows the answer, number keys rate', async ({ page }) => {

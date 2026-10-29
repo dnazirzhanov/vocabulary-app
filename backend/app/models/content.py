@@ -42,3 +42,14 @@ class DeckWord(Base):
     )
     word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
     position: Mapped[int]
+
+
+class GlossaryForm(Base):
+    """A word form used in an example sentence and its Russian meaning, for tap-a-word."""
+
+    __tablename__ = "glossary"
+
+    form: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ru: Mapped[str] = mapped_column(String(200))
+    lemma: Mapped[str | None] = mapped_column(String(64))
+    note: Mapped[str | None] = mapped_column(String(120))

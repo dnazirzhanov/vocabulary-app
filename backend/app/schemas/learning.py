@@ -191,3 +191,11 @@ class DeckWordOut(BaseModel):
     # · well_learned: stage >= 4 ("currently well learned", ADR 0006).
     status: Literal["not_started", "new", "learning", "well_learned"]
     next_review_at: datetime | None
+
+
+class GlossaryEntryOut(BaseModel):
+    """What a tapped word in an example shows: its meaning, dictionary form and a short note."""
+
+    ru: str
+    lemma: str | None
+    note: str | None

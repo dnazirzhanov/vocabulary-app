@@ -191,3 +191,10 @@ export interface Board {
   rows: BoardRow[];
   goal: { done: number; target: number };
 }
+
+/** A word form from an example sentence (backend glossary). */
+export interface GlossaryEntry {
+  ru: string;
+  lemma: string | null;
+  note: string | null;
+}

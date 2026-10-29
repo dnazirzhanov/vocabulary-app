@@ -1,14 +1,15 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
-import { partOfSpeech } from '../lib/partOfSpeech.ts';
-import { canSpeak, speak } from '../lib/speech.ts';
-import type { CardExercise, Rating, Session, Summary } from '../lib/types.ts';
-import { AlertIcon, CloseIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { autoplayEnabled, playAudio, preloadAudio, setAutoplay } from '../lib/audio.ts';
+import { tokenize } from '../lib/tokens.ts';
+import type { CardExercise, GlossaryEntry, Rating, Session, Summary } from '../lib/types.ts';
+import { AlertIcon, CloseIcon, MuteIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { formatInterval, reduceCardRun, remaining, startCardRun } from './cardRun.ts';
 import { LessonProgress } from './LessonProgress.tsx';
 import styles from './LessonScreen.module.css';
+import { WordPopover } from './WordPopover.tsx';
 
 interface LessonScreenProps {
   session: Session;
@@ -24,46 +25,66 @@ const RATINGS: { rating: Rating; label: string; tone: string }[] = [
   { rating: 4, label: 'Легко', tone: 'easy' },
 ];
 
-function Highlighted({ sentence, word }: { sentence: string; word: string }) {
-  const parts = sentence.split(new RegExp(`(\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i'));
+function ListenButton({ onPlay, label, small }: { onPlay: () => void; label: string; small?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={small ? `${styles.listen} ${styles.listenSmall}` : styles.listen}
+      onClick={onPlay}
+      aria-label={label}
+    >
+      <SpeakerIcon />
+    </button>
+  );
+}
+
+type Tapped = { text: string; form: string; anchor: HTMLElement };
+
+/** The example sentence, every word a button that opens its meaning; the card's word is marked. */
+function TappableSentence({
+  sentence,
+  headword,
+  onTap,
+}: {
+  sentence: string;
+  headword: string;
+  onTap: (t: Tapped) => void;
+}) {
+  const target = headword.toLowerCase();
   return (
     <>
-      {parts.map((part, index) =>
-        index % 2 === 1 ? (
-          <mark key={index} className={styles.highlight}>
-            {part}
-          </mark>
+      {tokenize(sentence).map((part, index) =>
+        part.key ? (
+          <button
+            key={index}
+            type="button"
+            className={part.key === target ? `${styles.token} ${styles.highlight}` : styles.token}
+            onClick={(event) => onTap({ text: part.text, form: part.key!, anchor: event.currentTarget })}
+          >
+            {part.text}
+          </button>
         ) : (
-          part
+          <span key={index}>{part.text}</span>
         ),
       )}
     </>
   );
 }
 
-function ListenButton({ text, label }: { text: string; label: string }) {
-  if (!canSpeak) return null;
-  return (
-    <button type="button" className={styles.listen} onClick={() => speak(text)} aria-label={label}>
-      <SpeakerIcon />
-    </button>
-  );
-}
-
 /** The card itself: the word on the front; translation, picture and example on the back. */
-function Card({ card, revealed }: { card: CardExercise; revealed: boolean }) {
+function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean; onTap: (t: Tapped) => void }) {
   const { word } = card;
-  const pos = partOfSpeech(word.pos);
   return (
     <article className={styles.card} data-revealed={revealed || undefined} data-card={card.id}>
-      <p className={styles.cardLabel}>{card.new ? 'Новое слово' : revealed ? 'Ответ' : 'Вспомните перевод'}</p>
       <div className={styles.wordRow}>
         <h1 className={styles.word} lang="en" tabIndex={-1} data-autofocus>
           {word.headword}
         </h1>
-        <ListenButton text={word.headword} label={`Послушать: ${word.headword}`} />
+        <ListenButton
+          onPlay={() => void playAudio('words', word.id, word.headword)}
+          label={`Послушать: ${word.headword}`}
+        />
       </div>
-      <p className={styles.pos}>{pos.full}</p>
       {revealed && (
         <div className={styles.back}>
           <p className={styles.translation}>{word.translation}</p>
@@ -71,17 +92,26 @@ function Card({ card, revealed }: { card: CardExercise; revealed: boolean }) {
           <div className={styles.example}>
             <p lang="en" className={styles.exampleEn}>
               <span>
-                <Highlighted sentence={word.example} word={word.headword} />
+                <TappableSentence sentence={word.example} headword={word.headword} onTap={onTap} />
               </span>
-              <ListenButton text={word.example} label="Послушать пример" />
+              <ListenButton
+                small
+                onPlay={() => void playAudio('examples', word.id, word.example)}
+                label="Послушать пример"
+              />
             </p>
             <p className={styles.exampleRu}>{word.example_ru}</p>
+            <p className={styles.tapHint}>Нажмите на любое слово, чтобы увидеть перевод</p>
           </div>
         </div>
       )}
     </article>
   );
 }
+
+// One request per visit: the glossary is small and the same for every card.
+let glossaryRequest: Promise<Record<string, GlossaryEntry>> | null = null;
+const loadGlossary = () => (glossaryRequest ??= api.glossary().catch(() => ((glossaryRequest = null), {})));
 
 export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps) {
   const [state, dispatch] = useReducer(reduceCardRun, session, startCardRun);
@@ -91,6 +121,22 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   const revealed = state.phase !== 'front';
   const mainRef = useRef<HTMLElement>(null);
   const inflight = useRef<string | null>(null);
+  const [tapped, setTapped] = useState<Tapped | null>(null);
+  const closeTapped = useCallback(() => setTapped(null), []);
+  const [glossary, setGlossary] = useState<Record<string, GlossaryEntry>>({});
+  const [autoplay, setAutoplayState] = useState(autoplayEnabled);
+  useEffect(() => {
+    void loadGlossary().then(setGlossary);
+  }, []);
+
+  // Each new card says its word, as soon as it appears (the learner can turn this off); the next
+  // card's word is loaded meanwhile so it plays without a delay.
+  useEffect(() => {
+    if (state.phase !== 'front') return;
+    if (autoplay) void playAudio('words', card.word.id, card.word.headword);
+    const next = state.cards[state.index + 1];
+    if (next) preloadAudio('words', next.word.id);
+  }, [card.id, state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Server round trips follow the phase; the ref keeps one request per step even when an effect
   // runs twice. The server's one-rating-per-showing rule is the real guarantee.
@@ -131,7 +177,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if ((event.target as Element).closest('input, textarea, select')) return;
+      if ((event.target as Element).closest('input, textarea, select, [role="dialog"]')) return;
       const number = Number(event.key);
       if (state.phase === 'front' && (event.key === ' ' || event.key === 'Enter')) {
         event.preventDefault();
@@ -157,6 +203,19 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
             <CloseIcon />
           </button>
           <LessonProgress answered={state.results.length} total={state.cards.length} />
+          <button
+            type="button"
+            className={styles.autoplay}
+            aria-pressed={autoplay}
+            aria-label="Произносить слово автоматически"
+            title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
+            onClick={() => {
+              setAutoplay(!autoplay);
+              setAutoplayState(!autoplay);
+            }}
+          >
+            {autoplay ? <SpeakerIcon /> : <MuteIcon />}
+          </button>
           <p className={styles.counters} aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}`}>
             <span className={styles.countNew}>
               <strong>{left.fresh}</strong> нов.
@@ -170,9 +229,19 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
 
       <main ref={mainRef} className={styles.main}>
         <div key={card.id} className={styles.cardWrap}>
-          <Card card={card} revealed={revealed} />
+          <Card card={card} revealed={revealed} onTap={setTapped} />
         </div>
       </main>
+
+      {tapped && (
+        <WordPopover
+          text={tapped.text}
+          form={tapped.form}
+          entry={glossary[tapped.form]}
+          anchor={tapped.anchor}
+          onClose={closeTapped}
+        />
+      )}
 
       <footer className={styles.bar}>
         <div className={styles.barInner}>

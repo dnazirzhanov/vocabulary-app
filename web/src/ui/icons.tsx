@@ -87,3 +87,10 @@ export const CalendarIcon = (props: IconProps) => (
     <path d="M3.5 10h17M8 3v4M16 3v4" />
   </svg>
 );
+
+export const MuteIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" />
+    <path d="M16 9.5l5 5M21 9.5l-5 5" />
+  </svg>
+);

@@ -3,7 +3,7 @@ import { plural } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
-import { canSpeak, speak } from '../lib/speech.ts';
+import { playAudio } from '../lib/audio.ts';
 import type { DeckWord, WordStatus } from '../lib/types.ts';
 import { BackIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -155,16 +155,14 @@ function WordRow({ row }: { row: DeckWord }) {
           </p>
           <p className={styles.translation}>{word.translation}</p>
         </div>
-        {canSpeak && (
-          <button
-            type="button"
-            className={styles.listen}
-            onClick={() => speak(word.headword)}
-            aria-label={`Послушать: ${word.headword}`}
-          >
-            <SpeakerIcon />
-          </button>
-        )}
+        <button
+          type="button"
+          className={styles.listen}
+          onClick={() => void playAudio('words', word.id, word.headword)}
+          aria-label={`Послушать: ${word.headword}`}
+        >
+          <SpeakerIcon />
+        </button>
       </div>
       <div className={styles.meta}>
         <span className={styles.status} data-status={status}>

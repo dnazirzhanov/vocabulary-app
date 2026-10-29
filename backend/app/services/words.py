@@ -6,8 +6,8 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import DeckWord, User, UserWordProgress, Word
-from app.schemas.learning import DeckWordOut, WordOut
+from app.models import DeckWord, GlossaryForm, User, UserWordProgress, Word
+from app.schemas.learning import DeckWordOut, GlossaryEntryOut, WordOut
 from app.services.scheduling import LEARNING, is_well_learned
 
 Status = Literal["not_started", "new", "learning", "well_learned"]
@@ -50,3 +50,10 @@ def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
         )
         for position, word, progress in rows
     ]
+
+
+def glossary(db: Session) -> dict[str, GlossaryEntryOut]:
+    return {
+        row.form: GlossaryEntryOut(ru=row.ru, lemma=row.lemma, note=row.note)
+        for row in db.scalars(select(GlossaryForm).order_by(GlossaryForm.form))
+    }
