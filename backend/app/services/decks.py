@@ -45,6 +45,7 @@ from app.schemas.decks import (
     SuggestOut,
     TeacherDeckOut,
     TeacherWordOut,
+    TopicIn,
     valid_headword,
 )
 from app.schemas.groups import AssignmentMemberOut, AssignmentOut, GroupProgressOut
@@ -400,6 +401,22 @@ def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider
     for word in body.words:
         named.setdefault(" ".join(word.lower().split()), word)
     cards = provider.fill(list(named.values()), body.level)
+    added, skipped = _save_drafts(db, deck, cards, set(present), room)
+    db.commit()
+    return GenerateOut(
+        deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
+    )
+
+
+def topic(db: Session, user: User, deck_id: str, body: TopicIn, provider: Provider) -> GenerateOut:
+    """Cards for a topic (ADR 0019): the AI chooses the words, avoiding the deck's own; the same
+    checks as a draft from text."""
+    deck = _owned_deck(db, user, deck_id)
+    present = _present(db, deck)
+    room = MAX_WORDS_PER_DECK - len(present)
+    if room <= 0:
+        raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
+    cards = provider.topic(body.topic, min(body.count, room), body.level, present)
     added, skipped = _save_drafts(db, deck, cards, set(present), room)
     db.commit()
     return GenerateOut(

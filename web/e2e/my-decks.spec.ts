@@ -60,3 +60,16 @@ test('a deck given to a group is in its members’ «Мои колоды»', asy
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
 });
+
+// A topic becomes cards (ADR 0019): the fourth way in the composer, demo provider here.
+test('a topic gives a deck the words for it', async ({ page, context }) => {
+  await context.request.post('/api/decks', { data: { title: 'Путешествия' } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Изменить «Путешествия»' }).click();
+  await page.getByRole('tab', { name: 'Тема' }).click();
+  await page.getByRole('textbox', { name: 'Тема' }).fill('в аэропорту');
+  await page.getByRole('radio', { name: '5', exact: true }).check();
+  await button(page, 'Составить карточки · 5').click();
+  await expect(page.getByRole('status').filter({ hasText: 'Добавлено' })).toContainText('Добавлено: 5');
+  await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('5');
+});

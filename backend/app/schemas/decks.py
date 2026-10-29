@@ -86,6 +86,14 @@ class FillIn(_Input):
     level: Level = "B1"
 
 
+class TopicIn(_Input):
+    """A topic to make cards for (ADR 0019): the AI chooses the words a learner needs for it."""
+
+    topic: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+    count: Literal[5, 10, 15, 20] = 10
+    level: Level = "B1"
+
+
 class SuggestIn(_Input):
     headword: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
     level: Level = "B1"

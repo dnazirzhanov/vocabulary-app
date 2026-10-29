@@ -284,3 +284,13 @@ def test_deepseek_fills_cards_for_the_words_named() -> None:
     assert "The learner names the words" in system and "json" in system
     assert "Learners' level: A2." in user and "- carry out\n- reluctant" in user
     assert completions.requests[0]["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+def test_deepseek_chooses_words_for_a_topic() -> None:
+    completions = Completions(CARD_JSON)
+    cards = deepseek(completions).topic("в аэропорту", 10, "A2", ["passport"])
+    assert [card.headword for card in cards] == ["carry out"]
+    system, user = (message["content"] for message in completions.requests[0]["messages"])
+    assert "names a topic" in system and "json" in system
+    assert "Learners' level: A2. Choose 10 words or phrases." in user
+    assert "Already in the deck: passport." in user and "<topic>\nв аэропорту\n</topic>" in user

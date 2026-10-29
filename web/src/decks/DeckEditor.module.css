@@ -93,7 +93,7 @@
 /* A segmented control: the chosen way is a raised segment, named in words. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-1);
   padding: var(--space-1);
   border-radius: var(--radius-md);
@@ -122,6 +122,20 @@
   background: var(--color-surface);
   box-shadow: 0 1px 0 var(--color-option-edge);
   color: var(--color-text);
+}
+
+/* Four ways on a small phone: slightly smaller labels and gaps, so all stay on one line (after the
+   rules above, which it overrides). */
+@media (max-width: 374px) {
+  .tabs {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .tab {
+    padding: 0 2px;
+    font-size: 0.8125rem;
+  }
 }
 
 .pane,

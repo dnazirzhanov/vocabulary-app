@@ -28,6 +28,11 @@ English word and the app writes the rest. Decks need a place of their own, not t
   its translation. Cards are saved with the checks and flags of ADR 0018; unusable ones are
   reported. In the manual form, «Заполнить с ИИ» suggests the rest of a card for the typed word
   without saving it. Both count toward the 20 drafts a day.
+- **Cards for a topic.** A fourth way in the editor's composer, «Тема»: a topic (Russian or English),
+  a level and how many words (5–20). The AI chooses what a learner at that level needs to talk
+  about it — nouns, verbs and set phrases — avoiding the deck's words, and writes full cards with
+  the same checks. It counts toward the 20 drafts a day. The composer's tabs read «Слова · Тема ·
+  Текст · Вручную»; on small phones their labels shrink a little so all four stay on one line.
 - **Pronunciation: the device's voice for now.** Words without a recording are read by the
   browser's English voice (ADR 0013's fallback); the editor has a listen button per word. Recorded
   audio for user words needs a text-to-speech service and is a later milestone.

@@ -16,6 +16,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { AlertIcon, BackIcon, CheckIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { GeneratePanel } from './GeneratePanel.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
+import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 
@@ -36,9 +37,10 @@ const FLAGS: Record<WordFlag, string> = {
   example_without_word: 'в примере нет этого слова',
   example_long: 'длинный пример',
 };
-type ComposerMode = 'words' | 'text' | 'manual';
+type ComposerMode = 'words' | 'topic' | 'text' | 'manual';
 const COMPOSER_MODES: { value: ComposerMode; label: string }[] = [
   { value: 'words', label: 'Слова' },
+  { value: 'topic', label: 'Тема' },
   { value: 'text', label: 'Текст' },
   { value: 'manual', label: 'Вручную' },
 ];
@@ -255,6 +257,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy }: DeckEditorPro
             </div>
             <div id={`pane-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`} className={styles.pane}>
               {mode === 'words' && <QuickAddPanel deckId={deck.id} onAdded={drafted} />}
+              {mode === 'topic' && <TopicPanel deckId={deck.id} onAdded={drafted} />}
               {mode === 'text' && <GeneratePanel deckId={deck.id} onDrafted={drafted} />}
               {mode === 'manual' && (
                 <form

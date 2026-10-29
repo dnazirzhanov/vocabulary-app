@@ -131,6 +131,9 @@ export const api = {
   /** Full cards from the words named, saved to the deck. */
   fillWords: (deckId: string, words: string[], level: string) =>
     request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level }, 120_000),
+  /** Cards for a topic: the AI chooses the words a learner needs for it (ADR 0019). */
+  topicWords: (deckId: string, topic: string, count: number, level: string) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/topic`, { topic, count, level }, 120_000),
   /** One card filled in for the manual form, not saved. */
   suggestWord: (deckId: string, headword: string, level: string) =>
     request<SuggestedCard>('POST', `/decks/${deckId}/words/suggest`, { headword, level }, 60_000),

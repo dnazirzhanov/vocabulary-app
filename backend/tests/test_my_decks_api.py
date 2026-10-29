@@ -200,3 +200,25 @@ def test_deleting_a_deck_takes_its_cards_and_their_progress(
     spelling = client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel")).json()
     assert spelling["kind"] == "spelling" and len(spelling["exercises"]) == 1  # money
     assert client.delete(f"/api/decks/{deck['id']}", headers=as_("olga")).status_code == 404
+
+
+def test_a_topic_becomes_cards_for_it(client: TestClient) -> None:
+    deck = personal_deck(client)
+    url = f"/api/decks/{deck['id']}/words/topic"
+    first = client.post(
+        url, json={"topic": "в аэропорту", "count": 5, "level": "A2"}, headers=as_("pavel")
+    ).json()
+    assert (first["provider"], first["added"]) == ("demo", 5)
+    taken = [w["word"]["headword"] for w in first["deck"]["words"]]
+    # Asked again, it chooses words the deck doesn't have yet.
+    second = client.post(
+        url, json={"topic": "в аэропорту", "count": 5}, headers=as_("pavel")
+    ).json()
+    again = [w["word"]["headword"] for w in second["deck"]["words"]][5:]
+    assert len(again) == 5 and not set(again) & set(taken)
+
+    assert client.post(url, json={"topic": "x"}, headers=as_("pavel")).status_code == 422
+    assert (
+        client.post(url, json={"topic": "еда", "count": 7}, headers=as_("pavel")).status_code == 422
+    )
+    assert client.post(url, json={"topic": "еда"}, headers=as_("ivan")).status_code == 404

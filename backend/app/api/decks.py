@@ -21,6 +21,7 @@ from app.schemas.decks import (
     SuggestIn,
     SuggestOut,
     TeacherDeckOut,
+    TopicIn,
 )
 from app.services import decks, sessions
 from app.services.generation import DemoProvider, Provider, provider_for
@@ -106,6 +107,18 @@ def fill(
 ) -> GenerateOut:
     """Full cards from the words I name, saved to the deck (ADR 0019)."""
     return decks.fill(db, user, deck_id, body, provider)
+
+
+@router.post("/decks/{deck_id}/words/topic", dependencies=[Depends(limit_generations)])
+def topic(
+    deck_id: DeckId,
+    body: TopicIn,
+    user: CurrentUser,
+    db: DbSession,
+    provider: Annotated[Provider, Depends(get_provider)],
+) -> GenerateOut:
+    """Cards for a topic, saved to the deck (ADR 0019)."""
+    return decks.topic(db, user, deck_id, body, provider)
 
 
 @router.post("/decks/{deck_id}/words/suggest", dependencies=[Depends(limit_generations)])

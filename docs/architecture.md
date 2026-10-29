@@ -110,6 +110,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019) |
 | `DELETE /api/decks/{id}` | my deck, for good: its own cards and everyone's progress on them, its unfinished lessons and assignments; finished lessons stay without a deck (ADR 0019) |
 | `GET /api/decks/library` | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019) |
+| `POST /api/decks/{id}/words/topic` | cards for a topic `{topic, count, level}`: the AI chooses the words, saved with checks (ADR 0019) |
 | `POST /api/decks/{id}/words/fill`, `POST …/words/suggest` | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019) |
 | `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |
 | `POST /api/decks/{id}/words`, `PUT …/words/{word_id}`, `DELETE …/words/{word_id}` | add (a course word is linked), correct, take out a word |
