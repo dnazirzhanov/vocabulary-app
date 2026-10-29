@@ -1,0 +1,378 @@
+/*
+ * The path: a column of stones winding across water, levels marked by a plank sign, a finish
+ * island at the end. Stones shift sideways by --shift (−1…1) × --amp, wider on large screens.
+ */
+.scene {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-water);
+  /* Soft wave strokes, drawn once and repeated. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M8 20q10-7 20 0t20 0M70 48q10-7 20 0t20 0' fill='none' stroke='%23c9e0f1' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  overflow: hidden;
+}
+
+.track {
+  --amp: clamp(28px, 13vw, 56px);
+  position: relative;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+}
+
+.levels,
+.stones {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level + .level {
+  margin-top: var(--space-4);
+}
+
+.levelMark {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: max-content;
+  margin: 0 auto var(--space-3);
+  padding: var(--space-1) var(--space-4);
+  border: var(--border-control) solid var(--illo-line);
+  border-radius: var(--radius-sm);
+  background: var(--illo-sand);
+  box-shadow: 0 3px 0 var(--illo-line);
+  font-weight: var(--weight-display);
+}
+
+.levelMark small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.levelMark[data-state='current'] {
+  background: var(--color-primary-tint);
+}
+
+.levelMark[data-state='locked'] {
+  border-color: var(--color-option-edge-hover);
+  box-shadow: 0 3px 0 var(--color-option-edge-hover);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.stoneItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  margin-inline: auto;
+  padding: var(--space-3) 0;
+  translate: calc(var(--shift) * var(--amp)) 0;
+}
+
+/* Each shifted stone is its own stacking context; the one showing its words goes on top. */
+.stoneItem:has(.popover) {
+  z-index: 3;
+}
+
+/* Room above the current stone for the frog. */
+.stoneItem[data-state='current'] {
+  padding-top: var(--space-7);
+}
+
+.stone {
+  position: relative;
+  display: block;
+  width: 120px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.stone:focus-visible {
+  outline-offset: 0;
+}
+
+.stoneSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ripple {
+  fill: none;
+  stroke: var(--color-water-wave);
+  stroke-width: 3;
+}
+
+.stoneSide,
+.stoneTop {
+  stroke: var(--illo-line);
+  stroke-width: 3;
+}
+
+.stoneSide {
+  fill: #d6cabb;
+}
+
+.stoneTop {
+  fill: #efe7dc;
+}
+
+.stoneSvg[data-state='locked'] .stoneSide {
+  fill: #d4d1cd;
+  stroke: #9b958e;
+}
+
+.stoneSvg[data-state='locked'] .stoneTop {
+  fill: #ebe9e6;
+  stroke: #9b958e;
+}
+
+.stoneSvg[data-state='current'] .stoneSide {
+  fill: #f0b896;
+}
+
+.stoneSvg[data-state='current'] .stoneTop {
+  fill: var(--color-primary-tint);
+}
+
+.stoneSvg[data-state='firm'] .stoneTop {
+  fill: var(--color-success-tint);
+}
+
+.stoneSvg[data-state='firm'] .stoneSide {
+  fill: #b6d8c0;
+}
+
+.moss path {
+  fill: none;
+  stroke: var(--color-success);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.check {
+  fill: none;
+  stroke: var(--color-success);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stoneNumber {
+  fill: var(--color-text);
+  font-size: 26px;
+  font-weight: var(--weight-display);
+}
+
+.stoneSvg[data-state='locked'] .stoneNumber {
+  fill: var(--color-text-muted);
+}
+
+.due {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--space-2);
+  border: var(--border-control) solid var(--illo-line);
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-display);
+}
+
+.due svg {
+  width: 14px;
+  height: 14px;
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: 8px;
+  background: rgb(227 240 249 / 0.85);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.stoneItem[data-state='current'] .caption {
+  color: var(--color-text);
+}
+
+.pips {
+  display: flex;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.pips i {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--illo-line);
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.pips i[data-on] {
+  background: var(--color-primary);
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% - var(--space-2));
+  left: 50%;
+  translate: -50% 0;
+  z-index: 3;
+  min-width: 200px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow:
+    0 0 0 var(--border-control) var(--illo-line),
+    0 4px 0 var(--illo-line);
+}
+
+.popoverTitle {
+  margin-bottom: var(--space-1);
+  font-weight: var(--weight-display);
+}
+
+.popover ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.popover li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 2px 0;
+  font-weight: var(--weight-strong);
+}
+
+.popoverStatus {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-body);
+}
+
+.finish {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: var(--space-5);
+  text-align: center;
+}
+
+.finish svg {
+  width: 150px;
+}
+
+.finishTitle {
+  font-weight: var(--weight-display);
+}
+
+.finishNote {
+  max-width: 260px;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.frog {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.frog svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.banner {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  z-index: 4;
+  translate: -50% 0;
+  padding: var(--space-3) var(--space-5);
+  border: var(--border-control) solid var(--illo-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 4px 0 var(--illo-line);
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  white-space: nowrap;
+  animation: banner-in var(--duration-enter) var(--ease-pop) both;
+}
+
+.splash {
+  position: absolute;
+  inset: -12px;
+  border: 3px solid var(--color-water-wave);
+  border-radius: var(--radius-lg);
+  animation: splash 900ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+@keyframes splash {
+  from {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner,
+  .splash {
+    animation: none;
+  }
+
+  .splash {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .track {
+    --amp: 110px;
+    padding: var(--space-6) var(--space-6) var(--space-7);
+  }
+
+  .stone {
+    width: 132px;
+  }
+}

@@ -26,5 +26,5 @@ test('every deck word can be browsed, filtered and searched', async ({ page }) =
   await expect(page.getByText('Ничего не нашлось.')).toBeVisible();
 
   await button(page, 'На главную').click();
-  await expect(page.getByRole('heading', { name: 'Первые слова' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Уровень 1 из 3' })).toBeVisible();
 });

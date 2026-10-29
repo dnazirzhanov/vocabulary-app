@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural } from '../i18n/plural.ts';
-import { Illustration } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
+import { serverNow } from '../lib/clock.ts';
+import { buildPath } from '../lib/path.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
+import type { Deck, DeckWord, Pace, Progress, Session } from '../lib/types.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { ChartIcon, FlameIcon, TargetIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { PathView } from '../path/PathView.tsx';
 import styles from './HomeScreen.module.css';
 import { SuggestionCard } from './SuggestionCard.tsx';
 
-type Loaded = { deck: Deck | undefined; active: Session | null; progress: Progress | null; pace: Pace | null };
+type Loaded = {
+  deck: Deck | undefined;
+  active: Session | null;
+  progress: Progress | null;
+  pace: Pace | null;
+  words: DeckWord[];
+};
 type Action = { label: string; run: () => Promise<void> };
 
 interface HomeScreenProps {
@@ -20,17 +28,6 @@ interface HomeScreenProps {
   onProgress: (deckId: string) => void;
   onGoal: () => void;
   onWords: () => void;
-}
-
-/** Decorative cover for the deck: a few everyday objects in the house illustration style. */
-function DeckArt() {
-  return (
-    <div className={styles.art} aria-hidden="true">
-      <Illustration id="umbrella" className={styles.artLeft} />
-      <Illustration id="kettle" className={styles.artRight} />
-      <Illustration id="key" className={styles.artCenter} />
-    </div>
-  );
 }
 
 export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScreenProps) {
@@ -46,10 +43,14 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
         .then(async ([decks, active]) => {
           const deck = decks[0];
           // Progress and pace are secondary on this screen: if they fail, home still works.
-          const [progress, pace] = deck
-            ? await Promise.all([api.deckProgress(deck.id).catch(() => null), api.pace(deck.id).catch(() => null)])
-            : [null, null];
-          setLoaded({ deck, active: active.session, progress, pace });
+          const [progress, pace, words] = deck
+            ? await Promise.all([
+                api.deckProgress(deck.id).catch(() => null),
+                api.pace(deck.id).catch(() => null),
+                api.deckWords(deck.id),
+              ])
+            : [null, null, []];
+          setLoaded({ deck, active: active.session, progress, pace, words });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [],
@@ -84,7 +85,7 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
     );
   }
 
-  const { deck, active, progress, pace } = loaded;
+  const { deck, active, progress, pace, words } = loaded;
   if (!deck) {
     return (
       <main className={styles.message}>
@@ -94,6 +95,7 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
     );
   }
 
+  const path = buildPath(words, serverNow());
   const met = deck.introduced_count;
   const due = deck.due_count;
   const newLeft = met < deck.word_count;
@@ -156,48 +158,31 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
         </span>
         <nav className={styles.links} aria-label="Разделы">
           <button type="button" className={styles.progressLink} onClick={onGoal}>
-            <TargetIcon aria-hidden="true" /> Цель
+            <TargetIcon aria-hidden="true" /> <span className={styles.linkLabel}>Цель</span>
           </button>
           <button type="button" className={styles.progressLink} onClick={() => onProgress(deck.id)}>
-            <ChartIcon aria-hidden="true" /> Прогресс
+            <ChartIcon aria-hidden="true" /> <span className={styles.linkLabel}>Прогресс</span>
           </button>
         </nav>
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
-          <div className={styles.stage}>
-            <DeckArt />
-          </div>
           <div className={styles.intro}>
-            <p className={styles.eyebrow}>Колода</p>
+            <p className={styles.eyebrow}>{deck.title}</p>
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              {deck.title}
+              {path.current ? (
+                <>
+                  Уровень {path.current.level} <span className={styles.titleOf}>из {path.levels.length}</span>
+                </>
+              ) : (
+                deck.title
+              )}
             </h1>
-            <p className={styles.description}>{deck.description}</p>
-            <button type="button" className={styles.wordsLink} onClick={onWords}>
-              Все слова колоды · {deck.word_count}
-            </button>
-          </div>
-          <section className={styles.progress} aria-labelledby="deck-progress">
-            {pace && newLeft && <TodayPlan pace={pace} />}
-            <h2 id="deck-progress" className={styles.progressLabel}>
-              Вы познакомились
-            </h2>
-            <p className={styles.progressValue}>
-              <strong>{met}</strong> из {deck.word_count}&nbsp;
-              {plural(deck.word_count, { one: 'слова', few: 'слов', many: 'слов' })}
+            <p className={styles.position}>
+              {path.current && !path.complete && `Камень ${path.current.number} из ${path.stones.length} · `}
+              {met} из {deck.word_count}&nbsp;{plural(deck.word_count, { one: 'слова', few: 'слов', many: 'слов' })}
             </p>
-            <div
-              className={styles.track}
-              role="progressbar"
-              aria-labelledby="deck-progress"
-              aria-valuemin={0}
-              aria-valuemax={deck.word_count}
-              aria-valuenow={met}
-              aria-valuetext={`${met} из ${deck.word_count}`}
-            >
-              <div className={styles.fill} style={{ width: `${(met / deck.word_count) * 100}%` }} />
-            </div>
+            {pace && newLeft && <TodayPlan pace={pace} />}
             <p className={styles.note}>{note}</p>
             {pace?.suggestion && !active && (
               <div className={styles.suggestion}>
@@ -215,7 +200,13 @@ export function HomeScreen({ onSession, onProgress, onGoal, onWords }: HomeScree
                 />
               </div>
             )}
-          </section>
+            <button type="button" className={styles.wordsLink} onClick={onWords}>
+              Все слова колоды · {deck.word_count}
+            </button>
+          </div>
+          <div className={styles.pathColumn}>
+            <PathView path={path} deckWords={deck.word_count} courseWords={deck.course_goal?.target_words ?? null} />
+          </div>
         </div>
       </main>
       {primary && (

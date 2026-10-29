@@ -106,6 +106,16 @@ Requests carry `X-Time-Zone` (the browser's IANA zone) so "today" and streaks fo
 
 Every query is filtered by the authenticated user. A session that exists but belongs to someone else returns **404**, not 403, so identifiers cannot be probed. Request bodies are validated by Pydantic with explicit length limits (e.g. typed answers ≤ 100 characters).
 
+## Home: the stepping-stone path (M8)
+The home screen shows the deck as stones across water (`web/src/lib/path.ts`, `web/src/path/`).
+Every 5 words in deck order are a stone and every 2 stones a level. A stone is *done* when all its
+words are met and *firm* when all are "помню хорошо" (stage ≥ 4). The state is derived in the
+browser from `GET /api/decks/{id}/words`, so the path and the word list cannot disagree. No server
+state is added. When the learner comes back from a lesson that finished a stone, the frog hops
+forward. The last stone seen is kept in memory for the visit only, so a reload shows the position
+without a hop. With `prefers-reduced-motion` the hop is skipped, and every move is announced in
+a live region.
+
 ## Authentication and authorization
 
 - Every endpoint depends on `get_current_user`. Handlers never accept a user id from the client.
