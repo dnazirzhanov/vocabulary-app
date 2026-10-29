@@ -18,6 +18,7 @@ from app.schemas.learning import (
     GlossaryEntryOut,
     HintIn,
     HintOut,
+    KnowledgeOut,
     ProgressOut,
     SessionOut,
     StartSessionIn,
@@ -108,6 +109,12 @@ def deck_stats(
 ) -> DeckStatsOut:
     """A deck's page: my progress on it and what studying it would bring today (ADR 0020)."""
     return sessions.deck_stats(db, user, deck_id, now, time_zone)
+
+
+@router.get("/progress/decks")
+def knowledge(user: CurrentUser, db: DbSession, now: Now) -> KnowledgeOut:
+    """«Прогресс»: what I know, deck by deck, and in all (ADR 0022)."""
+    return progress_view.knowledge(db, user, now)
 
 
 @router.get("/decks/{deck_id}/words")

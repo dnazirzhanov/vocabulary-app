@@ -1,0 +1,172 @@
+/*
+ * «Знания» (ADR 0022): a headline over distinct words, then one row per deck — a three-tone bar
+ * (known well darkest, learned, met faint) and the counts in words, never colour alone.
+ */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The same label as «Регулярность» below: small and quiet; the figure under it leads. */
+.sectionTitle {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+
+/* The same figure as «Регулярность»: one big number, its words beside it. */
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.hero strong {
+  font-size: clamp(3rem, 2.4rem + 3vw, 4.5rem);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hero span {
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+}
+
+.sub,
+.meta,
+.counts,
+.empty {
+  color: var(--color-text-muted);
+}
+
+.sub,
+.meta,
+.counts,
+.legend {
+  font-size: var(--text-meta);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend i:not(:first-child) {
+  margin-left: var(--space-2);
+}
+
+[data-tone='met'] {
+  background: var(--color-activity-some);
+}
+
+[data-tone='learned'] {
+  background: var(--color-activity-goal);
+}
+
+[data-tone='known'] {
+  background: var(--color-primary-strong);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.list li {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-4) 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: rgb(38 38 38 / 0.03);
+}
+
+.rowHead,
+.bar,
+.counts {
+  grid-column: 1;
+}
+
+.rowHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowText strong {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  overflow-wrap: anywhere;
+}
+
+.percent {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--color-activity-none);
+}
+
+.bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.chevron {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+}

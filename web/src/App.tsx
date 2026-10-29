@@ -30,8 +30,8 @@ type Screen =
   | { name: 'board'; groupId: string; invite?: boolean }
   | { name: 'course' }
   // A deck's page (ADR 0020); `from`: where «Назад» leads.
-  | { name: 'deck-page'; deckId: string; from: 'home' | 'course' }
-  | { name: 'words'; deckId: string; title: string; from: 'home' | 'course' }
+  | { name: 'deck-page'; deckId: string; from: 'home' | 'course' | 'progress' }
+  | { name: 'words'; deckId: string; title: string; from: 'home' | 'course' | 'progress' }
   // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there.
   | { name: 'deck'; deckId: string; groupId: string | null }
   | { name: 'join'; code: string };
@@ -129,9 +129,9 @@ function Learning({ email }: { email: string | null }) {
   // The deck a study session was started for, so «Дальше» keeps to it and leaving returns to its
   // page; and where that page was opened from, for its «Назад».
   const [scope, setScope] = useState<string | null>(null);
-  const [pageFrom, setPageFrom] = useState<'home' | 'course'>('home');
+  const [pageFrom, setPageFrom] = useState<'home' | 'course' | 'progress'>('home');
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
-  const openPage = useCallback((deckId: string, from: 'home' | 'course') => {
+  const openPage = useCallback((deckId: string, from: 'home' | 'course' | 'progress') => {
     setPageFrom(from);
     setScreen({ name: 'deck-page', deckId, from });
   }, []);
@@ -232,7 +232,19 @@ function Learning({ email }: { email: string | null }) {
       onProfile={() => setProfileTarget({ kind: 'me' })}
     >
       {tabScreen()}
-      <ProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} />
+      <ProfileDialog
+        target={profileTarget}
+        onClose={() => setProfileTarget(null)}
+        account={{
+          email,
+          onSignOut: supabase ? () => void supabase?.auth.signOut() : undefined,
+          onAccountDeleted: () => {
+            setProfileTarget(null);
+            if (supabase) void supabase.auth.signOut();
+            else goHome();
+          },
+        }}
+      />
     </NavShell>
   );
 
@@ -280,17 +292,7 @@ function Learning({ email }: { email: string | null }) {
       );
     }
     if (screen.name === 'progress') {
-      const client = supabase;
-      return (
-        <ProgressScreen
-          email={email}
-          onSignOut={client ? () => void client.auth.signOut() : undefined}
-          onAccountDeleted={() => {
-            if (client) void client.auth.signOut();
-            else goHome();
-          }}
-        />
-      );
+      return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
     if (screen.name === 'course') {
       return <CourseScreen onOpenDeck={(deckId) => openPage(deckId, 'course')} onBack={goHome} />;
@@ -301,8 +303,8 @@ function Learning({ email }: { email: string | null }) {
         <DeckScreen
           key={deckId}
           deckId={deckId}
-          backLabel={from === 'course' ? 'Курс' : 'Мои колоды'}
-          onBack={() => setScreen(from === 'course' ? { name: 'course' } : { name: 'home' })}
+          backLabel={from === 'course' ? 'Курс' : from === 'progress' ? 'Прогресс' : 'Мои колоды'}
+          onBack={() => setScreen(backTo(from))}
           onSession={startSession}
           onWords={(id, title) => setScreen({ name: 'words', deckId: id, title, from })}
           onEdit={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
@@ -324,6 +326,13 @@ function Learning({ email }: { email: string | null }) {
 }
 
 /** The navigation entry a screen belongs to: decks and their words are part of today. */
+/** Where a deck's page goes back to. */
+function backTo(from: 'home' | 'course' | 'progress'): Screen {
+  if (from === 'course') return { name: 'course' };
+  if (from === 'progress') return { name: 'progress' };
+  return { name: 'home' };
+}
+
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
   if (screen.name === 'groups' || screen.name === 'board') return 'friends';

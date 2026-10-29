@@ -1,0 +1,94 @@
+"""Progress by deck and the kept day (ADR 0022): what I've learned of each deck I study, and a day
+kept only with every due review done."""
+
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from fastapi.testclient import TestClient
+
+from tests.support import Play, Ratings, at, finish
+
+DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
+LATER = DAY0 + timedelta(days=10)
+
+
+def own_deck(client: TestClient, words: list[str]) -> dict[str, Any]:
+    deck: dict[str, Any] = client.post(
+        "/api/decks", json={"title": "Путешествия"}, headers=at(DAY0)
+    ).json()
+    for word in words:
+        client.post(
+            f"/api/decks/{deck['id']}/words",
+            json={
+                "headword": word,
+                "pos": "noun",
+                "translation": "перевод",
+                "example": f"A {word}.",
+            },
+            headers=at(DAY0),
+        )
+    return deck
+
+
+def study(
+    client: TestClient, deck_id: str, moment: datetime, ratings: Ratings | None = None
+) -> None:
+    session = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": deck_id}, headers=at(moment)
+    ).json()
+    finish(client, session, at(moment), ratings)
+    client.post(f"/api/sessions/{session['id']}/complete", headers=at(moment))
+
+
+def knowledge(client: TestClient, moment: datetime = LATER) -> dict[str, Any]:
+    report: dict[str, Any] = client.get("/api/progress/decks", headers=at(moment)).json()
+    return report
+
+
+def today(client: TestClient, moment: datetime) -> dict[str, Any]:
+    report: dict[str, Any] = client.get("/api/progress", headers=at(moment)).json()["today"]
+    return report
+
+
+def test_learned_means_recalled_in_a_later_review(client: TestClient) -> None:
+    deck = own_deck(client, ["ticket", "luggage", "passport"])
+    study(client, deck["id"], DAY0)
+    met = knowledge(client, DAY0)
+    (row,) = met["decks"]
+    # Met today, not learned yet: memory shows only in a later review.
+    assert (row["word_count"], row["met"], row["learned"], row["known"]) == (3, 3, 0, 0)
+    assert (row["is_mine"], row["kind"]) == (True, "user")
+    # Ten days on: two recalled, one forgotten («Снова» is not learned).
+    study(client, deck["id"], LATER, {"passport": 1})
+    (row,) = knowledge(client)["decks"]
+    assert (row["met"], row["learned"]) == (3, 2)
+
+
+def test_course_levels_appear_once_started_and_totals_count_a_word_once(
+    client: TestClient, play: Play
+) -> None:
+    assert knowledge(client, DAY0)["decks"] == []  # nothing started: no rows
+    # «money» is a course word: in my deck it is the course's word, one word in both.
+    deck = own_deck(client, ["money", "ticket"])
+    study(client, deck["id"], DAY0)
+    report = knowledge(client, DAY0)
+    titles = [row["title"] for row in report["decks"]]
+    assert "Путешествия" in titles and "Основа" in titles  # money started the first level
+    assert all(
+        row["title"] not in ("Уверенный уровень", "Продвинутый уровень") for row in report["decks"]
+    )
+    assert report["met"] == 2  # money and ticket, money once
+
+
+def test_a_day_is_kept_only_with_every_due_review_done(client: TestClient, play: Play) -> None:
+    client.patch("/api/me", json={"daily_target_words": 5})
+    deck = own_deck(client, ["ticket", "luggage"])
+    study(client, deck["id"], DAY0)
+    study(client, "a1-a2", DAY0)
+    assert today(client, DAY0)["plan_done"]  # no reviews were due: the new words keep the day
+
+    # Ten days on, both decks have reviews due. The course alone leaves the deck's due.
+    study(client, "a1-a2", LATER)
+    assert not today(client, LATER)["plan_done"]
+    study(client, deck["id"], LATER)
+    assert today(client, LATER)["plan_done"]

@@ -84,11 +84,12 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
 ) -> None:
     summary = play(STUDY, DAY0, ratings={"water": 4, "friend": 1})
     assert (summary["new_words"], summary["reviewed_words"]) == (5, 0)
-    # Five new words, nothing extra (ADR 0015); the plan waits for their spelling (ADR 0016).
+    # Five new words, nothing extra (ADR 0015); no reviews were due, so the day is kept (ADR 0022);
+    # spelling is offered, not required.
     assert summary["today"] == {
         "new_words": 5,
         "target": 5,
-        "plan_done": False,
+        "plan_done": True,
         "extra_new": 0,
         "spelling": {"words": 5, "done": 0},
     }

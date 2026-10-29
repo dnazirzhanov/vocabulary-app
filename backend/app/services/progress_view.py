@@ -3,11 +3,13 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, User, UserWordProgress
+from app.models import Deck, DeckWord, ReviewAttempt, User, UserWordProgress
 from app.schemas.learning import (
+    DeckProgressOut,
+    KnowledgeOut,
     PlanDayOut,
     ProgressOut,
     RecallRate,
@@ -15,6 +17,7 @@ from app.schemas.learning import (
     TodayPlanOut,
     WordStages,
 )
+from app.services import decks
 from app.services.plan_days import (
     HISTORY_DAYS,
     PlanDay,
@@ -130,3 +133,112 @@ def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> T
         extra_new=day.extra_new,
         spelling=_spelling_out(day),
     )
+
+
+def knowledge(db: Session, user: User, now: datetime) -> KnowledgeOut:
+    """What I know, deck by deck (ADR 0022): my own decks, my groups' decks and the course levels
+    I've started. «Learned» is evidence of memory, not exposure: a word recalled in a later review
+    (reviews come a day or more after meeting it) with any answer but «Снова»."""
+    given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
+    candidates = list(
+        db.scalars(
+            select(Deck)
+            .where(
+                or_(
+                    (Deck.kind == "course") & (Deck.status == "published"),
+                    Deck.owner_id == user.id,
+                    Deck.id.in_(list(given)),
+                )
+            )
+            .order_by(Deck.level_order, Deck.id)
+        )
+    )
+    ids = [deck.id for deck in candidates]
+    sizes = dict(
+        db.execute(
+            select(DeckWord.deck_id, func.count())
+            .where(DeckWord.deck_id.in_(ids))
+            .group_by(DeckWord.deck_id)
+        ).all()
+    )
+    recalled = (
+        select(ReviewAttempt.word_id)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+        .distinct()
+    )
+    well = (UserWordProgress.fsrs_state == REVIEW) & (
+        UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS
+    )
+    mine = (
+        select(DeckWord.deck_id, UserWordProgress.word_id, UserWordProgress.last_seen_at)
+        .join(
+            UserWordProgress,
+            (UserWordProgress.word_id == DeckWord.word_id) & (UserWordProgress.user_id == user.id),
+        )
+        .where(DeckWord.deck_id.in_(ids))
+    )
+    counts = {
+        deck_id: (int(met), int(learned), int(known), last)
+        for deck_id, met, learned, known, last in db.execute(
+            select(
+                DeckWord.deck_id,
+                func.count(),
+                func.count().filter(UserWordProgress.word_id.in_(recalled)),
+                func.count().filter(well),
+                func.max(UserWordProgress.last_seen_at),
+            )
+            .join(
+                UserWordProgress,
+                (UserWordProgress.word_id == DeckWord.word_id)
+                & (UserWordProgress.user_id == user.id),
+            )
+            .where(DeckWord.deck_id.in_(ids))
+            .group_by(DeckWord.deck_id)
+        )
+    }
+    rows: list[DeckProgressOut] = []
+    for deck in candidates:
+        met, learned, known, last = counts.get(deck.id, (0, 0, 0, None))
+        size = int(sizes.get(deck.id, 0))
+        # A course level appears once started; my decks and my groups' always, unless empty.
+        if size == 0 or (deck.kind == "course" and met == 0):
+            continue
+        item = given.get(deck.id)
+        rows.append(
+            DeckProgressOut(
+                id=deck.id,
+                title=deck.title,
+                kind="course" if deck.kind == "course" else "user",
+                level=deck.level,
+                is_mine=deck.owner_id == user.id,
+                author=item.author if item else None,
+                group_name=item.group_name if item else None,
+                word_count=size,
+                met=met,
+                learned=learned,
+                known=known,
+                last_studied_at=last,
+            )
+        )
+    rows.sort(
+        key=lambda row: (row.last_studied_at is None, -(row.last_studied_at or now).timestamp())
+    )
+    shown = [row.id for row in rows]
+    words = mine.where(DeckWord.deck_id.in_(shown)).subquery()
+    met, learned, known = db.execute(
+        select(
+            func.count(func.distinct(words.c.word_id)),
+            func.count(func.distinct(words.c.word_id)).filter(words.c.word_id.in_(recalled)),
+            func.count(func.distinct(UserWordProgress.word_id)).filter(well),
+        )
+        .select_from(words)
+        .join(
+            UserWordProgress,
+            (UserWordProgress.word_id == words.c.word_id) & (UserWordProgress.user_id == user.id),
+        )
+    ).one()
+    return KnowledgeOut(decks=rows, met=int(met), learned=int(learned), known=int(known))

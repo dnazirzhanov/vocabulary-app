@@ -192,8 +192,8 @@ function TodayPlanLine({ summary }: { summary: Summary }) {
   else if (today.plan_done) text = 'План на сегодня выполнен';
   else if (today.target > today.new_words)
     text = `До плана на сегодня ещё ${wordsLabel(today.target - today.new_words)}`;
-  else if (today.spelling.done < today.spelling.words) text = 'Осталось правописание';
-  else text = 'План на сегодня — повторения';
+  // The new words are met: what keeps the day open is reviews still due in other decks (ADR 0022).
+  else text = 'Остались повторения в других колодах';
   return (
     <p className={styles.plan} data-done={today.plan_done || undefined}>
       {today.plan_done && summary.kind !== 'hard' && <CheckIcon aria-hidden="true" />}

@@ -839,6 +839,9 @@ def complete_session(
         raise ApiError(409, "session_incomplete", "Some cards have not been rated")
     if session.completed_at is None:
         session.completed_at = now
+        if session.kind == "study":
+            # A day is kept with every due review done (ADR 0022): what this lesson left.
+            session.reviews_left = min(pace.due_count(db, user, now), 32_000)
         db.commit()
 
     cards = [step for step in plan if not step.spelling]

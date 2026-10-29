@@ -6,6 +6,7 @@ import type { Profile } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { CheckIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { AccountSection, type AccountProps } from './AccountSection.tsx';
 import styles from './ProfileDialog.module.css';
 
 /** Whose profile: one's own (from the navigation), or a member's (from a group's board). */
@@ -18,11 +19,21 @@ const daysWord = (n: number) => plural(n, { one: 'день', few: 'дня', many
  * A learner's week against their own promise, and the learning beyond it (ADR 0015). The board
  * ranks only the promise; here extra work is recognised without being compared.
  */
-export function ProfileDialog({ target, onClose }: { target: ProfileTarget | null; onClose: () => void }) {
+export function ProfileDialog({
+  target,
+  onClose,
+  account,
+}: {
+  target: ProfileTarget | null;
+  onClose: () => void;
+  /** One's own profile ends with the account: sign out, delete my data (ADR 0022). */
+  account: AccountProps;
+}) {
   const title = target?.kind === 'member' ? target.nickname : 'Мой профиль';
   return (
     <Dialog open={target !== null} onClose={onClose} title={title}>
       {target && <ProfileContent target={target} />}
+      {target?.kind === 'me' && <AccountSection {...account} />}
     </Dialog>
   );
 }

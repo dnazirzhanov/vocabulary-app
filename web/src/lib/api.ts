@@ -10,6 +10,7 @@ import type {
   Hint,
   Group,
   GroupPreview,
+  Knowledge,
   Me,
   MeUpdate,
   Pace,
@@ -102,6 +103,8 @@ export const api = {
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),
+  /** «Прогресс»: what I know, deck by deck (ADR 0022). */
+  knowledge: () => request<Knowledge>('GET', '/progress/decks'),
   myProfile: () => request<Profile>('GET', '/me/profile'),
   memberProfile: (groupId: string, memberId: string) =>
     request<Profile>('GET', `/groups/${groupId}/members/${memberId}/profile`),

@@ -88,20 +88,19 @@ def test_a_card_takes_a_rating_and_spelling_takes_letters(client: TestClient, pl
     assert (wrong.status_code, wrong.json()["error"]["code"]) == (422, "wrong_response")
 
 
-def test_the_day_counts_once_the_new_words_are_spelled(client: TestClient, play: Play) -> None:
+def test_spelling_is_tracked_but_the_day_does_not_wait_for_it(
+    client: TestClient, play: Play
+) -> None:
     client.patch("/api/me", json={"daily_target_words": 5})
     play(STUDY, DAY0, spell=False)
     report = progress(client)
-    assert (report["today"]["plan_done"], report["spelling_today"]) == (
-        False,
-        {"words": 5, "done": 0},
-    )
-    spell_today(client, at(DAY0), {"water": "wtaer"})  # a mistake does not block the day
-    report = progress(client)
+    # ADR 0022: the lesson's words and cleared reviews keep the day; spelling is practice.
     assert (report["today"]["plan_done"], report["spelling_today"]) == (
         True,
-        {"words": 5, "done": 5},
+        {"words": 5, "done": 0},
     )
+    spell_today(client, at(DAY0), {"water": "wtaer"})
+    assert progress(client)["spelling_today"] == {"words": 5, "done": 5}
 
 
 def test_spelling_can_be_repeated_and_extra_practice_changes_nothing(

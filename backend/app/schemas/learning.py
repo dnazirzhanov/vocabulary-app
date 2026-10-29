@@ -296,6 +296,36 @@ class RecallRate(BaseModel):
     days: int
 
 
+class DeckProgressOut(BaseModel):
+    """One deck on «Прогресс» (ADR 0022): what I've learned of it."""
+
+    id: str
+    title: str
+    kind: Literal["course", "user"]
+    # Where it comes from: a course level, my own, or a group's (author's nickname, group).
+    level: str | None
+    is_mine: bool
+    author: str | None
+    group_name: str | None
+    word_count: int
+    # Met at least once; learned: recalled in a later review (any answer but «Снова»); known well:
+    # FSRS stability of 21 days or more.
+    met: int
+    learned: int
+    known: int
+    last_studied_at: datetime | None
+
+
+class KnowledgeOut(BaseModel):
+    """«Прогресс»: every deck I study, latest studied first, and totals over distinct words (a
+    word in two decks counts once)."""
+
+    decks: list[DeckProgressOut]
+    met: int
+    learned: int
+    known: int
+
+
 class ProgressOut(BaseModel):
     """The whole course: where the learner stands on its words and how steadily they practise."""
 

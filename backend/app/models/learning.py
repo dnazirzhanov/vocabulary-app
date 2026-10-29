@@ -85,6 +85,9 @@ class LearningSession(Base):
     promised_days: Mapped[int | None] = mapped_column(SmallInteger)
     # A spelling session (ADR 0016): how many of the day's new words it covers.
     spelling_words: Mapped[int | None] = mapped_column(SmallInteger)
+    # A study session: the reviews still due, across every deck, when it was finished (ADR 0022).
+    # Null for sessions from before it was recorded: those count as done.
+    reviews_left: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReviewAttempt(Base):

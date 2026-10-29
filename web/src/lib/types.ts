@@ -393,3 +393,28 @@ export interface GlossaryEntry {
   lemma: string | null;
   note: string | null;
 }
+
+/** One deck on «Прогресс» (ADR 0022): what I've learned of it. */
+export interface DeckProgress {
+  id: string;
+  title: string;
+  kind: 'course' | 'user';
+  level: string | null;
+  is_mine: boolean;
+  author: string | null;
+  group_name: string | null;
+  word_count: number;
+  /** Met at least once; learned: recalled in a later review; known: remembered well (FSRS). */
+  met: number;
+  learned: number;
+  known: number;
+  last_studied_at: string | null;
+}
+
+export interface Knowledge {
+  decks: DeckProgress[];
+  /** Over distinct words: a word in two decks counts once. */
+  met: number;
+  learned: number;
+  known: number;
+}

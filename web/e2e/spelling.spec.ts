@@ -14,7 +14,8 @@ const tile = (page: Page, letter: string) =>
 
 test('spelling follows the lesson: a card per new word, built from its meaning', async ({ page }) => {
   await lesson(page);
-  await expect(page.getByText('Осталось правописание')).toBeVisible();
+  // Spelling is practice, offered after the lesson; the day doesn't wait for it (ADR 0022).
+  await expect(page.getByText('План на сегодня выполнен')).toBeVisible();
   await button(page, 'Правописание · 5 слов').click();
 
   const card = page.locator('[data-spelling]');
