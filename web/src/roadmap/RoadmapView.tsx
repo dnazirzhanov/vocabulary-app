@@ -1,11 +1,10 @@
 import { wordsLabel } from '../lib/pace.ts';
 import { buildRoadmap, courseFinish, type RoadmapInput } from '../lib/roadmap.ts';
-import { RoadmapChart } from './RoadmapChart.tsx';
+import { RoadmapCalendar } from './RoadmapCalendar.tsx';
 import styles from './RoadmapView.module.css';
 
 const dayMonth = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' });
 const dayMonthYear = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', year: 'numeric' });
-const short = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short' });
 
 interface RoadmapViewProps {
   input: RoadmapInput;
@@ -13,7 +12,7 @@ interface RoadmapViewProps {
   courseWords: number | null;
 }
 
-/** The plan in words and dates first, then the chart, then the numbers by week. */
+/** The plan: the two dates first, then a calendar with the words known on each day. */
 export function RoadmapView({ input, courseWords }: RoadmapViewProps) {
   const roadmap = buildRoadmap(input);
   const date = (day: Date) => (day.getFullYear() === input.today.getFullYear() ? dayMonth : dayMonthYear).format(day);
@@ -39,43 +38,7 @@ export function RoadmapView({ input, courseWords }: RoadmapViewProps) {
           </p>
         )}
       </div>
-      {!done && <RoadmapChart roadmap={roadmap} total={input.totalWords} />}
-      {roadmap.months.length > 1 && (
-        <ul className={styles.months}>
-          {roadmap.months.map((row) => (
-            <li key={row.date.getTime()}>
-              к {date(row.date)} — <strong>{wordsLabel(row.met)}</strong>
-            </li>
-          ))}
-        </ul>
-      )}
-      {roadmap.weeks.length > 0 && (
-        <details className={styles.weeks}>
-          <summary>План по неделям</summary>
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Неделя</th>
-                <th scope="col">В день</th>
-                <th scope="col">Новых</th>
-                <th scope="col">Всего</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roadmap.weeks.map((week) => (
-                <tr key={week.start.getTime()}>
-                  <td>
-                    {short.format(week.start)} – {short.format(week.end)}
-                  </td>
-                  <td>{week.dailyTarget}</td>
-                  <td>+{week.newWords}</td>
-                  <td>{week.metAtEnd}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
-      )}
+      {!done && <RoadmapCalendar roadmap={roadmap} />}
       <p className={styles.note}>
         Если заниматься по плану и повторять в нужные дни.
         {course &&

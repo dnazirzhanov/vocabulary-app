@@ -25,9 +25,14 @@ test.describe('a learner who has not chosen a pace', () => {
     await expect(page.getByRole('heading', { name: 'Ваш план' })).toBeFocused();
     await expect(page.getByText('к 9 ноября')).toBeVisible();
     await expect(page.getByText('≈ к 20 ноября')).toBeVisible();
-    await page.getByText('План по неделям').click();
-    await expect(page.getByRole('row')).toHaveCount(3);
-    await expect(page.getByRole('row').nth(1)).toContainText('+25');
+    // The calendar: words known at the end of each day, rest days at the weekend, the finish.
+    await expect(page.getByRole('cell', { name: /^понедельник, 2 ноября, сегодня, вы знаете 5 слов/ })).toBeVisible();
+    await expect(page.getByRole('cell', { name: /^пятница, 6 ноября, вы знаете 25 слов, новых: 5$/ })).toBeVisible();
+    await expect(page.getByRole('cell', { name: /^суббота, 7 ноября, вы знаете 25 слов, отдых$/ })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: /9 ноября, вы знаете 30 слов.*все слова колоды пройдены/ }),
+    ).toBeVisible();
+    await expect(page.getByRole('cell', { name: /20 ноября.*все слова хорошо запомнены/ })).toBeVisible();
     await button(page, 'Начать').click();
 
     await expect(page.getByText('Разогрев, неделя 1 из 2: сегодня цель 5 из 10.')).toBeVisible();

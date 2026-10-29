@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildRoadmap, courseFinish, restDays, targetOn, type RoadmapInput } from './roadmap.ts';
+import { buildRoadmap, calendarMonths, courseFinish, restDays, targetOn, type RoadmapInput } from './roadmap.ts';
 
 // Monday 2 November 2026.
 const MONDAY = new Date(2026, 10, 2);
@@ -91,4 +91,29 @@ test('nothing left to learn: no finish date', () => {
   const plan = buildRoadmap({ ...base, introduced: 30 });
   assert.equal(plan.finish, null);
   assert.equal(plan.weeks.length, 0);
+});
+
+test('the plan as month calendars, Monday first, only the weeks the plan covers', () => {
+  // From Monday 2 November: 30 words by Saturday 7th, all firm by Wednesday 18th.
+  const [november, ...rest] = calendarMonths(buildRoadmap(base));
+  assert.equal(rest.length, 0);
+  assert.equal(november.month, 10);
+  // The week of Sunday 1 November (before the plan) and the weeks after the 18th are left out.
+  assert.deepEqual(
+    november.weeks.map((week) => week[0]?.date.getDate()),
+    [2, 9, 16],
+  );
+  const day = (n: number) => november.weeks.flat().find((cell) => cell?.date.getDate() === n)!;
+  assert.deepEqual([day(2).today, day(2).met, day(2).newWords], [true, 5, 5]);
+  assert.deepEqual([day(7).finish, day(7).met], [true, 30]);
+  assert.equal(day(18).allFirm, true);
+  assert.equal(day(22).kind, 'after');
+});
+
+test('a plan crossing a month end spans two calendars', () => {
+  const months = calendarMonths(buildRoadmap({ ...base, today: new Date(2026, 10, 28) }));
+  assert.deepEqual(
+    months.map((month) => month.month),
+    [10, 11],
+  );
 });

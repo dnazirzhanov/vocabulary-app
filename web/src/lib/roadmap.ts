@@ -173,3 +173,62 @@ export function courseFinish(input: RoadmapInput, courseWords: number): Date | n
   if (courseWords <= input.introduced) return null;
   return buildRoadmap({ ...input, totalWords: courseWords }).finish;
 }
+
+export interface CalendarDay {
+  date: Date;
+  /** before: earlier this month, no plan yet · plan: a day of the plan · after: past its end. */
+  kind: 'before' | 'plan' | 'after';
+  study: boolean;
+  newWords: number;
+  /** Words met by the end of this day (plan days only). */
+  met: number;
+  today: boolean;
+  finish: boolean;
+  allFirm: boolean;
+}
+
+export interface CalendarMonth {
+  year: number;
+  month: number;
+  /** Monday-first weeks that hold plan days; null pads the days outside the month. */
+  weeks: (CalendarDay | null)[][];
+}
+
+/** The plan laid out as month calendars, from this month to the month the last word is firm. */
+export function calendarMonths(roadmap: Roadmap): CalendarMonth[] {
+  const first = roadmap.days[0];
+  if (!first) return [];
+  const byDay = new Map(roadmap.days.map((day) => [startOfDay(day.date).getTime(), day]));
+  const lastPlanned = roadmap.days[roadmap.days.length - 1].date;
+  const months: CalendarMonth[] = [];
+  let cursor = new Date(first.date.getFullYear(), first.date.getMonth(), 1);
+  while (cursor <= lastPlanned) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const weeks: (CalendarDay | null)[][] = [];
+    let week: (CalendarDay | null)[] = Array((cursor.getDay() + 6) % 7).fill(null);
+    for (let date = cursor; date.getMonth() === month; date = addDays(date, 1)) {
+      const planned = byDay.get(date.getTime());
+      week.push({
+        date,
+        kind: planned ? 'plan' : date < first.date ? 'before' : 'after',
+        study: planned?.study ?? false,
+        newWords: planned?.newWords ?? 0,
+        met: planned?.met ?? 0,
+        today: sameDay(date, first.date),
+        finish: roadmap.finish !== null && sameDay(date, roadmap.finish),
+        allFirm: roadmap.allFirm !== null && sameDay(date, roadmap.allFirm),
+      });
+      if (week.length === 7) {
+        weeks.push(week);
+        week = [];
+      }
+    }
+    if (week.length > 0) weeks.push([...week, ...Array<null>(7 - week.length).fill(null)]);
+    // Only weeks that hold part of the plan: no rows of empty days before today or after the end.
+    const planned = weeks.filter((cells) => cells.some((cell) => cell?.kind === 'plan'));
+    if (planned.length > 0) months.push({ year, month, weeks: planned });
+    cursor = new Date(year, month + 1, 1);
+  }
+  return months;
+}
