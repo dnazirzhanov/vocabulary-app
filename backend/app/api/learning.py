@@ -36,9 +36,13 @@ def active_session(user: CurrentUser, db: DbSession) -> ActiveSessionOut:
 
 @router.post("/sessions")
 def start_session(
-    request: Annotated[StartSessionIn, Body()], user: CurrentUser, db: DbSession, now: Now
+    request: Annotated[StartSessionIn, Body()],
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
 ) -> SessionOut:
-    return sessions.start_session(db, user, request, now)
+    return sessions.start_session(db, user, request, now, time_zone)
 
 
 @router.get("/sessions/{session_id}")

@@ -47,11 +47,11 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 | P0 area | Today | Gap |
 |---|---|---|
 | A. Accounts and persistence | Server-side persistence with an auth seam (development user) | Auth provider and sign-up (Phase 4) |
-| B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import | Russian review; grow to 100–200 words |
+| B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import; course goal: about 1,300 NGSL words ≈ 80% of everyday text | Russian review; swap the 4 words outside the NGSL top 1,300; grow toward the goal in NGSL order |
 | C. Learning session | New words: introduce → choose → type. Reviews: recall → type. Server-checked, resumable, summaries distinguish meeting a word from recalling it later | — |
 | D. Spaced repetition | Leitner scheduler (1/3/7/16/35 days); review sessions with recall-before-reveal; due words first | Validate intervals with pilot data |
 | E. Progress | Progress screen: words met / reviewing / currently well learned / due, 7-day activity, delayed-recall rate (labelled as such), total points | Validate with pilot learners |
-| F. Gamification | Points for evidence of learning (none for practice), daily goal (30), streak, session points on the summary | Validate goal size; no leaderboard (P1) |
+| F. Gamification | Points for evidence of learning (none for practice), daily goal (30), streak, session points on the summary; a sourced course goal and a learner-chosen daily pace with ramp, review-debt brake and suggestions (ADR 0010) | Validate goal size and pace thresholds; roadmap, path and friend groups planned (M6–M9) |
 | G. Responsive interface | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px | Real-device checks (iOS Safari, on-screen keyboard) |
 
 ## Acceptance criteria by phase

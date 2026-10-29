@@ -67,3 +67,18 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Full-screen loading and error states outside a screen's own layout. */
+.message-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--gutter);
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+  text-align: center;
+}

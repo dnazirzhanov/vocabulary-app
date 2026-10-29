@@ -10,10 +10,17 @@ export interface Word {
   illustration: string | null;
 }
 
+/** "The N most frequent words cover about P% of running text" — only sent when sourced. */
+export interface CourseGoal {
+  target_words: number;
+  coverage_percent: number;
+}
+
 export interface Deck {
   id: string;
   title: string;
   description: string;
+  course_goal: CourseGoal | null;
   word_count: number;
   introduced_count: number;
   due_count: number;
@@ -101,4 +108,41 @@ export interface Progress {
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
   points_total: number;
+}
+
+// Mirrors backend/app/schemas/me.py.
+
+export interface Me {
+  /** Null until the learner has chosen a pace. */
+  daily_target_words: number | null;
+  study_days_per_week: number;
+  ramp_enabled: boolean;
+  onboarded: boolean;
+}
+
+export type MeUpdate = Partial<Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled'>>;
+
+export interface PaceSuggestion {
+  kind: 'lower' | 'raise';
+  value: number;
+  reason: 'missed_target' | 'low_recall' | 'steady';
+  achieved_per_day: number | null;
+  recall_percent: number | null;
+}
+
+export interface Pace {
+  deck_id: string;
+  target: number;
+  /** Lower than `target` while a large target warms up (first two weeks). */
+  effective_target: number;
+  ramp_week: number | null;
+  new_words_today: number;
+  remaining_today: number;
+  next_lesson_size: number;
+  bonus: boolean;
+  blocked_by_reviews: boolean;
+  due_count: number;
+  review_debt_limit: number;
+  seconds_per_exercise: number;
+  suggestion: PaceSuggestion | null;
 }

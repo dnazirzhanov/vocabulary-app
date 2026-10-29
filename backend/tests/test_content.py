@@ -76,3 +76,13 @@ def test_every_problem_is_reported_at_once(tmp_path: Path) -> None:
 def test_unknown_fields_are_rejected(tmp_path: Path) -> None:
     with pytest.raises(ContentError, match="transltion"):
         parse_deck(write_deck(tmp_path, DECK, [word("a", transltion="typo")]))
+
+
+def test_a_course_goal_needs_a_source(tmp_path: Path) -> None:
+    goal = {"target_words": 1300, "coverage_percent": 80}
+    words = [word(i) for i in "abcd"]
+    with pytest.raises(ContentError, match=r"course_goal\.source"):
+        parse_deck(write_deck(tmp_path, DECK | {"course_goal": goal}, words))
+    sourced = goal | {"source": "NGSL"}
+    content = parse_deck(write_deck(tmp_path, DECK | {"course_goal": sourced}, words))
+    assert content.deck.course_goal is not None

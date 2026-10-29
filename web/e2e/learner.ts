@@ -22,11 +22,17 @@ interface Learner {
 const learnerId = new WeakMap<BrowserContext, string>();
 
 /** Every test is a brand-new learner, so tests never share progress and can run in parallel. */
-export const test = base.extend<{ learner: Learner }>({
-  context: async ({ context }, use) => {
+export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
+  // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
+  onboarded: [true, { option: true }],
+  context: async ({ context, onboarded }, use) => {
     const id = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id });
+    // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
+    if (onboarded) {
+      await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
+    }
     await use(context);
   },
   learner: async ({ context }, use) => {

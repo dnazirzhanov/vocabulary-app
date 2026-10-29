@@ -73,3 +73,11 @@ export const AlertIcon = (props: IconProps) => (
     <path d="M12 7v6M12 17h.01" />
   </svg>
 );
+
+export const TargetIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4.5" />
+    <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+  </svg>
+);

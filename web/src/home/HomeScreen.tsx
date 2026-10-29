@@ -2,20 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural } from '../i18n/plural.ts';
 import { Illustration } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
-import type { Deck, Progress, Session } from '../lib/types.ts';
+import { wordsLabel } from '../lib/pace.ts';
+import type { Deck, Pace, Progress, Session } from '../lib/types.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { ChartIcon, FlameIcon } from '../ui/icons.tsx';
+import { ChartIcon, FlameIcon, TargetIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './HomeScreen.module.css';
+import { SuggestionCard } from './SuggestionCard.tsx';
 
-type Loaded = { deck: Deck | undefined; active: Session | null; progress: Progress | null };
+type Loaded = { deck: Deck | undefined; active: Session | null; progress: Progress | null; pace: Pace | null };
 type Action = { label: string; run: () => Promise<void> };
 
 interface HomeScreenProps {
   onSession: (session: Session) => void;
   onProgress: (deckId: string) => void;
+  onGoal: () => void;
 }
 
 /** Decorative cover for the deck: a few everyday objects in the house illustration style. */
@@ -29,7 +32,7 @@ function DeckArt() {
   );
 }
 
-export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
+export function HomeScreen({ onSession, onProgress, onGoal }: HomeScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { run, busy, error } = useAsyncAction();
@@ -41,9 +44,11 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
       Promise.all([api.listDecks(), api.activeSession()])
         .then(async ([decks, active]) => {
           const deck = decks[0];
-          // Progress is secondary on this screen: if it fails, home still works.
-          const progress = deck ? await api.deckProgress(deck.id).catch(() => null) : null;
-          setLoaded({ deck, active: active.session, progress });
+          // Progress and pace are secondary on this screen: if they fail, home still works.
+          const [progress, pace] = deck
+            ? await Promise.all([api.deckProgress(deck.id).catch(() => null), api.pace(deck.id).catch(() => null)])
+            : [null, null];
+          setLoaded({ deck, active: active.session, progress, pace });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [],
@@ -78,7 +83,7 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
     );
   }
 
-  const { deck, active, progress } = loaded;
+  const { deck, active, progress, pace } = loaded;
   if (!deck) {
     return (
       <main className={styles.message}>
@@ -91,11 +96,21 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
   const met = deck.introduced_count;
   const due = deck.due_count;
   const newLeft = met < deck.word_count;
+  // The daily target sizes lessons; after it, lessons are a bonus (ADR 0010).
+  const lessonSize = Math.min(pace?.next_lesson_size ?? 5, deck.word_count - met);
+  const bonus = pace?.bonus ?? false;
+  // Too many reviews due: new words wait, so what was learned is not forgotten.
+  const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
   const startNew: Action = {
-    label: met === 0 ? 'Начать урок' : 'Новые слова',
+    label:
+      met === 0
+        ? `Начать урок · ${wordsLabel(lessonSize)}`
+        : bonus
+          ? `Ещё ${wordsLabel(lessonSize)}`
+          : `Новые слова · ${lessonSize}`,
     run: async () => onSession(await api.startNewSession(deck.id)),
   };
-  // Due reviews come first; new words stay one tap away so they are never blocked.
+  // Due reviews come first; new words stay one tap away unless the review backlog is too big.
   let primary: Action | null = newLeft ? startNew : null;
   let secondary: Action | null = null;
   if (active) {
@@ -105,18 +120,26 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
       label: `Повторить слова · ${due}`,
       run: async () => onSession(await api.startReviewSession(deck.id)),
     };
-    secondary = newLeft ? startNew : null;
+    secondary = newLeft && !blocked ? startNew : null;
   }
 
   const nextReview = deck.next_due_at ? `Следующее повторение — ${relativeDay(deck.next_due_at)}.` : null;
   let note: string;
   if (active) note = 'Урок не закончен — продолжите с того же места.';
+  else if (blocked)
+    note = `Сначала повторение: ${wordsLabel(due)} ждут. Новые слова вернутся сразу после него — так выученное не забудется.`;
   else if (due > 0)
     note = `Пора повторить ${due}\u00a0${plural(due, { one: 'слово', few: 'слова', many: 'слов' })}, которые вы уже видели.`;
   else if (!newLeft)
     note = nextReview ? `Новых слов в колоде нет. ${nextReview}` : 'Вы познакомились со всеми словами этой колоды.';
+  else if (bonus)
+    note = `Цель на сегодня выполнена.${nextReview ? ` ${nextReview}` : ''} Можно взять ещё слов — бонусом.`;
   else if (nextReview) note = `${nextReview} А пока можно взять новые слова.`;
-  else note = 'В уроке 5 новых слов: знакомство, выбор перевода и написание.';
+  else note = `В уроке ${wordsLabel(lessonSize)}: знакомство, выбор перевода и написание.`;
+
+  const reload = async () => {
+    await load();
+  };
 
   return (
     <div className={styles.screen}>
@@ -130,9 +153,14 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
             </>
           )}
         </span>
-        <button type="button" className={styles.progressLink} onClick={() => onProgress(deck.id)}>
-          <ChartIcon aria-hidden="true" /> Прогресс
-        </button>
+        <nav className={styles.links} aria-label="Разделы">
+          <button type="button" className={styles.progressLink} onClick={onGoal}>
+            <TargetIcon aria-hidden="true" /> Цель
+          </button>
+          <button type="button" className={styles.progressLink} onClick={() => onProgress(deck.id)}>
+            <ChartIcon aria-hidden="true" /> Прогресс
+          </button>
+        </nav>
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
@@ -147,6 +175,7 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
             <p className={styles.description}>{deck.description}</p>
           </div>
           <section className={styles.progress} aria-labelledby="deck-progress">
+            {pace && newLeft && <TodayPlan pace={pace} />}
             <h2 id="deck-progress" className={styles.progressLabel}>
               Вы познакомились
             </h2>
@@ -166,6 +195,22 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
               <div className={styles.fill} style={{ width: `${(met / deck.word_count) * 100}%` }} />
             </div>
             <p className={styles.note}>{note}</p>
+            {pace?.suggestion && !active && (
+              <div className={styles.suggestion}>
+                <SuggestionCard
+                  suggestion={pace.suggestion}
+                  target={pace.target}
+                  onAccept={async (value) => {
+                    await api.updateMe({ daily_target_words: value });
+                    await reload();
+                  }}
+                  onDismiss={async () => {
+                    await api.dismissSuggestion(pace.suggestion!.kind);
+                    await reload();
+                  }}
+                />
+              </div>
+            )}
           </section>
         </div>
       </main>
@@ -198,6 +243,27 @@ export function HomeScreen({ onSession, onProgress }: HomeScreenProps) {
             </PrimaryButton>
           </div>
         </footer>
+      )}
+    </div>
+  );
+}
+
+/** Today's share of the daily target; the ramp is named so a lower number never looks like a cut. */
+function TodayPlan({ pace }: { pace: Pace }) {
+  const done = Math.min(pace.new_words_today, pace.effective_target);
+  return (
+    <div className={styles.today}>
+      <p className={styles.todayValue}>
+        Сегодня: <strong>{pace.new_words_today}</strong> из {wordsLabel(pace.effective_target)}
+        {pace.new_words_today > pace.effective_target && <span className={styles.bonus}> · бонус!</span>}
+      </p>
+      <div className={styles.todayDots} aria-hidden="true">
+        <span style={{ width: `${(done / pace.effective_target) * 100}%` }} />
+      </div>
+      {pace.ramp_week !== null && (
+        <p className={styles.todayNote}>
+          Разогрев, неделя {pace.ramp_week + 1} из 2: сегодня цель {pace.effective_target} из {pace.target}.
+        </p>
       )}
     </div>
   );

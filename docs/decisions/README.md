@@ -12,3 +12,5 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0006](0006-leitner-scheduler.md) | Leitner-style review scheduler (1/3/7/16/35 days) | Accepted |
 | [0007](0007-dev-clock-and-server-time.md) | Development clock override; day labels from server time | Accepted |
 | [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Accepted |
+| [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted |
+| [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted |

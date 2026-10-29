@@ -1,0 +1,180 @@
+/* Tiles share the answer-tile language: edge, press-down, tint when selected. */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.preset,
+.segment {
+  position: relative;
+  --edge: var(--color-option-edge);
+  border: var(--border-control) solid var(--edge);
+  border-radius: var(--radius-md);
+  box-shadow: 0 3px 0 var(--edge);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-state) var(--ease-out),
+    background-color var(--duration-state) var(--ease-out),
+    transform var(--duration-press) var(--ease-out);
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.preset[data-selected='true'],
+.segment[data-selected='true'] {
+  --edge: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.preset:active,
+.segment:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--edge);
+}
+
+.preset:has(.input:focus-visible),
+.segment:has(.input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .preset[data-selected='false']:hover,
+  .segment[data-selected='false']:hover {
+    --edge: var(--color-option-edge-hover);
+  }
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.presetName {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.presetWords {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.presetTime {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.custom {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-control) solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.custom[data-selected='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.customLabel {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.range {
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.rangeScale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.reality {
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.reality strong {
+  display: block;
+  color: var(--color-text);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.check input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  accent-color: var(--color-primary-strong);
+}
+
+.check span {
+  display: flex;
+  flex-direction: column;
+}
+
+.check small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.daysLegend {
+  margin-bottom: var(--space-2);
+  font-weight: var(--weight-strong);
+}
+
+.segments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.segment {
+  display: grid;
+  place-items: center;
+  min-height: var(--tap-min);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+}
+
+.hint {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
