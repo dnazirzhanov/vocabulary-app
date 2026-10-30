@@ -45,7 +45,7 @@ from app.services.scheduling import local_date
 
 DEFAULT_TARGET = 5  # until the learner chooses (and the size every lesson had before pace)
 MAX_TARGET = 100
-MAX_EXTRA = 200  # extra new words one deck can hold for a day
+MAX_EXTRA = 200  # extra new words one deck can hold for a day (up to 100 at a time)
 MAX_LESSON_WORDS = 10  # a bigger daily target becomes several lessons of at most this many words
 BONUS_LESSON_WORDS = 5  # "more words" after the target is met
 RAMP_MIN_TARGET = 10

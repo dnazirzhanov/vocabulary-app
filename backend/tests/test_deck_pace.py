@@ -128,6 +128,13 @@ def test_extra_words_are_the_next_ones_and_last_only_for_today(client: TestClien
     rows = client.get("/api/progress/decks", headers=as_("olga")).json()["decks"]
     row = next(row for row in rows if row["id"] == deck["id"])
     assert (row["new_today"], row["goal_today"], row["due_on"]) == (7, 7, None)
+    # Up to 100 at a time, whatever the deck holds; it gives what it has left.
+    for words, status in ((100, 200), (101, 422)):
+        response = client.post(
+            f"/api/decks/{deck['id']}/pace/extra", json={"words": words}, headers=as_("olga")
+        )
+        assert response.status_code == status
+    assert pace(client, "olga", deck["id"])["remaining_today"] == 100
     # Tomorrow: the plain pace again, from the next words on.
     friday = pace(client, "olga", deck["id"], FRIDAY)
     assert (friday["extra_today"], friday["effective_target"]) == (0, 3)

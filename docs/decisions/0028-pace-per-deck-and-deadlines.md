@@ -16,7 +16,7 @@ promise.
   Course levels share one number, the course's (`users.daily_target_words`), so moving to the
   next level keeps it; the warm-up ramp and pace suggestions stay course-only. Own and group decks
   keep theirs in `deck_paces`; until set, they start from the course's number.
-- **«Ещё слов сегодня»** takes any number of extra new words (up to 50 at a time) for today only.
+- **«Ещё слов сегодня»** takes any number of extra new words (up to 100 at a time) for today only; a deck with fewer words left gives all it has.
   They are the deck's next words; tomorrow the usual number comes, from where they stopped. The
   quick «Ещё 5 слов» after the goal is met is the same thing.
 - **A teacher's «Выучить к»**: the group's owner sets an optional date when giving a deck, and can

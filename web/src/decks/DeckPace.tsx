@@ -9,8 +9,9 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckPace.module.css';
 
 const PACE_CHOICES = [5, 10, 15, 20, 30];
-const EXTRA_CHOICES = [5, 10, 20];
-const MAX_EXTRA = 50;
+const EXTRA_CHOICES = [5, 10, 20, 50, 100];
+/** At most this many extra words at a time, whatever the deck holds. */
+const MAX_EXTRA = 100;
 const clamp = (n: number, low: number, high: number) => Math.min(high, Math.max(low, n));
 
 /**
@@ -143,8 +144,9 @@ export function ExtraWords({
   onClose: () => void;
   onStart: (words: number) => Promise<void>;
 }) {
-  const most = Math.max(1, Math.min(MAX_EXTRA, left));
-  const [words, setWords] = useState(Math.min(5, most));
+  const [words, setWords] = useState(5);
+  // A deck can hold fewer words than asked: then it gives every one it has left.
+  const given = Math.min(words, left);
   const { run, busy, error } = useAsyncAction();
   return (
     <Dialog open={open} onClose={onClose} title="Ещё слов сегодня">
@@ -153,7 +155,7 @@ export function ExtraWords({
         остановились.
       </p>
       <div className={styles.chips} role="group" aria-label="Сколько слов">
-        {EXTRA_CHOICES.filter((choice) => choice <= most).map((choice) => (
+        {EXTRA_CHOICES.map((choice) => (
           <button key={choice} type="button" aria-pressed={choice === words} onClick={() => setWords(choice)}>
             {choice}
           </button>
@@ -165,18 +167,23 @@ export function ExtraWords({
           type="number"
           inputMode="numeric"
           min={1}
-          max={most}
+          max={MAX_EXTRA}
           value={words}
-          onChange={(event) => setWords(clamp(Number(event.target.value) || 1, 1, most))}
+          onChange={(event) => setWords(clamp(Number(event.target.value) || 1, 1, MAX_EXTRA))}
         />
       </label>
+      {words > left && (
+        <p className={styles.muted} role="status">
+          В колоде осталось {wordsLabel(left)} — вы получите все.
+        </p>
+      )}
       {error && (
         <p className={styles.error} role="alert">
           {error}
         </p>
       )}
       <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => run(() => onStart(words))}>
-        {busy ? 'Загружаем…' : `Начать · ${wordsLabel(words)}`}
+        {busy ? 'Загружаем…' : `Начать · ${wordsLabel(given)}`}
       </PrimaryButton>
     </Dialog>
   );

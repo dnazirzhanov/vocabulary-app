@@ -70,7 +70,7 @@ class DeckPaceIn(BaseModel):
 class ExtraIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    words: Annotated[int, Field(ge=1, le=50)]
+    words: Annotated[int, Field(ge=1, le=100)]
 
 
 class DismissIn(BaseModel):
