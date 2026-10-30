@@ -35,4 +35,5 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
 | [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Accepted |
 | [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted |
+| [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted |
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |

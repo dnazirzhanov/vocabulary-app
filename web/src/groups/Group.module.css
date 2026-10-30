@@ -1,7 +1,6 @@
 /*
- * One group (ADR 0023): who studied today, the ranking with my place and the statistics, the
- * group's totals and decks. Quiet sections on paper; orange only for today's check, the top
- * places and the chosen controls.
+ * One group (ADR 0023, 0032): my week, «К уроку» when a deadline is set, the week's league. Quiet
+ * sections on paper; orange only for my place's edge, the top places and today's checks.
  */
 .page {
   gap: var(--space-6);
@@ -9,37 +8,39 @@
 
 .head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.meta {
-  margin-top: var(--space-1);
-  color: var(--color-text-muted);
+/* «Пригласить»: an icon, out of the way of the group's name. */
+.invite {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.invite:hover {
+  background: var(--color-primary-tint);
 }
 
 .invite svg {
-  width: 20px;
-  height: 20px;
-  color: currentColor;
-}
-
-.rule {
-  margin-top: calc(-1 * var(--space-1));
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
+  width: 22px;
+  height: 22px;
 }
 
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.section[aria-busy] .board {
-  opacity: 0.55;
 }
 
 .sectionHead {
@@ -56,62 +57,6 @@
   font-weight: var(--weight-display);
 }
 
-/* --- today ----------------------------------------------------------------------------------- */
-
-.today {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px var(--color-border);
-}
-
-.todayTitle {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-body);
-  font-weight: var(--weight-strong);
-}
-
-.todayTitle strong {
-  color: var(--color-text);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.chips li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 32px;
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  background: var(--color-activity-none);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.chips li[data-on] {
-  background: var(--color-primary-tint);
-  color: var(--color-text);
-}
-
-.chips svg {
-  width: 16px;
-  height: 16px;
-  color: var(--color-primary-strong);
-}
-
 .me {
   margin-left: var(--space-1);
   padding: 1px 6px;
@@ -121,42 +66,6 @@
   font-size: 0.75rem;
   font-weight: var(--weight-strong);
   line-height: 1.4;
-}
-
-/* --- controls -------------------------------------------------------------------------------- */
-
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-md);
-  background: var(--color-activity-none);
-}
-
-.segmented button {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: calc(var(--radius-md) - 3px);
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.segmented button:hover {
-  color: var(--color-text);
-}
-
-.segmented button[aria-pressed='true'] {
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
 }
 
 /* --- my place -------------------------------------------------------------------------------- */
@@ -206,7 +115,26 @@
   gap: var(--space-3);
   align-items: center;
   width: 100%;
-  padding: var(--space-3) var(--space-2);
+  min-height: 56px;
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: rgb(38 38 38 / 0.03);
+}
+
+/* Studied today: a small check after the name, the league's only sign of the day. */
+.todayMark {
+  width: 18px;
+  height: 18px;
+  margin-left: var(--space-2);
+  color: var(--color-success);
 }
 
 .rank {
@@ -232,55 +160,12 @@
   box-shadow: inset 0 0 0 2px var(--color-heat-2);
 }
 
-.who {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
 .nick {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   font-weight: var(--weight-display);
   overflow-wrap: anywhere;
-}
-
-.streak {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: var(--space-2);
-  color: var(--color-primary-strong);
-  font-size: var(--text-meta);
-}
-
-.streak svg {
-  width: 16px;
-  height: 16px;
-}
-
-.stats {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
-.dots {
-  display: flex;
-  gap: 4px;
-  margin-top: 2px;
-}
-
-.dots i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-activity-none);
-}
-
-.dots i[data-on] {
-  background: var(--color-activity-goal);
 }
 
 .value {
@@ -305,17 +190,12 @@
   font-size: var(--text-meta);
 }
 
-.restingName {
-  color: var(--color-text);
-  font-weight: var(--weight-strong);
-}
-
-/* --- together -------------------------------------------------------------------------------- */
+/* --- a person's window ----------------------------------------------------------------------- */
 
 .figures {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-3);
   margin: 0;
 }
 
@@ -357,4 +237,76 @@
   gap: var(--space-2);
   min-height: 52px;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* --- «К уроку» (ADR 0030, 0032) -------------------------------------------------------------- */
+
+.forClass {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.classItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.classItem > p {
+  flex: 1 1 14rem;
+}
+
+.standing {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.standing[data-status='not_started'] {
+  color: var(--color-text-muted);
+}
+
+.standing[data-behind] {
+  color: var(--color-error);
+}
+
+.late {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-error);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* --- housekeeping, folded -------------------------------------------------------------------- */
+
+.manage {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.manage summary {
+  min-height: 44px;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  line-height: 44px;
+  cursor: pointer;
+}
+
+.manageBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+.dialogText {
+  color: var(--color-text);
 }

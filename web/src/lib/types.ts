@@ -278,6 +278,8 @@ export interface GroupSummary extends Group {
   my_rank: number | null;
   ranked: number;
   members: { nickname: string; is_me: boolean; studied_today: boolean }[];
+  /** The deadline deck I am furthest behind on, if any (ADR 0032). */
+  behind_for_class?: { title: string; behind: number; status: 'behind' | 'not_started' } | null;
 }
 
 export interface Board {

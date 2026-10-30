@@ -28,10 +28,10 @@ test('small boards show everyone', () => {
   assert.equal(visibleLines(rows(10, 9)).length, 10);
 });
 
-test('big boards show the top 3 and the learner with two neighbours each side', () => {
-  assert.deepEqual(shape(visibleLines(rows(20, 10))), ['n0', 'n1', 'n2', '…5', 'n8', 'n9', 'n10', 'n11', 'n12', '…7']);
-  assert.deepEqual(shape(visibleLines(rows(20, 3))), ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', '…14']);
-  assert.deepEqual(shape(visibleLines(rows(20, 19))), ['n0', 'n1', 'n2', '…14', 'n17', 'n18', 'n19']);
+test('big boards show the top 3 and the learner with the one just above and below', () => {
+  assert.deepEqual(shape(visibleLines(rows(20, 10))), ['n0', 'n1', 'n2', '…6', 'n9', 'n10', 'n11', '…8']);
+  assert.deepEqual(shape(visibleLines(rows(20, 3))), ['n0', 'n1', 'n2', 'n3', 'n4', '…15']);
+  assert.deepEqual(shape(visibleLines(rows(20, 19))), ['n0', 'n1', 'n2', '…15', 'n18', 'n19']);
 });
 
 test('generated nicknames agree and pass the rules', () => {

@@ -214,6 +214,14 @@ def test_a_teacher_s_deadline_gives_even_shares_and_re_spreads_what_is_left(
     assert standings[0] == {"status": "not_started", "behind": 6}  # Olga herself
     assert on_friday["on_track"] == 1
 
+    # The list of groups names the deadline deck each one is furthest behind on, if any.
+    def behind(user: str) -> object:
+        (summary,) = client.get("/api/groups", headers=as_(user, FRIDAY)).json()
+        return summary["behind_for_class"]
+
+    assert behind("olga") == {"title": "Морское дело", "behind": 6, "status": "not_started"}
+    assert behind("pavel") is None
+
     # The teacher moves it to tomorrow: everything left, today.
     moved = client.patch(
         f"/api/groups/{group['id']}/decks/{deck['id']}",

@@ -79,8 +79,12 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
     .first()
     .click();
   await learner.getByRole('button', { name: /^7Б английский/ }).click();
-  await expect(learner.getByText('Вы встретили 0 из 4 · ещё не начинали')).toBeVisible();
+  const forClass = learner.getByRole('region', { name: 'К уроку' });
+  await expect(forClass).toContainText(`Unit 5 к ${dueText} · ещё не начинали`);
   await expect(learner.getByText(/успевают/)).toHaveCount(0);
+  // «Учить» opens the deck to study it.
+  await forClass.getByRole('button', { name: 'Учить' }).click();
+  await expect(learner.getByRole('heading', { level: 1, name: 'Unit 5' })).toBeVisible();
   // …the teacher sees everyone's, and how many are on track.
   await page.goto('/');
   await page
@@ -88,7 +92,9 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
     .first()
     .click();
   await page.getByRole('button', { name: /^7Б английский/ }).click();
-  await expect(page.getByText(`К ${dueText} успевают 2 из 2\u00a0участников`)).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Участники: «Unit 5»' })).toContainText('Анна0 из 4ещё не начинал');
+  // …the teacher, how many students keep up, and by name only those who don't: on the first
+  // day nobody is behind yet.
+  await expect(page.getByRole('region', { name: 'К уроку' })).toContainText(`Unit 5 к ${dueText}: успевают 1 из 1`);
+  await expect(page.getByRole('list', { name: 'Не успевают: «Unit 5»' })).toHaveCount(0);
   await student.close();
 });

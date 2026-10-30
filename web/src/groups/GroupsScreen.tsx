@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { plural } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { suggestNicknames } from '../lib/nickname.ts';
+import { wordsLabel } from '../lib/pace.ts';
 import type { GroupSummary } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CheckIcon, ForwardIcon, PlusIcon } from '../ui/icons.tsx';
+import { ForwardIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import shared from './Groups.module.css';
 import styles from './Friends.module.css';
-
-const membersWord = (n: number) => `${n}\u00a0${plural(n, { one: 'участник', few: 'участника', many: 'участников' })}`;
-/** Up to this many faces on a group's row; the rest are counted. */
-const FACES = 6;
 
 interface GroupsScreenProps {
   /** `created`: the group was just made, so its invitation is the next thing to show. */
@@ -48,7 +44,7 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
           <p className={styles.lead}>
             {empty
               ? 'Учиться вместе веселее. Создайте группу с друзьями или классом — или войдите по коду приглашения. Только имена в приложении, без e-mail и переписки.'
-              : 'Ваши группы. Откройте группу, чтобы увидеть рейтинг и статистику участников.'}
+              : 'Ваши группы: место на этой неделе и кто уже занимался сегодня.'}
           </p>
 
           {loadError && <p role="alert">{loadError}</p>}
@@ -89,32 +85,25 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
   );
 }
 
-/** One group: its name, my place this week, and faces of members — filled once they studied today. */
+/**
+ * One group, one line under its name (ADR 0032): a deadline I'm behind on, the most urgent thing,
+ * or else my place this week and how many studied today.
+ */
 function GroupRow({ group, onOpen }: { group: GroupSummary; onOpen: () => void }) {
   const today = group.members.filter((member) => member.studied_today).length;
-  // Who studied today first, me among them, so the row reads «these people are on it».
-  const faces = [...group.members].sort((a, b) => Number(b.studied_today) - Number(a.studied_today));
-  const place =
-    group.my_rank === null ? 'вы ещё не занимались на этой неделе' : `вы на ${group.my_rank}-м месте на неделе`;
+  const late = group.behind_for_class;
+  const line = late
+    ? `«${late.title}»: ${late.status === 'not_started' ? 'ещё не начинали, ' : ''}отстаёте на ${wordsLabel(late.behind)}`
+    : [
+        group.my_rank === null ? 'вы ещё не занимались на этой неделе' : `вы на ${group.my_rank}-м месте`,
+        `сегодня занимались ${today} из ${group.member_count}`,
+      ].join(' · ');
   return (
     <button type="button" className={styles.group} onClick={onOpen}>
       <span className={styles.groupText}>
         <strong>{group.name}</strong>
-        <span className={styles.meta}>
-          {membersWord(group.member_count)} · {place}
-        </span>
-      </span>
-      <span className={styles.today}>
-        <span className={styles.faces} aria-hidden="true">
-          {faces.slice(0, FACES).map((member, index) => (
-            <i key={index} data-on={member.studied_today || undefined} data-me={member.is_me || undefined}>
-              {member.studied_today ? <CheckIcon /> : member.nickname.slice(0, 1).toUpperCase()}
-            </i>
-          ))}
-          {faces.length > FACES && <i data-more="">+{faces.length - FACES}</i>}
-        </span>
-        <span className={styles.meta}>
-          сегодня занимались {today} из {group.member_count}
+        <span className={styles.meta} data-late={late ? '' : undefined}>
+          {line}
         </span>
       </span>
       <ForwardIcon className={styles.chevron} aria-hidden="true" />
