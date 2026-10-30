@@ -55,6 +55,10 @@ test('a teacher gives words to a group and a student learns them first', async (
 
   // A correction before giving it.
   await words.getByRole('listitem').filter({ hasText: 'carry out' }).getByRole('button', { name: 'Изменить' }).click();
+  // The form takes the word, then the cursor moves to its first field on the next frame: wait for
+  // that, or typing can start in one field and land in another (seen on slow CI machines).
+  await expect(page.getByLabel('Слово или выражение')).toHaveValue('carry out');
+  await expect(page.getByLabel('Слово или выражение')).toBeFocused();
   await page.getByLabel('Перевод', { exact: true }).fill('проводить, выполнять');
   await button(page, 'Сохранить').click();
   await expect(words).toContainText('проводить, выполнять');
