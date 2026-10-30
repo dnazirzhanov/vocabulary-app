@@ -1,5 +1,5 @@
 /* The two figures of the progress tab: words (a number and a bar) and consistency (a week and a
-   calendar). Shared bits: a big number with its unit beside it, small captions, quiet footnotes. */
+   calendar). Shared bits: a big number with its unit beside it, small captions. */
 .sectionTitle {
   margin: 0 0 var(--space-3);
   font-size: var(--text-body);
@@ -266,12 +266,6 @@
   margin: var(--space-3) 0 0;
   font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
-}
-
-.footnote {
-  margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
 }
 
 @media (prefers-reduced-motion: reduce) {

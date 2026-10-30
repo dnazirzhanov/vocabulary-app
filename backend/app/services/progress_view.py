@@ -181,6 +181,16 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             .group_by(DeckWord.deck_id)
         )
     }
+    # The level the learner is on: the first with words still to meet. Levels share the course's
+    # pace, so only this one carries today's goal (ADR 0033); a later one is locked until then.
+    current_level = next(
+        (
+            deck.id
+            for deck in candidates
+            if deck.kind == "course" and counts.get(deck.id, (0,))[0] < int(sizes.get(deck.id, 0))
+        ),
+        None,
+    )
     rows: list[DeckProgressOut] = []
     for deck in candidates:
         met, learned, known, last = counts.get(deck.id, (0, 0, 0, None))
@@ -191,8 +201,7 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
         item = given.get(deck.id)
         # Today in this deck (ADR 0028): shown, never judged.
         today = pace.day_plan(db, user, deck.id, now, time_zone)
-        # The course's levels share one pace: only a level with words left shows it.
-        shares_pace = deck.kind != "course" or met < size
+        shares_pace = deck.kind != "course" or deck.id == current_level
         rows.append(
             DeckProgressOut(
                 id=deck.id,
@@ -212,6 +221,7 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
                 if shares_pace
                 else 0,
                 due_on=item.due_on if item else None,
+                pace=today.target if shares_pace else 0,
             )
         )
     rows.sort(

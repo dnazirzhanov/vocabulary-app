@@ -148,7 +148,7 @@ def test_extra_words_are_the_next_ones_and_last_only_for_today(client: TestClien
     # «Прогресс» shows today's goal in the deck, with the extra words.
     rows = client.get("/api/progress/decks", headers=as_("olga")).json()["decks"]
     row = next(row for row in rows if row["id"] == deck["id"])
-    assert (row["new_today"], row["goal_today"], row["due_on"]) == (7, 7, None)
+    assert (row["new_today"], row["goal_today"], row["due_on"], row["pace"]) == (7, 7, None, 3)
     # Up to 100 at a time, whatever the deck holds; it gives what it has left.
     for words, status in ((100, 200), (101, 422)):
         response = client.post(

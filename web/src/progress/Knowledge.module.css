@@ -38,37 +38,30 @@
 }
 
 .sub,
-.meta,
 .counts,
 .empty {
   color: var(--color-text-muted);
 }
 
 .sub,
-.meta,
 .counts,
-.legend {
+.goal {
   font-size: var(--text-meta);
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  margin-top: var(--space-3);
+.counts strong {
+  color: var(--color-text);
+}
+
+/* A deck's goal: quiet when today is done, primary text while today's words are still to do. */
+.goal {
+  grid-column: 1;
   color: var(--color-text-muted);
 }
 
-.legend i {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-}
-
-.legend i:not(:first-child) {
-  margin-left: var(--space-2);
+.goal[data-pending] {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
 }
 
 [data-tone='met'] {
@@ -77,10 +70,6 @@
 
 [data-tone='learned'] {
   background: var(--color-activity-goal);
-}
-
-[data-tone='known'] {
-  background: var(--color-primary-strong);
 }
 
 .list {
@@ -115,37 +104,16 @@
   background: rgb(38 38 38 / 0.03);
 }
 
-.rowHead,
+.rowTitle,
 .bar,
 .counts {
   grid-column: 1;
 }
 
-.rowHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.rowText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.rowText strong {
+.rowTitle {
   font-size: var(--text-option);
   font-weight: var(--weight-display);
   overflow-wrap: anywhere;
-}
-
-.percent {
-  font-size: var(--text-option);
-  font-weight: var(--weight-display);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .bar {
@@ -165,7 +133,7 @@
 
 .chevron {
   grid-column: 2;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   width: 20px;
   height: 20px;
   color: var(--color-text-muted);

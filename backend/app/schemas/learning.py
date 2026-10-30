@@ -311,6 +311,8 @@ class DeckProgressOut(BaseModel):
     new_today: int = 0
     goal_today: int = 0
     due_on: date | None = None
+    # New words a day in it (the course's for its levels), for «≈ N дней до конца» (ADR 0033).
+    pace: int = 0
 
 
 class KnowledgeOut(BaseModel):

@@ -104,10 +104,13 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
   await finishSession(page);
   await expect(page.getByRole('heading', { name: 'Без единой ошибки!' })).toBeVisible();
 
-  // «Прогресс» shows the ladder: the misspelled word is hard (spelled right since, but not yet due).
+  // The ladder shows where spelling is chosen: the misspelled word is hard (spelled right since,
+  // but not yet due).
   await button(page, 'На главную').click();
-  await page.getByRole('button', { name: 'Прогресс' }).click();
-  await expect(page.getByText('Правописание: умеете писать — 0 · трудных — 1')).toBeVisible();
+  await button(page, 'Правописание').click();
+  await expect(page.getByRole('dialog', { name: 'Правописание' })).toContainText(
+    '1\u00a0слово с ошибкой в прошлый раз',
+  );
 });
 
 test('one hint per card fills the next letter, and only that one', async ({ page }) => {

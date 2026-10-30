@@ -1,27 +1,19 @@
 import { plural } from '../i18n/plural.ts';
 import { dueLabel } from '../lib/deadline.ts';
-import type { DeckProgress, Knowledge as KnowledgeData, SpellingState } from '../lib/types.ts';
+import { deckGoal } from '../lib/deckGoal.ts';
+import type { DeckProgress, Knowledge as KnowledgeData } from '../lib/types.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
 import styles from './Knowledge.module.css';
 
 const wordsOf = (n: number) => `${n}\u00a0${plural(n, { one: 'слово', few: 'слова', many: 'слов' })}`;
-const share = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
 const width = (part: number, whole: number) => `${whole ? Math.min(100, (part / whole) * 100) : 0}%`;
 
 /**
- * «Do I actually remember?» (ADR 0022): words learned — recalled in a later review, not just
- * seen — in all and deck by deck. The bar's tones: known well (darkest), learned, met (faint).
+ * «Do I actually remember?» (ADR 0022, 0033): words learned — recalled in a later review, not
+ * just seen — and how many of them are solid; then each deck in two lines: how far along, and its
+ * goal (today's words, and the finish at its pace or the teacher's deadline).
  */
-export function Knowledge({
-  data,
-  spelling,
-  onOpenDeck,
-}: {
-  data: KnowledgeData;
-  /** The spelling ladder (ADR 0026): words spelled on three separate days, and the hard ones. */
-  spelling: SpellingState;
-  onOpenDeck: (deckId: string) => void;
-}) {
+export function Knowledge({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (deckId: string) => void }) {
   return (
     <section aria-labelledby="knowledge-heading" className={styles.section}>
       <h2 id="knowledge-heading" className={styles.sectionTitle}>
@@ -31,76 +23,44 @@ export function Knowledge({
         <strong>{data.learned}</strong>{' '}
         <span>{plural(data.learned, { one: 'слово', few: 'слова', many: 'слов' })} выучено</span>
       </p>
-      <p className={styles.sub}>
-        Надёжно — {data.known} · встречено — {data.met}
-      </p>
-      {spelling.met > 0 && (
-        <p className={styles.sub}>
-          Правописание: умеете писать — {spelling.known} · трудных — {spelling.hard}
-        </p>
-      )}
+      {data.known > 0 && <p className={styles.sub}>из них надёжно — {data.known}</p>}
       {data.decks.length === 0 ? (
         <p className={styles.empty}>
           Пока ничего не выучено. Слово считается выученным, когда вы вспомните его на повторении — через день или
           позже.
         </p>
       ) : (
-        <>
-          <p className={styles.legend} aria-hidden="true">
-            <i data-tone="known" /> надёжно <i data-tone="learned" /> выучено <i data-tone="met" /> встречено
-          </p>
-          <ul className={styles.list}>
-            {data.decks.map((deck) => (
-              <DeckRow key={deck.id} deck={deck} onOpen={() => onOpenDeck(deck.id)} />
-            ))}
-          </ul>
-        </>
+        <ul className={styles.list}>
+          {data.decks.map((deck) => (
+            <DeckRow key={deck.id} deck={deck} onOpen={() => onOpenDeck(deck.id)} />
+          ))}
+        </ul>
       )}
     </section>
   );
 }
 
 function DeckRow({ deck, onOpen }: { deck: DeckProgress; onOpen: () => void }) {
-  const source = deck.is_mine
-    ? 'ваша колода'
-    : deck.author
-      ? `от ${deck.author} · ${deck.group_name}`
-      : (deck.group_name ?? deck.level ?? '');
-  const percent = share(deck.learned, deck.word_count);
+  const goal = deckGoal({ ...deck, deadline: deck.due_on ? `к ${dueLabel(deck.due_on)}` : null });
   return (
     <li>
       <button type="button" className={styles.row} onClick={onOpen}>
-        <span className={styles.rowHead}>
-          <span className={styles.rowText}>
-            <strong>{deck.title}</strong>
-            <span className={styles.meta}>{source}</span>
-          </span>
-          <span className={styles.percent}>{percent}&nbsp;%</span>
-        </span>
+        <strong className={styles.rowTitle}>{deck.title}</strong>
+        {/* Two tones: met (light), learned (strong) — named in the line under it, in that order. */}
         <span
           className={styles.bar}
           role="img"
-          aria-label={`Выучено ${deck.learned} из ${wordsOf(deck.word_count)}, надёжно ${deck.known}, встречено ${deck.met}`}
+          aria-label={`Выучено ${deck.learned}, встречено ${deck.met} из ${wordsOf(deck.word_count)}`}
         >
           <span data-tone="met" style={{ width: width(deck.met, deck.word_count) }} />
           <span data-tone="learned" style={{ width: width(deck.learned, deck.word_count) }} />
-          <span data-tone="known" style={{ width: width(deck.known, deck.word_count) }} />
         </span>
         <span className={styles.counts}>
-          выучено {deck.learned} из {wordsOf(deck.word_count)}
-          {deck.known > 0 && ` · надёжно ${deck.known}`}
+          выучено <strong>{deck.learned}</strong> · встречено {deck.met} из {wordsOf(deck.word_count)}
         </span>
-        {(deck.goal_today > 0 || deck.due_on) && (
-          // Today in the deck (ADR 0028): shown, never judged.
-          <span className={styles.counts}>
-            {[
-              deck.goal_today > 0 && `сегодня ${deck.new_today} из ${deck.goal_today} новых`,
-              deck.due_on && `выучить к ${dueLabel(deck.due_on)}`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-        )}
+        <span className={styles.goal} data-pending={goal.pending || undefined}>
+          {goal.text}
+        </span>
         <ForwardIcon className={styles.chevron} aria-hidden="true" />
       </button>
     </li>

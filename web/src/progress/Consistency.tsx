@@ -143,9 +143,6 @@ export function Consistency({ progress }: { progress: Progress }) {
           ? dayLine(pickedCell)
           : `${year}: ${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями · ${number.format(calendar.cards)} ${cardsWord(calendar.cards)}`}
       </p>
-      <p className={styles.footnote}>
-        День засчитывается, когда закончено хотя бы одно занятие: урок, правописание или трудные слова.
-      </p>
     </section>
   );
 }
