@@ -91,7 +91,15 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_for_a_later_day(
         "target": 5,
         "plan_done": True,
         "extra_new": 0,
-        "spelling": {"words": 5, "done": 0},
+        "spelling": {
+            "ready": 5,
+            "due": 0,
+            "today": 5,
+            "today_left": 5,
+            "hard": 0,
+            "known": 0,
+            "met": 5,
+        },
     }
     assert summary["ratings"]["easy"] == 1
     by_word = {row["word"]["headword"]: row for row in summary["words"]}

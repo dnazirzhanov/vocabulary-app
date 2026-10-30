@@ -70,7 +70,7 @@ export function ProgressScreen({
         <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
           Прогресс
         </h1>
-        <Knowledge data={loaded.knowledge} onOpenDeck={onOpenDeck} />
+        <Knowledge data={loaded.knowledge} spelling={loaded.progress.spelling_today} onOpenDeck={onOpenDeck} />
         <Consistency progress={loaded.progress} />
         <AccountSection {...account} />
       </main>

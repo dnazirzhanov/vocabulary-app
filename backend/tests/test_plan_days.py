@@ -34,11 +34,9 @@ def day(
     target: int = 5,
     practice: int = 0,
     completed: bool = True,
-    spelled: int | None = None,
     cleared: bool = True,
 ) -> PlanDay:
-    """A day; its planned words spelled unless `spelled` says otherwise (ADR 0016), its due
-    reviews done unless `cleared` says otherwise (ADR 0022)."""
+    """A day; its due reviews done unless `cleared` says otherwise (ADR 0022)."""
     return PlanDay(
         day=on,
         study_answers=study,
@@ -46,7 +44,6 @@ def day(
         practice_answers=practice,
         target=target,
         completed_study=completed,
-        spelled=min(new, target) if spelled is None else spelled,
         reviews_cleared=cleared,
     )
 
@@ -63,8 +60,8 @@ def test_a_day_counts_once_the_target_of_new_words_is_met() -> None:
 def test_the_day_waits_for_every_due_review_not_for_spelling() -> None:
     # ADR 0022: reviews left when the lesson ended keep the day open...
     assert not day(new=5, target=5, cleared=False).plan_done
-    # ...and spelling is practice: not needed for the day.
-    assert day(new=5, target=5, spelled=0).plan_done
+    # ...and spelling is practice: a day has no spelling in it at all.
+    assert day(new=5, target=5).plan_done
 
 
 def test_with_no_new_words_left_cleared_reviews_keep_the_day() -> None:

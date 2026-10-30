@@ -1,0 +1,88 @@
+/* «Другие режимы» of spelling (ADR 0026): three sets of words as rows, then how many. */
+.modes {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.mode[data-disabled] {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.mode input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary-strong);
+}
+
+.mode > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode strong {
+  font-weight: var(--weight-display);
+}
+
+.mode small {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.label {
+  margin-top: var(--space-2);
+  margin-bottom: calc(-1 * var(--space-1));
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.sizes {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-activity-none);
+}
+
+.sizes button {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.sizes button:hover {
+  color: var(--color-text);
+}
+
+.sizes button[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+.error {
+  color: var(--color-error);
+}

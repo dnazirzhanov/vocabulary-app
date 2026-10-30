@@ -81,6 +81,26 @@ export type Exercise = CardExercise | SpellingExercise;
 
 export type SessionKind = 'study' | 'hard' | 'spelling';
 
+/** Which words a spelling session takes (ADR 0026); `mix` is the main button's. */
+export type SpellingMode = 'mix' | 'today' | 'hard' | 'random';
+export const SPELLING_SIZES = [5, 10, 20, 30] as const;
+export type SpellingSize = (typeof SPELLING_SIZES)[number];
+
+/** Where a learner's spelling stands: each word climbs a short ladder (ADR 0026). */
+export interface SpellingState {
+  /** Words the main button gives now (at most 10): hard words due, then words never spelled. */
+  ready: number;
+  /** Hard and climbing words due again. */
+  due: number;
+  /** New words learned today, and how many of them were never spelled. */
+  today: number;
+  today_left: number;
+  /** Misspelled last time; «умеет писать»; every word met (the pool for «Вразброс»). */
+  hard: number;
+  known: number;
+  met: number;
+}
+
 export interface AttemptResult {
   exercise_id: string;
   /** Cards: the rating and when the card is due next. */
@@ -132,7 +152,7 @@ export interface TodayPlan {
   /** New words beyond today's target: extra, never part of the plan. */
   extra_new: number;
   /** Today's spelling, the plan's second part (ADR 0016). */
-  spelling: { words: number; done: number };
+  spelling: SpellingState;
 }
 
 /** One local day (ADR 0015). */
@@ -162,8 +182,8 @@ export interface Progress {
   promised_days: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
-  /** Today's planned new words to spell, and how many a finished spelling session covered. */
-  spelling_today: { words: number; done: number };
+  /** Where my spelling stands (ADR 0026). */
+  spelling_today: SpellingState;
 }
 
 // Mirrors backend/app/schemas/me.py.
@@ -346,8 +366,8 @@ export interface DeckStats {
   new_today: number;
   next_due_at: string | null;
   locked: boolean;
-  /** Today's spelling covers words learned today from any deck. */
-  spelling_today: { words: number; done: number };
+  /** Spelling covers words from any deck (ADR 0026). */
+  spelling_today: SpellingState;
 }
 
 /** A card filled in from a word for the manual form; not saved (ADR 0019). */

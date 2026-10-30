@@ -19,6 +19,8 @@ import type {
   Progress,
   Rating,
   Session,
+  SpellingMode,
+  SpellingSize,
   Summary,
   TeacherDeck,
   DeckWordInput,
@@ -87,8 +89,9 @@ export const api = {
   /** The letter of the next empty slot of a spelling card: one hint per card (ADR 0016). */
   hint: (sessionId: string, exerciseId: string, position: number) =>
     request<Hint>('POST', `/sessions/${sessionId}/exercises/${exerciseId}/hint`, { position }),
-  /** A spelling card for each word learned today (ADR 0016); may be repeated for practice. */
-  startSpellingSession: () => request<Session>('POST', '/sessions', { kind: 'spelling' }),
+  /** Spelling cards for one set of words (ADR 0026): by default the main button's mix of ten. */
+  startSpellingSession: (mode: SpellingMode = 'mix', size: SpellingSize = 10) =>
+    request<Session>('POST', '/sessions', { kind: 'spelling', mode, size }),
   startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),
   // Safe to retry: the server keeps exactly one rating per showing.
   rateCard: (sessionId: string, exerciseId: string, rating: Rating) =>

@@ -6,6 +6,7 @@ import { studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SuggestionCard } from '../home/SuggestionCard.tsx';
+import { SpellingModes } from '../spelling/SpellingModes.tsx';
 import { CardCounts } from '../today/CardCounts.tsx';
 import { BackIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -30,6 +31,7 @@ interface DeckScreenProps {
 export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEdit }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [modesOpen, setModesOpen] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -110,13 +112,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
     : stats.author
       ? `от ${stats.author} · ${stats.group_name}`
       : (stats.group_name ?? stats.level);
+  // Spelling (ADR 0026): the main button takes due hard words and words never spelled; the other
+  // sets are one tap further, under «Другие режимы».
   const spelling = stats.spelling_today;
-  const spellingLabel =
-    spelling.words === 0
-      ? null
-      : spelling.done < spelling.words
-        ? `Правописание · ${wordsLabel(spelling.words)}`
-        : 'Правописание · ещё раз';
+  const unwritten = Math.max(0, spelling.ready - spelling.due);
+  const spellingNote =
+    spelling.due > 0 && unwritten > 0
+      ? `${spelling.due} на повторение и ${unwritten} новых`
+      : spelling.due > 0
+        ? `${wordsLabel(spelling.due)} на повторение`
+        : 'Слова, которые вы ещё не писали';
   const share = (part: number) => `${stats.word_count ? (part / stats.word_count) * 100 : 0}%`;
 
   return (
@@ -190,19 +195,41 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           )}
 
           <nav className={styles.links} aria-label="Ещё по колоде">
-            {spellingLabel && !active && (
+            {spelling.ready > 0 && !active && (
               <button
                 type="button"
                 className={styles.link}
                 disabled={busy}
                 onClick={() => run(async () => onSession(await api.startSpellingSession(), deckId))}
-                aria-label={spellingLabel}
+                aria-label={`Правописание · ${wordsLabel(spelling.ready)}`}
                 aria-describedby="spelling-note"
               >
                 <PencilIcon aria-hidden="true" />
                 <span>
-                  <strong>{spellingLabel}</strong>
-                  <small id="spelling-note">Слова, выученные сегодня — из любой колоды</small>
+                  <strong>Правописание · {wordsLabel(spelling.ready)}</strong>
+                  <small id="spelling-note">{spellingNote} — из любой колоды</small>
+                </span>
+                <ForwardIcon className={styles.chevron} aria-hidden="true" />
+              </button>
+            )}
+            {spelling.met > 0 && !active && (
+              <button
+                type="button"
+                className={styles.link}
+                onClick={() => setModesOpen(true)}
+                aria-label={spelling.ready > 0 ? 'Правописание: другие режимы' : 'Правописание'}
+                aria-describedby="spelling-modes-note"
+                aria-haspopup="dialog"
+              >
+                {/* Under the main button, its text lines up with that button's. */}
+                {spelling.ready === 0 ? <PencilIcon aria-hidden="true" /> : <span className={styles.iconSpace} />}
+                <span>
+                  <strong>{spelling.ready > 0 ? 'Правописание: другие режимы' : 'Правописание'}</strong>
+                  <small id="spelling-modes-note">
+                    {spelling.ready > 0
+                      ? 'Сегодняшние, трудные или вразброс'
+                      : 'На сегодня всё написано · сегодняшние, трудные или вразброс'}
+                  </small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
@@ -224,6 +251,14 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               </button>
             )}
           </nav>
+          {modesOpen && (
+            <SpellingModes
+              open
+              state={spelling}
+              onClose={() => setModesOpen(false)}
+              onStart={async (mode, size) => onSession(await api.startSpellingSession(mode, size), deckId)}
+            />
+          )}
         </div>
       </main>
       <footer className={styles.actions}>

@@ -51,6 +51,27 @@ class UserWordProgress(Base):
     lapses: Mapped[int] = mapped_column(server_default=text("0"))
 
 
+class SpellingProgress(Base):
+    """How well a learner spells one word: a short ladder, apart from FSRS's memory of its
+    meaning (ADR 0026). Created at the word's first spelling."""
+
+    __tablename__ = "spelling_progress"
+    __table_args__ = (
+        CheckConstraint("rung BETWEEN 0 AND 3", name="rung_range"),
+        Index("ix_spelling_progress_user_due", "user_id", "due_at"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    # 0 hard (misspelled), 1 and 2 on the way, 3 «умеет писать».
+    rung: Mapped[int] = mapped_column(SmallInteger)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_spelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    misses: Mapped[int] = mapped_column(server_default=text("0"))
+
+
 class LearningSession(Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { button, expect, finishSession, openDeck, spellToday, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, test } from './learner.ts';
 
 /** Today's lesson: five new cards, then its summary, where spelling is offered next. */
 async function lesson(page: Page) {
@@ -60,13 +60,22 @@ test('a mistake shows the word, and the card can be built again until right', as
 
   await finishSession(page);
   await expect(page.getByRole('heading', { name: 'Правописание готово' })).toBeVisible();
-  await expect(page.getByText('5 слов · 4 верно с первого раза · 1 с ошибкой.')).toBeVisible();
+  await expect(
+    page.getByText('5 слов · 4 верно с первого раза · 1 с ошибкой. Слова с ошибкой вернутся завтра.'),
+  ).toBeVisible();
 });
 
-test('the day waits for spelling; it can be repeated and a half-built word survives a reload', async ({ page }) => {
+test('the deck page offers ten words at a time, and other modes; a half-built word survives a reload', async ({
+  page,
+}) => {
   await lesson(page);
   await button(page, 'На главную').click(); // back on the deck's page
-  await button(page, 'Правописание · 5 слов').click(); // today's words, not yet spelled
+  // The main button: today's words, never spelled (ADR 0026).
+  await expect(button(page, 'Правописание · 5 слов')).toContainText(
+    'Слова, которые вы ещё не писали — из любой колоды',
+  );
+  await expect(button(page, 'Правописание: другие режимы')).toBeVisible();
+  await button(page, 'Правописание · 5 слов').click();
   await tile(page, 'h').click();
   await tile(page, 'o').click();
   await page.reload();
@@ -74,14 +83,31 @@ test('the day waits for spelling; it can be repeated and a half-built word survi
   await button(page, 'Продолжить урок').click();
   await expect(page.getByRole('group', { name: 'Ответ: 2 из 5 букв' })).toBeVisible();
   await button(page, 'Очистить').click();
-  await finishSession(page);
+  await finishSession(page, {}, { water: 'wtaer' });
+  // All spelled: nothing more for the main button now, so home is the only step.
+  await expect(button(page, 'Ещё 5 слов')).toHaveCount(0);
   await button(page, 'На главную').click();
-  await expect(button(page, 'Правописание · ещё раз')).toBeVisible(); // the day's spelling is done
+  await expect(page.getByRole('button', { name: /^Правописание · \d/ })).toHaveCount(0);
 
-  // Practice again, as often as wanted: the day is already done, nothing changes.
-  await spellToday(page);
+  // The other modes: today's words again, the hard one, or a random draw; 5 to 30 at a time.
+  await expect(button(page, 'Правописание')).toHaveAccessibleDescription(/На сегодня всё написано/);
+  await button(page, 'Правописание').click();
+  const dialog = page.getByRole('dialog', { name: 'Правописание' });
+  await expect(dialog.getByRole('radio', { name: /Сегодняшние/ })).toBeChecked();
+  await expect(dialog.getByRole('radio', { name: /Трудные 1 слово с ошибкой/ })).toBeEnabled();
+  await dialog.getByRole('radio', { name: /Трудные/ }).check();
+  await expect(dialog.getByRole('button', { name: 'Начать · 1 слово' })).toBeVisible();
+  await dialog.getByRole('radio', { name: /Сегодняшние/ }).check();
+  await dialog.getByRole('button', { name: '20', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: '20', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Начать · 5 слов' }).click();
+  await finishSession(page);
   await expect(page.getByRole('heading', { name: 'Без единой ошибки!' })).toBeVisible();
-  await expect(button(page, 'Ещё раз')).toBeVisible();
+
+  // «Прогресс» shows the ladder: the misspelled word is hard (spelled right since, but not yet due).
+  await button(page, 'На главную').click();
+  await page.getByRole('button', { name: 'Прогресс' }).click();
+  await expect(page.getByText('Правописание: умеете писать — 0 · трудных — 1')).toBeVisible();
 });
 
 test('one hint per card fills the next letter, and only that one', async ({ page }) => {

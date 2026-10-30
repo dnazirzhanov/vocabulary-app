@@ -42,18 +42,11 @@ class PlanDay:
     practice_answers: int
     target: int
     completed_study: bool
-    # Words covered by a finished spelling session that day (ADR 0016): shown, not required.
-    spelled: int = 0
     # A finished study lesson that day left no review due (ADR 0022); sessions from before that
     # was recorded count as done.
     reviews_cleared: bool = True
     # Every card answered that day, practice and spelling included: the heatmap's shade.
     answers: int = 0
-
-    @property
-    def spelling_needed(self) -> int:
-        """The planned new words of the day, each to be spelled once."""
-        return min(self.new_words, self.target)
 
     @property
     def practised(self) -> bool:
@@ -103,7 +96,6 @@ def days_by_user(
     zone = literal(time_zone.key) if time_zone else func.coalesce(User.time_zone, "UTC")
     local_day = func.date(func.timezone(zone, ReviewAttempt.answered_at))
     study = LearningSession.kind.not_in((PRACTICE, SPELLING))
-    spelled = and_(LearningSession.kind == SPELLING, LearningSession.completed_at.is_not(None))
     rows = db.execute(
         select(
             ReviewAttempt.user_id,
@@ -113,7 +105,6 @@ def days_by_user(
             func.count().filter(LearningSession.kind == PRACTICE),
             func.min(LearningSession.day_target).filter(study),
             func.bool_or(and_(study, LearningSession.completed_at.is_not(None))),
-            func.max(LearningSession.spelling_words).filter(spelled),
             func.bool_or(
                 and_(
                     study,
@@ -141,7 +132,6 @@ def days_by_user(
         practice,
         recorded,
         completed,
-        spelled_words,
         cleared,
         answers,
     ) in rows:
@@ -158,7 +148,6 @@ def days_by_user(
             practice_answers=int(practice),
             target=int(target),
             completed_study=bool(completed),
-            spelled=int(spelled_words or 0),
             reviews_cleared=bool(cleared),
             answers=int(answers),
         )

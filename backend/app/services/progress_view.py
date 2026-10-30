@@ -1,5 +1,6 @@
 """The learner's own progress: the Progress page and today's plan after a lesson (ADR 0015)."""
 
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -17,7 +18,7 @@ from app.schemas.learning import (
     TodayPlanOut,
     WordStages,
 )
-from app.services import decks
+from app.services import decks, spelling_ladder
 from app.services.plan_days import (
     HISTORY_DAYS,
     PlanDay,
@@ -99,23 +100,15 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
         activity=[_day_out(day) for _, day in sorted(days.items())],
         promised_days=promises.get(monday, user.study_days_per_week),
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
-        spelling_today=_spelling_out(days.get(today)),
+        spelling_today=spelling_today(db, user, now, time_zone),
     )
 
 
 def spelling_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> SpellingTodayOut:
-    """Today's spelling on its own, for a deck's page (ADR 0020)."""
-    today = local_date(now, time_zone)
-    since, _ = local_day_bounds(today, time_zone)
-    return _spelling_out(days_by_user(db, [user], since, time_zone)[user.id].get(today))
-
-
-def _spelling_out(day: PlanDay | None) -> SpellingTodayOut:
-    """Today's planned new words to spell, and how many a finished spelling session covered."""
-    if day is None:
-        return SpellingTodayOut(words=0, done=0)
-    needed = day.spelling_needed
-    return SpellingTodayOut(words=needed, done=min(day.spelled, needed))
+    """Where the learner's spelling stands (ADR 0026): the main button's words, today's words
+    still to spell, and the ladder's hard and known words."""
+    seen = spelling_ladder.overview(spelling_ladder.load(db, user, now, time_zone), now)
+    return SpellingTodayOut(**asdict(seen))
 
 
 def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> TodayPlanOut:
@@ -125,14 +118,18 @@ def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> T
     if day is None:
         target = fallback_target(user, today, time_zone)
         return TodayPlanOut(
-            new_words=0, target=target, plan_done=False, extra_new=0, spelling=_spelling_out(None)
+            new_words=0,
+            target=target,
+            plan_done=False,
+            extra_new=0,
+            spelling=spelling_today(db, user, now, time_zone),
         )
     return TodayPlanOut(
         new_words=day.new_words,
         target=day.target,
         plan_done=day.plan_done,
         extra_new=day.extra_new,
-        spelling=_spelling_out(day),
+        spelling=spelling_today(db, user, now, time_zone),
     )
 
 

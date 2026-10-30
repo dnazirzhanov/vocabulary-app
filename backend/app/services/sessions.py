@@ -59,7 +59,7 @@ from app.schemas.learning import (
     SummaryWord,
     WordOut,
 )
-from app.services import decks, groups, pace, progress_view, spelling
+from app.services import decks, groups, pace, progress_view, spelling, spelling_ladder
 from app.services.learning import (
     HARD_CARDS_PER_SESSION,
     REQUEUE_WITHIN_SECONDS,
@@ -71,7 +71,7 @@ from app.services.learning import (
     requeue,
 )
 from app.services.plan_days import zone_of
-from app.services.progress import INTRODUCTION, card_points, local_day_bounds
+from app.services.progress import card_points
 from app.services.progress_view import today_plan
 from app.services.scheduling import (
     AGAIN,
@@ -80,7 +80,6 @@ from app.services.scheduling import (
     REVIEW,
     WELL_LEARNED_STABILITY_DAYS,
     CardState,
-    local_date,
     previews,
     review,
 )
@@ -514,37 +513,31 @@ def _study_plan(
 
 
 def _spelling_plan(
-    db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[str, list[PlannedExercise]]:
-    """A spelling card for each word learned today, in the order learned (ADR 0016)."""
-    start, end = local_day_bounds(local_date(now, time_zone), time_zone)
-    # Answers are stored in the order given, so the first answer's id is the learning order.
-    first = func.min(ReviewAttempt.id)
-    learned = db.execute(
-        select(ReviewAttempt.word_id, first)
-        .where(
-            ReviewAttempt.user_id == user.id,
-            INTRODUCTION,
-            ReviewAttempt.answered_at >= start,
-            ReviewAttempt.answered_at < end,
-        )
-        .group_by(ReviewAttempt.word_id)
-        .order_by(first)
-    ).all()
-    words = [word_id for word_id, _ in learned]
-    if not words:
-        raise ApiError(409, "nothing_to_spell", "No new words learned today yet")
-    # The session is about today's words from any deck; it names one the learner can see: a course
+    db: Session, user: User, request: StartSpellingSession, now: datetime, time_zone: ZoneInfo
+) -> tuple[str | None, list[PlannedExercise], int]:
+    """A spelling card for each word of the chosen set (ADR 0026); also how many of them are
+    today's new words."""
+    words = spelling_ladder.load(db, user, now, time_zone)
+    # Seeded, so «Вразброс» draws the same words if the request is repeated at the same moment.
+    rng = random.Random(f"{user.id}:{now.isoformat()}:spelling")  # noqa: S311
+    chosen = spelling_ladder.pick(request.mode, request.size, words, now, rng)
+    if not chosen:
+        raise ApiError(409, "nothing_to_spell", "No words to spell in this set")
+    # The session is about words from any deck; it names one the learner can see: a course
     # level when the word is in one (a teacher may have linked it into someone else's deck).
     deck = db.scalar(
         select(DeckWord.deck_id)
         .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(DeckWord.word_id == words[0])
+        .where(DeckWord.word_id == chosen[0])
         .order_by((Deck.kind == "course").desc(), DeckWord.deck_id)
         .limit(1)
     )
-    assert deck is not None
-    return deck, plan_spelling(words, _tile_maker(db, user, now))
+    today = set(words.today)
+    return (
+        deck,
+        plan_spelling(chosen, _tile_maker(db, user, now)),
+        sum(1 for word in chosen if word in today),
+    )
 
 
 def _tile_maker(db: Session, user: User, now: datetime) -> "TileMaker":
@@ -591,6 +584,7 @@ def start_session(
         return present_session(db, user, existing, now)
 
     # Practice is never part of the plan, so it records none.
+    deck_id: str | None
     day_target: int | None = None
     promised_days: int | None = None
     spelling_words: int | None = None
@@ -598,8 +592,7 @@ def start_session(
         deck_id, plan, day_target = _study_plan(db, user, request, now, time_zone)
         promised_days = user.study_days_per_week
     elif isinstance(request, StartSpellingSession):
-        deck_id, plan = _spelling_plan(db, user, now, time_zone)
-        spelling_words = len(plan)
+        deck_id, plan, spelling_words = _spelling_plan(db, user, request, now, time_zone)
     else:
         deck_id, plan = request.deck_id, _hard_plan(db, user, request)
     session = LearningSession(
@@ -808,7 +801,11 @@ def _spell(
         points=0,  # spelling never earns points or a place on the board
     )
     db.add(stored)
+    # Flush first: a second try at the same card fails here and leaves the ladder alone.
     db.flush()
+    # A hinted word was not spelled from memory: on the ladder it counts as a miss (ADR 0026).
+    right = bool(stored.correct) and step.hint is None
+    spelling_ladder.record(db, user, step.word_id, right, now, zone_of(user))
     return stored
 
 

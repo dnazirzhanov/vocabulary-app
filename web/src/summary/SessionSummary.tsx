@@ -34,7 +34,8 @@ function describe(summary: Summary, hard: Entry[]) {
     const { words: count, first_try, needs_practice } = summary.spelling;
     return {
       title: needs_practice === 0 ? 'Без единой ошибки!' : 'Правописание готово',
-      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой` : ''}.`,
+      // A misspelled word is hard on the spelling ladder: it comes back the next day (ADR 0026).
+      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой. Слова с ошибкой вернутся завтра` : ''}.`,
     };
   }
   if (summary.kind === 'hard') {
@@ -108,14 +109,16 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const { title, lead } = describe(summary, hard);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  // The next step: today's spelling when it is still due (ADR 0016), another round of spelling
-  // after spelling, practice of hard words, or more study.
-  const spellingDue = summary.today.spelling.done < summary.today.spelling.words;
+  // The next step: spelling while today's words are not yet spelled (ADR 0026), more spelling
+  // while the main set holds words, practice of hard words, or more study.
+  const spelling = summary.today.spelling;
   const next =
     summary.kind === 'spelling'
-      ? { label: 'Ещё раз', run: onSpelling }
-      : summary.kind === 'study' && spellingDue
-        ? { label: `Правописание · ${wordsLabel(summary.today.spelling.words)}`, run: onSpelling }
+      ? spelling.ready > 0
+        ? { label: `Ещё ${wordsLabel(spelling.ready)}`, run: onSpelling }
+        : null
+      : summary.kind === 'study' && spelling.today_left > 0
+        ? { label: `Правописание · ${wordsLabel(spelling.ready)}`, run: onSpelling }
         : perfect || summary.kind === 'hard'
           ? { label: 'Продолжить', run: onNext }
           : { label: 'Повторить трудные', run: onPractice };
@@ -153,23 +156,32 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
           </p>
         )}
         <div className={styles.actionsInner}>
-          {next.run === onSpelling && summary.kind === 'study' && !perfect && (
+          {next?.run === onSpelling && summary.kind === 'study' && !perfect && (
             <button type="button" className={styles.practiceLink} disabled={busy} onClick={() => run(onPractice)}>
               Повторить трудные
             </button>
           )}
-          <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
-            На главную
-          </SecondaryButton>
-          <PrimaryButton
-            type="button"
-            className={styles.action}
-            disabled={busy}
-            aria-busy={busy}
-            onClick={() => run(next.run)}
-          >
-            {busy ? 'Загружаем…' : next.label}
-          </PrimaryButton>
+          {next ? (
+            <>
+              <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
+                На главную
+              </SecondaryButton>
+              <PrimaryButton
+                type="button"
+                className={styles.action}
+                disabled={busy}
+                aria-busy={busy}
+                onClick={() => run(next.run)}
+              >
+                {busy ? 'Загружаем…' : next.label}
+              </PrimaryButton>
+            </>
+          ) : (
+            // Everything spelled for now: home is the only step left.
+            <PrimaryButton type="button" className={styles.action} onClick={onHome}>
+              На главную
+            </PrimaryButton>
+          )}
         </div>
       </footer>
     </div>

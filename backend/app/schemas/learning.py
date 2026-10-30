@@ -193,9 +193,12 @@ class StartHardSession(_Input):
 
 
 class StartSpellingSession(_Input):
-    """A spelling card for each word learned today (ADR 0016); may be repeated for practice."""
+    """Spelling cards (ADR 0016) for one set of words, at most `size` (ADR 0026): `mix` (due hard
+    words, then today's and other words never spelled), `today`, `hard` or `random`."""
 
     kind: Literal["spelling"]
+    mode: Literal["mix", "today", "hard", "random"] = "mix"
+    size: Literal[5, 10, 20, 30] = 10
 
 
 StartRequest = StartStudySession | StartHardSession | StartSpellingSession
@@ -344,11 +347,15 @@ class ProgressOut(BaseModel):
 
 
 class SpellingTodayOut(BaseModel):
-    """Today's spelling (ADR 0016): the planned new words to spell, and how many a finished
-    spelling session has covered (mistakes or not). Extra practice never raises it."""
+    """Where the learner's spelling stands (ADR 0026), for the spelling buttons and «Прогресс»."""
 
-    words: int
-    done: int
+    ready: int  # words the main button gives now (at most 10)
+    due: int  # hard and climbing words due again
+    today: int  # new words learned today
+    today_left: int  # of those, never spelled
+    hard: int  # misspelled last time
+    known: int  # «умеет писать»
+    met: int  # every word met: the pool for «Вразброс»
 
 
 class DeckWordOut(BaseModel):

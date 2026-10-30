@@ -189,6 +189,11 @@
   color: var(--color-primary-strong);
 }
 
+.link > .iconSpace {
+  flex: none;
+  width: 20px;
+}
+
 .link > span {
   display: flex;
   flex: 1;

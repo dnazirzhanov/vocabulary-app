@@ -197,7 +197,7 @@ def test_a_decks_page_shows_my_progress_on_it(client: TestClient) -> None:
     # All three met: nothing new left in it, though today's pace has room for two more.
     assert (stats["introduced_count"], stats["well_learned"], stats["new_today"]) == (3, 0, 0)
     # Spelling covers today's words, whichever deck they came from.
-    assert stats["spelling_today"] == {"words": 3, "done": 0}
+    assert (stats["spelling_today"]["ready"], stats["spelling_today"]["today_left"]) == (3, 3)
     assert client.get(f"/api/decks/{deck['id']}/stats", headers=as_("olga")).json()["is_mine"]
     stranger = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("stranger"))
     assert stranger.status_code == 404

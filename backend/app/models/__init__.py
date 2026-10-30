@@ -10,7 +10,12 @@ from app.models.content import (
     Word,
 )
 from app.models.groups import Group, GroupMember
-from app.models.learning import LearningSession, ReviewAttempt, UserWordProgress
+from app.models.learning import (
+    LearningSession,
+    ReviewAttempt,
+    SpellingProgress,
+    UserWordProgress,
+)
 from app.models.user import PaceDismissal, User
 
 __all__ = [
@@ -25,6 +30,7 @@ __all__ = [
     "LearningSession",
     "PaceDismissal",
     "ReviewAttempt",
+    "SpellingProgress",
     "User",
     "UserWordProgress",
     "Word",

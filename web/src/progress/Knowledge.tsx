@@ -1,5 +1,5 @@
 import { plural } from '../i18n/plural.ts';
-import type { DeckProgress, Knowledge as KnowledgeData } from '../lib/types.ts';
+import type { DeckProgress, Knowledge as KnowledgeData, SpellingState } from '../lib/types.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
 import styles from './Knowledge.module.css';
 
@@ -11,7 +11,16 @@ const width = (part: number, whole: number) => `${whole ? Math.min(100, (part / 
  * «Do I actually remember?» (ADR 0022): words learned — recalled in a later review, not just
  * seen — in all and deck by deck. The bar's tones: known well (darkest), learned, met (faint).
  */
-export function Knowledge({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (deckId: string) => void }) {
+export function Knowledge({
+  data,
+  spelling,
+  onOpenDeck,
+}: {
+  data: KnowledgeData;
+  /** The spelling ladder (ADR 0026): words spelled on three separate days, and the hard ones. */
+  spelling: SpellingState;
+  onOpenDeck: (deckId: string) => void;
+}) {
   return (
     <section aria-labelledby="knowledge-heading" className={styles.section}>
       <h2 id="knowledge-heading" className={styles.sectionTitle}>
@@ -24,6 +33,11 @@ export function Knowledge({ data, onOpenDeck }: { data: KnowledgeData; onOpenDec
       <p className={styles.sub}>
         Надёжно — {data.known} · встречено — {data.met}
       </p>
+      {spelling.met > 0 && (
+        <p className={styles.sub}>
+          Правописание: умеете писать — {spelling.known} · трудных — {spelling.hard}
+        </p>
+      )}
       {data.decks.length === 0 ? (
         <p className={styles.empty}>
           Пока ничего не выучено. Слово считается выученным, когда вы вспомните его на повторении — через день или
