@@ -52,29 +52,6 @@
   outline: none;
 }
 
-.plan {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
-}
-
-.plan[data-done] {
-  color: var(--color-success);
-}
-
-.plan svg {
-  width: 20px;
-  height: 20px;
-}
-
-.extra {
-  color: var(--color-primary-strong);
-}
-
 .lead {
   margin-top: var(--space-2);
   color: var(--color-text-muted);
@@ -286,39 +263,6 @@
     width: auto;
     min-width: 200px;
   }
-}
-
-/* The four ratings of the session, in the same colours as the buttons, each with its word. */
-.ratings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.ratings li {
-  padding: 2px var(--space-2);
-  border-radius: 6px;
-  background: var(--color-track);
-}
-
-.ratings li[data-tone='again'] {
-  background: var(--color-error-tint);
-  color: var(--color-error);
-}
-
-.ratings li[data-tone='good'] {
-  background: var(--color-success-tint);
-  color: var(--color-success);
-}
-
-.ratings li[data-tone='easy'] {
-  background: #e9f1fa;
-  color: var(--color-series-firm);
 }
 
 /* Practice of hard words, when today's spelling has the main button. */

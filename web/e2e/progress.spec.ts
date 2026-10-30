@@ -20,8 +20,9 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
-  // No reviews were due and the five new words are met: the day is kept, spelling or not.
-  await expect(page.getByText('План на сегодня выполнен')).toBeVisible();
+  // The summary keeps to the words: no plan line, no count of ratings.
+  await expect(page.getByText('План на сегодня')).toHaveCount(0);
+  await expect(page.getByText(/^Хорошо \d+$/)).toHaveCount(0);
   await button(page, 'На главную').click();
   await expect(page.getByText(/подряд/)).toHaveCount(0);
 

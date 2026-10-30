@@ -107,7 +107,6 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const { title, lead } = describe(summary, hard);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const { again, hard: hardCount, good, easy: easyCount } = summary.ratings;
   // The next step: today's spelling when it is still due (ADR 0016), another round of spelling
   // after spelling, practice of hard words, or more study.
   const spellingDue = summary.today.spelling.done < summary.today.spelling.words;
@@ -136,15 +135,6 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
               {title}
             </h1>
             <p className={styles.lead}>{lead}</p>
-            <TodayPlanLine summary={summary} />
-            {summary.kind !== 'spelling' && (
-              <ul className={styles.ratings} aria-label="Ваши оценки">
-                <li data-tone="again">Снова {again}</li>
-                <li data-tone="hard">Трудно {hardCount}</li>
-                <li data-tone="good">Хорошо {good}</li>
-                <li data-tone="easy">Легко {easyCount}</li>
-              </ul>
-            )}
           </div>
 
           <div className={styles.recap}>
@@ -181,26 +171,5 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
         </div>
       </footer>
     </div>
-  );
-}
-
-/** Where today's plan stands after this session (ADR 0015): done, how far, or practice as extra. */
-function TodayPlanLine({ summary }: { summary: Summary }) {
-  const { today } = summary;
-  let text: string;
-  if (summary.kind === 'hard') text = 'Тренировка — сверх плана';
-  else if (today.plan_done) text = 'План на сегодня выполнен';
-  else if (today.target > today.new_words)
-    text = `До плана на сегодня ещё ${wordsLabel(today.target - today.new_words)}`;
-  // The new words are met: what keeps the day open is reviews still due in other decks (ADR 0022).
-  else text = 'Остались повторения в других колодах';
-  return (
-    <p className={styles.plan} data-done={today.plan_done || undefined}>
-      {today.plan_done && summary.kind !== 'hard' && <CheckIcon aria-hidden="true" />}
-      {text}
-      {today.extra_new > 0 && summary.kind !== 'hard' && (
-        <span className={styles.extra}> · +{wordsLabel(today.extra_new)} сверх плана</span>
-      )}
-    </p>
   );
 }

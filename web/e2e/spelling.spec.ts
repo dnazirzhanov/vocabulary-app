@@ -14,8 +14,7 @@ const tile = (page: Page, letter: string) =>
 
 test('spelling follows the lesson: a card per new word, built from its meaning', async ({ page }) => {
   await lesson(page);
-  // Spelling is practice, offered after the lesson; the day doesn't wait for it (ADR 0022).
-  await expect(page.getByText('План на сегодня выполнен')).toBeVisible();
+  // Spelling is practice, offered after the lesson (ADR 0022).
   await button(page, 'Правописание · 5 слов').click();
 
   const card = page.locator('[data-spelling]');
@@ -62,7 +61,6 @@ test('a mistake shows the word, and the card can be built again until right', as
   await finishSession(page);
   await expect(page.getByRole('heading', { name: 'Правописание готово' })).toBeVisible();
   await expect(page.getByText('5 слов · 4 верно с первого раза · 1 с ошибкой.')).toBeVisible();
-  await expect(page.getByText('План на сегодня выполнен')).toBeVisible(); // a mistake never blocks it
 });
 
 test('the day waits for spelling; it can be repeated and a half-built word survives a reload', async ({ page }) => {
