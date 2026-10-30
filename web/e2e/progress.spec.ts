@@ -13,7 +13,6 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   // Nothing studied yet: no decks, and what «learned» means.
   await expect(page.getByText('Пока ничего не выучено')).toBeVisible();
   await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^0\s*из 6 дней/);
-  await expect(page.getByText(/^День засчитывается, когда закончено хотя бы одно занятие/)).toBeVisible();
   await expect(page.getByText('Ещё 6 дней до цели недели')).toBeVisible();
   await button(page, 'Сегодня').click();
 
@@ -29,10 +28,13 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   await button(page, 'Прогресс').click();
   // Met, not learned: a word counts as learned once recalled in a later review.
   await expect(figure(page, 'слов выучено')).toHaveText(/^0\s*слов выучено/);
-  await expect(page.getByText('Надёжно — 0 · встречено — 5')).toBeVisible();
+  // Each deck in two lines (ADR 0033): how far along, then its goal — today done, and the finish
+  // at its own pace.
   const level = page.getByRole('button', { name: /^Основа/ });
-  await expect(level).toContainText('0 %');
-  await expect(level).toContainText('выучено 0 из 100\u00a0слов');
+  await expect(level).toContainText('выучено 0 · встречено 5 из 100\u00a0слов');
+  await expect(level).toContainText('на сегодня ✓ · осталось 95\u00a0слов ≈ 19\u00a0дней');
+  await expect(level).not.toContainText('%');
+  await expect(page.getByText(/^Правописание:/)).toHaveCount(0);
 
   // Today counts toward the week and the calendar; the week is a commitment, not a streak.
   await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^1\s*из 6 дней/);

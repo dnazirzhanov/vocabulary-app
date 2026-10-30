@@ -449,6 +449,8 @@ export interface DeckProgress {
   new_today: number;
   goal_today: number;
   due_on: string | null;
+  /** New words a day in it: «≈ N дней до конца» (ADR 0033). */
+  pace: number;
 }
 
 export interface Knowledge {

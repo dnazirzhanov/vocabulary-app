@@ -8,8 +8,9 @@ import { Knowledge } from './Knowledge.tsx';
 import styles from './ProgressScreen.module.css';
 
 /**
- * Two questions, answered at a glance (ADR 0022): do I actually remember — words learned, deck by
- * deck — and am I studying steadily — my week against my own promise.
+ * Two questions, answered at a glance (ADR 0022, 0033): do I actually remember — words learned,
+ * and each deck's way to its goal — and am I studying steadily — my week against my own promise,
+ * and the year's calendar.
  */
 export function ProgressScreen({
   onOpenDeck,
@@ -70,7 +71,7 @@ export function ProgressScreen({
         <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
           Прогресс
         </h1>
-        <Knowledge data={loaded.knowledge} spelling={loaded.progress.spelling_today} onOpenDeck={onOpenDeck} />
+        <Knowledge data={loaded.knowledge} onOpenDeck={onOpenDeck} />
         <Consistency progress={loaded.progress} />
         <AccountSection {...account} />
       </main>
