@@ -72,10 +72,9 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await expect(row).toContainText('вы на 1-м месте на неделе');
   await expect(row).toContainText('сегодня занимались 1 из 2');
 
-  // A tap on a member opens their profile: their week against their own promise.
+  // Members are statistics on the board; nothing opens on a tap, and there is no «Профиль».
   await row.click();
-  await page.getByRole('button', { name: /^Лис/ }).click();
-  const fox = page.getByRole('dialog', { name: 'Лис' });
-  await expect(fox).toContainText('Обещание: 6 дней в неделю по 3 слова');
-  await page.keyboard.press('Escape');
+  await expect(page.locator('p', { hasText: 'Ещё не занимались на этой неделе:' })).toContainText('Лис');
+  await expect(page.getByRole('button', { name: /^Лис/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Профиль' })).toHaveCount(0);
 });

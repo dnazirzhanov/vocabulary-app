@@ -3,6 +3,7 @@ import { api, describeError } from '../lib/api.ts';
 import type { Knowledge as KnowledgeData, Progress } from '../lib/types.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { Consistency } from './Consistency.tsx';
+import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { Knowledge } from './Knowledge.tsx';
 import styles from './ProgressScreen.module.css';
 
@@ -10,7 +11,14 @@ import styles from './ProgressScreen.module.css';
  * Two questions, answered at a glance (ADR 0022): do I actually remember — words learned, deck by
  * deck — and am I studying steadily — my week against my own promise.
  */
-export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) => void }) {
+export function ProgressScreen({
+  onOpenDeck,
+  account,
+}: {
+  onOpenDeck: (deckId: string) => void;
+  /** Sign out and delete my data, at the end of the page. */
+  account: AccountProps;
+}) {
   const [loaded, setLoaded] = useState<{ progress: Progress; knowledge: KnowledgeData } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -64,6 +72,7 @@ export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) =>
         </h1>
         <Knowledge data={loaded.knowledge} onOpenDeck={onOpenDeck} />
         <Consistency progress={loaded.progress} />
+        <AccountSection {...account} />
       </main>
     </div>
   );

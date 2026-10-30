@@ -45,8 +45,6 @@ interface GroupScreenProps {
   groupId: string;
   /** Open the invitation straight away: the group has just been created. */
   inviteOnOpen?: boolean;
-  /** A tap on a member opens their profile window (ADR 0015). */
-  onOpenProfile: (memberId: string, nickname: string) => void;
   /** The author opens their deck, given to this group, in the editor (ADR 0019). */
   onOpenDeck: (deckId: string) => void;
   onBack: () => void;
@@ -58,14 +56,7 @@ interface GroupScreenProps {
  * move me up; how everyone compares — over a week, a month or all time, by steadiness, words
  * learned or cards; how we are doing together; and the group's decks. Housekeeping comes last.
  */
-export function GroupScreen({
-  groupId,
-  inviteOnOpen = false,
-  onOpenProfile,
-  onOpenDeck,
-  onBack,
-  onLeft,
-}: GroupScreenProps) {
+export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack, onLeft }: GroupScreenProps) {
   const [boards, setBoards] = useState<Partial<Record<Period, Board>>>({});
   const [period, setPeriod] = useState<Period>('week');
   const [ranking, setRanking] = useState<Ranking>('steady');
@@ -160,12 +151,7 @@ export function GroupScreen({
             <Segmented label="Рейтинг по" options={RANKINGS} value={ranking} onChange={setRanking} wide />
             <p className={styles.rule}>{RANKINGS.find((option) => option.id === ranking)!.rule}</p>
             <YourPlace standing={standingOf(board.rows, ranking)} ranking={ranking} board={board} />
-            <Leaderboard
-              rows={board.rows}
-              ranking={ranking}
-              period={board.period}
-              onOpen={(row) => onOpenProfile(row.member_id, row.nickname)}
-            />
+            <Leaderboard rows={board.rows} ranking={ranking} period={board.period} />
           </section>
 
           <section aria-labelledby="together-title" className={styles.section}>
@@ -325,8 +311,8 @@ function daysLeft(board: Board): number | null {
   return Math.max(0, days - (me?.studied_today ? 1 : 0));
 }
 
-function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period; onOpen: (row: BoardRow) => void }) {
-  const { rows, ranking, period, onOpen } = props;
+function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period }) {
+  const { rows, ranking, period } = props;
   const ranked = rankedBy(rows, ranking);
   const resting = rows.filter((row) => row.ranks[ranking] === null);
   const when = periodOf(period);
@@ -341,7 +327,7 @@ function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period
           {visibleLines(ranked).map((line, index) =>
             line.kind === 'row' ? (
               <li key={line.row.member_id} data-me={line.row.is_me || undefined}>
-                <RowButton row={line.row} ranking={ranking} period={period} onOpen={() => onOpen(line.row)} />
+                <Row row={line.row} ranking={ranking} period={period} />
               </li>
             ) : (
               <li key={`gap-${index}`} className={styles.gap}>
@@ -356,10 +342,10 @@ function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period
           <span>Ещё не занимались {when.during === 'пока' ? '' : when.during}:</span>{' '}
           {resting.map((row, index) => (
             <span key={row.member_id}>
-              <button type="button" className={styles.restingName} onClick={() => onOpen(row)}>
+              <strong className={styles.restingName}>
                 {row.nickname}
                 {row.is_me && ' (вы)'}
-              </button>
+              </strong>
               {index < resting.length - 1 && ', '}
             </span>
           ))}
@@ -370,17 +356,7 @@ function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period
 }
 
 /** One member: place, name, the ranking's figure, and the other figures quietly beneath. */
-function RowButton({
-  row,
-  ranking,
-  period,
-  onOpen,
-}: {
-  row: BoardRow;
-  ranking: Ranking;
-  period: Period;
-  onOpen: () => void;
-}) {
+function Row({ row, ranking, period }: { row: BoardRow; ranking: Ranking; period: Period }) {
   const place = row.ranks[ranking]!;
   const others = [
     ranking !== 'steady' && `${daysOf(row.days)} занятий`,
@@ -389,7 +365,7 @@ function RowButton({
     ranking !== 'cards' && cardsOf(row.cards),
   ].filter(Boolean);
   return (
-    <button type="button" className={styles.row} onClick={onOpen}>
+    <div className={styles.row}>
       <span className={styles.rank} data-top={place <= 3 ? place : undefined}>
         {place}
       </span>
@@ -421,7 +397,7 @@ function RowButton({
         )}
       </span>
       <strong className={styles.value}>{headline(row, ranking)}</strong>
-    </button>
+    </div>
   );
 }
 

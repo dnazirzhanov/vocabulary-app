@@ -10,7 +10,7 @@ export interface AccountProps {
   onAccountDeleted: () => void;
 }
 
-/** Sign-out and deleting your data, in «Профиль» (ADR 0022); deletion asks once more in place instead of a browser dialog. */
+/** Sign-out and deleting your data, at the end of «Прогресс»; deletion asks once more in place instead of a browser dialog. */
 export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountProps) {
   const [confirming, setConfirming] = useState(false);
   const { run, busy, error } = useAsyncAction();

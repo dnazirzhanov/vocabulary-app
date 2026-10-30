@@ -5,8 +5,7 @@ day's plan was done: a study lesson finished with every due review done (no revi
 the decks when it ended), and the day's target of new words met — the target is already lowered
 to what was left to learn, so with no new words left, cleared reviews keep the day. Spelling is
 practice, not part of the day (ADR 0022). The week counts the days done against the days
-promised; extra days, extra words and practice never raise a place. Extra learning is reported
-separately, for the learner's profile.
+promised; extra days, extra words and practice never raise a place.
 
 The day's target is the one recorded on that day's study sessions (the smallest, if it changed);
 sessions from before it was recorded fall back to the learner's current settings.

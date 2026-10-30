@@ -16,8 +16,7 @@ from app.schemas.groups import (
     JoinGroupIn,
     Period,
 )
-from app.schemas.profile import ProfileOut
-from app.services import groups, profile
+from app.services import groups
 from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["groups"])
@@ -61,13 +60,6 @@ def group_board(
 ) -> BoardOut:
     """The members' statistics over a week, a month or all time, ranked three ways (ADR 0023)."""
     return groups.board(db, user, group_id, now, period)
-
-
-@router.get("/groups/{group_id}/members/{member_id}/profile")
-def member_profile(
-    group_id: UUID, member_id: UUID, user: CurrentUser, db: DbSession, now: Now
-) -> ProfileOut:
-    return profile.member_profile(db, user, group_id, member_id, now)
 
 
 @router.delete("/groups/{group_id}/members/me", status_code=204)

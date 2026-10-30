@@ -11,7 +11,6 @@ import { CourseScreen } from './home/CourseScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
-import { ProfileDialog, type ProfileTarget } from './profile/ProfileDialog.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import { currentDeck } from './lib/today.ts';
@@ -147,8 +146,6 @@ function Learning({ email }: { email: string | null }) {
   }, []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
   // Bumped when the groups change, so the navigation's line about them refreshes.
-  // The profile window, over whichever screen is showing (ADR 0015).
-  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
 
   if (error) {
     return (
@@ -222,21 +219,8 @@ function Learning({ email }: { email: string | null }) {
     else setScreen({ name: 'groups' });
   };
   return (
-    <NavShell tab={tabOf(screen)} onNavigate={navigate} onProfile={() => setProfileTarget({ kind: 'me' })}>
+    <NavShell tab={tabOf(screen)} onNavigate={navigate}>
       {tabScreen()}
-      <ProfileDialog
-        target={profileTarget}
-        onClose={() => setProfileTarget(null)}
-        account={{
-          email,
-          onSignOut: supabase ? () => void supabase?.auth.signOut() : undefined,
-          onAccountDeleted: () => {
-            setProfileTarget(null);
-            if (supabase) void supabase.auth.signOut();
-            else goHome();
-          },
-        }}
-      />
     </NavShell>
   );
 
@@ -257,9 +241,6 @@ function Learning({ email }: { email: string | null }) {
           key={screen.groupId}
           groupId={screen.groupId}
           inviteOnOpen={screen.invite}
-          onOpenProfile={(memberId, nickname) =>
-            setProfileTarget({ kind: 'member', groupId: screen.groupId, memberId, nickname })
-          }
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
@@ -282,7 +263,19 @@ function Learning({ email }: { email: string | null }) {
       );
     }
     if (screen.name === 'progress') {
-      return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
+      return (
+        <ProgressScreen
+          onOpenDeck={(deckId) => openPage(deckId, 'progress')}
+          account={{
+            email,
+            onSignOut: supabase ? () => void supabase?.auth.signOut() : undefined,
+            onAccountDeleted: () => {
+              if (supabase) void supabase.auth.signOut();
+              else goHome();
+            },
+          }}
+        />
+      );
     }
     if (screen.name === 'course') {
       return <CourseScreen onOpenDeck={(deckId) => openPage(deckId, 'course')} onBack={goHome} />;

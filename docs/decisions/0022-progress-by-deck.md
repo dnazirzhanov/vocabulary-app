@@ -25,6 +25,8 @@ progress.
   sessions from before it was recorded count as cleared, so history is not rewritten.
 - **Spelling is practice**, offered after a lesson, no longer part of the day.
 - **«Аккаунт»** (sign out, delete my data) moves to the end of «Мой профиль».
+  *Later (Oct 30 2026): «Профиль» was removed — one's own and members' profile windows — and
+  «Аккаунт» returned to the end of «Прогресс». The board's rows carry the members' statistics.*
 
 ## Consequences
 - The week, weeks in a row and the group board follow the new rule without other changes.

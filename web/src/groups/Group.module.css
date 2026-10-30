@@ -211,16 +211,6 @@
   align-items: center;
   width: 100%;
   padding: var(--space-3) var(--space-2);
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row:hover {
-  background: rgb(38 38 38 / 0.04);
 }
 
 .rank {
@@ -320,16 +310,8 @@
 }
 
 .restingName {
-  padding: 0;
-  border: 0;
-  background: none;
   color: var(--color-text);
-  font: inherit;
   font-weight: var(--weight-strong);
-  text-decoration: underline;
-  text-decoration-color: var(--color-border);
-  text-underline-offset: 3px;
-  cursor: pointer;
 }
 
 /* --- together -------------------------------------------------------------------------------- */
