@@ -7,13 +7,14 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, ReviewAttempt, User, UserWordProgress
+from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
 from app.schemas.learning import (
     DeckProgressOut,
     KnowledgeOut,
     PlanDayOut,
     ProgressOut,
     RecallRate,
+    SpellingPausedOut,
     SpellingTodayOut,
     TodayPlanOut,
     WordStages,
@@ -108,7 +109,26 @@ def spelling_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     """Where the learner's spelling stands (ADR 0026): the main button's words, today's words
     still to spell, and the ladder's hard and known words."""
     seen = spelling_ladder.overview(spelling_ladder.load(db, user, now, time_zone), now)
-    return SpellingTodayOut(**asdict(seen))
+    return SpellingTodayOut(**asdict(seen), paused=_paused_spelling(db, user))
+
+
+def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
+    """An unfinished spelling session: how far it got (ADR 0026)."""
+    session = db.scalar(
+        select(LearningSession).where(
+            LearningSession.user_id == user.id,
+            LearningSession.kind == "spelling",
+            LearningSession.completed_at.is_(None),
+        )
+    )
+    if session is None:
+        return None
+    spelled, right = db.execute(
+        select(func.count(), func.count().filter(ReviewAttempt.correct.is_(True))).where(
+            ReviewAttempt.session_id == session.id
+        )
+    ).one()
+    return SpellingPausedOut(spelled=spelled, right=right, total=len(session.plan))
 
 
 def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> TodayPlanOut:

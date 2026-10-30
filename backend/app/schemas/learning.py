@@ -356,6 +356,14 @@ class SpellingTodayOut(BaseModel):
     hard: int  # misspelled last time
     known: int  # «умеет писать»
     met: int  # every word met: the pool for «Вразброс»
+    # A spelling session left unfinished: resumed where it stopped, never lost.
+    paused: "SpellingPausedOut | None" = None
+
+
+class SpellingPausedOut(BaseModel):
+    spelled: int  # cards answered so far
+    right: int  # of those, right on the first try
+    total: int
 
 
 class DeckWordOut(BaseModel):

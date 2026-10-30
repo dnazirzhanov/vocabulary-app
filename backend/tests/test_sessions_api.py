@@ -99,6 +99,7 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_for_a_later_day(
             "hard": 0,
             "known": 0,
             "met": 5,
+            "paused": None,
         },
     }
     assert summary["ratings"]["easy"] == 1

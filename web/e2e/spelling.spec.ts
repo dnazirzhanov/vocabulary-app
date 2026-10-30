@@ -80,7 +80,7 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
   await tile(page, 'o').click();
   await page.reload();
   await openDeck(page);
-  await button(page, 'Продолжить урок').click();
+  await button(page, 'Продолжить правописание').click();
   await expect(page.getByRole('group', { name: 'Ответ: 2 из 5 букв' })).toBeVisible();
   await button(page, 'Очистить').click();
   await finishSession(page, {}, { water: 'wtaer' });
@@ -127,6 +127,38 @@ test('one hint per card fills the next letter, and only that one', async ({ page
   // Still one hint after a reload.
   await page.reload();
   await openDeck(page);
-  await button(page, 'Продолжить урок').click();
+  await button(page, 'Продолжить правописание').click();
   await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
 });
+
+test('spelling left midway waits with its progress, on home and on the deck, and resumes there', async ({ page }) => {
+  await lesson(page);
+  await button(page, 'Правописание · 5 слов').click();
+  await spellOne(page, 'house'); // right
+  await spellOne(page, 'wtaer'); // a mistake
+  await page.getByRole('button', { name: 'Выйти из урока' }).click();
+
+  // Back on the deck's page: the spelling is there with how far it got, not gone.
+  const card = button(page, 'Продолжить правописание');
+  await expect(card).toHaveAccessibleDescription('Написано 2 из 5 (верно 1, с ошибкой 1) · осталось 3 слова');
+  await expect(page.getByRole('progressbar', { name: 'Написано слов' })).toHaveAttribute('aria-valuenow', '2');
+  // A lesson is not blocked by it: the deck's own button is still a lesson's.
+  await expect(button(page, 'Ещё 5 слов')).toBeVisible();
+
+  // Home shows it too; it resumes at the third word.
+  await page.goto('/');
+  await card.click();
+  await expect(page.locator('[data-spelling] h1')).toHaveText('друг, подруга');
+  await finishSession(page);
+  await expect(page.getByText('5 слов · 4 верно с первого раза · 1 с ошибкой.', { exact: false })).toBeVisible();
+  await button(page, 'На главную').click();
+  await expect(button(page, 'Продолжить правописание')).toHaveCount(0);
+});
+
+/** Builds the current spelling card from a keyboard and moves on. */
+async function spellOne(page: Page, built: string) {
+  await expect(page.locator('[data-spelling] h1')).toBeVisible();
+  await page.keyboard.type(built);
+  await button(page, 'Проверить').click();
+  await button(page, 'Дальше').click();
+}

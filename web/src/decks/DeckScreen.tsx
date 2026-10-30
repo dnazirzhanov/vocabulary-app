@@ -6,6 +6,7 @@ import { studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SuggestionCard } from '../home/SuggestionCard.tsx';
+import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
 import { CardCounts } from '../today/CardCounts.tsx';
 import { BackIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
@@ -84,9 +85,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
 
   const { stats, active, activeTitle, pace } = loaded;
   const due = stats.learning_count + stats.review_count;
-  // An unfinished lesson: in this deck it is resumed here; elsewhere it is finished first.
-  // Spelling is about today's words from any deck, so it is resumed from any deck's page.
-  const resumeHere = active !== null && (active.deck_id === deckId || active.kind === 'spelling');
+  // An unfinished lesson: in this deck it is resumed here; elsewhere it is finished first. An
+  // unfinished spelling is not a lesson: it waits beside it, on its own card (ADR 0026).
+  const resumeHere = active !== null && active.deck_id === deckId;
   const elsewhere = active !== null && !resumeHere;
   const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
   const left = stats.word_count - stats.introduced_count;
@@ -195,7 +196,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           )}
 
           <nav className={styles.links} aria-label="Ещё по колоде">
-            {spelling.ready > 0 && !active && (
+            {spelling.paused && (
+              <div className={styles.paused}>
+                <PausedSpelling
+                  paused={spelling.paused}
+                  disabled={busy}
+                  onResume={() => run(async () => onSession(await api.startSpellingSession(), deckId))}
+                />
+              </div>
+            )}
+            {spelling.ready > 0 && !spelling.paused && (
               <button
                 type="button"
                 className={styles.link}
@@ -212,7 +222,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
             )}
-            {spelling.met > 0 && !active && (
+            {spelling.met > 0 && !spelling.paused && (
               <button
                 type="button"
                 className={styles.link}

@@ -24,6 +24,11 @@ easily and which not, so the hard ones were never practised more than the rest.
 - **After a lesson** the summary offers spelling while today's words are not yet spelled; after
   spelling it offers the next ten while the main set holds any, and says that misspelled words
   come back tomorrow. «Прогресс» shows how many words are «умеете писать» and how many are hard.
+- **Spelling left midway is kept, not hidden.** One unfinished spelling session may stay open
+  beside an unfinished lesson, so it never blocks a lesson. Home and every deck's page show it
+  as «Правописание не закончено» with how many words were spelled (right, with a mistake) and
+  how many are left; «Продолжить» resumes at the next word. Starting spelling again resumes it,
+  whichever set is chosen.
 - Existing spelling answers were replayed into the ladder by the migration (hinted ones as misses).
 
 ## Consequences

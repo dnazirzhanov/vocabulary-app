@@ -117,11 +117,13 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
       ? spelling.ready > 0
         ? { label: `Ещё ${wordsLabel(spelling.ready)}`, run: onSpelling }
         : null
-      : summary.kind === 'study' && spelling.today_left > 0
-        ? { label: `Правописание · ${wordsLabel(spelling.ready)}`, run: onSpelling }
-        : perfect || summary.kind === 'hard'
-          ? { label: 'Продолжить', run: onNext }
-          : { label: 'Повторить трудные', run: onPractice };
+      : summary.kind === 'study' && spelling.paused
+        ? { label: `Продолжить правописание · ещё ${spelling.paused.total - spelling.paused.spelled}`, run: onSpelling }
+        : summary.kind === 'study' && spelling.today_left > 0
+          ? { label: `Правописание · ${wordsLabel(spelling.ready)}`, run: onSpelling }
+          : perfect || summary.kind === 'hard'
+            ? { label: 'Продолжить', run: onNext }
+            : { label: 'Повторить трудные', run: onPractice };
 
   // Announce the result: focus lands on the heading, not on a button.
   useEffect(() => headingRef.current?.focus(), []);

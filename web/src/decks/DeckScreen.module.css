@@ -189,6 +189,10 @@
   color: var(--color-primary-strong);
 }
 
+.paused {
+  padding: var(--space-3) 0;
+}
+
 .link > .iconSpace {
   flex: none;
   width: 20px;

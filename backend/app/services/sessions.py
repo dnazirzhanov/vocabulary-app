@@ -85,6 +85,7 @@ from app.services.scheduling import (
 )
 
 TileMaker = Callable[[str, str], list[str]]
+SPELLING_KIND = "spelling"
 
 # --- reading ---------------------------------------------------------------------------------
 
@@ -159,10 +160,15 @@ def _owned_session(db: Session, user: User, session_id: UUID) -> LearningSession
     return session
 
 
-def _open_session(db: Session, user: User) -> LearningSession | None:
+def _open_session(db: Session, user: User, spelling: bool = False) -> LearningSession | None:
+    """The learner's unfinished lesson (flashcards), or with `spelling` their unfinished spelling:
+    one of each may be open at once, so a paused spelling never blocks a lesson (ADR 0026)."""
+    kind = LearningSession.kind == SPELLING_KIND
     return db.scalar(
         select(LearningSession).where(
-            LearningSession.user_id == user.id, LearningSession.completed_at.is_(None)
+            LearningSession.user_id == user.id,
+            LearningSession.completed_at.is_(None),
+            kind if spelling else ~kind,
         )
     )
 
@@ -454,6 +460,7 @@ def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Libr
 
 
 def active_session(db: Session, user: User, now: datetime) -> ActiveSessionOut:
+    """The unfinished lesson; an unfinished spelling is shown with the spelling buttons."""
     session = _open_session(db, user)
     return ActiveSessionOut(session=present_session(db, user, session, now) if session else None)
 
@@ -578,8 +585,10 @@ def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[Plann
 def start_session(
     db: Session, user: User, request: StartRequest, now: datetime, time_zone: ZoneInfo
 ) -> SessionOut:
-    """Start a session, or return the learner's unfinished one so it can be resumed."""
-    existing = _open_session(db, user)
+    """Start a session, or return the learner's unfinished one of that kind (a lesson, or
+    spelling) so it can be resumed."""
+    spelling_kind = isinstance(request, StartSpellingSession)
+    existing = _open_session(db, user, spelling_kind)
     if existing is not None:
         return present_session(db, user, existing, now)
 
@@ -612,7 +621,7 @@ def start_session(
     except IntegrityError:
         # Another request (double tap, second device) opened a session first: use that one.
         db.rollback()
-        existing = _open_session(db, user)
+        existing = _open_session(db, user, spelling_kind)
         if existing is None:
             raise
         return present_session(db, user, existing, now)

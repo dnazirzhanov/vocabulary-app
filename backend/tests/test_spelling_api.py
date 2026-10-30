@@ -116,6 +116,7 @@ def test_spelling_is_tracked_but_the_day_does_not_wait_for_it(
         "hard": 0,
         "known": 0,
         "met": 5,
+        "paused": None,
     }
     spell_today(client, at(DAY0), {"water": "wtaer"})
     # Spelled: nothing more for the main button today; the miss is a hard word.
@@ -127,6 +128,7 @@ def test_spelling_is_tracked_but_the_day_does_not_wait_for_it(
         "hard": 1,
         "known": 0,
         "met": 5,
+        "paused": None,
     }
     nothing = client.post("/api/sessions", json=SPELLING, headers=at(DAY0))
     assert (nothing.status_code, nothing.json()["error"]["code"]) == (409, "nothing_to_spell")
@@ -168,7 +170,7 @@ def test_a_big_day_is_spelled_ten_words_at_a_time(client: TestClient, play: Play
 
 def finish_active(client: TestClient, moment: datetime) -> None:
     """Spells the open session's words right and completes it."""
-    active = client.get("/api/sessions/active", headers=at(moment)).json()["session"]
+    active = client.post("/api/sessions", json=SPELLING, headers=at(moment)).json()  # resumes
     finish(client, active, at(moment))
     client.post(f"/api/sessions/{active['id']}/complete", headers=at(moment))
 
@@ -245,7 +247,7 @@ def test_one_hint_per_card_gives_one_letter_and_never_more(client: TestClient, p
     second = hint(client, session, house, 3)
     assert (second.status_code, second.json()["error"]["code"]) == (409, "hint_used")
     # The card remembers its hint after a reload, and still hides the rest of the word.
-    resumed = client.get("/api/sessions/active", headers=at(DAY0)).json()["session"]
+    resumed = start_spelling(client).json()  # resumes the open one
     card = resumed["exercises"][0]
     assert card["hint"] == {"position": 2, "letter": "u"}
     assert "house" not in str(card)
@@ -265,3 +267,33 @@ def test_no_hint_once_a_card_is_answered_or_for_flashcards(client: TestClient, p
     answer(client, session, house, "house")
     late = hint(client, session, house, 0)
     assert (late.status_code, late.json()["error"]["code"]) == (409, "already_answered")
+
+
+def test_a_paused_spelling_keeps_its_place_and_never_blocks_a_lesson(
+    client: TestClient, play: Play
+) -> None:
+    """ADR 0026: left unfinished, spelling says how far it got and resumes there; a lesson can
+    be taken meanwhile."""
+    play(STUDY, DAY0, spell=False)
+    session = start_spelling(client).json()
+    first, second = session["exercises"][0]["id"], session["exercises"][1]["id"]
+    answer(client, session, first, "house")
+    answer(client, session, second, "wtaer")
+    assert spelling_state(client)["paused"] == {"spelled": 2, "right": 1, "total": 5}
+
+    # A lesson starts as usual, beside the paused spelling.
+    later = DAY0 + timedelta(days=1)
+    lesson = client.post("/api/sessions", json=STUDY, headers=at(later)).json()
+    assert lesson["kind"] == "study" and lesson["id"] != session["id"]
+    assert (
+        client.get("/api/sessions/active", headers=at(later)).json()["session"]["id"]
+        == (lesson["id"])
+    )
+    # Spelling again resumes the paused one, with its two answers, whatever set is asked for.
+    resumed = client.post(
+        "/api/sessions", json={"kind": "spelling", "mode": "random"}, headers=at(later)
+    ).json()
+    assert resumed["id"] == session["id"] and len(resumed["results"]) == 2
+    finish(client, resumed, at(later))
+    client.post(f"/api/sessions/{session['id']}/complete", headers=at(later))
+    assert spelling_state(client, later)["paused"] is None

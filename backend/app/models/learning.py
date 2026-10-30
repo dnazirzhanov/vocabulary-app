@@ -81,10 +81,12 @@ class LearningSession(Base):
         ),
         CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
         CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
-        # A learner has at most one unfinished session; starting again resumes it.
+        # A learner has at most one unfinished lesson and one unfinished spelling (ADR 0026);
+        # starting again resumes it.
         Index(
             "uq_learning_sessions_open_per_user",
             "user_id",
+            text("(kind = 'spelling')"),
             unique=True,
             postgresql_where=text("completed_at IS NULL"),
         ),

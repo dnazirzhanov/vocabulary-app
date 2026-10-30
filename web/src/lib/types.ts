@@ -99,6 +99,8 @@ export interface SpellingState {
   hard: number;
   known: number;
   met: number;
+  /** A spelling session left unfinished: cards answered, right on the first try, and all. */
+  paused: { spelled: number; right: number; total: number } | null;
 }
 
 export interface AttemptResult {
