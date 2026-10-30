@@ -5,15 +5,14 @@ export const FULL_BOARD = 10;
 export type BoardLine = { kind: 'row'; row: BoardRow } | { kind: 'gap'; hidden: number };
 
 /**
- * Up to 10 ranked members: everyone. More: the top 3 plus the learner and two neighbours on each
- * side, so everybody sees people near their own level (relative boards motivate across levels;
- * ADR 0011). Unranked members are listed separately by the screen.
+ * Up to 10 ranked members: everyone. More: the top 3 plus the learner and the one just above and
+ * below, so everybody sees who to pass and who is close behind (ADR 0011, 0032). Unranked members are listed separately by the screen.
  */
 export function visibleLines(ranked: BoardRow[]): BoardLine[] {
   if (ranked.length <= FULL_BOARD) return ranked.map((row) => ({ kind: 'row', row }));
   const me = ranked.findIndex((row) => row.is_me);
   const keep = new Set<number>([0, 1, 2]);
-  if (me >= 0) for (let index = me - 2; index <= me + 2; index += 1) keep.add(index);
+  if (me >= 0) for (let index = me - 1; index <= me + 1; index += 1) keep.add(index);
   const lines: BoardLine[] = [];
   let hidden = 0;
   ranked.forEach((row, index) => {

@@ -58,7 +58,8 @@ export function standingLabel({ status, behind }: Standing, you = false): string
   if (status === 'on_track') return you ? 'успеваете' : 'успевает';
   const late = `${you ? 'отстаёте' : 'отстаёт'} на ${wordsLabel(behind)}`;
   if (status === 'not_started') {
-    const idle = you ? 'ещё не начинали' : 'ещё не начинал';
+    // Third person without a past tense: a nickname says nothing of whether he or she.
+    const idle = you ? 'ещё не начинали' : 'ещё не начато';
     // Not started is fine on the first day; later it is being behind too.
     return behind > 0 ? `${idle}, ${late}` : idle;
   }

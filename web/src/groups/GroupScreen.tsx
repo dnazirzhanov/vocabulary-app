@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { ranked, standingOf, visibleLines, type Measure, type Standing } from '../lib/board.ts';
-import type { Board, BoardRow, Period } from '../lib/types.ts';
+import { dueLabel, standingLabel } from '../lib/deadline.ts';
+import type { Assignment, Board, BoardRow } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { BackIcon, CheckIcon, FlameIcon, PersonPlusIcon } from '../ui/icons.tsx';
+import { BackIcon, CheckIcon, PersonPlusIcon } from '../ui/icons.tsx';
+import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
@@ -12,21 +14,12 @@ import { InviteDialog } from './InviteDialog.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const number = new Intl.NumberFormat('ru');
 const count = (n: number, one: string, few: string, many: string) =>
   `${number.format(n)}\u00a0${plural(n, { one, few, many })}`;
 const daysOf = (n: number) => count(n, 'день', 'дня', 'дней');
 const wordsOf = (n: number) => count(n, 'слово', 'слова', 'слов');
-const cardsOf = (n: number) => count(n, 'карточка', 'карточки', 'карточек');
 const membersOf = (n: number) => count(n, 'участник', 'участника', 'участников');
-
-const PERIODS: { id: Period; label: string; during: string; whole: string }[] = [
-  { id: 'week', label: 'Неделя', during: 'на этой неделе', whole: 'за неделю' },
-  { id: 'month', label: 'Месяц', during: 'в этом месяце', whole: 'за месяц' },
-  { id: 'all', label: 'Всё время', during: 'пока', whole: 'за всё время' },
-];
-const periodOf = (id: Period) => PERIODS.find((period) => period.id === id)!;
 
 interface GroupScreenProps {
   groupId: string;
@@ -34,58 +27,59 @@ interface GroupScreenProps {
   inviteOnOpen?: boolean;
   /** The author opens their deck, given to this group, in the editor (ADR 0019). */
   onOpenDeck: (deckId: string) => void;
+  /** A member opens a deck with a deadline to study it. */
+  onStudyDeck: (deckId: string) => void;
   onBack: () => void;
   onLeft: () => void;
 }
 
 /**
- * One group (ADR 0023), answering in order: who has studied today; where I stand and what would
- * move me up; how everyone compares by words learned (ADR 0027) — over a week, a month or all
- * time; how we are doing together; and the group's decks. Housekeeping comes last.
+ * One group (ADR 0023, 0032), only what a member acts on: where I am this week and the one step
+ * to the next place; whether I'm ready for the class (the teacher: who isn't); and the week's
+ * league, one number a person, a ✓ for who studied today. Everything else is a tap away: a
+ * person's figures in their window, the rule in «Как считаются места?», housekeeping folded at
+ * the bottom.
  */
-export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack, onLeft }: GroupScreenProps) {
-  const [boards, setBoards] = useState<Partial<Record<Period, Board>>>({});
-  const [period, setPeriod] = useState<Period>('week');
+export function GroupScreen({
+  groupId,
+  inviteOnOpen = false,
+  onOpenDeck,
+  onStudyDeck,
+  onBack,
+  onLeft,
+}: GroupScreenProps) {
+  const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(inviteOnOpen);
-  const [managing, setManaging] = useState(false);
+  const [person, setPerson] = useState<BoardRow | null>(null);
+  const [rules, setRules] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
-    (which: Period) =>
-      api.board(groupId, which).then(
-        (board) => setBoards((known) => ({ ...known, [which]: board })),
-        (caught: unknown) => setError(describeError(caught)),
-      ),
+    () => api.board(groupId, 'week').then(setBoard, (caught: unknown) => setError(describeError(caught))),
     [groupId],
   );
   useEffect(() => {
-    if (!boards[period]) void load(period);
-  }, [boards, period, load]);
-  // While another period loads, one already loaded stays on screen.
-  const shown = boards[period] ?? boards.week ?? boards.month ?? boards.all ?? null;
+    void load();
+  }, [load]);
   const focused = useRef(false);
   useEffect(() => {
-    if (!shown || focused.current) return;
+    if (!board || focused.current) return;
     focused.current = true;
     headingRef.current?.focus();
-  }, [shown]);
-  const reload = () => {
-    setBoards({});
-    return load(period);
-  };
+  }, [board]);
 
   if (error) {
     return (
       <main className="message-screen">
         <p role="alert">{error}</p>
-        <PrimaryButton type="button" onClick={() => (setError(null), void reload())}>
+        <PrimaryButton type="button" onClick={() => (setError(null), void load())}>
           Повторить
         </PrimaryButton>
       </main>
     );
   }
-  if (!shown) {
+  if (!board) {
     return (
       <main className="message-screen" aria-busy="true">
         <p>Загружаем…</p>
@@ -93,10 +87,9 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack,
     );
   }
 
-  const board = shown;
   const { group } = board;
-  const loading = !boards[period];
-  const when = periodOf(board.period);
+  const owner = group.role === 'owner';
+  const forClass = board.assignments.filter((assignment) => assignment.due_on);
 
   return (
     <div className={shared.screen}>
@@ -108,65 +101,60 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack,
       <main className={shared.main}>
         <div className={`${shared.column} ${styles.page}`}>
           <div className={styles.head}>
-            <div>
-              <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
-                {group.name}
-              </h1>
-              <p className={styles.meta}>
-                {membersOf(group.member_count)} · вы — {group.nickname}
-              </p>
-            </div>
+            <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
+              {group.name}
+            </h1>
             <button
               type="button"
-              className={`${shared.smallButton} ${styles.invite}`}
+              className={styles.invite}
               onClick={() => setInviting(true)}
+              aria-label="Пригласить"
+              title="Пригласить"
             >
-              <PersonPlusIcon aria-hidden="true" /> Пригласить
+              <PersonPlusIcon aria-hidden="true" />
             </button>
           </div>
 
-          <TodayStrip rows={board.rows} />
+          <YourWeek standing={standingOf(board.rows)} />
 
-          <section aria-labelledby="rating-title" className={styles.section} aria-busy={loading || undefined}>
-            <div className={styles.sectionHead}>
-              <h2 id="rating-title" className={styles.sectionTitle}>
-                Рейтинг
+          {forClass.length > 0 && (
+            <section aria-labelledby="class-title" className={styles.section}>
+              <h2 id="class-title" className={styles.sectionTitle}>
+                К уроку
               </h2>
-              <Segmented label="Период" options={PERIODS} value={period} onChange={setPeriod} />
+              <ul className={styles.forClass}>
+                {forClass.map((assignment) => (
+                  <ForClass
+                    key={assignment.deck_id}
+                    assignment={assignment}
+                    board={board}
+                    owner={owner}
+                    onStudy={() => onStudyDeck(assignment.deck_id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section aria-labelledby="league-title" className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 id="league-title" className={styles.sectionTitle}>
+                Неделя
+              </h2>
+              <button type="button" className={shared.linkButton} onClick={() => setRules(true)}>
+                Как считаются места?
+              </button>
             </div>
-            <p className={styles.rule}>
-              Место — по выученным словам: тем, что вы вспомнили на повторении. При равенстве — по дням занятий.
-            </p>
-            <YourPlace standing={standingOf(board.rows)} board={board} />
-            <Leaderboard rows={board.rows} period={board.period} />
+            <League rows={board.rows} onOpen={setPerson} />
           </section>
 
-          <section aria-labelledby="together-title" className={styles.section}>
-            <h2 id="together-title" className={styles.sectionTitle}>
-              Вместе {when.whole}
-            </h2>
-            <dl className={styles.figures}>
-              <div>
-                <dt>{plural(board.totals.days, { one: 'день занятий', few: 'дня занятий', many: 'дней занятий' })}</dt>
-                <dd>{number.format(board.totals.days)}</dd>
-              </div>
-              <div>
-                <dt>
-                  {plural(board.totals.learned, { one: 'слово выучено', few: 'слова выучено', many: 'слов выучено' })}
-                </dt>
-                <dd>{number.format(board.totals.learned)}</dd>
-              </div>
-              <div>
-                <dt>{plural(board.totals.cards, { one: 'карточка', few: 'карточки', many: 'карточек' })}</dt>
-                <dd>{number.format(board.totals.cards)}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <GroupDecks board={board} onOpenDeck={onOpenDeck} />
-
-          {managing && <Members board={board} onRemoved={() => void reload()} onDone={() => setManaging(false)} />}
-          <Housekeeping board={board} managing={managing} onManage={() => setManaging(!managing)} onLeft={onLeft} />
+          <details className={styles.manage}>
+            <summary>Управление группой</summary>
+            <div className={styles.manageBody}>
+              <GroupDecks board={board} onOpenDeck={onOpenDeck} />
+              <Housekeeping board={board} onRemoved={() => void load()} onLeft={onLeft} />
+            </div>
+          </details>
         </div>
       </main>
       <InviteDialog
@@ -175,139 +163,144 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack,
         open={inviting}
         onClose={() => setInviting(false)}
       />
+      <Dialog open={rules} onClose={() => setRules(false)} title="Как считаются места">
+        <p className={styles.dialogText}>
+          Каждую неделю, с понедельника, — заново. Место — по выученным словам: тем, что вы вспомнили на повторении
+          через день или позже. Сколько карточек пройдено, не важно. При равенстве выше тот, у кого больше дней занятий.
+        </p>
+      </Dialog>
+      {person && <MemberWindow row={person} groupId={group.id} onClose={() => setPerson(null)} />}
     </div>
-  );
-}
-
-/** A small set of mutually exclusive buttons: the period. */
-function Segmented<T extends string>(props: {
-  label: string;
-  options: { id: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className={styles.segmented} role="group" aria-label={props.label}>
-      {props.options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          aria-pressed={option.id === props.value}
-          onClick={() => props.onChange(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Who has studied today: the gentlest nudge — names, no numbers. */
-function TodayStrip({ rows }: { rows: BoardRow[] }) {
-  const sorted = [...rows].sort(
-    (a, b) => Number(b.studied_today) - Number(a.studied_today) || Number(b.is_me) - Number(a.is_me),
-  );
-  const done = rows.filter((row) => row.studied_today).length;
-  return (
-    <section aria-labelledby="today-title" className={styles.today}>
-      <h2 id="today-title" className={styles.todayTitle}>
-        Сегодня занимались <strong>{done}</strong> из {rows.length}
-      </h2>
-      <ul className={styles.chips}>
-        {sorted.map((row) => (
-          <li key={row.member_id} data-on={row.studied_today || undefined}>
-            {row.studied_today && <CheckIcon aria-hidden="true" />}
-            {row.nickname}
-            {row.is_me && <span className={styles.me}>вы</span>}
-            <span className="visually-hidden">
-              {row.studied_today ? ' — сегодня уже закончил занятие' : ' — сегодня ещё нет'}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
 /** What passing the member ahead takes: words to learn, or, with as many words, a tie-break. */
 const MEASURE: Record<Measure, (n: number) => string> = {
-  learned: (n) => `выучить ещё ${wordsOf(n)}`,
+  learned: (n) => `ещё ${wordsOf(n)}`,
   days: (n) => `ещё ${daysOf(n)} занятий`,
   streak: (n) => `ещё ${n}\u00a0${weeksWord(n)} подряд с выполненным обещанием`,
 };
 
-/** Where I stand, and what would move me up — or who is closest behind. */
-function YourPlace({ standing, board }: { standing: Standing; board: Board }) {
-  const when = periodOf(board.period);
+/** Where I am this week, and the one step that would move me up. */
+function YourWeek({ standing }: { standing: Standing }) {
   if (standing.kind === 'unranked') {
     return (
       <div className={styles.place}>
-        <p className={styles.placeTitle}>Вы ещё не занимались {when.during === 'пока' ? '' : when.during}</p>
+        <p className={styles.placeTitle}>Вы ещё не занимались на этой неделе</p>
         <p className={styles.placeNote}>Один урок — и вы в рейтинге.</p>
       </div>
     );
   }
   if (standing.kind === 'top') {
     const note = standing.next
-      ? `Ближайший — ${standing.next.nickname}${
-          standing.next.behind > 0 ? `, на ${wordsOf(standing.next.behind)} позади` : ''
-        }.`
-      : standing.shared.length === 0
-        ? 'Пока вы единственный в рейтинге.'
-        : '';
+      ? standing.next.behind > 0
+        ? `${standing.next.nickname} — в ${wordsOf(standing.next.behind)} позади.`
+        : `${standing.next.nickname} — совсем рядом.`
+      : null;
     return (
       <div className={styles.place} data-top="">
         <p className={styles.placeTitle}>
-          Вы на 1-м месте{standing.shared.length > 0 && ` вместе с ${standing.shared.join(', ')}`}
+          Вы на 1-м месте{standing.shared.length > 0 && `, как и ${standing.shared.join(', ')}`}
         </p>
         {note && <p className={styles.placeNote}>{note}</p>}
       </div>
     );
   }
-  const what = MEASURE[standing.measure](standing.need);
-  // Days can't outnumber the days left in a week or month.
-  const left = daysLeft(board);
-  const tooLate = standing.measure === 'days' && left !== null && standing.need > left;
   return (
     <div className={styles.place}>
       <p className={styles.placeTitle}>Вы на {standing.rank}-м месте</p>
       <p className={styles.placeNote}>
-        {tooLate
-          ? `До ${standing.aheadRank}-го места (${standing.ahead}) нужно ${what} — ${when.whole.replace('за', 'до конца')} столько уже не успеть.`
-          : `До ${standing.aheadRank}-го места (${standing.ahead}): ${what}.`}
+        До {standing.aheadRank}-го — {MEASURE[standing.measure](standing.need)}.
       </p>
     </div>
   );
 }
 
-/** Days still to come in a week or month, today included; null for all time. */
-function daysLeft(board: Board): number | null {
-  if (board.period === 'all') return null;
-  const me = board.rows.find((row) => row.is_me);
-  const end = Date.parse(`${board.period_end}T00:00:00Z`);
-  const now = new Date();
-  const start = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const days = Math.round((end - start) / 86_400_000) + 1;
-  return Math.max(0, days - (me?.studied_today ? 1 : 0));
+/**
+ * A deck due for the class. A member: their own status and the way to study it. The teacher: how
+ * many keep up, and by name only those who don't.
+ */
+function ForClass(props: { assignment: Assignment; board: Board; owner: boolean; onStudy: () => void }) {
+  const { assignment, board, owner, onStudy } = props;
+  const due = `к ${dueLabel(assignment.due_on!)}`;
+  if (owner && assignment.members) {
+    const me = board.rows.find((row) => row.is_me)?.member_id;
+    const names = new Map(board.rows.map((row) => [row.member_id, row.nickname]));
+    const students = assignment.members.filter((member) => member.member_id !== me && member.standing);
+    const late = students.filter((member) => member.standing!.behind > 0);
+    return (
+      <li className={styles.classItem}>
+        <p>
+          <strong>{assignment.title}</strong> {due}: успевают {students.length - late.length} из {students.length}
+        </p>
+        {late.length > 0 && (
+          <ul className={styles.late} aria-label={`Не успевают: «${assignment.title}»`}>
+            {late.map((member) => (
+              <li key={member.member_id}>
+                {names.get(member.member_id)} — {standingLabel(member.standing!)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </li>
+    );
+  }
+  const mine = assignment.my_standing;
+  return (
+    <li className={styles.classItem}>
+      <p>
+        <strong>{assignment.title}</strong> {due}
+        {mine && (
+          <span className={styles.standing} data-behind={mine.behind > 0 || undefined} data-status={mine.status}>
+            {' '}
+            · {standingLabel(mine, true)}
+          </span>
+        )}
+      </p>
+      {mine?.status !== 'done' && (
+        <button type="button" className={shared.smallButton} onClick={onStudy}>
+          Учить
+        </button>
+      )}
+    </li>
+  );
 }
 
-function Leaderboard(props: { rows: BoardRow[]; period: Period }) {
-  const { rows, period } = props;
+/** The week's league: one number a person, ✓ for who studied today; a row opens their window. */
+function League({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) => void }) {
   const placed = ranked(rows);
   const resting = rows.filter((row) => row.rank === null);
-  const when = periodOf(period);
   return (
     <>
       {placed.length === 0 ? (
-        <p className={styles.empty}>
-          Пока никто не занимался {when.during === 'пока' ? '' : when.during}. Начните первым!
-        </p>
+        <p className={styles.empty}>На этой неделе ещё никто не занимался. Начните первым!</p>
       ) : (
         <ol className={styles.board}>
           {visibleLines(placed).map((line, index) =>
             line.kind === 'row' ? (
               <li key={line.row.member_id} data-me={line.row.is_me || undefined}>
-                <Row row={line.row} period={period} />
+                <button
+                  type="button"
+                  className={styles.row}
+                  onClick={() => onOpen(line.row)}
+                  aria-label={[
+                    `${line.row.rank}-е место: ${line.row.nickname}${line.row.is_me ? ' (вы)' : ''}`,
+                    line.row.studied_today && 'сегодня уже есть занятие',
+                    wordsOf(line.row.learned),
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                >
+                  <span className={styles.rank} data-top={line.row.rank! <= 3 ? line.row.rank! : undefined}>
+                    {line.row.rank}
+                  </span>
+                  <span className={styles.nick}>
+                    {line.row.nickname}
+                    {line.row.is_me && <span className={styles.me}>вы</span>}
+                    {line.row.studied_today && <CheckIcon className={styles.todayMark} aria-hidden="true" />}
+                  </span>
+                  <strong className={styles.value}>{wordsOf(line.row.learned)}</strong>
+                </button>
               </li>
             ) : (
               <li key={`gap-${index}`} className={styles.gap}>
@@ -319,57 +312,47 @@ function Leaderboard(props: { rows: BoardRow[]; period: Period }) {
       )}
       {resting.length > 0 && (
         <p className={styles.resting}>
-          <span>Ещё не занимались {when.during === 'пока' ? '' : when.during}:</span>{' '}
-          {resting.map((row, index) => (
-            <span key={row.member_id}>
-              <strong className={styles.restingName}>
-                {row.nickname}
-                {row.is_me && ' (вы)'}
-              </strong>
-              {index < resting.length - 1 && ', '}
-            </span>
-          ))}
+          Ещё не начинали: {resting.map((row) => `${row.nickname}${row.is_me ? ' (вы)' : ''}`).join(', ')}
         </p>
       )}
     </>
   );
 }
 
-/** One member: place, name, words learned, and days and cards quietly beneath. */
-function Row({ row, period }: { row: BoardRow; period: Period }) {
-  const place = row.rank!;
+/** A person's figures, out of the league's way: this week, weeks in a row, all time. */
+function MemberWindow({ row, groupId, onClose }: { row: BoardRow; groupId: string; onClose: () => void }) {
+  const [allTime, setAllTime] = useState<number | null>(null);
+  useEffect(() => {
+    api.board(groupId, 'all').then(
+      (board) => setAllTime(board.rows.find((other) => other.member_id === row.member_id)?.learned ?? 0),
+      () => setAllTime(null),
+    );
+  }, [groupId, row.member_id]);
   return (
-    <div className={styles.row}>
-      <span className={styles.rank} data-top={place <= 3 ? place : undefined}>
-        {place}
-      </span>
-      <span className={styles.who}>
-        <span className={styles.nick}>
-          {row.nickname}
-          {row.is_me && <span className={styles.me}>вы</span>}
-          {row.streak_weeks >= 2 && (
-            <span
-              className={styles.streak}
-              title={`Обещание держится ${row.streak_weeks} ${weeksWord(row.streak_weeks)} подряд`}
-            >
-              <FlameIcon aria-hidden="true" />
-              {row.streak_weeks}
-            </span>
-          )}
-        </span>
-        <span className={styles.stats}>
-          {daysOf(row.days)} занятий · {cardsOf(row.cards)}
-        </span>
-        {period === 'week' && (
-          <span className={styles.dots} role="img" aria-label={`Дни с занятиями на этой неделе: ${row.days}`}>
-            {row.week.map((met, index) => (
-              <i key={index} data-on={met || undefined} title={WEEKDAYS[index]} aria-hidden="true" />
-            ))}
-          </span>
-        )}
-      </span>
-      <strong className={styles.value}>{wordsOf(row.learned)}</strong>
-    </div>
+    <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
+      <dl className={styles.figures}>
+        <div>
+          <dt>выучено на этой неделе</dt>
+          <dd>{wordsOf(row.learned)}</dd>
+        </div>
+        <div>
+          <dt>дней занятий на этой неделе</dt>
+          <dd>{number.format(row.days)}</dd>
+        </div>
+        <div>
+          <dt>карточек на этой неделе</dt>
+          <dd>{number.format(row.cards)}</dd>
+        </div>
+        <div>
+          <dt>{weeksWord(row.streak_weeks)} подряд с выполненным обещанием</dt>
+          <dd>{number.format(row.streak_weeks)}</dd>
+        </div>
+        <div>
+          <dt>выучено за всё время</dt>
+          <dd>{allTime === null ? '…' : wordsOf(allTime)}</dd>
+        </div>
+      </dl>
+    </Dialog>
   );
 }
 
@@ -429,47 +412,51 @@ function Members({ board, onRemoved, onDone }: { board: Board; onRemoved: () => 
   );
 }
 
-function Housekeeping(props: { board: Board; managing: boolean; onManage: () => void; onLeft: () => void }) {
+function Housekeeping(props: { board: Board; onRemoved: () => void; onLeft: () => void }) {
   const { group } = props.board;
+  const [managing, setManaging] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const { run, busy, error } = useAsyncAction();
   return (
-    <div className={shared.manage}>
-      {group.role === 'owner' && group.member_count > 1 && !props.managing && (
-        <button type="button" className={shared.linkButton} onClick={props.onManage}>
-          Управлять участниками
-        </button>
-      )}
-      {leaving ? (
-        <span className={shared.confirm}>
-          Выйти из группы?
-          <button
-            type="button"
-            className={shared.dangerButton}
-            disabled={busy}
-            onClick={() =>
-              run(async () => {
-                await api.leaveGroup(group.id);
-                props.onLeft();
-              })
-            }
-          >
-            Да, выйти
+    <>
+      {managing && <Members board={props.board} onRemoved={props.onRemoved} onDone={() => setManaging(false)} />}
+      <div className={shared.manage}>
+        {group.role === 'owner' && group.member_count > 1 && !managing && (
+          <button type="button" className={shared.linkButton} onClick={() => setManaging(true)}>
+            Участники ({group.member_count})
           </button>
-          <SecondaryButton type="button" className={shared.smallSecondary} onClick={() => setLeaving(false)}>
-            Отмена
-          </SecondaryButton>
-        </span>
-      ) : (
-        <button type="button" className={shared.linkButton} onClick={() => setLeaving(true)}>
-          Выйти из группы
-        </button>
-      )}
-      {error && (
-        <p className={shared.problem} role="alert">
-          {error}
-        </p>
-      )}
-    </div>
+        )}
+        {leaving ? (
+          <span className={shared.confirm}>
+            Выйти из группы?
+            <button
+              type="button"
+              className={shared.dangerButton}
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.leaveGroup(group.id);
+                  props.onLeft();
+                })
+              }
+            >
+              Да, выйти
+            </button>
+            <SecondaryButton type="button" className={shared.smallSecondary} onClick={() => setLeaving(false)}>
+              Отмена
+            </SecondaryButton>
+          </span>
+        ) : (
+          <button type="button" className={shared.linkButton} onClick={() => setLeaving(true)}>
+            Выйти из группы
+          </button>
+        )}
+        {error && (
+          <p className={shared.problem} role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    </>
   );
 }

@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import Group, GroupMember, ReviewAttempt, User
 from app.schemas.groups import (
+    BehindOut,
     BoardOut,
     BoardRow,
     GroupOut,
@@ -133,6 +134,7 @@ def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
         summaries.append(
             GroupSummaryOut(
                 **_group_out(db, group, member).model_dump(),
+                behind_for_class=_most_behind(week),
                 my_rank=me.rank,
                 ranked=sum(row.rank is not None for row in week.rows),
                 members=[
@@ -264,6 +266,22 @@ def leave_all(db: Session, user: User) -> None:
     for member in db.scalars(select(GroupMember).where(GroupMember.user_id == user.id)):
         _leave(db, db.get_one(Group, member.group_id), member)
     db.flush()
+
+
+def _most_behind(week: BoardOut) -> BehindOut | None:
+    """Of my decks with a deadline, the one I lack most words for; None when I keep up."""
+    late = [
+        (item.title, item.my_standing)
+        for item in week.assignments
+        if item.my_standing is not None
+        and item.my_standing.behind > 0
+        and item.my_standing.status in ("behind", "not_started")
+    ]
+    if not late:
+        return None
+    title, standing = max(late, key=lambda pair: pair[1].behind)
+    status = "behind" if standing.status == "behind" else "not_started"
+    return BehindOut(title=title, behind=standing.behind, status=status)
 
 
 # --- the board ------------------------------------------------------------------------------
