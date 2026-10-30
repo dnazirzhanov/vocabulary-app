@@ -13,7 +13,8 @@ scheduled reviews.
 import math
 import random
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -75,9 +76,20 @@ def s_short(s: float, g: int) -> float:
     return float(s * (max(increase, 1.0) if g >= 2 else increase))
 
 
+def study_day(moment: datetime) -> date:
+    """Anki's day: it starts at 4 AM (UTC here)."""
+    return (moment - timedelta(hours=4)).date()
+
+
+def day_start(day: date) -> datetime:
+    return datetime.combine(day, time(4), tzinfo=UTC)
+
+
 @dataclass
 class Spec:
-    """A card under the published rules, with Anki's default steps (1 m, 10 m; relearn 10 m)."""
+    """A card under the published rules, scheduled the way Anki does: learning steps of 1 m and
+    10 m (relearning 10 m), elapsed time in days that start at 4 AM, reviews due from the start of
+    their day, and each better answer at least a day longer than the one below it."""
 
     state: int = LEARNING
     step: int | None = 0
@@ -86,51 +98,62 @@ class Spec:
     last: datetime | None = None
     due: datetime = START
 
-    def rate(self, g: int, now: datetime) -> None:
-        elapsed = (now - self.last).days if self.last else None  # whole 24-hour periods
+    def outcome(
+        self, g: int, now: datetime
+    ) -> tuple[int, int | None, float, float, timedelta | int]:
+        """(state, step, S, D, wait): wait is minutes as a timedelta, or whole days for review."""
+        elapsed = (study_day(now) - study_day(self.last)).days if self.last else None
         if self.s is None or self.d is None:
-            self.s, self.d = s0(g), min(10.0, max(1.0, d0(g)))
+            s, d = s0(g), min(10.0, max(1.0, d0(g)))
         elif elapsed is not None and elapsed < 1:
-            self.s, self.d = s_short(self.s, g), next_d(self.d, g)
+            s, d = s_short(self.s, g), next_d(self.d, g)
         else:
             r = retrievability(elapsed or 0, self.s)
-            self.s = s_recall(self.d, self.s, r, g) if g > 1 else s_forget(self.d, self.s, r)
-            self.d = next_d(self.d, g)
-        self.s = max(self.s, 0.001)
-        self.last = now
-        days = timedelta(days=min(max(round(interval(self.s)), 1), 36500))
+            s = s_recall(self.d, self.s, r, g) if g > 1 else s_forget(self.d, self.s, r)
+            d = next_d(self.d, g)
+        s = max(s, 0.001)
+        days = min(max(round(interval(s)), 1), 36500)
         if self.state == LEARNING:
             assert self.step is not None
             if g == 1:
-                self.step, self.due = 0, now + LEARNING_STEPS[0]
-            elif g == 2:
+                return LEARNING, 0, s, d, LEARNING_STEPS[0]
+            if g == 2:
                 wait = (
                     (LEARNING_STEPS[0] + LEARNING_STEPS[1]) / 2
                     if self.step == 0
                     else LEARNING_STEPS[self.step]
                 )
-                self.due = now + wait
-            elif g == 3 and self.step + 1 < len(LEARNING_STEPS):
-                self.step += 1
-                self.due = now + LEARNING_STEPS[self.step]
-            else:
-                self.state, self.step, self.due = REVIEW, None, now + days
-        elif self.state == REVIEW:
+                return LEARNING, self.step, s, d, wait
+            if g == 3 and self.step + 1 < len(LEARNING_STEPS):
+                return LEARNING, self.step + 1, s, d, LEARNING_STEPS[self.step + 1]
+            return REVIEW, None, s, d, days
+        if self.state == REVIEW:
             if g == 1:
-                self.state, self.step, self.due = RELEARNING, 0, now + RELEARNING_STEP
-            else:
-                self.due = now + days
-        else:  # relearning: one step; Again repeats it, Hard waits 1.5 steps, Good/Easy graduate
-            if g == 1:
-                self.due = now + RELEARNING_STEP
-            elif g == 2:
-                self.due = now + RELEARNING_STEP * 1.5
-            else:
-                self.state, self.step, self.due = REVIEW, None, now + days
+                return RELEARNING, 0, s, d, RELEARNING_STEP
+            return REVIEW, None, s, d, days
+        # Relearning: one step; Again repeats it, Hard waits 1.5 steps, Good/Easy graduate.
+        if g == 1:
+            return RELEARNING, 0, s, d, RELEARNING_STEP
+        if g == 2:
+            return RELEARNING, 0, s, d, RELEARNING_STEP * 1.5
+        return REVIEW, None, s, d, days
+
+    def rate(self, g: int, now: datetime) -> None:
+        state, step, s, d, wait = self.outcome(g, now)
+        if isinstance(wait, int):
+            for lower in range(g - 1, 1, -1):  # Hard < Good < Easy, a day apart at least
+                below = self.outcome(lower, now)[4]
+                if not isinstance(below, int):
+                    break
+                wait = max(wait, below + g - lower)
+            self.due = day_start(study_day(now) + timedelta(days=wait))
+        else:
+            self.due = now + wait
+        self.state, self.step, self.s, self.d, self.last = state, step, s, d, now
 
 
 def ours(card: CardState | None, g: int, now: datetime) -> CardState:
-    return review(card, g, now)
+    return review(card, g, now, ZoneInfo("UTC"))
 
 
 # --- 1. our scheduler computes exactly the published FSRS-6 ------------------------------------
@@ -174,7 +197,7 @@ def test_stability_is_the_time_for_recall_to_fall_to_90_percent() -> None:
 def test_the_scheduled_interval_is_stability_rounded_to_whole_days() -> None:
     card = ours(None, 4, START)  # Easy: straight to review with S0(Easy) = 8.2956 days
     assert card.stability == pytest.approx(W[3])
-    assert card.due_at - START == timedelta(days=8)
+    assert card.due_at == day_start(study_day(START) + timedelta(days=8))  # from 4 AM that day
 
 
 def review_card(s: float, d: float, last_days_ago: int) -> CardState:
@@ -241,7 +264,7 @@ def test_a_learner_whose_memory_follows_the_model_recalls_about_90_percent_of_re
         for _ in range(8):
             assert card.last_reviewed_at is not None and card.stability is not None
             now = card.due_at
-            elapsed = (now - card.last_reviewed_at).days
+            elapsed = (study_day(now) - study_day(card.last_reviewed_at)).days
             remembered = rng.random() < retrievability(elapsed, card.stability)
             recalled += remembered
             reviews += 1
@@ -252,17 +275,14 @@ def test_a_learner_whose_memory_follows_the_model_recalls_about_90_percent_of_re
     assert 0.88 <= recalled / reviews <= 0.93
 
 
-# --- 4. where the library and Anki differ ------------------------------------------------------
+# --- 4. Anki's rules around the model -------------------------------------------------------
 
 
-def test_previews_can_show_good_and_easy_on_the_same_day_count() -> None:
-    """Anki forces Hard < Good < Easy for review cards (`.max(hard + 1)`); the library doesn't.
-    Search the space for a review card whose Good and Hard intervals coincide."""
-    clashes = []
+def test_previews_never_show_good_and_easy_on_the_same_day_count() -> None:
+    """Anki forces Hard < Good < Easy for review cards (`.max(hard + 1)`); the bare library
+    doesn't, and these cards used to clash."""
     for s in (0.3, 0.6, 1, 1.5, 2, 3):
         for d in (1, 5, 9, 10):
-            shown = previews(review_card(s, d, 1), START)
-            days = [round(shown[g] / timedelta(days=1)) for g in (2, 3, 4)]
-            if len(set(days)) < 3:
-                clashes.append((s, d, days))
-    assert clashes, "no clash found: the ordering holds for these cards"
+            shown = previews(review_card(s, d, 1), START, ZoneInfo("UTC"))
+            days = [shown[g] / timedelta(days=1) for g in (2, 3, 4)]
+            assert days == sorted(days) and len(set(days)) == 3, (s, d, days)

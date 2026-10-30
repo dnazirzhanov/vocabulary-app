@@ -15,9 +15,10 @@ test('cards come back when they are due and are studied first', async ({ page, l
   await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(/К повторению\s*5/);
   await page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ }).click();
 
-  // Reviews first: the first card is one of the five words met ten days ago.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
-  await finishSession(page, { house: 'Снова' });
+  // Reviews first: the first card is one of the five words met ten days ago (all due from 4 AM
+  // of the same day, so in a fixed order).
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('buy');
+  await finishSession(page, { buy: 'Снова' });
   await expect(page.getByText(/повторили — 5\sслов/)).toBeVisible();
   await expect(page.getByRole('heading', { name: /Трудные сейчас/ })).toBeVisible();
 });

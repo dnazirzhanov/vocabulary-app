@@ -44,7 +44,7 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   await expect(today(page, 'К повторению')).toHaveText('5');
   // Reviews first; leaving the lesson comes back to the deck, where it can be resumed.
   await page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('buy');
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeVisible();
   await expect(button(page, 'Продолжить урок')).toBeVisible();

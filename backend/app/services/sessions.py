@@ -9,7 +9,7 @@ passed in, never read here.
 import random
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -70,6 +70,7 @@ from app.services.learning import (
     plan_spelling,
     requeue,
 )
+from app.services.plan_days import zone_of
 from app.services.progress import INTRODUCTION, card_points, local_day_bounds
 from app.services.progress_view import today_plan
 from app.services.scheduling import (
@@ -168,7 +169,11 @@ def _open_session(db: Session, user: User) -> LearningSession | None:
 
 
 def _card_out(
-    step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
+    step: PlannedExercise,
+    word: Word,
+    progress: UserWordProgress | None,
+    now: datetime,
+    time_zone: ZoneInfo,
 ) -> CardExercise:
     return CardExercise(
         id=step.id,
@@ -176,13 +181,17 @@ def _card_out(
         new=step.new,
         previews=[
             IntervalPreview(rating=rating, seconds=round(delay.total_seconds()))
-            for rating, delay in previews(_card_state(progress), now).items()
+            for rating, delay in previews(_card_state(progress), now, time_zone).items()
         ],
     )
 
 
 def _exercise_out(
-    step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
+    step: PlannedExercise,
+    word: Word,
+    progress: UserWordProgress | None,
+    now: datetime,
+    time_zone: ZoneInfo,
 ) -> ExerciseOut:
     if step.spelling:
         # The meaning only: no headword, id, example or audio can give the answer away.
@@ -197,7 +206,7 @@ def _exercise_out(
             tiles=list(step.tiles),
             hint=_hint_out(step, word),
         )
-    return _card_out(step, word, progress, now)
+    return _card_out(step, word, progress, now, time_zone)
 
 
 def _hint_out(step: PlannedExercise, word: Word) -> HintOut | None:
@@ -231,13 +240,14 @@ def present_session(db: Session, user: User, session: LearningSession, now: date
     words = _words_by_id(db, word_ids)
     progress = _progress(db, user, word_ids)
     attempts = _attempts(db, session.id)
+    zone = zone_of(user)
     return SessionOut(
         id=session.id,
         kind=session.kind,
         deck_id=session.deck_id,
         completed=session.completed_at is not None,
         exercises=[
-            _exercise_out(step, words[step.word_id], progress.get(step.word_id), now)
+            _exercise_out(step, words[step.word_id], progress.get(step.word_id), now, zone)
             for step in plan
         ],
         results=[
@@ -729,7 +739,7 @@ def _rate(
     )
     was_review = before is not None and before.is_review and not repeat
     practice = session.kind == "hard"
-    after = before if practice and before else review(before, rating, now)
+    after = before if practice and before else review(before, rating, now, zone_of(user))
     assert after is not None
     stored = ReviewAttempt(
         session_id=session.id,
@@ -753,9 +763,12 @@ def _rate(
     inserted: list[InsertedExercise] = []
     if not practice:
         _save_schedule(db, user, step.word_id, progress, after, rating, now)
-    # Due again within minutes (learning steps): show it again later in this session. In
-    # practice the schedule stands still, so only a forgotten card comes round again.
-    soon = (after.due_at - now).total_seconds() <= REQUEUE_WITHIN_SECONDS
+    # Due again within minutes (learning steps): show it again later in this session. A review
+    # due at 4 AM is not one, even when answered at 3:55. In practice the schedule stands still,
+    # so only a forgotten card comes round again.
+    soon = after.state != REVIEW and (after.due_at - now) <= timedelta(
+        seconds=REQUEUE_WITHIN_SECONDS
+    )
     if (rating == AGAIN) if practice else soon:
         requeued = requeue(plan, plan.index(step), step.word_id)
         if requeued:
@@ -765,7 +778,8 @@ def _rate(
             fresh = _progress(db, user, [step.word_id]).get(step.word_id)
             inserted.append(
                 InsertedExercise(
-                    index=new_plan.index(again), exercise=_card_out(again, word, fresh, now)
+                    index=new_plan.index(again),
+                    exercise=_card_out(again, word, fresh, now, zone_of(user)),
                 )
             )
     return stored, inserted

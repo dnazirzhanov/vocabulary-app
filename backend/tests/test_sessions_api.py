@@ -79,7 +79,7 @@ def test_a_card_rated_good_on_first_sight_comes_back_once_more(
     assert (progress.word_id, progress.fsrs_state, progress.fsrs_step) == ("house", 1, 1)
 
 
-def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahead(
+def test_a_whole_session_teaches_five_words_and_schedules_them_for_a_later_day(
     client: TestClient, play: Play
 ) -> None:
     summary = play(STUDY, DAY0, ratings={"water": 4, "friend": 1})
@@ -98,8 +98,10 @@ def test_a_whole_session_teaches_five_words_and_schedules_them_a_day_or_more_ahe
     # «Легко» graduates at once; the others needed a second showing, «Снова» a third.
     assert (by_word["water"]["showings"], by_word["house"]["showings"]) == (1, 2)
     assert (by_word["friend"]["showings"], by_word["friend"]["lowest_rating"]) == (3, 1)
+    # Due from the start of a later study day: 4 AM (UTC here), as in Anki (ADR 0025).
+    tomorrow = datetime(2026, 11, 3, 4, 0, tzinfo=UTC)
     for row in summary["words"]:
-        assert datetime.fromisoformat(row["next_review_at"]) >= DAY0 + timedelta(days=1)
+        assert datetime.fromisoformat(row["next_review_at"]) >= tomorrow
 
     deck = client.get("/api/decks", headers=at(DAY0)).json()[0]
     assert (deck["introduced_count"], deck["due_count"]) == (5, 0)
@@ -210,3 +212,20 @@ def test_unknown_deck_and_bad_dev_user(client: TestClient) -> None:
     unknown = client.post("/api/sessions", json={"kind": "study", "deck_id": "nope"})
     assert unknown.status_code == 404
     assert client.get("/api/decks", headers={"X-Dev-User": "Bad Name!"}).status_code == 400
+
+
+def test_a_review_answered_just_before_four_in_the_morning_waits_for_its_day(
+    client: TestClient, db: Session, play: Play
+) -> None:
+    """At 3:55 it is still yesterday's study day (ADR 0025): a one-day review is due at 4:00,
+    five minutes later — it is a review for the new day, not a learning step to repeat now."""
+    play(STUDY, DAY0, spell=False)
+    for progress in db.scalars(select(UserWordProgress)):
+        progress.stability, progress.due_at = 0.3, datetime(2026, 11, 3, 3, 0, tzinfo=UTC)
+    db.commit()
+    late = datetime(2026, 11, 3, 3, 55, tzinfo=UTC)
+    session = start(client, late).json()
+    first = cards(session)[0]
+    result = rate_card(client, session["id"], first["id"], 2, late).json()
+    assert datetime.fromisoformat(result["next_due_at"]) == datetime(2026, 11, 3, 4, 0, tzinfo=UTC)
+    assert result["inserted"] == []
