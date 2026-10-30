@@ -16,7 +16,7 @@ from app.models.learning import (
     SpellingProgress,
     UserWordProgress,
 )
-from app.models.user import DeckPace, PaceDismissal, User
+from app.models.user import DeckPace, PaceDismissal, PushSubscription, User
 
 __all__ = [
     "Deck",
@@ -30,6 +30,7 @@ __all__ = [
     "GroupMember",
     "LearningSession",
     "PaceDismissal",
+    "PushSubscription",
     "ReviewAttempt",
     "SpellingProgress",
     "User",

@@ -6,6 +6,7 @@ import type { Pace } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { RemindMe } from '../account/Reminders.tsx';
 import styles from './DeckPace.module.css';
 
 const PACE_CHOICES = [5, 10, 15, 20, 30];
@@ -29,9 +30,10 @@ export function DailyPace({ pace, left, onSaved }: { pace: Pace; left: number; o
   return (
     <div className={styles.pace}>
       {deadline && (
-        <p className={styles.deadline} role="note">
-          {deadline}
-        </p>
+        <div className={styles.deadlineBox}>
+          <p role="note">{deadline}</p>
+          {left > 0 && <RemindMe />}
+        </div>
       )}
       <div className={styles.line}>
         <p>

@@ -71,3 +71,22 @@ class DeckPace(Base):
     # Extra new words for one local day only: tomorrow the plain pace applies again.
     extra_day: Mapped[date | None] = mapped_column(Date)
     extra_words: Mapped[int | None] = mapped_column(SmallInteger)
+
+
+class PushSubscription(Base):
+    """A browser or phone that agreed to deadline reminders (ADR 0031): the push service's address
+    for it and the keys to encrypt to it. No name, no e-mail; deleted with the learner, or when
+    the push service says it is gone."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(128))
+    auth: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # The learner's local day of the last reminder: at most one a day.
+    last_sent_on: Mapped[date | None] = mapped_column(Date)

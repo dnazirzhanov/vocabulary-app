@@ -18,6 +18,7 @@ from app.services.content import (
     parse_glossary,
 )
 from app.services.demo import seed_classmates
+from app.services.reminders import WebPushSender, send_reminders, vapid_keys
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,7 +34,26 @@ def main(argv: list[str] | None = None) -> int:
         "seed-classmates", help="development only: a demo group with made-up classmates"
     )
     seed.add_argument("--owner", default="local", help="the X-Dev-User who owns the group")
+    commands.add_parser(
+        "vapid-keys",
+        help="a new key pair for reminders: lines for .env (keep the private one secret)",
+    )
+    commands.add_parser("send-reminders", help="send this hour's deadline reminders (ADR 0031)")
     args = parser.parse_args(argv)
+
+    if args.command == "vapid-keys":
+        print("\n".join(f"{name}={value}" for name, value in vapid_keys().items()))
+        return 0
+
+    if args.command == "send-reminders":
+        settings = get_settings()
+        if not settings.vapid_private_key:
+            print("send-reminders needs VAPID_PRIVATE_KEY (see vapid-keys)", file=sys.stderr)
+            return 1
+        with get_sessionmaker()() as db:
+            sent = send_reminders(db, datetime.now(UTC), WebPushSender(settings))
+        print(f"Reminders sent: {sent}")
+        return 0
 
     if args.command == "seed-classmates":
         settings = get_settings()
