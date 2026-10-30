@@ -100,7 +100,7 @@ test('a teacher drafts cards from a lesson text and reviews them', async ({ page
     .getByLabel('Текст урока')
     .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');
   await page.getByRole('radio', { name: '5', exact: true }).check();
-  await button(page, 'Подобрать слова').click();
+  await button(page, 'Подобрать 5\u00a0слов').click();
 
   await expect(page.getByRole('status').filter({ hasText: 'Добавлено' })).toContainText('Добавлено: 5');
   const words = page.getByRole('list').filter({ hasText: 'setbacks' });

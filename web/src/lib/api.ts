@@ -156,8 +156,9 @@ export const api = {
   removeDeckWord: (deckId: string, wordId: string) =>
     request<TeacherDeck>('DELETE', `/decks/${deckId}/words/${wordId}`),
   /** Drafts cards from a teacher's text into the deck (ADR 0018); a model call can take a minute. */
-  generateDeck: (deckId: string, text: string, count: number, level: string) =>
-    request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level }, 120_000),
+  /** `photos`: how many photos the text was read from (ADR 0029). Fifty cards can take minutes. */
+  generateDeck: (deckId: string, text: string, count: number, level: string, photos = 0) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level, photos }, 240_000),
   /** Publish and give to a group I own; safe to repeat. */
   giveDeck: (deckId: string, groupId: string, dueOn: string | null = null) =>
     request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId, due_on: dueOn }),

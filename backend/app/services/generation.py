@@ -27,7 +27,7 @@ Pos = Literal["noun", "verb", "adjective", "adverb", "phrase", "other"]
 DEEPSEEK_URL = "https://api.deepseek.com"
 # 20 cards take about 2,500 tokens; the rest is a margin so the JSON is never cut off midway.
 MAX_TOKENS = 16000
-TIMEOUT_SECONDS = 90.0
+TIMEOUT_SECONDS = 180.0  # up to 50 cards in one draft (ADR 0029)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 

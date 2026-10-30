@@ -265,7 +265,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
               {mode === 'topic' && (
                 <TopicPanel deckId={deck.id} topics={deck.topics} onAdded={drafted} onOpenDeck={onOpenDeck} />
               )}
-              {mode === 'text' && <GeneratePanel deckId={deck.id} onDrafted={drafted} />}
+              {mode === 'text' && <GeneratePanel deckId={deck.id} photosLeft={deck.photos_left} onDrafted={drafted} />}
               {mode === 'manual' && (
                 <form
                   className={styles.form}

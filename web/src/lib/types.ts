@@ -415,6 +415,8 @@ export interface TeacherDeck {
   groups: AssignedGroup[];
   /** Topics it has been grown with, the latest first (ADR 0019). */
   topics: string[];
+  /** Photos it can still be drafted from, of 8 (ADR 0029). */
+  photos_left: number;
 }
 
 /** A word form from an example sentence (backend glossary). */

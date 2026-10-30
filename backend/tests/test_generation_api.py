@@ -75,6 +75,13 @@ class FixedProvider:
         ]
 
 
+class FailingProvider(DemoProvider):
+    """The drafting service down."""
+
+    def draft(self, text: str, count: int, level: Level, avoid: list[str]) -> list[DraftCard]:
+        raise ApiError(502, "generation_failed", "The drafting service did not answer")
+
+
 @pytest.fixture
 def fixed(client: TestClient) -> FixedProvider:
     provider = FixedProvider()
@@ -128,9 +135,46 @@ def test_only_the_author_drafts_and_the_text_has_limits(client: TestClient) -> N
     url = f"/api/decks/{deck['id']}/generate"
     assert client.post(url, json={"text": TEXT}, headers=as_("pavel")).status_code == 404
     assert client.post(url, json={"text": "too short"}, headers=as_("olga")).status_code == 422
-    assert client.post(url, json={"text": TEXT, "count": 7}, headers=as_("olga")).status_code == 422
+    # Any number of words from 1 to 50 (ADR 0029); photos up to 4 at a time.
+    for count, status in ((0, 422), (51, 422), ("ten", 422)):
+        body = {"text": TEXT, "count": count}
+        assert client.post(url, json=body, headers=as_("olga")).status_code == status
+    body = {"text": TEXT, "count": 5, "photos": 5}
+    assert client.post(url, json=body, headers=as_("olga")).status_code == 422
     too_long = {"text": "word " * 4001}
     assert client.post(url, json=too_long, headers=as_("olga")).status_code == 422
+
+
+def test_up_to_fifty_words_are_asked_for(client: TestClient, fixed: FixedProvider) -> None:
+    deck = draft_deck(client)
+    url = f"/api/decks/{deck['id']}/generate"
+    for count in (1, 50):
+        response = client.post(url, json={"text": TEXT, "count": count}, headers=as_("olga"))
+        assert response.status_code == 200 and fixed.asked["count"] == count
+
+
+def test_a_deck_takes_eight_photos_in_all_and_a_failed_draft_spends_none(
+    client: TestClient,
+) -> None:
+    deck = draft_deck(client)
+    url = f"/api/decks/{deck['id']}/generate"
+    editor = client.get(f"/api/decks/{deck['id']}/edit", headers=as_("olga")).json()
+    assert editor["photos_left"] == 8
+    first = client.post(url, json={"text": TEXT, "count": 1, "photos": 4}, headers=as_("olga"))
+    assert first.json()["deck"]["photos_left"] == 4
+    # A draft the service fails spends nothing.
+    app = client.app
+    assert hasattr(app, "dependency_overrides")
+    app.dependency_overrides[get_provider] = lambda: FailingProvider()
+    failed = client.post(url, json={"text": TEXT, "count": 1, "photos": 4}, headers=as_("olga"))
+    assert failed.status_code == 502
+    del app.dependency_overrides[get_provider]
+    second = client.post(url, json={"text": TEXT, "count": 1, "photos": 4}, headers=as_("olga"))
+    assert second.json()["deck"]["photos_left"] == 0
+    ninth = client.post(url, json={"text": TEXT, "count": 1, "photos": 1}, headers=as_("olga"))
+    assert (ninth.status_code, ninth.json()["error"]["code"]) == (409, "photo_limit")
+    # Typed or pasted text still drafts.
+    assert client.post(url, json={"text": TEXT, "count": 1}, headers=as_("olga")).status_code == 200
 
 
 def test_drafts_are_limited_per_day(client: TestClient) -> None:

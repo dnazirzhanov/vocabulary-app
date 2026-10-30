@@ -57,6 +57,8 @@ from app.services.generation import DraftCard, Provider, flags, word_key
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
 MAX_WORDS_PER_DECK = 500  # room to grow a topic deck day by day (ADR 0019)
+# Photos read into a draft (ADR 0029): four at a time, eight per deck.
+MAX_PHOTOS_PER_DECK = 8
 # A topic draft: at most two calls; the AI is shown at most this many of the deck's words to avoid
 # (about 3 tokens each; any it repeats beyond them are still dropped by key).
 TOPIC_CALLS = 2
@@ -247,6 +249,7 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
                 .order_by(DeckTopic.used_at.desc(), DeckTopic.key)
             )
         ),
+        photos_left=max(0, MAX_PHOTOS_PER_DECK - deck.photos_used),
     )
 
 
@@ -395,8 +398,14 @@ def generate(
     db: Session, user: User, deck_id: str, body: GenerateIn, provider: Provider
 ) -> GenerateOut:
     """Draft cards from the teacher's text into the deck (ADR 0018). The text is read once and
-    not kept; each card keeps only its own sentence. Cards that cannot be saved are reported."""
+    not kept; each card keeps only its own sentence. Cards that cannot be saved are reported.
+    Text read from photos counts them against the deck's eight (ADR 0029), once the draft
+    succeeds."""
     deck = _owned_deck(db, user, deck_id)
+    if deck.photos_used + body.photos > MAX_PHOTOS_PER_DECK:
+        raise ApiError(
+            409, "photo_limit", f"A deck takes at most {MAX_PHOTOS_PER_DECK} photos in all"
+        )
     present = _present(db, deck)
     room = MAX_WORDS_PER_DECK - len(present)
     if room <= 0:
@@ -406,6 +415,7 @@ def generate(
     cards = provider.draft(body.text, wanted, body.level, list(seen.values()))
     added, skipped, repeats = _save_drafts(db, deck, cards, set(seen), wanted)
     skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
+    deck.photos_used += body.photos
     db.commit()
     return GenerateOut(
         deck=_deck_out(db, deck), added=added, skipped=skipped, provider=provider.name
