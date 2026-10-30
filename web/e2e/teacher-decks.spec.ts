@@ -64,10 +64,11 @@ test('a teacher gives words to a group and a student learns them first', async (
   await expect(page.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
   await page.goto('/');
   await openGroup(page);
-  // The board: no button to make decks there; each deck with the group's progress on it.
-  await expect(page.getByRole('heading', { name: 'Колоды группы' })).toBeVisible();
+  // The group's decks are folded under «Управление группой», with «Изменить» for the author.
   await expect(button(page, 'Дать слова группе')).toHaveCount(0);
-  await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна0 из 2');
+  await page.getByText('Управление группой').click();
+  await expect(page.getByRole('heading', { name: 'Колоды группы' })).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Unit 4' })).toContainText('2\u00a0слова');
 
   // The student finds it in «Мои колоды» and studies it from its page, within their own pace.
   const learner = await student.newPage();
@@ -86,9 +87,9 @@ test('a teacher gives words to a group and a student learns them first', async (
   // The teacher finds it among her own decks, given to the group.
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
+  // The student learned this week: on the league, with today's check.
   await openGroup(page);
-  await expect(page.getByRole('list', { name: 'Участники: «Unit 4»' })).toContainText('Анна2 из 2');
-  await expect(page.getByText(/Группа: встречено 2 из 4 · все слова встретили 1 из 2/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Анна, сегодня уже есть занятие/ })).toBeVisible();
 });
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).

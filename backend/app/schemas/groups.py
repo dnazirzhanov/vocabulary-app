@@ -39,6 +39,14 @@ class TodayMemberOut(BaseModel):
     studied_today: bool
 
 
+class BehindOut(BaseModel):
+    """A deck with a deadline I am behind on (ADR 0032): the most urgent line of a group's row."""
+
+    title: str
+    behind: int
+    status: Literal["behind", "not_started"]
+
+
 class GroupSummaryOut(GroupOut):
     """A group in the list of my groups (ADR 0023): its pulse before opening it."""
 
@@ -46,6 +54,8 @@ class GroupSummaryOut(GroupOut):
     my_rank: int | None
     ranked: int
     members: list[TodayMemberOut]
+    # The deadline deck I am furthest behind on, if any (ADR 0032).
+    behind_for_class: BehindOut | None = None
 
 
 class GroupPreviewOut(BaseModel):

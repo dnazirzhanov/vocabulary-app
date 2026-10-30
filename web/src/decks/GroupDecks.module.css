@@ -1,16 +1,12 @@
-/*
- * The board's decks: a list, not cards. Per deck: my progress (a bar), the group's (a line), and
- * for the owner a row per member with a two-tone bar — met, and remembered well, the darker part,
- * as on the progress page. Counts are always written out, never colour alone.
- */
+/* The group's decks, folded under «Управление группой» (ADR 0032): a plain list. */
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .title {
-  font-size: var(--text-option);
+  font-size: var(--text-body);
   font-weight: var(--weight-display);
 }
 
@@ -20,47 +16,23 @@
 }
 
 .list {
-  display: flex;
-  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--color-border);
 }
 
 .item {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4) 0;
-  border-top: 1px solid var(--color-border);
-}
-
-.item:last-child {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.itemHead {
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-}
-
-.itemText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.itemTitle {
-  font-size: var(--text-option);
-  font-weight: var(--weight-display);
+  min-height: 52px;
+  border-bottom: 1px solid var(--color-border);
   overflow-wrap: anywhere;
 }
 
-.meta,
-.groupLine {
+.meta {
   color: var(--color-text-muted);
   font-size: var(--text-meta);
 }
@@ -68,7 +40,6 @@
 .linkButton {
   flex: none;
   min-height: 44px;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
   padding: 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
@@ -81,136 +52,4 @@
 
 .linkButton:hover {
   background: var(--color-primary-tint);
-}
-
-.mine {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.mine strong {
-  font-weight: var(--weight-display);
-}
-
-.track {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 4px;
-  background: var(--color-track);
-}
-
-.track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-primary);
-  transition: width var(--duration-progress) var(--ease-out);
-}
-
-.learners {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: var(--space-1) 0 0;
-  padding: var(--space-3) 0 0;
-  border-top: 1px dashed var(--color-border);
-  list-style: none;
-  font-size: var(--text-meta);
-}
-
-/* Name | bar | count: the bars line up whatever the names. */
-.learner {
-  display: grid;
-  grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.name {
-  overflow: hidden;
-  font-weight: var(--weight-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.name[data-me] {
-  color: var(--color-primary-strong);
-}
-
-.miniBar {
-  position: relative;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: var(--color-activity-none);
-}
-
-.miniMet,
-.miniKnown {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-}
-
-.miniMet {
-  background: var(--color-activity-some);
-}
-
-.miniKnown {
-  background: var(--color-activity-goal);
-}
-
-.count {
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.count[data-done] {
-  color: var(--color-success);
-  font-weight: var(--weight-strong);
-}
-
-.known {
-  color: var(--color-text-muted);
-  font-weight: var(--weight-body);
-}
-
-/* A small phone: the bar takes its own line under the name and count. */
-@media (max-width: 374px) {
-  .learner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: var(--space-1);
-  }
-
-  .miniBar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-}
-
-/* Against a deadline (ADR 0030): the owner's line, and each member's standing under their bar. */
-.onTrack {
-  font-weight: var(--weight-strong);
-}
-
-.learner .standing {
-  grid-column: 2 / -1;
-  margin-top: calc(-1 * var(--space-2));
-}
-
-.standing {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.standing[data-status='on_track'],
-.standing[data-status='done'] {
-  color: var(--color-success);
-}
-
-.standing[data-behind] {
-  color: var(--color-error);
 }

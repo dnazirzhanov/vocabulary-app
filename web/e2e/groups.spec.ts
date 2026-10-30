@@ -29,20 +29,27 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await page.keyboard.press('Escape');
   await expect(button(page, 'Пригласить')).toBeFocused();
 
-  // Today, my place and the board: one day studied this week, no word learned yet (that takes a
-  // review on a later day). One ranking, said in one line: no tabs, no «план».
-  await expect(page.getByRole('heading', { name: /Сегодня занимались 1 из 1/ })).toBeVisible();
+  // Only what to act on (ADR 0032): my week in one line, then the week's league — one number a
+  // person and ✓ for who studied today. No period switch, no rule paragraph, no totals.
   await expect(page.getByText('Вы на 1-м месте')).toBeVisible();
-  await expect(page.getByText(/^Место — по выученным словам/)).toBeVisible();
-  const me = page.getByRole('listitem').filter({ hasText: 'Ёжик' }).filter({ hasText: 'занятий' });
+  await expect(page.getByRole('heading', { name: 'Неделя' })).toBeVisible();
+  const me = page.getByRole('button', { name: /^1-е место: Ёжик \(вы\)/ });
   await expect(me).toContainText('0\u00a0слов');
-  await expect(me).toContainText('1\u00a0день занятий');
-  await expect(me).toContainText(/\d+\u00a0карточ/);
-  await expect(page.getByRole('main')).not.toContainText(/план|(?<!карт)очк/i); // no plan, no points
-  await expect(page.getByRole('button', { name: 'Регулярность' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Всё время' }).click();
-  await expect(page.getByRole('heading', { name: 'Вместе за всё время' })).toBeVisible();
-  await page.getByRole('button', { name: 'Неделя' }).click();
+  await expect(me).toHaveAccessibleName(/сегодня уже есть занятие/);
+  for (const gone of ['Всё время', 'Месяц']) await expect(button(page, gone)).toHaveCount(0);
+  await expect(page.getByText(/^Вместе за/)).toHaveCount(0);
+  await expect(page.getByText(/^Место — по выученным словам/)).toHaveCount(0);
+  await expect(page.getByRole('main')).not.toContainText(/план|(?<!карт)очк|карточ/i); // no plan, points, cards
+  // The rule is one tap away; a person's figures open from their row.
+  await button(page, 'Как считаются места?').click();
+  await expect(page.getByRole('dialog', { name: 'Как считаются места' })).toContainText('по выученным словам');
+  await page.keyboard.press('Escape');
+  await me.click();
+  const window = page.getByRole('dialog', { name: 'Ёжик (вы)' });
+  await expect(window).toContainText('дней занятий на этой неделе1');
+  await expect(window).toContainText(/карточек на этой неделе\d+/);
+  await expect(window).toContainText('выучено за всё время0\u00a0слов');
+  await page.keyboard.press('Escape');
 
   // A friend (a different learner) opens the link.
   const friendContext = await browser.newContext({ extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}` } });
@@ -60,20 +67,20 @@ test('a learner creates a group, a friend joins by link, both are on the board',
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
   await expect(friend.getByText('Вы ещё не занимались на этой неделе')).toBeVisible();
-  await expect(friend.locator('p', { hasText: 'Ещё не занимались на этой неделе:' })).toContainText('Лис (вы)');
+  await expect(friend.getByText('Ещё не начинали: Лис (вы)')).toBeVisible();
   await friendContext.close();
 
   // «Друзья» always opens the list, even with one group: each group with its pulse.
   await button(page, 'Сегодня').click();
   await button(page, 'Друзья').click();
   await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
+  // One line a group: my place and how many studied today.
   const row = page.getByRole('button', { name: /^7Б английский/ });
-  await expect(row).toContainText('вы на 1-м месте на неделе');
-  await expect(row).toContainText('сегодня занимались 1 из 2');
-
-  // Members are statistics on the board; nothing opens on a tap, and there is no «Профиль».
+  await expect(row).toContainText('вы на 1-м месте · сегодня занимались 1 из 2');
   await row.click();
-  await expect(page.locator('p', { hasText: 'Ещё не занимались на этой неделе:' })).toContainText('Лис');
-  await expect(page.getByRole('button', { name: /^Лис/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Профиль' })).toHaveCount(0);
+  await expect(page.getByText('Ещё не начинали: Лис')).toBeVisible();
+  // Housekeeping is folded away at the bottom.
+  await expect(button(page, 'Выйти из группы')).toBeHidden();
+  await page.getByText('Управление группой').click();
+  await expect(button(page, 'Выйти из группы')).toBeVisible();
 });
