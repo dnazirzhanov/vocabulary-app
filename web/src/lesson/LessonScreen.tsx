@@ -133,12 +133,17 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     void loadGlossary().then(setGlossary);
   }, []);
 
-  // Each new card says its word, as soon as it appears (the learner can turn this off); the next
-  // card's word is loaded meanwhile so it plays without a delay.
+  // Each new card says its word once, as soon as it appears (the learner can turn this off); the
+  // next card's word is loaded meanwhile so it plays without a delay. The ref keeps it to once per
+  // card even when the effect runs twice (React's development check does that on the first card).
   // Spelling never plays the word: a recall would give it away.
+  const spoken = useRef<string | null>(null);
   useEffect(() => {
     if (state.phase !== 'front' || !card) return;
-    if (autoplay) void playAudio('words', card.word.id, card.word.headword);
+    if (autoplay && spoken.current !== exercise.id) {
+      spoken.current = exercise.id;
+      void playAudio('words', card.word.id, card.word.headword);
+    }
     const next = state.exercises[state.index + 1];
     if (next?.type === 'card') preloadAudio('words', next.word.id);
   }, [exercise.id, state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
