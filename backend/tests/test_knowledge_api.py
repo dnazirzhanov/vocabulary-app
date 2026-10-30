@@ -64,10 +64,13 @@ def test_learned_means_recalled_in_a_later_review(client: TestClient) -> None:
     assert (row["met"], row["learned"]) == (3, 2)
 
 
-def test_course_levels_appear_once_started_and_totals_count_a_word_once(
+def test_decks_appear_once_started_and_totals_count_a_word_once(
     client: TestClient, play: Play
 ) -> None:
     assert knowledge(client, DAY0)["decks"] == []  # nothing started: no rows
+    # A deck of my own with words but none met yet waits in «Мои колоды», not here.
+    own_deck(client, ["luggage", "passport"])
+    assert knowledge(client, DAY0)["decks"] == []
     # «money» is a course word: in my deck it is the course's word, one word in both.
     deck = own_deck(client, ["money", "ticket"])
     study(client, deck["id"], DAY0)

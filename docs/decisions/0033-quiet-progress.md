@@ -19,6 +19,8 @@ keeping the heatmap.
   - its goal: «сегодня 0 из 5 новых» (in strong text while today's words are still to do) or
     «на сегодня ✓», then the finish. The finish is the teacher's «к 2 ноября», or «осталось 32
     слова ≈ 7 дней» at the deck's own pace (a new `pace` field on each row).
+- **Only decks I've started** (a word met) are listed; one with nothing met yet waits in «Мои
+  колоды» (added after review).
 - **The course levels** share one pace, so only the level the learner is on carries today's goal;
   a later, locked level just says what is left.
 - **Removed:** the percentage and the source line on each deck, the legend, and the calendar's

@@ -117,9 +117,10 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
 
 
 def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> KnowledgeOut:
-    """What I know, deck by deck (ADR 0022): my own decks, my groups' decks and the course levels
-    I've started. «Learned» is evidence of memory, not exposure: a word recalled in a later review
-    (reviews come a day or more after meeting it) with any answer but «Снова»."""
+    """What I know, deck by deck (ADR 0022): the decks I've started — my own, my groups' and the
+    course's levels — each once a word of it is met (ADR 0033). «Learned» is evidence of memory,
+    not exposure: a word recalled in a later review (reviews come a day or more after meeting it)
+    with any answer but «Снова»."""
     given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
     candidates = list(
         db.scalars(
@@ -195,8 +196,8 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
     for deck in candidates:
         met, learned, known, last = counts.get(deck.id, (0, 0, 0, None))
         size = int(sizes.get(deck.id, 0))
-        # A course level appears once started; my decks and my groups' always, unless empty.
-        if size == 0 or (deck.kind == "course" and met == 0):
+        # Only decks I've started: a word met (ADR 0033). The rest wait in «Мои колоды».
+        if size == 0 or met == 0:
             continue
         item = given.get(deck.id)
         # Today in this deck (ADR 0028): shown, never judged.
