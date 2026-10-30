@@ -75,12 +75,13 @@ def test_decks_appear_once_started_and_totals_count_a_word_once(
     deck = own_deck(client, ["money", "ticket"])
     study(client, deck["id"], DAY0)
     report = knowledge(client, DAY0)
-    titles = [row["title"] for row in report["decks"]]
-    assert "Путешествия" in titles and "Основа" in titles  # money started the first level
-    assert all(
-        row["title"] not in ("Уверенный уровень", "Продвинутый уровень") for row in report["decks"]
-    )
-    assert report["met"] == 2  # money and ticket, money once
+    # Only the deck studied: meeting «money» there doesn't start the course's first level.
+    assert [row["title"] for row in report["decks"]] == ["Путешествия"]
+    assert report["met"] == 2  # money and ticket
+    # Studying the level itself starts it.
+    study(client, "a1-a2", DAY0)
+    report = knowledge(client, DAY0)
+    assert sorted(row["title"] for row in report["decks"]) == ["Основа", "Путешествия"]
 
 
 def test_a_finished_lesson_keeps_the_day_with_reviews_left_in_another_deck(

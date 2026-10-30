@@ -118,7 +118,7 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
 
 def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> KnowledgeOut:
     """What I know, deck by deck (ADR 0022): the decks I've started — my own, my groups' and the
-    course's levels — each once a word of it is met (ADR 0033). «Learned» is evidence of memory,
+    course's levels — each once I've studied in it (ADR 0033). «Learned» is evidence of memory,
     not exposure: a word recalled in a later review (reviews come a day or more after meeting it)
     with any answer but «Снова»."""
     given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
@@ -192,12 +192,26 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
         ),
         None,
     )
+    # Decks I've studied myself: a lesson or hard-words practice in them with an answer. A word met
+    # in another deck (a course word in my own, say) doesn't start this one (ADR 0033).
+    studied = set(
+        db.scalars(
+            select(LearningSession.deck_id)
+            .join(ReviewAttempt, ReviewAttempt.session_id == LearningSession.id)
+            .where(
+                LearningSession.user_id == user.id,
+                LearningSession.kind != "spelling",
+                LearningSession.deck_id.in_(ids),
+            )
+            .distinct()
+        )
+    )
     rows: list[DeckProgressOut] = []
     for deck in candidates:
         met, learned, known, last = counts.get(deck.id, (0, 0, 0, None))
         size = int(sizes.get(deck.id, 0))
-        # Only decks I've started: a word met (ADR 0033). The rest wait in «Мои колоды».
-        if size == 0 or met == 0:
+        # Only decks I've started; the rest wait in «Мои колоды».
+        if size == 0 or deck.id not in studied:
             continue
         item = given.get(deck.id)
         # Today in this deck (ADR 0028): shown, never judged.
