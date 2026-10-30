@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { readPhotos } from '../lib/ocr.ts';
 import { wordsLabel } from '../lib/pace.ts';
@@ -40,6 +40,8 @@ export function GeneratePanel({
   const [photos, setPhotos] = useState<string[]>([]);
   const [reading, setReading] = useState<{ done: number; total: number } | null>(null);
   const [photoNote, setPhotoNote] = useState<string | null>(null);
+  // A file is being dragged over the panel: it shows where to drop it.
+  const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const ready = text.trim().length >= 20;
   const working = busy || reading !== null;
@@ -75,6 +77,29 @@ export function GeneratePanel({
     }
   };
 
+  /** Images dropped or pasted: screenshots straight from the desktop or the clipboard. */
+  const addImages = (files: File[]) => {
+    const images = files.filter((file) => file.type.startsWith('image/'));
+    if (images.length === 0) {
+      setPhotoNote('Это не картинка: перетащите скриншот или фото страницы (PNG, JPG).');
+      return;
+    }
+    if (!working) void addPhotos(images);
+  };
+  const carriesFiles = (event: DragEvent) => event.dataTransfer.types.includes('Files');
+  // A file dropped just outside the panel would make the browser open it and leave the app.
+  useEffect(() => {
+    const keep = (event: globalThis.DragEvent) => {
+      if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', keep);
+    window.addEventListener('drop', keep);
+    return () => {
+      window.removeEventListener('dragover', keep);
+      window.removeEventListener('drop', keep);
+    };
+  }, []);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (working || !ready) return;
@@ -94,7 +119,29 @@ export function GeneratePanel({
   };
 
   return (
-    <form className={styles.paneForm} onSubmit={(event) => void submit(event)} aria-labelledby="tab-text">
+    <form
+      className={styles.paneForm}
+      onSubmit={(event) => void submit(event)}
+      aria-labelledby="tab-text"
+      data-dragging={dragging || undefined}
+      onDragEnter={(event) => carriesFiles(event) && (event.preventDefault(), setDragging(true))}
+      onDragOver={(event) => carriesFiles(event) && event.preventDefault()}
+      onDragLeave={(event) => {
+        // Leaving for a child is still inside the panel.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+      }}
+      onDrop={(event) => {
+        if (!carriesFiles(event)) return;
+        event.preventDefault();
+        setDragging(false);
+        addImages(Array.from(event.dataTransfer.files));
+      }}
+    >
+      {dragging && (
+        <div className={styles.dropHint} aria-hidden="true">
+          <CameraIcon /> Отпустите — прочитаем текст с картинки
+        </div>
+      )}
       <p className={styles.note}>
         Вставьте текст, упражнение или список слов либо сфотографируйте страницу — подберём слова и составим карточки с
         переводом и примером. Ни текст, ни фото не сохраняются.
@@ -109,6 +156,14 @@ export function GeneratePanel({
           value={text}
           disabled={working}
           onChange={(event) => setText(event.target.value)}
+          onPaste={(event) => {
+            // A screenshot in the clipboard is read like a photo; pasted text goes in as usual.
+            const files = Array.from(event.clipboardData.files);
+            if (files.some((file) => file.type.startsWith('image/'))) {
+              event.preventDefault();
+              addImages(files);
+            }
+          }}
         />
       </label>
 
@@ -139,6 +194,12 @@ export function GeneratePanel({
           {photosLeft <= 0
             ? `В колоду уже добавлено ${MAX_PHOTOS_PER_DECK} фото — больше нельзя.`
             : `До ${MAX_PHOTOS_PER_DRAFT} за раз · для этой колоды осталось ${photosLeft - photos.length} из ${MAX_PHOTOS_PER_DECK}`}
+          {photosLeft > 0 && (
+            <span className={styles.desktopOnly}>
+              {' '}
+              · скриншот можно перетащить сюда или вставить в поле (Ctrl+V, на Mac ⌘V)
+            </span>
+          )}
         </p>
       </div>
       <div role="status" className={styles.generateStatus}>

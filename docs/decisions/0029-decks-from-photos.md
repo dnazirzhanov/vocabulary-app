@@ -14,6 +14,7 @@ read images. The owner also wanted to choose how many words to draft, up to 50 (
   exactly as typed text is. The engine and its model (about 5 MB) load from the library's CDN on
   first use and are cached by the browser. A failed download shows an error at once rather than
   waiting forever.
+- **Screenshots can be dragged onto the panel or pasted into the text box** (Ctrl+V, ⌘V on a Mac), as well as picked with «Добавить фото»; a file dropped beside the panel is ignored rather than opened by the browser.
 - **The text lands in the text box** for the teacher to check and fix, then «Подобрать N слов»
   drafts as before. Words split across lines are joined; a photo with almost no text is skipped,
   with a note.

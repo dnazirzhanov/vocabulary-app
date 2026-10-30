@@ -58,3 +58,51 @@ test('a teacher drafts words from photos: four at a time, eight per deck, up to 
   await expect(page.getByText('В колоду уже добавлено 8 фото — больше нельзя.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Добавить фото' })).toBeDisabled();
 });
+
+test('a screenshot can be dragged onto the panel or pasted into the text box', async ({ page, context }) => {
+  await page.addInitScript(() => {
+    window.__ocrForTests = (name: string) =>
+      name === 'dragged.png'
+        ? 'Factories burn fossil fuels and release carbon dioxide.'
+        : 'Governments must phase out coal and invest in renewable energy.';
+  });
+  await context.request.post('/api/decks', { data: { title: 'Unit 7' } });
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Unit 7/ }).click();
+  await page.getByRole('tab', { name: 'Текст' }).click();
+  const panel = page.locator('form[aria-labelledby="tab-text"]');
+  const files = (name: string, type = 'image/png') =>
+    page.evaluateHandle(
+      ([fileName, fileType]) => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['png'], fileName, { type: fileType }));
+        return transfer;
+      },
+      [name, type],
+    );
+
+  // Dragged over: the panel says where to drop; dropped: the text is read in.
+  const dragged = await files('dragged.png');
+  await panel.dispatchEvent('dragenter', { dataTransfer: dragged });
+  await expect(page.getByText('Отпустите — прочитаем текст с картинки')).toBeVisible();
+  await panel.dispatchEvent('drop', { dataTransfer: dragged });
+  await expect(page.getByText('Отпустите — прочитаем текст с картинки')).toHaveCount(0);
+  const box = page.getByLabel('Текст урока');
+  await expect(box).toHaveValue('Factories burn fossil fuels and release carbon dioxide.');
+
+  // Not a picture: nothing read, and the panel says why.
+  await panel.dispatchEvent('drop', { dataTransfer: await files('notes.pdf', 'application/pdf') });
+  await expect(page.getByText('Это не картинка: перетащите скриншот или фото страницы (PNG, JPG).')).toBeVisible();
+
+  // A screenshot in the clipboard, pasted into the box.
+  await box.evaluate(
+    (element, transfer) => {
+      element.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    },
+    await files('pasted.png'),
+  );
+  await expect(box).toHaveValue(
+    'Factories burn fossil fuels and release carbon dioxide.\n\nGovernments must phase out coal and invest in renewable energy.',
+  );
+  await expect(page.getByText('для этой колоды осталось 6 из 8', { exact: false })).toBeVisible();
+});
