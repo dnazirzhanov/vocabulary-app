@@ -166,6 +166,10 @@ export const api = {
   setDeckDue: (groupId: string, deckId: string, dueOn: string | null) =>
     request<TeacherDeck>('PATCH', `/groups/${groupId}/decks/${deckId}`, { due_on: dueOn }),
   takeBackDeck: (groupId: string, deckId: string) => request<null>('DELETE', `/groups/${groupId}/decks/${deckId}`),
+  /** Deadline reminders (ADR 0031): the server's push key (null: off here), and this device. */
+  pushKey: () => request<{ public_key: string | null }>('GET', '/push/key'),
+  subscribePush: (subscription: PushSubscriptionJSON) => request<null>('POST', '/push/subscriptions', subscription),
+  unsubscribePush: (endpoint: string) => request<null>('DELETE', '/push/subscriptions', { endpoint }),
   /** Deletes the learner's account data on our server (sessions, answers, progress). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };

@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-flash"
     # Drafts per teacher per day: each costs a model call.
     generations_per_day: int = 20
+    # Deadline reminders by Web Push (ADR 0031). VAPID keys identify this server to the browsers'
+    # push services: `uv run python -m app.cli vapid-keys` makes a pair. Without them there are no
+    # reminders. The subject is a contact for the push services (mailto: or https:).
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:reminders@localhost"
+    # The secret an hourly scheduler sends to POST /api/internal/reminders; unset: no endpoint.
+    reminders_token: str | None = None
 
     @field_validator("database_url")
     @classmethod

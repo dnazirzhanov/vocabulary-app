@@ -325,7 +325,7 @@ def _extra_today(db: Session, user: User, deck: Deck, today: date) -> int:
     return int(row.extra_words or 0) if row and row.extra_day == today else 0
 
 
-def _deck_left(db: Session, user: User, deck: Deck) -> int:
+def deck_left(db: Session, user: User, deck: Deck) -> int:
     met = select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id)
     return int(
         db.scalar(
@@ -375,7 +375,7 @@ def day_plan(db: Session, user: User, deck_id: str, now: datetime, time_zone: Zo
         started = local_date(user.onboarded_at, time_zone) if user.onboarded_at else None
         week = ramp_week(target, user.ramp_enabled, started, today)
     due_on = deadline_of(db, user, deck)
-    share = deadline_share(_deck_left(db, user, deck) + new_today, today, due_on) if due_on else 0
+    share = deadline_share(deck_left(db, user, deck) + new_today, today, due_on) if due_on else 0
     return plan_day(
         target,
         week,

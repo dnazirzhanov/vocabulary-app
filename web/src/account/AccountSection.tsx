@@ -3,6 +3,7 @@ import { api } from '../lib/api.ts';
 import { setSoundsOn, soundsOn } from '../lib/sounds.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
 
 export interface AccountProps {
@@ -37,6 +38,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
           <small>Короткий звон за верное слово и мелодия в конце урока</small>
         </span>
       </label>
+      <Reminders />
       {confirming ? (
         <div className={styles.confirm} role="group" aria-labelledby="delete-warning">
           <p id="delete-warning">

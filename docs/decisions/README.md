@@ -34,3 +34,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
 | [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Accepted |
+| [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted |

@@ -63,8 +63,8 @@ def db(database: None) -> Iterator[Session]:
         connection.execute(
             text(
                 "TRUNCATE learning_sessions, review_attempts, user_word_progress,"
-                " spelling_progress, pace_dismissals, deck_paces, groups, group_members,"
-                " deck_assignments"
+                " spelling_progress, pace_dismissals, deck_paces, push_subscriptions, groups,"
+                " group_members, deck_assignments"
                 " CASCADE"
             )
         )
