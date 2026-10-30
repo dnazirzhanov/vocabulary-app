@@ -1,6 +1,7 @@
 # Deploying the demo (steps for the owner)
 
 Nothing here has been run for you: it creates accounts and publishes the app. Do it when ready.
+For a first class, follow `pilot.md`: these steps in order, plus what the class needs.
 
 ## 1. Supabase (Frankfurt, free)
 1. Create a project in **Frankfurt (eu-central-1)**; note the database password.
