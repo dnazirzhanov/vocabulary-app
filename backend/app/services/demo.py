@@ -18,9 +18,9 @@ from app.models import (
     UserWordProgress,
 )
 from app.services.groups import new_invite_code
-from app.services.plan_days import week_of
 from app.services.progress import INTRODUCED_POINTS
 from app.services.scheduling import local_date
+from app.services.study_days import week_of
 
 DEMO_GROUP = "Демо-группа"
 ZONE = ZoneInfo("Asia/Bishkek")
@@ -70,7 +70,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
         )
     )
     days = week_of(local_date(now, ZONE))
-    for number, (nickname, target, promised, plan) in enumerate(CLASSMATES, start=1):
+    for number, (nickname, target, promised, daily) in enumerate(CLASSMATES, start=1):
         classmate = User(
             auth_subject=f"dev|classmate-{number}",
             time_zone=ZONE.key,
@@ -89,7 +89,8 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             )
         )
         met = 0  # each classmate meets new words in deck order, so every day's words are new
-        for day, count in zip(days, plan, strict=True):
+        reviewed = 0  # earlier days' words come back in that order; one in four is forgotten
+        for day, count in zip(days, daily, strict=True):
             # Evening of each day so far; today's activity a little before now, so it counts.
             evening = datetime.combine(day, datetime.min.time(), tzinfo=ZONE) + timedelta(hours=18)
             moment = min(evening, now - timedelta(minutes=10 * number))
@@ -132,6 +133,24 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                         points=INTRODUCED_POINTS,
                     )
                 )
+            # Words met on earlier days come back as reviews: recalled ones are words learned.
+            due = range(reviewed, met)
+            for index, position in enumerate(due):
+                db.add(
+                    ReviewAttempt(
+                        session_id=session.id,
+                        user_id=classmate.id,
+                        word_id=words[position % len(words)],
+                        exercise_id=f"rev-{index}",
+                        exercise_type="card",
+                        correct=None,
+                        rating=1 if position % 4 == 3 else 3,
+                        was_review=True,
+                        answered_at=moment,
+                        points=0,
+                    )
+                )
+            reviewed = met
             met += count
     db.commit()
     return group.invite_code

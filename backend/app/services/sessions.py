@@ -70,9 +70,7 @@ from app.services.learning import (
     plan_spelling,
     requeue,
 )
-from app.services.plan_days import zone_of
 from app.services.progress import card_points
-from app.services.progress_view import today_plan
 from app.services.scheduling import (
     AGAIN,
     LEARNING,
@@ -83,6 +81,7 @@ from app.services.scheduling import (
     previews,
     review,
 )
+from app.services.study_days import zone_of
 
 TileMaker = Callable[[str, str], list[str]]
 SPELLING_KIND = "spelling"
@@ -859,9 +858,6 @@ def complete_session(
         raise ApiError(409, "session_incomplete", "Some cards have not been rated")
     if session.completed_at is None:
         session.completed_at = now
-        if session.kind == "study":
-            # A day is kept with every due review done (ADR 0022): what this lesson left.
-            session.reviews_left = min(pace.due_count(db, user, now), 32_000)
         db.commit()
 
     cards = [step for step in plan if not step.spelling]
@@ -894,7 +890,7 @@ def complete_session(
         new_words=sum(1 for step in cards if step.new),
         reviewed_words=len({attempt.word_id for attempt in rated if attempt.was_review}),
         ratings=RatingCounts(again=counts[0], hard=counts[1], good=counts[2], easy=counts[3]),
-        today=today_plan(db, user, now, time_zone),
+        spelling_today=progress_view.spelling_today(db, user, now, time_zone),
         spelling=_spelling_summary(plan, attempts),
     )
 

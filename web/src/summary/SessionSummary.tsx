@@ -111,7 +111,7 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const headingRef = useRef<HTMLHeadingElement>(null);
   // The next step: spelling while today's words are not yet spelled (ADR 0026), more spelling
   // while the main set holds words, practice of hard words, or more study.
-  const spelling = summary.today.spelling;
+  const spelling = summary.spelling_today;
   const next =
     summary.kind === 'spelling'
       ? spelling.ready > 0

@@ -30,9 +30,7 @@ def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
     assert report["today"] == {
         "date": "2026-11-02",
         "active": False,
-        "plan_done": False,
-        "new_words": 0,
-        "target": 5,
+        "studied": False,
         "cards": 0,
     }
     assert report["streak_weeks"] == 0
@@ -42,30 +40,21 @@ def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
     assert "points" not in str(report)
 
 
-def test_a_lesson_does_today_s_plan(client: TestClient, play: Play) -> None:
+def test_a_finished_lesson_makes_today_a_study_day(client: TestClient, play: Play) -> None:
     play(START, DAY0)
     report = progress(client, DAY0)
     assert report["words"] == {"introduced": 5, "reviewing": 5, "well_learned": 0, "due": 0}
-    today = {
-        "date": "2026-11-02",
-        "active": True,
-        "plan_done": True,
-        "new_words": 5,
-        "target": 5,
-        "cards": 15,
-    }
+    today = {"date": "2026-11-02", "active": True, "studied": True, "cards": 15}
     assert report["today"] == today
     assert report["activity"] == [today]
 
 
-def test_practice_alone_is_a_day_with_answers_but_not_a_plan_day(
-    client: TestClient, play: Play
-) -> None:
-    play(START, DAY0)
+def test_finished_practice_alone_is_a_study_day_too(client: TestClient, play: Play) -> None:
+    play(START, DAY0, ratings={"house": 1})
     tuesday = DAY0 + timedelta(days=1)
     play(HARD, tuesday)
     report = progress(client, tuesday)
-    assert (report["today"]["active"], report["today"]["plan_done"]) == (True, False)
+    assert (report["today"]["active"], report["today"]["studied"]) == (True, True)
 
 
 def test_reviews_count_as_recall_and_a_gap_does_not_undo_past_days(
@@ -76,7 +65,7 @@ def test_reviews_count_as_recall_and_a_gap_does_not_undo_past_days(
     play(START, later, ratings={"house": 1, "water": 4})  # house forgotten
     report = progress(client, later)
     assert report["recall"] == {"recalled": 4, "reviewed": 5, "days": 30}
-    assert [day["date"] for day in report["activity"] if day["plan_done"]] == [
+    assert [day["date"] for day in report["activity"] if day["studied"]] == [
         "2026-11-02",
         "2026-11-12",
     ]
@@ -109,8 +98,8 @@ def test_days_are_counted_in_the_learners_time_zone(client: TestClient, play: Pl
     play(START, late, time_zone="Asia/Bishkek")
     bishkek = progress(client, late, "Asia/Bishkek")
     utc = progress(client, late, "UTC")
-    assert (bishkek["today"]["date"], bishkek["today"]["new_words"]) == ("2026-11-03", 5)
-    assert (utc["today"]["date"], utc["today"]["new_words"]) == ("2026-11-02", 5)
+    assert (bishkek["today"]["date"], bishkek["today"]["studied"]) == ("2026-11-03", True)
+    assert (utc["today"]["date"], utc["today"]["studied"]) == ("2026-11-02", True)
 
 
 def test_a_daylight_saving_night_is_one_local_day(client: TestClient, play: Play) -> None:
@@ -120,7 +109,7 @@ def test_a_daylight_saving_night_is_one_local_day(client: TestClient, play: Play
     play(START, early, time_zone="Europe/Berlin")
     play(START, late, time_zone="Europe/Berlin")
     activity = progress(client, late, "Europe/Berlin")["activity"]
-    assert [(day["date"], day["new_words"]) for day in activity] == [("2026-10-25", 10)]
+    assert [(day["date"], day["cards"]) for day in activity] == [("2026-10-25", 30)]
 
 
 def test_an_unknown_time_zone_falls_back_to_utc(client: TestClient) -> None:

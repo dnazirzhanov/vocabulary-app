@@ -75,11 +75,10 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
         "nickname",
         "role",
         "is_me",
-        "days",
-        "plan_days",
         "learned",
+        "days",
         "cards",
-        "ranks",
+        "rank",
         "promised_days",
         "week",
         "streak_weeks",
@@ -94,7 +93,9 @@ def board_of(client: TestClient, group_id: str, period: str = "week") -> dict[st
     return board
 
 
-def test_the_board_ranks_three_ways_over_a_week_a_month_or_all_time(client: TestClient) -> None:
+def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
+    client: TestClient,
+) -> None:
     group = create(client)
     code = group["invite_code"]
     join(client, "pavel", code, "Весёлый Кот")
@@ -103,8 +104,8 @@ def test_the_board_ranks_three_ways_over_a_week_a_month_or_all_time(client: Test
         "/api/me", json={"daily_target_words": 3, "study_days_per_week": 3}, headers=as_("olga")
     )
 
-    # Olga: a lesson on each of three days. Pavel: four lessons in one day (more cards), and one
-    # back in October.
+    # Olga: a lesson on each of three days, new words only. Pavel: one lesson back in October,
+    # then four in one day this week, the first recalling October's five words.
     monday = THURSDAY - timedelta(days=3)
     for n in range(3):
         moment = monday + timedelta(days=n)
@@ -126,15 +127,14 @@ def test_the_board_ranks_three_ways_over_a_week_a_month_or_all_time(client: Test
     )
     rows = {row["nickname"]: row for row in board["rows"]}
     olga, pavel, rest = rows["Смелый Ёж"], rows["Весёлый Кот"], rows["Тихий Лис"]
-    # Steadiness: three days beat one busy day; more cards win the cards ranking.
-    assert (olga["days"], olga["plan_days"], olga["ranks"]["steady"]) == (3, 3, 1)
-    assert (pavel["days"], pavel["ranks"]["steady"]) == (1, 2)
-    assert pavel["cards"] > olga["cards"] and pavel["ranks"]["cards"] == 1
+    # Words learned decide the place: Pavel's five recalled words beat Olga's three days.
+    assert (pavel["learned"], pavel["days"], pavel["rank"]) == (5, 1, 1)
+    assert (olga["learned"], olga["days"], olga["rank"]) == (3, 3, 2)
     assert olga["week"] == [True, True, True, False, False, False, False]
     assert olga["is_me"] and olga["streak_weeks"] == 1
     assert (pavel["studied_today"], olga["studied_today"]) == (True, False)
-    assert rest["ranks"] == {"steady": None, "learned": None, "cards": None}
-    assert [row["nickname"] for row in board["rows"]] == ["Смелый Ёж", "Весёлый Кот", "Тихий Лис"]
+    assert rest["rank"] is None
+    assert [row["nickname"] for row in board["rows"]] == ["Весёлый Кот", "Смелый Ёж", "Тихий Лис"]
     assert board["totals"] == {
         "days": 4,
         "learned": olga["learned"] + pavel["learned"],
@@ -190,7 +190,7 @@ def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClien
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     aibek = next(row for row in board["rows"] if row["nickname"] == "Ранний Орёл")
     assert aibek["week"][0] is True  # Monday, in Aibek's own zone
-    assert aibek["plan_days"] == 1
+    assert aibek["days"] == 1
 
 
 def test_owners_can_remove_members_and_ownership_passes_on(client: TestClient) -> None:

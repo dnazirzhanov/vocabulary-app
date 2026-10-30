@@ -9,11 +9,10 @@ const member = (nickname: string, values: Partial<BoardRow> = {}): BoardRow => (
   nickname,
   role: 'member',
   is_me: false,
-  days: 0,
-  plan_days: 0,
   learned: 0,
+  days: 0,
   cards: 0,
-  ranks: { steady: null, learned: null, cards: null },
+  rank: null,
   promised_days: 5,
   week: Array(7).fill(false),
   streak_weeks: 0,
@@ -21,9 +20,7 @@ const member = (nickname: string, values: Partial<BoardRow> = {}): BoardRow => (
   ...values,
 });
 const rows = (count: number, me: number): BoardRow[] =>
-  Array.from({ length: count }, (_, index) =>
-    member(`n${index}`, { is_me: index === me, ranks: { steady: index + 1, learned: null, cards: null } }),
-  );
+  Array.from({ length: count }, (_, index) => member(`n${index}`, { is_me: index === me, rank: index + 1 }));
 const shape = (lines: ReturnType<typeof visibleLines>) =>
   lines.map((line) => (line.kind === 'gap' ? `…${line.hidden}` : line.row.nickname));
 
@@ -53,52 +50,40 @@ test('typed nicknames follow the server rules', () => {
   assert.equal(nicknameProblem('a'), 'Не короче 2 символов.');
 });
 
-const ranks = (steady: number | null, learned: number | null, cards: number | null) => ({ steady, learned, cards });
-
-test('the standing names who to pass and what it takes, by the first measure that differs', () => {
+test('the standing names who to pass and what it takes: words, or the first tie-break that differs', () => {
   const board = [
-    member('Ахмед', { days: 5, plan_days: 4, learned: 30, cards: 200, ranks: ranks(1, 1, 1) }),
-    member('Искандер', { days: 4, plan_days: 4, learned: 12, cards: 150, ranks: ranks(2, 3, 2) }),
-    member('я', { is_me: true, days: 4, plan_days: 2, learned: 20, cards: 90, ranks: ranks(3, 2, 3) }),
+    member('Ахмед', { learned: 30, days: 5, rank: 1 }),
+    member('Искандер', { learned: 20, days: 4, streak_weeks: 2, rank: 2 }),
+    member('я', { is_me: true, learned: 20, days: 4, rank: 3 }),
     member('Тихий', {}),
   ];
-  // Same days as Искандер, fewer with the plan done: passing him takes 3 more (his 4, my 2, plus one).
-  assert.deepEqual(standingOf(board, 'steady'), {
+  // Same words and days as Искандер, but his streak is longer: passing him takes 3 weeks in a row.
+  assert.deepEqual(standingOf(board), {
     kind: 'chasing',
     rank: 3,
     ahead: 'Искандер',
     aheadRank: 2,
     need: 3,
-    measure: 'plan_days',
+    measure: 'streak',
   });
-  assert.deepEqual(standingOf(board, 'cards'), {
+  const learner = board.map((row) => (row.is_me ? { ...row, learned: 12 } : row));
+  // Fewer words: 9 more passes him (his 20, my 12, plus one).
+  assert.deepEqual(standingOf(learner), {
     kind: 'chasing',
     rank: 3,
     ahead: 'Искандер',
     aheadRank: 2,
-    need: 61,
-    measure: 'value',
-  });
-  assert.deepEqual(standingOf(board, 'learned'), {
-    kind: 'chasing',
-    rank: 2,
-    ahead: 'Ахмед',
-    aheadRank: 1,
-    need: 11,
-    measure: 'value',
+    need: 9,
+    measure: 'learned',
   });
 });
 
 test('at the top the standing says who shares it and who is closest behind', () => {
   const board = [
-    member('я', { is_me: true, days: 5, ranks: ranks(1, null, null) }),
-    member('Ахмед', { days: 5, ranks: ranks(1, null, null) }),
-    member('Парвиз', { days: 2, ranks: ranks(3, null, null) }),
+    member('я', { is_me: true, learned: 15, days: 3, rank: 1 }),
+    member('Ахмед', { learned: 15, days: 3, rank: 1 }),
+    member('Парвиз', { learned: 12, days: 2, rank: 3 }),
   ];
-  assert.deepEqual(standingOf(board, 'steady'), {
-    kind: 'top',
-    shared: ['Ахмед'],
-    next: { nickname: 'Парвиз', behind: 3 },
-  });
-  assert.deepEqual(standingOf([member('я', { is_me: true })], 'steady'), { kind: 'unranked' });
+  assert.deepEqual(standingOf(board), { kind: 'top', shared: ['Ахмед'], next: { nickname: 'Парвиз', behind: 3 } });
+  assert.deepEqual(standingOf([member('я', { is_me: true })]), { kind: 'unranked' });
 });

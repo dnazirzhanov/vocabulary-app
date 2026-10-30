@@ -2,14 +2,12 @@
 
 Motivation comes largely from other people, so learners can study alongside friends or a class.
 Learners may be minors, so a group shows nicknames only, has no chat, and is joined by an invite
-code. The board is the members' statistics over a week, a month or all time, ranked three ways:
-by steadiness (days studied, then days with the plan done, then weeks in a row) by default, or by
-words learned, or by cards answered (ADR 0023).
+code. The board is the members' statistics over a week, a month or all time (ADR 0023), ranked
+by one score: words learned — recalled in a review a day or more after meeting them (ADR 0027).
 """
 
 import re
 import secrets
-from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -27,23 +25,22 @@ from app.schemas.groups import (
     GroupPreviewOut,
     GroupSummaryOut,
     Period,
-    RanksOut,
     TodayMemberOut,
     TotalsOut,
 )
 from app.services.decks import board_assignments
-from app.services.plan_days import (
+from app.services.progress import local_day_bounds
+from app.services.scheduling import local_date
+from app.services.study_days import (
     HISTORY_DAYS,
-    PlanDay,
+    StudyDay,
     days_by_user,
     promises_by_user,
+    week_days,
     week_of,
-    week_plan,
     week_streak,
     zone_of,
 )
-from app.services.progress import local_day_bounds
-from app.services.scheduling import local_date
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
 CODE_LENGTH = 8
@@ -136,8 +133,8 @@ def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
         summaries.append(
             GroupSummaryOut(
                 **_group_out(db, group, member).model_dump(),
-                my_rank=me.ranks.steady,
-                ranked=sum(row.ranks.steady is not None for row in week.rows),
+                my_rank=me.rank,
+                ranked=sum(row.rank is not None for row in week.rows),
                 members=[
                     TodayMemberOut(
                         nickname=row.nickname, is_me=row.is_me, studied_today=row.studied_today
@@ -272,25 +269,20 @@ def leave_all(db: Session, user: User) -> None:
 # --- the board ------------------------------------------------------------------------------
 
 
-Key = Callable[[BoardRow], tuple[int, ...]]
-
-# The three rankings (ADR 0023). Steadiness: days studied, then days with the plan done, then
-# weeks in a row with the promise kept.
-RANKINGS: dict[str, Key] = {
-    "steady": lambda row: (row.days, row.plan_days, row.streak_weeks),
-    "learned": lambda row: (row.learned,),
-    "cards": lambda row: (row.cards,),
-}
+def score(row: BoardRow) -> tuple[int, int, int]:
+    """What a place is decided by (ADR 0027): words learned, then days studied, then weeks in a
+    row with the promise kept."""
+    return (row.learned, row.days, row.streak_weeks)
 
 
-def places(rows: list[BoardRow], key: Key) -> dict[UUID, int | None]:
-    """Places by `key`, highest first; equal keys share a place (1, 2, 2, 4). A member with
-    nothing done in the period gets no place."""
-    ordered = sorted((row for row in rows if row.days > 0), key=key, reverse=True)
+def places(rows: list[BoardRow]) -> dict[UUID, int | None]:
+    """Places by `score`, highest first; equal scores share a place (1, 2, 2, 4). A member who
+    answered nothing in the period gets no place."""
+    ordered = sorted((row for row in rows if row.cards > 0), key=score, reverse=True)
     result: dict[UUID, int | None] = {row.member_id: None for row in rows}
-    previous: tuple[tuple[int, ...], int] | None = None
+    previous: tuple[tuple[int, int, int], int] | None = None
     for index, row in enumerate(ordered):
-        value = key(row)
+        value = score(row)
         place = previous[1] if previous and previous[0] == value else index + 1
         result[row.member_id] = place
         previous = (value, place)
@@ -298,22 +290,11 @@ def places(rows: list[BoardRow], key: Key) -> dict[UUID, int | None]:
 
 
 def rank(rows: list[BoardRow]) -> list[BoardRow]:
-    """Every row with its places by each ranking, ordered by steadiness; members without a place
-    come last, by nickname."""
-    by = {name: places(rows, key) for name, key in RANKINGS.items()}
-    ranked = [
-        row.model_copy(
-            update={"ranks": RanksOut(**{name: by[name][row.member_id] for name in RANKINGS})}
-        )
-        for row in rows
-    ]
+    """Every row with its place, best first; members without a place come last, by nickname."""
+    by = places(rows)
+    ranked = [row.model_copy(update={"rank": by[row.member_id]}) for row in rows]
     return sorted(
-        ranked,
-        key=lambda row: (
-            row.ranks.steady is None,
-            row.ranks.steady or 0,
-            row.nickname.casefold(),
-        ),
+        ranked, key=lambda row: (row.rank is None, row.rank or 0, row.nickname.casefold())
     )
 
 
@@ -373,7 +354,7 @@ def board(
     users = [member_user for _, member_user in members]
     history = HISTORY_DAYS if period != "all" else 365 * 30
     since = now - timedelta(days=history + 1)
-    plan_days = days_by_user(db, users, since)
+    studied = days_by_user(db, users, since)
     promises = promises_by_user(db, users, since)
     learned = _learned(
         db,
@@ -382,14 +363,14 @@ def board(
         local_day_bounds(last, zone)[1],
     )
 
-    def in_period(day: PlanDay) -> bool:
+    def in_period(day: StudyDay) -> bool:
         return (first is None or day.day >= first) and day.day <= last
 
     rows: list[BoardRow] = []
     for member, member_user in members:
-        mine = plan_days[member_user.id]
+        mine = studied[member_user.id]
         promised = promises[member_user.id].get(days[0], member_user.study_days_per_week)
-        week = week_plan(mine, days, promised)
+        week = week_days(mine, days, promised)
         member_today = local_date(now, zone_of(member_user))
         counted = [day for day in mine.values() if in_period(day)]
         rows.append(
@@ -398,20 +379,19 @@ def board(
                 nickname=member.nickname,
                 role=member.role,
                 is_me=member.id == me.id,
-                days=len(counted),
-                plan_days=sum(day.plan_done for day in counted),
                 learned=learned[member_user.id],
+                days=sum(day.studied for day in counted),
                 cards=sum(day.answers for day in counted),
-                ranks=RanksOut(steady=None, learned=None, cards=None),
+                rank=None,
                 promised_days=promised,
-                week=week.done,
+                week=week.studied,
                 streak_weeks=week_streak(
                     mine,
                     promises[member_user.id],
                     member_user.study_days_per_week,
                     member_today,
                 ),
-                studied_today=member_today in mine,
+                studied_today=member_today in mine and mine[member_today].studied,
             )
         )
 

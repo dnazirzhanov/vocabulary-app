@@ -1,6 +1,6 @@
 # 0015 — Plan days: consistency against the learner's own promise
 
-**Status:** Accepted (the day rule amended by ADR 0016, then ADR 0022). Supersedes the daily goal
+**Status:** Accepted (the day rule amended by ADR 0016 and ADR 0022, then replaced by ADR 0027). Supersedes the daily goal
 and streak of ADR 0008; amends the ranking of ADR 0011.
 
 ## Context

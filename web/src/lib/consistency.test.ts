@@ -1,20 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildYear, levelOf, shadeOf, weekProgress, yearsOf } from './consistency.ts';
-import type { PlanDay } from './types.ts';
+import type { StudyDay } from './types.ts';
 
-const day = (date: string, plan_done: boolean, cards = 20): PlanDay => ({
-  date,
-  active: true,
-  plan_done,
-  new_words: plan_done ? 5 : 2,
-  target: 5,
-  cards,
-});
+const day = (date: string, studied: boolean, cards = 20): StudyDay => ({ date, active: true, studied, cards });
 // Thursday 5 November 2026: its week is Monday 2 – Sunday 8 November.
 const TODAY = '2026-11-05';
 
-test('a day counts once its plan is done; some learning is shown lightly', () => {
+test('a day counts once a session is finished; answers alone are shown lightly', () => {
   assert.equal(levelOf(undefined), 0);
   assert.equal(levelOf(day('2026-11-02', false)), 1);
   assert.equal(levelOf(day('2026-11-02', true)), 2);
@@ -62,7 +55,7 @@ test('the year runs January to December, each month under its weekdays', () => {
   // 1 Jan 2026 is a Thursday; 1 Nov 2026 a Sunday.
   assert.deepEqual([year.months[0].offset, year.months[10].offset], [3, 6]);
   assert.equal(year.months[10].days[3].level, 2);
-  assert.equal(year.goalDays, 1);
+  assert.equal(year.studiedDays, 1);
   // Everything after Thursday 5 November is still to come.
   assert.equal(year.months.flatMap((month) => month.days).filter((cell) => cell.future).length, 56);
 });
@@ -88,5 +81,5 @@ test('shades follow the cards answered, relative to the learner’s busy days', 
     year.months[10].days.slice(1, 4).map((cell) => cell.shade),
     [1, 1, 4],
   );
-  assert.deepEqual([year.activeDays, year.goalDays, year.cards], [3, 2, 445]);
+  assert.deepEqual([year.activeDays, year.studiedDays, year.cards], [3, 2, 445]);
 });

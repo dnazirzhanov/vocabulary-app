@@ -152,8 +152,8 @@ export function GoalScreen({ course, me, onDone }: GoalScreenProps) {
                   Сколько новых слов в день?
                 </h1>
                 <p className={styles.lead}>
-                  Это план, а не предел: после цели всегда можно взять ещё слов. Если темп окажется слишком быстрым или
-                  медленным, приложение подскажет.
+                  Это ориентир, а не предел: после цели всегда можно взять ещё слов. Если темп окажется слишком быстрым
+                  или медленным, приложение подскажет.
                 </p>
                 <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
               </>

@@ -1,4 +1,4 @@
-"""The learner's own progress: the Progress page and today's plan after a lesson (ADR 0015)."""
+"""The learner's own progress: the Progress page and where spelling stands (ADR 0015, 0027)."""
 
 from dataclasses import asdict
 from datetime import datetime, timedelta
@@ -11,26 +11,24 @@ from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, Use
 from app.schemas.learning import (
     DeckProgressOut,
     KnowledgeOut,
-    PlanDayOut,
     ProgressOut,
     RecallRate,
     SpellingPausedOut,
     SpellingTodayOut,
-    TodayPlanOut,
+    StudyDayOut,
     WordStages,
 )
 from app.services import decks, spelling_ladder
-from app.services.plan_days import (
+from app.services.progress import RECALL_RATE_DAYS, local_day_bounds, recall_counts
+from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
+from app.services.study_days import (
     HISTORY_DAYS,
-    PlanDay,
+    StudyDay,
     days_by_user,
-    fallback_target,
     promises_by_user,
     week_of,
     week_streak,
 )
-from app.services.progress import RECALL_RATE_DAYS, local_day_bounds, recall_counts
-from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
 
 def word_stages(db: Session, user: User, now: datetime) -> WordStages:
@@ -65,15 +63,8 @@ def word_stages(db: Session, user: User, now: datetime) -> WordStages:
     )
 
 
-def _day_out(day: PlanDay) -> PlanDayOut:
-    return PlanDayOut(
-        date=day.day,
-        active=True,
-        plan_done=day.plan_done,
-        new_words=day.new_words,
-        target=day.target,
-        cards=day.answers,
-    )
+def _day_out(day: StudyDay) -> StudyDayOut:
+    return StudyDayOut(date=day.day, active=True, studied=day.studied, cards=day.answers)
 
 
 def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> ProgressOut:
@@ -86,13 +77,7 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
     today_out = (
         _day_out(days[today])
         if today in days
-        else PlanDayOut(
-            date=today,
-            active=False,
-            plan_done=False,
-            new_words=0,
-            target=fallback_target(user, today, time_zone),
-        )
+        else StudyDayOut(date=today, active=False, studied=False)
     )
     return ProgressOut(
         words=word_stages(db, user, now),
@@ -129,28 +114,6 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
         )
     ).one()
     return SpellingPausedOut(spelled=spelled, right=right, total=len(session.plan))
-
-
-def today_plan(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> TodayPlanOut:
-    today = local_date(now, time_zone)
-    start, _ = local_day_bounds(today, time_zone)
-    day = days_by_user(db, [user], start, time_zone)[user.id].get(today)
-    if day is None:
-        target = fallback_target(user, today, time_zone)
-        return TodayPlanOut(
-            new_words=0,
-            target=target,
-            plan_done=False,
-            extra_new=0,
-            spelling=spelling_today(db, user, now, time_zone),
-        )
-    return TodayPlanOut(
-        new_words=day.new_words,
-        target=day.target,
-        plan_done=day.plan_done,
-        extra_new=day.extra_new,
-        spelling=spelling_today(db, user, now, time_zone),
-    )
 
 
 def knowledge(db: Session, user: User, now: datetime) -> KnowledgeOut:

@@ -25,8 +25,9 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0019](0019-personal-decks.md) | Personal decks anyone writes, «Мои колоды», full cards from a word with AI | Accepted |
 | [0020](0020-deck-pages.md) | Deck pages: home is the course's levels; every lesson belongs to one deck | Accepted |
 | [0021](0021-own-decks-first.md) | Home is «Мои колоды»; the course is offered below, one tap away | Accepted |
-| [0022](0022-progress-by-deck.md) | «Прогресс» by deck: words learned (recalled in a later review); a day kept with every review done | Accepted |
-| [0023](0023-friends-groups-first.md) | «Друзья»: groups first; a group's statistics ranked by steadiness, words learned or cards, over a week, month or all time | Accepted |
+| [0022](0022-progress-by-deck.md) | «Прогресс» by deck: words learned (recalled in a later review); a day kept with every review done | Accepted (day rule superseded by 0027) |
+| [0023](0023-friends-groups-first.md) | «Друзья»: groups first; a group's statistics over a week, month or all time | Accepted (ranking refined by 0027) |
 | [0024](0024-celebrations-and-reward-sounds.md) | Finish screens celebrate with confetti and a chord; a chime for each word spelled right; sounds can be turned off | Accepted |
 | [0025](0025-anki-days-and-ordered-intervals.md) | Scheduling days start at 4 AM; reviews due from the start of their day; Hard < Good < Easy, a day apart | Accepted |
 | [0026](0026-spelling-ladder-and-modes.md) | Spelling: a ladder per word (hard → 3 → 7 days → «умеет писать»), ten words at a time, modes today / hard / random | Accepted |
+| [0027](0027-no-plan-rank-by-words-learned.md) | No «план»: a day counts with any finished session; friends rank by words learned (ties: days, weeks in a row) | Accepted |

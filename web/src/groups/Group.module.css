@@ -133,10 +133,6 @@
   background: var(--color-activity-none);
 }
 
-.segmented[data-wide] {
-  display: flex;
-}
-
 .segmented button {
   flex: 1 1 auto;
   min-width: 0;

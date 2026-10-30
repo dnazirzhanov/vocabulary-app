@@ -80,15 +80,12 @@ def test_course_levels_appear_once_started_and_totals_count_a_word_once(
     assert report["met"] == 2  # money and ticket, money once
 
 
-def test_a_day_is_kept_only_with_every_due_review_done(client: TestClient, play: Play) -> None:
-    client.patch("/api/me", json={"daily_target_words": 5})
+def test_a_finished_lesson_keeps_the_day_with_reviews_left_in_another_deck(
+    client: TestClient, play: Play
+) -> None:
     deck = own_deck(client, ["ticket", "luggage"])
     study(client, deck["id"], DAY0)
     study(client, "a1-a2", DAY0)
-    assert today(client, DAY0)["plan_done"]  # no reviews were due: the new words keep the day
-
-    # Ten days on, both decks have reviews due. The course alone leaves the deck's due.
+    # Ten days on, both decks have reviews due; the course's lesson alone keeps the day (ADR 0027).
     study(client, "a1-a2", LATER)
-    assert not today(client, LATER)["plan_done"]
-    study(client, deck["id"], LATER)
-    assert today(client, LATER)["plan_done"]
+    assert today(client, LATER)["studied"]
