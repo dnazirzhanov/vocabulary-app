@@ -1,6 +1,6 @@
 """Plain helpers shared by tests (fixtures live in conftest.py)."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -76,11 +76,16 @@ def headword_of(session_id: str, exercise_id: str) -> str:
 
 
 def spell_today(
-    client: TestClient, headers: dict[str, str], spellings: Spellings | None = None
+    client: TestClient,
+    headers: dict[str, str],
+    spellings: Spellings | None = None,
+    start: Mapping[str, object] | None = None,
 ) -> dict[str, Any] | None:
-    """Spells today's new words (ADR 0016), the second part of the day's plan; returns the
-    summary, or None when no word was learned today."""
-    started = client.post("/api/sessions", json={"kind": "spelling"}, headers=headers)
+    """Runs a spelling session (ADR 0016), the main button's words unless `start` asks for
+    another set (ADR 0026); returns the summary, or None when there is nothing to spell."""
+    started = client.post(
+        "/api/sessions", json=dict(start or {"kind": "spelling"}), headers=headers
+    )
     if started.status_code == 409:
         return None
     session = started.json()

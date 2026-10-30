@@ -1,0 +1,74 @@
+/* An unfinished spelling session (ADR 0026): one tappable card with its progress. */
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  width: 100%;
+  padding: var(--space-4);
+  border: 2px solid var(--color-primary-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover:not(:disabled) {
+  background: rgb(250 93 25 / 0.05);
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--color-primary-strong);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.text strong {
+  font-weight: var(--weight-display);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.bar {
+  display: flex;
+  height: 8px;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-activity-none);
+}
+
+.bar [data-tone='right'] {
+  background: var(--color-success);
+}
+
+.bar [data-tone='missed'] {
+  background: var(--color-primary);
+}
+
+.resume {
+  display: inline-flex;
+  grid-column: 2;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-primary-strong);
+  font-weight: var(--weight-display);
+}
+
+.resume svg {
+  width: 18px;
+  height: 18px;
+}

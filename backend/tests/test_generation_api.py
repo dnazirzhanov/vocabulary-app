@@ -22,6 +22,7 @@ from app.services.generation import (
     Pos,
     flags,
     provider_for,
+    word_key,
 )
 from tests.support import at
 
@@ -37,11 +38,8 @@ def as_(name: str) -> dict[str, str]:
 
 
 def draft_deck(client: TestClient) -> dict[str, Any]:
-    group = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
-    ).json()
     deck: dict[str, Any] = client.post(
-        "/api/decks", json={"title": "Unit 4", "group_id": group["id"]}, headers=as_("olga")
+        "/api/decks", json={"title": "Unit 4"}, headers=as_("olga")
     ).json()
     return deck
 
@@ -277,3 +275,38 @@ def test_a_dev_header_asks_for_the_demo_whatever_the_server_holds() -> None:
         auth_mode="jwt", auth_issuer="https://x.supabase.co/auth/v1",
     )  # fmt: skip
     assert get_provider(asked, production).name == "deepseek"  # type: ignore[arg-type]
+
+
+def test_deepseek_fills_cards_for_the_words_named() -> None:
+    completions = Completions(CARD_JSON)
+    cards = deepseek(completions).fill(["carry out", "reluctant"], "A2")
+    assert [card.headword for card in cards] == ["carry out"]
+    system, user = (message["content"] for message in completions.requests[0]["messages"])
+    assert "The learner names the words" in system and "json" in system
+    assert "Learners' level: A2." in user and "- carry out\n- reluctant" in user
+    assert completions.requests[0]["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+def test_deepseek_chooses_words_for_a_topic() -> None:
+    completions = Completions(CARD_JSON)
+    cards = deepseek(completions).topic("в аэропорту", 10, "A2", ["passport"])
+    assert [card.headword for card in cards] == ["carry out"]
+    system, user = (message["content"] for message in completions.requests[0]["messages"])
+    assert "names a topic" in system and "json" in system
+    assert "Learners' level: A2. Choose 10 words or phrases." in user
+    assert "Already in the deck: passport." in user and "<topic>\nв аэропорту\n</topic>" in user
+
+
+def test_a_word_has_one_key_however_it_is_written() -> None:
+    same = [
+        ("Floods", "flood"),
+        ("check-in", "Check in"),
+        ("glaciers", "glacier"),
+        ("policies", "policy"),
+        ("boxes", "box"),
+        ("greenhouse gases", "greenhouse gas"),
+    ]
+    for one, other in same:
+        assert word_key(one) == word_key(other), (one, other)
+    for word in ("glass", "bus", "crisis", "status", "flooding"):
+        assert word_key(word) == word, word

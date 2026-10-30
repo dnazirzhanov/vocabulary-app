@@ -1,18 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
-import { wordsLabel } from '../lib/pace.ts';
 import type { GenerateResult } from '../lib/types.ts';
+import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
+import { DraftResult } from './DraftResult.tsx';
 
 const COUNTS = [5, 10, 15, 20];
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 const MAX_TEXT = 20_000;
-const SKIPPED: Record<GenerateResult['skipped'][number]['reason'], string> = {
-  duplicate: 'уже есть',
-  invalid: 'не слово',
-  too_long: 'слишком длинное',
-  full: 'нет места',
-};
 
 /**
  * The teacher's lesson material in, a draft of cards out (ADR 0018): the cards land in the deck
@@ -44,10 +39,7 @@ export function GeneratePanel({ deckId, onDrafted }: { deckId: string; onDrafted
   };
 
   return (
-    <form className={styles.panel} onSubmit={(event) => void submit(event)} aria-labelledby="generate-title">
-      <h2 id="generate-title" className={styles.formTitle}>
-        Слова из текста урока
-      </h2>
+    <form className={styles.paneForm} onSubmit={(event) => void submit(event)} aria-labelledby="tab-text">
       <p className={styles.note}>
         Вставьте текст, упражнение или список слов — подберём слова и составим карточки с переводом и примером. Текст не
         сохраняется.
@@ -92,31 +84,12 @@ export function GeneratePanel({ deckId, onDrafted }: { deckId: string; onDrafted
           </select>
         </label>
       </div>
-      <button type="submit" className={styles.outlineButton} disabled={busy || !ready} aria-busy={busy}>
+      <PrimaryButton type="submit" disabled={busy || !ready} aria-busy={busy}>
         {busy ? 'Подбираем слова…' : 'Подобрать слова'}
-      </button>
+      </PrimaryButton>
       <div role="status" className={styles.generateStatus}>
         {busy && <p className={styles.note}>Читаем текст и составляем карточки — это может занять до минуты.</p>}
-        {!busy && last && (
-          <>
-            <p className={styles.done}>
-              {last.added > 0
-                ? `Добавлено: ${wordsLabel(last.added)}. Проверьте их в списке — ученики увидят слова, только когда вы зададите набор.`
-                : 'Новых слов не нашлось: всё подходящее уже в наборе.'}
-            </p>
-            {last.skipped.length > 0 && (
-              <p className={styles.note}>
-                Не добавлены: {last.skipped.map((item) => `${item.headword} (${SKIPPED[item.reason]})`).join(', ')}.
-              </p>
-            )}
-            {last.provider === 'demo' && (
-              <p className={styles.demo}>
-                Демо-режим: переводы ненастоящие. Чтобы карточки составлял DeepSeek, добавьте DEEPSEEK_API_KEY в .env
-                сервера.
-              </p>
-            )}
-          </>
-        )}
+        {!busy && last && <DraftResult result={last} />}
       </div>
       {error && (
         <p className={styles.problem} role="alert">

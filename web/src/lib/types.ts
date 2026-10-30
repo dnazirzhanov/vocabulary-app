@@ -16,15 +16,9 @@ export interface CourseGoal {
   coverage_percent: number;
 }
 
+/** A course level on home (ADR 0020); other decks are in «Мои колоды». */
 export interface Deck {
   id: string;
-  /** 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed first. */
-  kind: 'course' | 'group';
-  /** Where a group deck comes from: its group, its author's nickname there (null once they left),
-   * and whether I wrote it. */
-  group_name: string | null;
-  author: string | null;
-  is_mine: boolean;
   title: string;
   description: string;
   /** The course level ("A1–A2") and its place; a later level is locked until this one is met (ADR 0014). */
@@ -87,6 +81,28 @@ export type Exercise = CardExercise | SpellingExercise;
 
 export type SessionKind = 'study' | 'hard' | 'spelling';
 
+/** Which words a spelling session takes (ADR 0026); `mix` is the main button's. */
+export type SpellingMode = 'mix' | 'today' | 'hard' | 'random';
+export const SPELLING_SIZES = [5, 10, 20, 30] as const;
+export type SpellingSize = (typeof SPELLING_SIZES)[number];
+
+/** Where a learner's spelling stands: each word climbs a short ladder (ADR 0026). */
+export interface SpellingState {
+  /** Words the main button gives now (at most 10): hard words due, then words never spelled. */
+  ready: number;
+  /** Hard and climbing words due again. */
+  due: number;
+  /** New words learned today, and how many of them were never spelled. */
+  today: number;
+  today_left: number;
+  /** Misspelled last time; «умеет писать»; every word met (the pool for «Вразброс»). */
+  hard: number;
+  known: number;
+  met: number;
+  /** A spelling session left unfinished: cards answered, right on the first try, and all. */
+  paused: { spelled: number; right: number; total: number } | null;
+}
+
 export interface AttemptResult {
   exercise_id: string;
   /** Cards: the rating and when the card is due next. */
@@ -138,7 +154,7 @@ export interface TodayPlan {
   /** New words beyond today's target: extra, never part of the plan. */
   extra_new: number;
   /** Today's spelling, the plan's second part (ADR 0016). */
-  spelling: { words: number; done: number };
+  spelling: SpellingState;
 }
 
 /** One local day (ADR 0015). */
@@ -152,6 +168,8 @@ export interface PlanDay {
   new_words: number;
   /** New words the plan asked for (0: no new word was possible; the reviews were the plan). */
   target: number;
+  /** Cards answered that day, practice and spelling included: the calendar's shade. */
+  cards: number;
 }
 
 /** The whole course (every published level). */
@@ -166,8 +184,8 @@ export interface Progress {
   promised_days: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
-  /** Today's planned new words to spell, and how many a finished spelling session covered. */
-  spelling_today: { words: number; done: number };
+  /** Where my spelling stands (ADR 0026). */
+  spelling_today: SpellingState;
 }
 
 // Mirrors backend/app/schemas/me.py.
@@ -235,48 +253,50 @@ export interface GroupPreview {
   already_member: boolean;
 }
 
+/** The board's periods and rankings (ADR 0023). */
+export type Period = 'week' | 'month' | 'all';
+export type Ranking = 'steady' | 'learned' | 'cards';
+
 export interface BoardRow {
   member_id: string;
   nickname: string;
   role: 'owner' | 'member';
   is_me: boolean;
-  /** Null for members with no answers yet this week. */
-  rank: number | null;
-  /** Days this week with the member's own plan done, against the days promised (ADR 0015). */
+  /** Over the period: days studied, days with the plan done, words learned, cards answered. */
+  days: number;
   plan_days: number;
+  learned: number;
+  cards: number;
+  /** Places by each ranking; null with nothing done in the period. Equal values share a place. */
+  ranks: Record<Ranking, number | null>;
+  /** This week, whatever the period: days promised, and Monday … Sunday with the plan done. */
   promised_days: number;
-  /** Monday … Sunday: was the plan done? */
   week: boolean[];
   /** Weeks in a row with the promise kept. */
   streak_weeks: number;
+  /** Answered anything today, in the member's own day. */
+  studied_today: boolean;
 }
 
-/** A learner's week against their own promise (ADR 0015); mirrors backend/app/schemas/profile.py. */
-export interface Profile {
-  /** The nickname in the group it was opened from; null for one's own profile. */
-  nickname: string | null;
-  is_me: boolean;
-  week_start: string;
-  week_end: string;
-  words_per_day: number;
-  promised_days: number;
-  plan_days: number;
-  /** Monday … Sunday: was the plan done? */
-  week: boolean[];
-  today_index: number;
-  planned_words: number;
-  streak_weeks: number;
-  words_total: number;
-  /** Learning beyond the plan: recognised here, never on the board. */
-  extra: { new_words: number; practice_answers: number };
+/** A group in the list (ADR 0023): its pulse before opening it. */
+export interface GroupSummary extends Group {
+  /** My place this week by steadiness (null: nothing yet this week), among `ranked` members. */
+  my_rank: number | null;
+  ranked: number;
+  members: { nickname: string; is_me: boolean; studied_today: boolean }[];
 }
 
 export interface Board {
   group: Group;
   week_start: string;
   week_end: string;
+  period: Period;
+  /** Null for all time. */
+  period_start: string | null;
+  period_end: string;
   rows: BoardRow[];
-  goal: { done: number; target: number };
+  /** The whole group over the period. */
+  totals: { days: number; learned: number; cards: number };
   assignments: Assignment[];
 }
 
@@ -284,12 +304,18 @@ export interface Board {
 export interface Assignment {
   deck_id: string;
   title: string;
+  /** Its author's nickname in the group (null once they left), and whether that is me. */
+  author: string | null;
+  is_mine: boolean;
   word_count: number;
   assigned_at: string;
   /** Words of it I have met (whoever gave it learns it too). */
   mine: number;
-  /** Every member's count, the owner's too, for the group's owner only. */
-  members: { member_id: string; met: number }[] | null;
+  /** The whole group on it: words met against everyone meeting every word; members done. */
+  group: { met: number; total: number; finished: number; learners: number };
+  /** Every member's counts, the owner's too, for the group's owner only: met, and remembered
+   * well (FSRS, as on the progress page). */
+  members: { member_id: string; met: number; known: number }[] | null;
 }
 
 export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'other';
@@ -323,6 +349,57 @@ export interface GenerateResult {
   provider: 'deepseek' | 'demo';
 }
 
+/** A deck's page (ADR 0020): my progress on it and what studying it brings today. */
+export interface DeckStats {
+  id: string;
+  title: string;
+  kind: 'course' | 'user';
+  level: string | null;
+  is_mine: boolean;
+  author: string | null;
+  group_name: string | null;
+  word_count: number;
+  introduced_count: number;
+  learning_count: number;
+  review_count: number;
+  /** Remembered well (FSRS), as on the progress page. */
+  well_learned: number;
+  /** New words studying it would bring today, within the daily pace. */
+  new_today: number;
+  next_due_at: string | null;
+  locked: boolean;
+  /** Spelling covers words from any deck (ADR 0026). */
+  spelling_today: SpellingState;
+}
+
+/** A card filled in from a word for the manual form; not saved (ADR 0019). */
+export interface SuggestedCard extends DeckWordInput {
+  flags: WordFlag[];
+  provider: 'deepseek' | 'demo';
+}
+
+/** A deck in «Мои колоды», with my counts on it. */
+export interface LibraryDeck {
+  id: string;
+  title: string;
+  word_count: number;
+  introduced_count: number;
+  learning_count: number;
+  review_count: number;
+  /** New words opening it would bring today, within the daily pace. */
+  new_today: number;
+  next_due_at: string | null;
+  /** Mine: the groups it is given to. From a group: that group and its author's nickname. */
+  groups: { id: string; name: string }[];
+  group_name: string | null;
+  author: string | null;
+}
+
+export interface Library {
+  mine: LibraryDeck[];
+  from_groups: LibraryDeck[];
+}
+
 /** A teacher's deck as its author edits it. */
 export interface TeacherDeck {
   id: string;
@@ -332,6 +409,8 @@ export interface TeacherDeck {
   /** `from_course`: the course's own word, linked; its content is not edited here. */
   words: TeacherWord[];
   groups: { id: string; name: string }[];
+  /** Topics it has been grown with, the latest first (ADR 0019). */
+  topics: string[];
 }
 
 /** A word form from an example sentence (backend glossary). */
@@ -339,4 +418,29 @@ export interface GlossaryEntry {
   ru: string;
   lemma: string | null;
   note: string | null;
+}
+
+/** One deck on «Прогресс» (ADR 0022): what I've learned of it. */
+export interface DeckProgress {
+  id: string;
+  title: string;
+  kind: 'course' | 'user';
+  level: string | null;
+  is_mine: boolean;
+  author: string | null;
+  group_name: string | null;
+  word_count: number;
+  /** Met at least once; learned: recalled in a later review; known: remembered well (FSRS). */
+  met: number;
+  learned: number;
+  known: number;
+  last_studied_at: string | null;
+}
+
+export interface Knowledge {
+  decks: DeckProgress[];
+  /** Over distinct words: a word in two decks counts once. */
+  met: number;
+  learned: number;
+  known: number;
 }

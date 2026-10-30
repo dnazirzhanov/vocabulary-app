@@ -32,15 +32,9 @@ class CourseGoalOut(BaseModel):
 
 
 class DeckOut(BaseModel):
+    """A course level on home (ADR 0020); other decks are in «Мои колоды»."""
+
     id: str
-    # 'course': a level. 'group': a deck a teacher gave one of my groups (ADR 0017), listed
-    # first: its words come before the course's in the daily lesson.
-    kind: Literal["course", "group"]
-    # Where a group deck comes from: its group, its author's nickname there (None once they left)
-    # and whether I wrote it.
-    group_name: str | None = None
-    author: str | None = None
-    is_mine: bool = False
     title: str
     description: str
     # The course level ("A1–A2") and its order; a later level is locked until the one before is
@@ -59,6 +53,31 @@ class DeckOut(BaseModel):
     new_today: int
     # The earliest upcoming review, when nothing is due yet.
     next_due_at: datetime | None
+
+
+class DeckStatsOut(BaseModel):
+    """A deck's page (ADR 0020): my progress on it and what studying it would bring today."""
+
+    id: str
+    title: str
+    kind: Literal["course", "user"]
+    level: str | None
+    # Where a deck I didn't write comes from; whether I wrote it.
+    is_mine: bool
+    author: str | None
+    group_name: str | None
+    word_count: int
+    introduced_count: int
+    learning_count: int
+    review_count: int
+    # Remembered well: FSRS stability of 21 days or more, as on the progress page.
+    well_learned: int
+    # New words opening it would bring today, within the daily pace (0 for a locked level).
+    new_today: int
+    next_due_at: datetime | None
+    locked: bool
+    # Today's spelling covers words learned today from any deck.
+    spelling_today: "SpellingTodayOut"
 
 
 class IntervalPreview(BaseModel):
@@ -147,7 +166,7 @@ class AttemptResultOut(BaseModel):
 class SessionOut(BaseModel):
     id: UUID
     kind: SessionKind
-    deck_id: str
+    deck_id: str | None  # null for a finished lesson whose deck was deleted
     completed: bool
     exercises: list[ExerciseOut]
     # One per rated exercise, in exercise order; the client resumes after the last one.
@@ -174,9 +193,12 @@ class StartHardSession(_Input):
 
 
 class StartSpellingSession(_Input):
-    """A spelling card for each word learned today (ADR 0016); may be repeated for practice."""
+    """Spelling cards (ADR 0016) for one set of words, at most `size` (ADR 0026): `mix` (due hard
+    words, then today's and other words never spelled), `today`, `hard` or `random`."""
 
     kind: Literal["spelling"]
+    mode: Literal["mix", "today", "hard", "random"] = "mix"
+    size: Literal[5, 10, 20, 30] = 10
 
 
 StartRequest = StartStudySession | StartHardSession | StartSpellingSession
@@ -219,7 +241,7 @@ class RatingCounts(BaseModel):
 class SummaryOut(BaseModel):
     session_id: UUID
     kind: SessionKind
-    deck_id: str
+    deck_id: str | None  # null for a finished lesson whose deck was deleted
     words: list[SummaryWord]
     new_words: int
     reviewed_words: int
@@ -256,6 +278,8 @@ class PlanDayOut(BaseModel):
     new_words: int
     # New words the plan asked for that day (0: no new word was possible; reviews were the plan).
     target: int
+    # Cards answered that day, practice and spelling included (the calendar's shade).
+    cards: int = 0
 
 
 class TodayPlanOut(BaseModel):
@@ -277,6 +301,36 @@ class RecallRate(BaseModel):
     days: int
 
 
+class DeckProgressOut(BaseModel):
+    """One deck on «Прогресс» (ADR 0022): what I've learned of it."""
+
+    id: str
+    title: str
+    kind: Literal["course", "user"]
+    # Where it comes from: a course level, my own, or a group's (author's nickname, group).
+    level: str | None
+    is_mine: bool
+    author: str | None
+    group_name: str | None
+    word_count: int
+    # Met at least once; learned: recalled in a later review (any answer but «Снова»); known well:
+    # FSRS stability of 21 days or more.
+    met: int
+    learned: int
+    known: int
+    last_studied_at: datetime | None
+
+
+class KnowledgeOut(BaseModel):
+    """«Прогресс»: every deck I study, latest studied first, and totals over distinct words (a
+    word in two decks counts once)."""
+
+    decks: list[DeckProgressOut]
+    met: int
+    learned: int
+    known: int
+
+
 class ProgressOut(BaseModel):
     """The whole course: where the learner stands on its words and how steadily they practise."""
 
@@ -293,11 +347,23 @@ class ProgressOut(BaseModel):
 
 
 class SpellingTodayOut(BaseModel):
-    """Today's spelling (ADR 0016): the planned new words to spell, and how many a finished
-    spelling session has covered (mistakes or not). Extra practice never raises it."""
+    """Where the learner's spelling stands (ADR 0026), for the spelling buttons and «Прогресс»."""
 
-    words: int
-    done: int
+    ready: int  # words the main button gives now (at most 10)
+    due: int  # hard and climbing words due again
+    today: int  # new words learned today
+    today_left: int  # of those, never spelled
+    hard: int  # misspelled last time
+    known: int  # «умеет писать»
+    met: int  # every word met: the pool for «Вразброс»
+    # A spelling session left unfinished: resumed where it stopped, never lost.
+    paused: "SpellingPausedOut | None" = None
+
+
+class SpellingPausedOut(BaseModel):
+    spelled: int  # cards answered so far
+    right: int  # of those, right on the first try
+    total: int
 
 
 class DeckWordOut(BaseModel):

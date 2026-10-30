@@ -55,7 +55,7 @@ All timestamps are `timestamptz`, stored and compared in UTC.
 | Table | Key columns | Constraints |
 |---|---|---|
 | `users` | `id uuid`, `auth_subject text`, `display_name text null`, `created_at` | `UNIQUE(auth_subject)` |
-| `decks` | `id text` (stable slug; a teacher's deck `g-…`), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int`, `kind` (`course` \| `group`), `owner_id null` (a group deck's author), `created_at` | `kind` check |
+| `decks` | `id text` (stable slug; a teacher's deck `g-…`), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int`, `kind` (`course` \| `user`: a deck someone wrote, ADR 0019), `owner_id null` (a user deck's author), `created_at` | `kind` check |
 | `words` | `id text` (stable slug; a teacher's word `t-…`), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null`, `owner_deck_id null` (a teacher's word belongs to its deck), `source_sentence null` (the line of the teacher's text it was drafted from) | |
 | `deck_assignments` | `id uuid`, `group_id`, `deck_id`, `assigned_by null`, `assigned_at`, `removed_at null` | `UNIQUE(group_id, deck_id)`; a deck taken back keeps its row (ADR 0017) |
 | `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
@@ -91,7 +91,8 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 |---|---|
 | `GET /api/health/live` | process is up |
 | `GET /api/health/ready` | database reachable |
-| `GET /api/decks` | decks given to any of my groups first, mine included (`kind: group`, `group_name`, `author`, `is_mine`), then the course's levels, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0017) |
+| `GET /api/decks` | the course's levels for home, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0020) |
+| `GET /api/decks/{id}/stats` | a deck's page: met, learning, due, remembered well, new words today within the pace, next review, locked, today's spelling (ADR 0020) |
 | `GET /api/sessions/active` | `{ "session": … }` or `{ "session": null }` |
 | `POST /api/sessions` | `{kind: "study", deck_id}` (due cards from every deck, then new words sized by the daily pace) or `{kind: "hard", deck_id}` (practice on the hardest words; schedule unchanged); returns the open session if one exists; `409 nothing_to_study` / `409 nothing_to_practice` |
 | `GET /api/sessions/{id}` | session with exercises and results so far |
@@ -101,12 +102,16 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
 | `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
 | `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
-| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group (my words met; everyone's for the owner, ADR 0017); members only; no points |
+| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group: author, my words met, the group's progress, and each member's met and well-remembered words for the owner (ADR 0017, 0019); members only; no points |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
 | `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
 | `POST /api/sessions/{id}/attempts` | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any |
 | `POST /api/sessions/{id}/exercises/{exercise_id}/hint` | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016) |
-| `GET /api/decks/mine`, `POST /api/decks` | a teacher's decks; a new draft `{title, group_id}`, only for a group's owner (ADR 0017) |
+| `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019) |
+| `DELETE /api/decks/{id}` | my deck, for good: its own cards and everyone's progress on them, its unfinished lessons and assignments; finished lessons stay without a deck (ADR 0019) |
+| `GET /api/decks/library` | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019) |
+| `POST /api/decks/{id}/words/topic` | cards for a topic `{topic, count, level}`: the AI chooses the words, saved with checks (ADR 0019) |
+| `POST /api/decks/{id}/words/fill`, `POST …/words/suggest` | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019) |
 | `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |
 | `POST /api/decks/{id}/words`, `PUT …/words/{word_id}`, `DELETE …/words/{word_id}` | add (a course word is linked), correct, take out a word |
 | `POST /api/decks/{id}/generate` | draft cards from a teacher's text `{text, count, level}` into the deck: added cards, skipped ones with reasons, the provider; the text is not stored; 20 a day (ADR 0018) |

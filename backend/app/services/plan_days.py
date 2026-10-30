@@ -1,10 +1,11 @@
-"""Plan days (ADR 0015): consistency measured against each learner's own promise.
+"""Plan days (ADR 0015, 0022): consistency measured against each learner's own promise.
 
 A learner promises a pace: so many new words a day, so many days a week. A day counts when that
-day's plan was done: at least the day's target of new words met in study, the lesson finished,
-and those words spelled once (ADR 0016); on a day the app allowed no new words, a finished study
-session. The week counts the days done against the days promised; extra days, extra words and
-practice never raise a place. Extra learning is reported separately, for the learner's profile.
+day's plan was done: a study lesson finished with every due review done (no reviews left across
+the decks when it ended), and the day's target of new words met — the target is already lowered
+to what was left to learn, so with no new words left, cleared reviews keep the day. Spelling is
+practice, not part of the day (ADR 0022). The week counts the days done against the days
+promised; extra days, extra words and practice never raise a place.
 
 The day's target is the one recorded on that day's study sessions (the smallest, if it changed);
 sessions from before it was recorded fall back to the learner's current settings.
@@ -41,13 +42,11 @@ class PlanDay:
     practice_answers: int
     target: int
     completed_study: bool
-    # Words covered by a finished spelling session that day (ADR 0016).
-    spelled: int = 0
-
-    @property
-    def spelling_needed(self) -> int:
-        """The planned new words of the day, each to be spelled once."""
-        return min(self.new_words, self.target)
+    # A finished study lesson that day left no review due (ADR 0022); sessions from before that
+    # was recorded count as done.
+    reviews_cleared: bool = True
+    # Every card answered that day, practice and spelling included: the heatmap's shade.
+    answers: int = 0
 
     @property
     def practised(self) -> bool:
@@ -55,12 +54,11 @@ class PlanDay:
 
     @property
     def plan_done(self) -> bool:
-        # The plan is the whole lesson, its spelling section included (ADR 0016), so a day
-        # counts once a study session was finished. On a day with no new word possible, that
-        # finished lesson of reviews is the plan.
-        if not self.practised or not self.completed_study:
+        # Every due review done and the day's new words met (ADR 0022). On a day with no new
+        # word left, the target is 0 and the cleared reviews are the plan.
+        if not self.practised or not self.completed_study or not self.reviews_cleared:
             return False
-        return self.new_words >= self.target and self.spelled >= self.spelling_needed
+        return self.new_words >= self.target
 
     @property
     def planned_new(self) -> int:
@@ -98,7 +96,6 @@ def days_by_user(
     zone = literal(time_zone.key) if time_zone else func.coalesce(User.time_zone, "UTC")
     local_day = func.date(func.timezone(zone, ReviewAttempt.answered_at))
     study = LearningSession.kind.not_in((PRACTICE, SPELLING))
-    spelled = and_(LearningSession.kind == SPELLING, LearningSession.completed_at.is_not(None))
     rows = db.execute(
         select(
             ReviewAttempt.user_id,
@@ -108,7 +105,14 @@ def days_by_user(
             func.count().filter(LearningSession.kind == PRACTICE),
             func.min(LearningSession.day_target).filter(study),
             func.bool_or(and_(study, LearningSession.completed_at.is_not(None))),
-            func.max(LearningSession.spelling_words).filter(spelled),
+            func.bool_or(
+                and_(
+                    study,
+                    LearningSession.completed_at.is_not(None),
+                    func.coalesce(LearningSession.reviews_left, 0) == 0,
+                )
+            ),
+            func.count(),
         )
         .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
         .join(User, User.id == ReviewAttempt.user_id)
@@ -128,7 +132,8 @@ def days_by_user(
         practice,
         recorded,
         completed,
-        spelled_words,
+        cleared,
+        answers,
     ) in rows:
         user = by_id[user_id]
         target = (
@@ -143,7 +148,8 @@ def days_by_user(
             practice_answers=int(practice),
             target=int(target),
             completed_study=bool(completed),
-            spelled=int(spelled_words or 0),
+            reviews_cleared=bool(cleared),
+            answers=int(answers),
         )
     return result
 

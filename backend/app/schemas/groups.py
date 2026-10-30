@@ -33,6 +33,21 @@ class GroupOut(BaseModel):
     nickname: str
 
 
+class TodayMemberOut(BaseModel):
+    nickname: str
+    is_me: bool
+    studied_today: bool
+
+
+class GroupSummaryOut(GroupOut):
+    """A group in the list of my groups (ADR 0023): its pulse before opening it."""
+
+    # My place this week by steadiness (null: nothing done yet this week), among the ranked.
+    my_rank: int | None
+    ranked: int
+    members: list[TodayMemberOut]
+
+
 class GroupPreviewOut(BaseModel):
     """What an invite shows before joining: no member names."""
 
@@ -41,34 +56,64 @@ class GroupPreviewOut(BaseModel):
     already_member: bool
 
 
+Period = Literal["week", "month", "all"]
+
+
+class RanksOut(BaseModel):
+    """A member's place by each ranking (ADR 0023); null with nothing done in the period. Equal
+    values share a place."""
+
+    steady: int | None
+    learned: int | None
+    cards: int | None
+
+
 class BoardRow(BaseModel):
     member_id: UUID
     nickname: str
     role: Literal["owner", "member"]
     is_me: bool
-    # Null for members with no answers yet this week: they are listed without a place.
-    rank: int | None
-    # Days this week with the member's own plan done, against the days they promised (ADR 0015).
+    # Over the period: days with any answers, days with the plan done (ADR 0022), words learned
+    # (first recalled in a later review), cards answered.
+    days: int
     plan_days: int
+    learned: int
+    cards: int
+    ranks: RanksOut
+    # This week, whatever the period: days promised, and Monday … Sunday with the plan done.
     promised_days: int
-    # Monday … Sunday of the group's week: was the plan done that day?
     week: list[bool]
     # Weeks in a row with the promise kept.
     streak_weeks: int
+    # Answered anything today, in the member's own day.
+    studied_today: bool
 
 
-class GroupGoal(BaseModel):
-    """Co-operative: new words met by everyone this week within their own plans (extra words do
-    not count), against everyone's plans combined."""
+class TotalsOut(BaseModel):
+    """The whole group over the period: co-operative, never compared."""
 
-    done: int
-    target: int
+    days: int
+    learned: int
+    cards: int
 
 
 class AssignmentMemberOut(BaseModel):
     member_id: UUID
-    # Words of the deck this member has met.
+    # Words of the deck this member has met, and of those the ones they now remember well
+    # (FSRS stability ≥ 21 days, as on the progress page).
     met: int
+    known: int
+
+
+class GroupProgressOut(BaseModel):
+    """The whole group on one deck, for every member: co-operative, like the week's shared goal."""
+
+    # Words met by everyone together, against every member meeting every word.
+    met: int
+    total: int
+    # Members who have met every word of it, out of all members.
+    finished: int
+    learners: int
 
 
 class AssignmentOut(BaseModel):
@@ -77,11 +122,15 @@ class AssignmentOut(BaseModel):
 
     deck_id: str
     title: str
+    # Its author's nickname in the group (None once they left), and whether that is me.
+    author: str | None
+    is_mine: bool
     word_count: int
     assigned_at: datetime
     # Words of it I have met (whoever gave it learns it too).
     mine: int
-    # Every learner's count, for the group's owner only; null for everyone else.
+    group: GroupProgressOut
+    # Every member's counts, for the group's owner only; null for everyone else.
     members: list[AssignmentMemberOut] | None
 
 
@@ -89,6 +138,9 @@ class BoardOut(BaseModel):
     group: GroupOut
     week_start: date
     week_end: date
+    period: Period
+    period_start: date | None
+    period_end: date
     rows: list[BoardRow]
-    goal: GroupGoal
+    totals: TotalsOut
     assignments: list[AssignmentOut]

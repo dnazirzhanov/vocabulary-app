@@ -1,6 +1,8 @@
 # 0017 — Teachers' decks, given to a group, met first within the learner's own pace
 
 **Status:** Accepted. Amends ADR 0014 (which decks a learner sees) and ADR 0016 (phrases).
+Amended by ADR 0019: anyone writes decks (kind `group` renamed `user`); drafts live in «Мои колоды».
+Amended by ADR 0020: a group's deck is studied by opening it; its words no longer come first in a daily lesson.
 
 ## Context
 A teacher told us how he prepares vocabulary homework today: he asks ChatGPT for the words in
@@ -44,7 +46,7 @@ the same deck.
 - **Phrases.** A headword may be a phrase: lowercase letters, words joined by one space, hyphen or
   apostrophe (`carry out`, `well-known`). Spelling shows the separators as fixed gaps, never tiles;
   a hint names a slot among the letters only; a phrase wraps between its words, never inside one.
-- **Limits.** At most 50 words in a deck and 100 decks per author.
+- **Limits.** At most 100 decks per author; words per deck: see ADR 0019 (500).
 
 ## Consequences
 - The card highlights the target word in its example only when the example uses the headword

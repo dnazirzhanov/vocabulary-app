@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
+import { DeckScreen } from './decks/DeckScreen.tsx';
+import { WordsScreen } from './words/WordsScreen.tsx';
 import { GoalScreen } from './goal/GoalScreen.tsx';
-import { BoardScreen } from './groups/BoardScreen.tsx';
+import { GroupScreen } from './groups/GroupScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
+import { CourseScreen } from './home/CourseScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
-import { ProfileDialog, type ProfileTarget } from './profile/ProfileDialog.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import { currentDeck } from './lib/today.ts';
@@ -25,7 +27,12 @@ type Screen =
   | { name: 'progress' }
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
-  | { name: 'deck'; deckId: string; groupId: string; groupName: string }
+  | { name: 'course' }
+  // A deck's page (ADR 0020); `from`: where «Назад» leads.
+  | { name: 'deck-page'; deckId: string; from: 'home' | 'course' | 'progress' }
+  | { name: 'words'; deckId: string; title: string; from: 'home' | 'course' | 'progress' }
+  // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there.
+  | { name: 'deck'; deckId: string; groupId: string | null }
   | { name: 'join'; code: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
@@ -118,9 +125,20 @@ function useProfile() {
 function Learning({ email }: { email: string | null }) {
   const { profile, setProfile, error, retry } = useProfile();
   const [screen, setScreen] = useState<Screen>(startScreen);
-  // The deck a study session was started for (null: the whole course), so «Дальше» keeps to it.
+  // The deck a study session was started for, so «Дальше» keeps to it and leaving returns to its
+  // page; and where that page was opened from, for its «Назад».
   const [scope, setScope] = useState<string | null>(null);
+  const [pageFrom, setPageFrom] = useState<'home' | 'course' | 'progress'>('home');
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
+  const openPage = useCallback((deckId: string, from: 'home' | 'course' | 'progress') => {
+    setPageFrom(from);
+    setScreen({ name: 'deck-page', deckId, from });
+  }, []);
+  // After a lesson: back to the deck it was from.
+  const leave = useCallback(
+    () => (scope ? openPage(scope, pageFrom) : setScreen({ name: 'home' })),
+    [scope, pageFrom, openPage],
+  );
   const showSession = useCallback((session: Session) => setScreen({ name: 'session', session }), []);
   const startSession = useCallback((session: Session, from: string | null) => {
     setScope(from);
@@ -128,9 +146,6 @@ function Learning({ email }: { email: string | null }) {
   }, []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
   // Bumped when the groups change, so the navigation's line about them refreshes.
-  const [navVersion, setNavVersion] = useState(0);
-  // The profile window, over whichever screen is showing (ADR 0015).
-  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
 
   if (error) {
     return (
@@ -158,7 +173,7 @@ function Learning({ email }: { email: string | null }) {
     );
   }
   if (screen.name === 'session') {
-    return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={goHome} />;
+    return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={leave} />;
   }
   if (screen.name === 'summary') {
     const { summary } = screen;
@@ -176,7 +191,7 @@ function Learning({ email }: { email: string | null }) {
           }
         }}
         onSpelling={async () => showSession(await api.startSpellingSession())}
-        onHome={goHome}
+        onHome={leave}
       />
     );
   }
@@ -197,23 +212,15 @@ function Learning({ email }: { email: string | null }) {
   }
 
   // Every other screen sits in the navigation, which stays mounted while the screens change.
-  const refreshNav = () => setNavVersion((version) => version + 1);
-  // Moving between sections also refreshes the line about friends.
-  const navigate = (tab: NavTab, groupId: string | null) => {
-    refreshNav();
+  const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
     else if (tab === 'progress') setScreen({ name: 'progress' });
-    else setScreen(groupId ? { name: 'board', groupId } : { name: 'groups' });
+    // «Друзья» always opens the list of groups first (ADR 0023).
+    else setScreen({ name: 'groups' });
   };
   return (
-    <NavShell
-      tab={tabOf(screen)}
-      version={navVersion}
-      onNavigate={navigate}
-      onProfile={() => setProfileTarget({ kind: 'me' })}
-    >
+    <NavShell tab={tabOf(screen)} onNavigate={navigate}>
       {tabScreen()}
-      <ProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} />
     </NavShell>
   );
 
@@ -222,7 +229,6 @@ function Learning({ email }: { email: string | null }) {
       return (
         <GroupsScreen
           onOpen={(groupId, created) => {
-            refreshNav();
             setScreen({ name: 'board', groupId, invite: created });
           }}
           onJoinCode={(code) => setScreen({ name: 'join', code })}
@@ -231,17 +237,13 @@ function Learning({ email }: { email: string | null }) {
     }
     if (screen.name === 'board') {
       return (
-        <BoardScreen
+        <GroupScreen
           key={screen.groupId}
           groupId={screen.groupId}
           inviteOnOpen={screen.invite}
-          onOpenProfile={(memberId, nickname) =>
-            setProfileTarget({ kind: 'member', groupId: screen.groupId, memberId, nickname })
-          }
-          onOpenDeck={(deckId, groupName) => setScreen({ name: 'deck', deckId, groupId: screen.groupId, groupName })}
+          onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
-            refreshNav();
             setScreen({ name: 'groups' });
           }}
         />
@@ -253,32 +255,70 @@ function Learning({ email }: { email: string | null }) {
         <DeckEditor
           key={screen.deckId}
           deckId={screen.deckId}
-          groupId={groupId}
-          groupName={screen.groupName}
-          onDone={() => setScreen({ name: 'board', groupId })}
+          backLabel={groupId ? 'К группе' : 'Мои колоды'}
+          onDone={() => setScreen(groupId ? { name: 'board', groupId } : { name: 'home' })}
+          onStudy={(session) => startSession(session, screen.deckId)}
+          onOpenDeck={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
         />
       );
     }
     if (screen.name === 'progress') {
-      const client = supabase;
       return (
         <ProgressScreen
-          email={email}
-          onSignOut={client ? () => void client.auth.signOut() : undefined}
-          onAccountDeleted={() => {
-            if (client) void client.auth.signOut();
-            else goHome();
+          onOpenDeck={(deckId) => openPage(deckId, 'progress')}
+          account={{
+            email,
+            onSignOut: supabase ? () => void supabase?.auth.signOut() : undefined,
+            onAccountDeleted: () => {
+              if (supabase) void supabase.auth.signOut();
+              else goHome();
+            },
           }}
         />
       );
     }
-    return <HomeScreen onSession={startSession} />;
+    if (screen.name === 'course') {
+      return <CourseScreen onOpenDeck={(deckId) => openPage(deckId, 'course')} onBack={goHome} />;
+    }
+    if (screen.name === 'deck-page') {
+      const { deckId, from } = screen;
+      return (
+        <DeckScreen
+          key={deckId}
+          deckId={deckId}
+          backLabel={from === 'course' ? 'Курс' : from === 'progress' ? 'Прогресс' : 'Мои колоды'}
+          onBack={() => setScreen(backTo(from))}
+          onSession={startSession}
+          onWords={(id, title) => setScreen({ name: 'words', deckId: id, title, from })}
+          onEdit={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
+        />
+      );
+    }
+    if (screen.name === 'words') {
+      const { deckId, from } = screen;
+      return <WordsScreen deckId={deckId} deckTitle={screen.title} onBack={() => openPage(deckId, from)} />;
+    }
+    return (
+      <HomeScreen
+        onOpenPage={(deckId) => openPage(deckId, 'home')}
+        onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
+        onOpenCourse={() => setScreen({ name: 'course' })}
+      />
+    );
   }
 }
 
 /** The navigation entry a screen belongs to: decks and their words are part of today. */
+/** Where a deck's page goes back to. */
+function backTo(from: 'home' | 'course' | 'progress'): Screen {
+  if (from === 'course') return { name: 'course' };
+  if (from === 'progress') return { name: 'progress' };
+  return { name: 'home' };
+}
+
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (screen.name === 'groups' || screen.name === 'board' || screen.name === 'deck') return 'friends';
+  if (screen.name === 'groups' || screen.name === 'board') return 'friends';
+  if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';
 }

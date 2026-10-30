@@ -1,38 +1,49 @@
-import { button, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, test } from './learner.ts';
 
 test('a learner creates a group, a friend joins by link, both are on the board', async ({ page, browser }) => {
   await page.goto('/');
+  await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
-  await spellToday(page); // the day's plan: the cards, then their spelling
   await button(page, 'На главную').click();
 
+  // «Друзья» lists the groups first; creating one is a window, not a form on the page.
   await button(page, 'Друзья').click();
   await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
-  await page.getByLabel('Название').fill('7Б английский');
-  await page.getByLabel('Или своё').fill('Ёжик');
-  await button(page, 'Создать и пригласить').click();
+  await page.getByRole('button', { name: 'Создать группу' }).click();
+  const creating = page.getByRole('dialog', { name: 'Новая группа' });
+  await creating.getByLabel('Название').fill('7Б английский');
+  await creating.getByLabel('Или своё').fill('Ёжик');
+  await creating.getByRole('button', { name: 'Создать и пригласить' }).click();
 
   await expect(page.getByRole('heading', { name: '7Б английский' })).toBeVisible();
-  // A new group opens its invitation straight away, in a window over the board (focus is in it).
+  // A new group opens its invitation straight away, in a window over the group (focus is in it).
   const invitation = page.getByRole('dialog', { name: 'Пригласить друзей' });
   await expect(invitation.getByRole('img', { name: /QR-код/ })).toBeVisible();
   const link = await invitation.getByLabel('Ссылка-приглашение').inputValue();
   expect(link).toMatch(/\/join\/[A-Z2-9]{8}$/);
-  // Closing it leaves the board, and the button on the board brings it back.
   await invitation.getByRole('button', { name: 'Закрыть' }).click();
   await expect(invitation).toHaveCount(0);
-  await expect(page.getByRole('img', { name: /QR-код/ })).toHaveCount(0);
-  await button(page, 'Пригласить друзей').click();
+  await button(page, 'Пригласить').click();
   await expect(invitation.getByRole('img', { name: /QR-код/ })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(invitation).toHaveCount(0);
-  await expect(button(page, 'Пригласить друзей')).toBeFocused();
-  const me = page.getByRole('listitem').filter({ hasText: 'Ёжик' });
-  await expect(me).toContainText('вы');
-  // One day of the six promised, measured against her own plan; no points anywhere.
-  await expect(me).toContainText('1 из 6 дней');
-  await expect(page.getByRole('main')).not.toContainText('очк');
+  await expect(button(page, 'Пригласить')).toBeFocused();
+
+  // Today, my place and the board: one day studied this week, with the plan done.
+  await expect(page.getByRole('heading', { name: /Сегодня занимались 1 из 1/ })).toBeVisible();
+  await expect(page.getByText('Вы на 1-м месте')).toBeVisible();
+  const me = page.getByRole('listitem').filter({ hasText: 'Ёжик' }).filter({ hasText: 'выучено' });
+  await expect(me).toContainText('1\u00a0день');
+  await expect(me).toContainText('план 1');
+  await expect(page.getByRole('main')).not.toContainText(/(?<!карт)очк/i); // points, not «карточки»
+  // Other rankings and periods: the same people, ranked by what is chosen.
+  await page.getByRole('button', { name: 'Карточки' }).click();
+  await expect(page.getByText('Все ответы: уроки, тренировки и правописание.')).toBeVisible();
+  await expect(me).toContainText(/\d+\u00a0карточ/);
+  await page.getByRole('button', { name: 'Всё время' }).click();
+  await expect(page.getByRole('heading', { name: 'Вместе за всё время' })).toBeVisible();
+  await page.getByRole('button', { name: 'Регулярность' }).click();
+  await page.getByRole('button', { name: 'Неделя' }).click();
 
   // A friend (a different learner) opens the link.
   const friendContext = await browser.newContext({ extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}` } });
@@ -49,21 +60,21 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await friend.getByRole('button', { name: 'Вступить', exact: true }).click();
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
-  await expect(friend.getByText('Ещё не начали на этой неделе')).toBeVisible();
-  await expect(friend.getByRole('listitem').filter({ hasText: 'Лис' })).toContainText('вы');
+  await expect(friend.getByText('Вы ещё не занимались на этой неделе')).toBeVisible();
+  await expect(friend.locator('p', { hasText: 'Ещё не занимались на этой неделе:' })).toContainText('Лис (вы)');
   await friendContext.close();
 
-  // A tap on a member opens their profile: their week against their own promise.
-  await button(page, 'Сегодня').click();
-  await button(page, 'Друзья').click(); // the only group: its board
-  await page.getByRole('button', { name: /^Лис/ }).click();
-  const fox = page.getByRole('dialog', { name: 'Лис' });
-  await expect(fox).toContainText('Обещание: 6 дней в неделю по 3 слова');
-  await page.keyboard.press('Escape');
-
-  // With a single group, «Друзья» opens its board; the place is on the board, not in the navigation.
+  // «Друзья» always opens the list, even with one group: each group with its pulse.
   await button(page, 'Сегодня').click();
   await button(page, 'Друзья').click();
-  await expect(page.getByRole('heading', { name: '7Б английский' })).toBeFocused();
-  await expect(button(page, 'Друзья')).toHaveAccessibleDescription('');
+  await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
+  const row = page.getByRole('button', { name: /^7Б английский/ });
+  await expect(row).toContainText('вы на 1-м месте на неделе');
+  await expect(row).toContainText('сегодня занимались 1 из 2');
+
+  // Members are statistics on the board; nothing opens on a tap, and there is no «Профиль».
+  await row.click();
+  await expect(page.locator('p', { hasText: 'Ещё не занимались на этой неделе:' })).toContainText('Лис');
+  await expect(page.getByRole('button', { name: /^Лис/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Профиль' })).toHaveCount(0);
 });

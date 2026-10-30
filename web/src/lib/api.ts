@@ -4,22 +4,29 @@ import type {
   AttemptResult,
   Board,
   Deck,
+  DeckStats,
   DeckWord,
   GlossaryEntry,
   Hint,
   Group,
   GroupPreview,
+  GroupSummary,
+  Period,
+  Knowledge,
   Me,
   MeUpdate,
   Pace,
-  Profile,
   Progress,
   Rating,
   Session,
+  SpellingMode,
+  SpellingSize,
   Summary,
   TeacherDeck,
   DeckWordInput,
   GenerateResult,
+  Library,
+  SuggestedCard,
 } from './types.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
@@ -82,8 +89,9 @@ export const api = {
   /** The letter of the next empty slot of a spelling card: one hint per card (ADR 0016). */
   hint: (sessionId: string, exerciseId: string, position: number) =>
     request<Hint>('POST', `/sessions/${sessionId}/exercises/${exerciseId}/hint`, { position }),
-  /** A spelling card for each word learned today (ADR 0016); may be repeated for practice. */
-  startSpellingSession: () => request<Session>('POST', '/sessions', { kind: 'spelling' }),
+  /** Spelling cards for one set of words (ADR 0026): by default the main button's mix of ten. */
+  startSpellingSession: (mode: SpellingMode = 'mix', size: SpellingSize = 10) =>
+    request<Session>('POST', '/sessions', { kind: 'spelling', mode, size }),
   startHardSession: (deckId: string) => request<Session>('POST', '/sessions', { kind: 'hard', deck_id: deckId }),
   // Safe to retry: the server keeps exactly one rating per showing.
   rateCard: (sessionId: string, exerciseId: string, rating: Rating) =>
@@ -99,27 +107,41 @@ export const api = {
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),
-  myProfile: () => request<Profile>('GET', '/me/profile'),
-  memberProfile: (groupId: string, memberId: string) =>
-    request<Profile>('GET', `/groups/${groupId}/members/${memberId}/profile`),
+  /** «Прогресс»: what I know, deck by deck (ADR 0022). */
+  knowledge: () => request<Knowledge>('GET', '/progress/decks'),
+  deckStats: (deckId: string) => request<DeckStats>('GET', `/decks/${deckId}/stats`),
   deckWords: (deckId: string) => request<DeckWord[]>('GET', `/decks/${deckId}/words`),
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
   dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
-  groups: () => request<Group[]>('GET', '/groups'),
+  groups: () => request<GroupSummary[]>('GET', '/groups'),
   createGroup: (name: string, nickname: string) => request<Group>('POST', '/groups', { name, nickname }),
   previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
   joinGroup: (code: string, nickname: string) =>
     request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`, { nickname }),
-  board: (groupId: string) => request<Board>('GET', `/groups/${groupId}/board`),
+  board: (groupId: string, period: Period = 'week') =>
+    request<Board>('GET', `/groups/${groupId}/board?period=${period}`),
   leaveGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}/members/me`),
   removeMember: (groupId: string, memberId: string) =>
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
   // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
   myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
-  createDeck: (title: string, groupId: string) => request<TeacherDeck>('POST', '/decks', { title, group_id: groupId }),
+  /** A new deck, mine until I give it to a group I own (ADR 0019). */
+  createDeck: (title: string) => request<TeacherDeck>('POST', '/decks', { title }),
+  library: () => request<Library>('GET', '/decks/library'),
+  /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
+  deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
+  /** Full cards from the words named, saved to the deck. */
+  fillWords: (deckId: string, words: string[], level: string) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level }, 120_000),
+  /** Cards for a topic: the AI chooses the words a learner needs for it (ADR 0019). */
+  topicWords: (deckId: string, topic: string, count: number, level: string) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/topic`, { topic, count, level }, 120_000),
+  /** One card filled in for the manual form, not saved. */
+  suggestWord: (deckId: string, headword: string, level: string) =>
+    request<SuggestedCard>('POST', `/decks/${deckId}/words/suggest`, { headword, level }, 60_000),
   teacherDeck: (deckId: string) => request<TeacherDeck>('GET', `/decks/${deckId}/edit`),
   renameDeck: (deckId: string, title: string) => request<TeacherDeck>('PATCH', `/decks/${deckId}`, { title }),
   addDeckWord: (deckId: string, word: DeckWordInput) => request<TeacherDeck>('POST', `/decks/${deckId}/words`, word),
@@ -146,8 +168,10 @@ const MESSAGES: Record<string, string> = {
   too_many_groups: 'Можно состоять не больше чем в 5 группах.',
   group_full: 'В этой группе уже 50 участников.',
   rate_limited: 'Слишком много попыток. Подождите минуту.',
+  nothing_to_study: 'В этой колоде сейчас нечего учить: новые слова уже встречены, а повторений пока нет.',
+  reviews_first: 'Сначала повторите слова, которые ждут, — новые вернутся сразу после этого.',
   word_in_deck: 'Это слово уже есть в наборе.',
-  deck_full: 'В наборе может быть не больше 50 слов.',
+  deck_full: 'В колоде может быть не больше 500 слов.',
   deck_empty: 'Сначала добавьте хотя бы одно слово.',
   course_word: 'Это слово из курса: его перевод и пример менять нельзя.',
   not_group_owner: 'Давать слова группе может только её создатель.',

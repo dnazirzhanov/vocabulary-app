@@ -1,6 +1,7 @@
 # 0011 — Friend groups with a weekly board that rewards showing up
 
-**Status:** Accepted
+**Status:** Accepted. Ranking, shared goal and opening a lone group straight away superseded by
+ADR 0023.
 
 ## Context
 Pilot feedback, backed by Arnett (Oct 2026): motivation, not explanation, is the bottleneck in

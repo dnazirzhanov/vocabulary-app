@@ -19,7 +19,7 @@ from app.models.base import Base
 
 class Deck(Base):
     __tablename__ = "decks"
-    __table_args__ = (CheckConstraint("kind IN ('course', 'group')", name="kind_values"),)
+    __table_args__ = (CheckConstraint("kind IN ('course', 'user')", name="kind_values"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
@@ -34,10 +34,10 @@ class Deck(Base):
     # The course goal promised to learners (deck.yaml `course_goal`), only when it has a source.
     goal_words: Mapped[int | None]
     goal_coverage_percent: Mapped[int | None]
-    # 'course': the levels, loaded from content/. 'group': a teacher's deck, given to a group's
-    # members through an assignment (ADR 0017); never part of the course or its goal.
+    # 'course': the levels, loaded from content/. 'user': a deck someone wrote (ADR 0019), personal
+    # until given to a group through an assignment (ADR 0017); never part of the course or its goal.
     kind: Mapped[str] = mapped_column(String(8), server_default=text("'course'"))
-    # A group deck's author, the only one who may edit it; kept when the author's account goes.
+    # A user deck's author, the only one who may edit it; kept when the author's account goes.
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -73,6 +73,36 @@ class DeckWord(Base):
     )
     word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
     position: Mapped[int]
+
+
+class DeckSeenWord(Base):
+    """Every word a deck has ever had, by its key (generation.word_key), removed ones too: the AI
+    never brings a deck the same word again (ADR 0019). Small: one short row per word."""
+
+    __tablename__ = "deck_seen_words"
+
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # The word as it was first written, for the list the AI is asked to avoid.
+    headword: Mapped[str] = mapped_column(String(64))
+
+
+class DeckTopic(Base):
+    """A topic a deck has been grown with (ADR 0019): the editor offers the last one again, and
+    a different one is met with the offer of a deck of its own."""
+
+    __tablename__ = "deck_topics"
+
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
+    )
+    # The topic as compared: lowercase, ё as е, single spaces.
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    # As the learner last wrote it, and when.
+    topic: Mapped[str] = mapped_column(String(80))
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class DeckAssignment(Base):

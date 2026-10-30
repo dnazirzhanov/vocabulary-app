@@ -11,7 +11,8 @@ interface DialogProps {
 
 /**
  * A modal window on the native <dialog>: the browser traps focus, closes it on Escape and gives
- * focus back to the button that opened it. A click on the backdrop closes it too. The content is
+ * focus back to the button that opened it. Content can mark the control to focus first with
+ * `data-autofocus` (a confirmation focuses «Отмена», so a reflexive Enter changes nothing). A click on the backdrop closes it too. The content is
  * only mounted while open, so it loads its data when shown.
  */
 export function Dialog({ open, onClose, title, children }: DialogProps) {
@@ -21,7 +22,11 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // The browser focuses the first control (the close button); content may name a safer one.
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    }
     if (!open && dialog.open) dialog.close();
   }, [open]);
 

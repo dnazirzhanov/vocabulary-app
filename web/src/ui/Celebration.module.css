@@ -1,0 +1,56 @@
+/*
+ * Confetti for a finish (ADR 0024): pieces start above the screen, fall with a little drift and
+ * spin, and fade out near the bottom. Fixed over everything, never catching a tap.
+ */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.piece {
+  position: absolute;
+  top: -24px;
+  left: var(--x);
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color);
+  opacity: 0;
+  animation: fall var(--duration) cubic-bezier(0.25, 0.6, 0.45, 1) var(--delay) forwards;
+}
+
+.piece[data-shape='dot'] {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.piece[data-shape='square'] {
+  width: 9px;
+  height: 9px;
+}
+
+@keyframes fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 105vh) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer {
+    display: none;
+  }
+}

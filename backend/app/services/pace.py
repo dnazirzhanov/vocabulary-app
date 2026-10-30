@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -205,7 +205,7 @@ def _new_words_by_local_day(
     return {day: int(count) for day, count in rows}
 
 
-def _due_count(db: Session, user: User, now: datetime) -> int:
+def due_count(db: Session, user: User, now: datetime) -> int:
     """Review debt counts every level: reviews of earlier levels are just as due."""
     count = db.scalar(
         select(func.count())
@@ -233,17 +233,25 @@ def _answer_gaps(db: Session, user: User, since: datetime) -> list[float]:
 
 
 def words_left(db: Session, user: User) -> int:
-    """New words still to meet: every published level of the course, and the decks given to my
-    groups (ADR 0017). A word in both counts once."""
+    """New words still to meet in every deck I study: the course's levels, my own decks and the
+    decks given to my groups (ADR 0022). A word in two decks counts once. With none left, the
+    day's target is 0: cleared reviews keep the day."""
     introduced = set(
         db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
     )
-    course = db.scalars(
+    given = [item.deck.id for item in decks.assigned_decks(db, user)]
+    words = db.scalars(
         select(DeckWord.word_id)
         .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(Deck.kind == "course", Deck.status == "published")
+        .where(
+            or_(
+                (Deck.kind == "course") & (Deck.status == "published"),
+                Deck.owner_id == user.id,
+                Deck.id.in_(given),
+            )
+        )
     )
-    return len((set(course) | set(decks.assigned_words(db, user))) - introduced)
+    return len(set(words) - introduced)
 
 
 def _quiet_kinds(db: Session, user: User, now: datetime) -> frozenset[SuggestionKind]:
@@ -269,7 +277,7 @@ def day_plan(db: Session, user: User, deck_id: str, now: datetime, time_zone: Zo
     target = target_of(user)
     started = local_date(user.onboarded_at, time_zone) if user.onboarded_at else None
     week = ramp_week(target, user.ramp_enabled, started, today)
-    return plan_day(target, week, int(new_today or 0), _due_count(db, user, now))
+    return plan_day(target, week, int(new_today or 0), due_count(db, user, now))
 
 
 def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> PaceOut:

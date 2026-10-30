@@ -46,36 +46,15 @@
   font-size: var(--text-display);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);
+  animation: rise 420ms var(--ease-pop) 180ms both;
 }
 
 .title:focus {
   outline: none;
 }
 
-.plan {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
-}
-
-.plan[data-done] {
-  color: var(--color-success);
-}
-
-.plan svg {
-  width: 20px;
-  height: 20px;
-}
-
-.extra {
-  color: var(--color-primary-strong);
-}
-
 .lead {
+  animation: rise 420ms var(--ease-out) 300ms both;
   margin-top: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--text-option);
@@ -288,39 +267,6 @@
   }
 }
 
-/* The four ratings of the session, in the same colours as the buttons, each with its word. */
-.ratings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.ratings li {
-  padding: 2px var(--space-2);
-  border-radius: 6px;
-  background: var(--color-track);
-}
-
-.ratings li[data-tone='again'] {
-  background: var(--color-error-tint);
-  color: var(--color-error);
-}
-
-.ratings li[data-tone='good'] {
-  background: var(--color-success-tint);
-  color: var(--color-success);
-}
-
-.ratings li[data-tone='easy'] {
-  background: #e9f1fa;
-  color: var(--color-series-firm);
-}
-
 /* Practice of hard words, when today's spelling has the main button. */
 .practiceLink {
   min-height: 44px;
@@ -334,4 +280,35 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+/* The finish, in order (ADR 0024): the badge pops, the title and lead rise, then each word. */
+.wordRow {
+  animation: rise 360ms var(--ease-out) both;
+}
+
+.wordRow:nth-child(1) {
+  animation-delay: 420ms;
+}
+.wordRow:nth-child(2) {
+  animation-delay: 480ms;
+}
+.wordRow:nth-child(3) {
+  animation-delay: 540ms;
+}
+.wordRow:nth-child(4) {
+  animation-delay: 600ms;
+}
+.wordRow:nth-child(5) {
+  animation-delay: 660ms;
+}
+.wordRow:nth-child(n + 6) {
+  animation-delay: 720ms;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }

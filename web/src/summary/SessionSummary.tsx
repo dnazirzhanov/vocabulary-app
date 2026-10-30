@@ -8,6 +8,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CheckIcon, RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { Celebration } from '../ui/Celebration.tsx';
 import { CompletionBadge } from './CompletionBadge.tsx';
 import styles from './SessionSummary.module.css';
 
@@ -33,7 +34,8 @@ function describe(summary: Summary, hard: Entry[]) {
     const { words: count, first_try, needs_practice } = summary.spelling;
     return {
       title: needs_practice === 0 ? 'Без единой ошибки!' : 'Правописание готово',
-      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой` : ''}.`,
+      // A misspelled word is hard on the spelling ladder: it comes back the next day (ADR 0026).
+      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой. Слова с ошибкой вернутся завтра` : ''}.`,
     };
   }
   if (summary.kind === 'hard') {
@@ -107,24 +109,28 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const { title, lead } = describe(summary, hard);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const { again, hard: hardCount, good, easy: easyCount } = summary.ratings;
-  // The next step: today's spelling when it is still due (ADR 0016), another round of spelling
-  // after spelling, practice of hard words, or more study.
-  const spellingDue = summary.today.spelling.done < summary.today.spelling.words;
+  // The next step: spelling while today's words are not yet spelled (ADR 0026), more spelling
+  // while the main set holds words, practice of hard words, or more study.
+  const spelling = summary.today.spelling;
   const next =
     summary.kind === 'spelling'
-      ? { label: 'Ещё раз', run: onSpelling }
-      : summary.kind === 'study' && spellingDue
-        ? { label: `Правописание · ${wordsLabel(summary.today.spelling.words)}`, run: onSpelling }
-        : perfect || summary.kind === 'hard'
-          ? { label: 'Продолжить', run: onNext }
-          : { label: 'Повторить трудные', run: onPractice };
+      ? spelling.ready > 0
+        ? { label: `Ещё ${wordsLabel(spelling.ready)}`, run: onSpelling }
+        : null
+      : summary.kind === 'study' && spelling.paused
+        ? { label: `Продолжить правописание · ещё ${spelling.paused.total - spelling.paused.spelled}`, run: onSpelling }
+        : summary.kind === 'study' && spelling.today_left > 0
+          ? { label: `Правописание · ${wordsLabel(spelling.ready)}`, run: onSpelling }
+          : perfect || summary.kind === 'hard'
+            ? { label: 'Продолжить', run: onNext }
+            : { label: 'Повторить трудные', run: onPractice };
 
   // Announce the result: focus lands on the heading, not on a button.
   useEffect(() => headingRef.current?.focus(), []);
 
   return (
     <div className={styles.screen}>
+      <Celebration />
       <main className={styles.main}>
         <div className={styles.layout}>
           <div className={styles.stage}>
@@ -136,15 +142,6 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
               {title}
             </h1>
             <p className={styles.lead}>{lead}</p>
-            <TodayPlanLine summary={summary} />
-            {summary.kind !== 'spelling' && (
-              <ul className={styles.ratings} aria-label="Ваши оценки">
-                <li data-tone="again">Снова {again}</li>
-                <li data-tone="hard">Трудно {hardCount}</li>
-                <li data-tone="good">Хорошо {good}</li>
-                <li data-tone="easy">Легко {easyCount}</li>
-              </ul>
-            )}
           </div>
 
           <div className={styles.recap}>
@@ -161,46 +158,34 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
           </p>
         )}
         <div className={styles.actionsInner}>
-          {next.run === onSpelling && summary.kind === 'study' && !perfect && (
+          {next?.run === onSpelling && summary.kind === 'study' && !perfect && (
             <button type="button" className={styles.practiceLink} disabled={busy} onClick={() => run(onPractice)}>
               Повторить трудные
             </button>
           )}
-          <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
-            На главную
-          </SecondaryButton>
-          <PrimaryButton
-            type="button"
-            className={styles.action}
-            disabled={busy}
-            aria-busy={busy}
-            onClick={() => run(next.run)}
-          >
-            {busy ? 'Загружаем…' : next.label}
-          </PrimaryButton>
+          {next ? (
+            <>
+              <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
+                На главную
+              </SecondaryButton>
+              <PrimaryButton
+                type="button"
+                className={styles.action}
+                disabled={busy}
+                aria-busy={busy}
+                onClick={() => run(next.run)}
+              >
+                {busy ? 'Загружаем…' : next.label}
+              </PrimaryButton>
+            </>
+          ) : (
+            // Everything spelled for now: home is the only step left.
+            <PrimaryButton type="button" className={styles.action} onClick={onHome}>
+              На главную
+            </PrimaryButton>
+          )}
         </div>
       </footer>
     </div>
-  );
-}
-
-/** Where today's plan stands after this session (ADR 0015): done, how far, or practice as extra. */
-function TodayPlanLine({ summary }: { summary: Summary }) {
-  const { today } = summary;
-  let text: string;
-  if (summary.kind === 'hard') text = 'Тренировка — сверх плана';
-  else if (today.plan_done) text = 'План на сегодня выполнен';
-  else if (today.target > today.new_words)
-    text = `До плана на сегодня ещё ${wordsLabel(today.target - today.new_words)}`;
-  else if (today.spelling.done < today.spelling.words) text = 'Осталось правописание';
-  else text = 'План на сегодня — повторения';
-  return (
-    <p className={styles.plan} data-done={today.plan_done || undefined}>
-      {today.plan_done && summary.kind !== 'hard' && <CheckIcon aria-hidden="true" />}
-      {text}
-      {today.extra_new > 0 && summary.kind !== 'hard' && (
-        <span className={styles.extra}> · +{wordsLabel(today.extra_new)} сверх плана</span>
-      )}
-    </p>
   );
 }

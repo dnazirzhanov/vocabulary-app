@@ -1,7 +1,7 @@
 # 0015 — Plan days: consistency against the learner's own promise
 
-**Status:** Accepted. Supersedes the daily goal and streak of ADR 0008; amends the ranking of
-ADR 0011.
+**Status:** Accepted (the day rule amended by ADR 0016, then ADR 0022). Supersedes the daily goal
+and streak of ADR 0008; amends the ranking of ADR 0011.
 
 ## Context
 A "consistent day" was 30 points everywhere: the friends board (ranked by such days, ties broken

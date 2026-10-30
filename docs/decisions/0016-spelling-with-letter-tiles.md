@@ -1,6 +1,7 @@
 # 0016 — Spelling with letter tiles: one card per new word, part of the day's plan
 
-**Status:** Accepted. Amends the plan-day rule of ADR 0015.
+**Status:** Accepted. Amends the plan-day rule of ADR 0015. Spelling left the day in ADR 0022; it
+stays as practice.
 
 ## Context
 Flashcards teach a word's meaning but never its spelling. The owner asked for spelling with

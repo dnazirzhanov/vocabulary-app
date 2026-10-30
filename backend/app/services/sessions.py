@@ -9,7 +9,7 @@ passed in, never read here.
 import random
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -29,6 +29,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
+from app.schemas.decks import LibraryDeckOut, LibraryOut
 from app.schemas.learning import (
     ActiveSessionOut,
     AttemptIn,
@@ -36,6 +37,7 @@ from app.schemas.learning import (
     CardExercise,
     CourseGoalOut,
     DeckOut,
+    DeckStatsOut,
     ExerciseOut,
     HintIn,
     HintOut,
@@ -57,7 +59,7 @@ from app.schemas.learning import (
     SummaryWord,
     WordOut,
 )
-from app.services import decks, groups, pace, spelling
+from app.services import decks, groups, pace, progress_view, spelling, spelling_ladder
 from app.services.learning import (
     HARD_CARDS_PER_SESSION,
     REQUEUE_WITHIN_SECONDS,
@@ -68,19 +70,22 @@ from app.services.learning import (
     plan_spelling,
     requeue,
 )
-from app.services.progress import INTRODUCTION, card_points, local_day_bounds
+from app.services.plan_days import zone_of
+from app.services.progress import card_points
 from app.services.progress_view import today_plan
 from app.services.scheduling import (
     AGAIN,
     LEARNING,
     RELEARNING,
+    REVIEW,
+    WELL_LEARNED_STABILITY_DAYS,
     CardState,
-    local_date,
     previews,
     review,
 )
 
 TileMaker = Callable[[str, str], list[str]]
+SPELLING_KIND = "spelling"
 
 # --- reading ---------------------------------------------------------------------------------
 
@@ -155,16 +160,25 @@ def _owned_session(db: Session, user: User, session_id: UUID) -> LearningSession
     return session
 
 
-def _open_session(db: Session, user: User) -> LearningSession | None:
+def _open_session(db: Session, user: User, spelling: bool = False) -> LearningSession | None:
+    """The learner's unfinished lesson (flashcards), or with `spelling` their unfinished spelling:
+    one of each may be open at once, so a paused spelling never blocks a lesson (ADR 0026)."""
+    kind = LearningSession.kind == SPELLING_KIND
     return db.scalar(
         select(LearningSession).where(
-            LearningSession.user_id == user.id, LearningSession.completed_at.is_(None)
+            LearningSession.user_id == user.id,
+            LearningSession.completed_at.is_(None),
+            kind if spelling else ~kind,
         )
     )
 
 
 def _card_out(
-    step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
+    step: PlannedExercise,
+    word: Word,
+    progress: UserWordProgress | None,
+    now: datetime,
+    time_zone: ZoneInfo,
 ) -> CardExercise:
     return CardExercise(
         id=step.id,
@@ -172,13 +186,17 @@ def _card_out(
         new=step.new,
         previews=[
             IntervalPreview(rating=rating, seconds=round(delay.total_seconds()))
-            for rating, delay in previews(_card_state(progress), now).items()
+            for rating, delay in previews(_card_state(progress), now, time_zone).items()
         ],
     )
 
 
 def _exercise_out(
-    step: PlannedExercise, word: Word, progress: UserWordProgress | None, now: datetime
+    step: PlannedExercise,
+    word: Word,
+    progress: UserWordProgress | None,
+    now: datetime,
+    time_zone: ZoneInfo,
 ) -> ExerciseOut:
     if step.spelling:
         # The meaning only: no headword, id, example or audio can give the answer away.
@@ -193,7 +211,7 @@ def _exercise_out(
             tiles=list(step.tiles),
             hint=_hint_out(step, word),
         )
-    return _card_out(step, word, progress, now)
+    return _card_out(step, word, progress, now, time_zone)
 
 
 def _hint_out(step: PlannedExercise, word: Word) -> HintOut | None:
@@ -227,13 +245,14 @@ def present_session(db: Session, user: User, session: LearningSession, now: date
     words = _words_by_id(db, word_ids)
     progress = _progress(db, user, word_ids)
     attempts = _attempts(db, session.id)
+    zone = zone_of(user)
     return SessionOut(
         id=session.id,
         kind=session.kind,
         deck_id=session.deck_id,
         completed=session.completed_at is not None,
         exercises=[
-            _exercise_out(step, words[step.word_id], progress.get(step.word_id), now)
+            _exercise_out(step, words[step.word_id], progress.get(step.word_id), now, zone)
             for step in plan
         ],
         results=[
@@ -304,16 +323,10 @@ def _current_index(rows: list[Any]) -> int:
     return max(0, len(rows) - 1)
 
 
-def _deck_out(
-    row: Any, *, locked: bool, new_today: int, given: decks.GivenDeck | None = None
-) -> DeckOut:
+def _deck_out(row: Any, *, locked: bool, new_today: int) -> DeckOut:
     deck, words, met, due_now, learning, upcoming = row
     return DeckOut(
         id=deck.id,
-        kind=deck.kind,
-        group_name=given.group_name if given else None,
-        author=given.author if given else None,
-        is_mine=given.is_mine if given else False,
         title=deck.title,
         description=deck.description,
         level=deck.level,
@@ -335,28 +348,119 @@ def _deck_out(
 
 
 def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> list[DeckOut]:
-    """Decks given to my groups first, then the course's levels. Today's new words go to the
-    given decks first, then to the current level, as the daily lesson takes them (ADR 0017)."""
+    """The course's levels, for home (ADR 0020): decks I wrote or my groups were given are in
+    «Мои колоды». Today's new words are offered by the current level."""
     rows = _course_rows(db, user, now)
     if not rows:
         return []
     current = _current_index(rows)
-    today = pace.day_plan(db, user, rows[current][0].id, now, time_zone)
-    allowance = 0 if today.blocked_by_reviews else today.remaining
-    out: list[DeckOut] = []
-    for row, given in _assigned_rows(db, user, now):
-        _, words, met, *_ = row
-        new = min(allowance, words - met)
-        allowance -= new
-        out.append(_deck_out(row, locked=False, new_today=new, given=given))
-    for index, row in enumerate(rows):
-        _, words, met, *_ = row
-        new = min(allowance, words - met) if index == current else 0
-        out.append(_deck_out(row, locked=index > current, new_today=new))
-    return out
+    allowance = _allowance(db, user, rows, now, time_zone)
+    return [
+        _deck_out(
+            row,
+            locked=index > current,
+            new_today=min(allowance, row[1] - row[2]) if index == current else 0,
+        )
+        for index, row in enumerate(rows)
+    ]
+
+
+def _allowance(db: Session, user: User, rows: list[Any], now: datetime, time_zone: ZoneInfo) -> int:
+    """New words today's pace still allows, anywhere (0 while too many reviews are due)."""
+    if not rows:
+        return 0
+    today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+    return 0 if today.blocked_by_reviews else today.remaining
+
+
+def deck_stats(
+    db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
+) -> DeckStatsOut:
+    """A deck's page (ADR 0020): my progress on it and what studying it would bring today."""
+    deck = decks.visible_deck(db, user, deck_id)
+    rows = _course_rows(db, user, now)
+    row = db.execute(_counted_decks(user, now).where(Deck.id == deck.id)).one()
+    _, words, met, due_now, learning, upcoming = row
+    locked = False
+    new_today = min(_allowance(db, user, rows, now, time_zone), words - met)
+    if deck.kind == "course":
+        index = next((i for i, course_row in enumerate(rows) if course_row[0].id == deck.id), 0)
+        locked = index > _current_index(rows)
+        if locked:
+            new_today = 0
+    known = db.scalar(
+        select(func.count())
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+        .where(
+            DeckWord.deck_id == deck.id,
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.fsrs_state == REVIEW,
+            UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS,
+        )
+    )
+    given = next((item for item in decks.assigned_decks(db, user) if item.deck.id == deck.id), None)
+    return DeckStatsOut(
+        id=deck.id,
+        title=deck.title,
+        kind="course" if deck.kind == "course" else "user",
+        level=deck.level,
+        is_mine=deck.owner_id == user.id,
+        author=given.author if given else None,
+        group_name=given.group_name if given else None,
+        word_count=words,
+        introduced_count=met,
+        learning_count=learning,
+        review_count=due_now - learning,
+        well_learned=int(known or 0),
+        new_today=new_today,
+        next_due_at=upcoming,
+        locked=locked,
+        spelling_today=progress_view.spelling_today(db, user, now, time_zone),
+    )
+
+
+def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LibraryOut:
+    """«Мои колоды» (ADR 0019): decks I wrote, newest first, and decks others gave my groups.
+    Each shows what opening it would bring today, within the daily pace."""
+    rows = _course_rows(db, user, now)
+    allowance = 0
+    if rows:
+        today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+        allowance = 0 if today.blocked_by_reviews else today.remaining
+    shared = decks.shared_groups(db, user)
+
+    def out(row: Any, given: decks.GivenDeck | None = None) -> LibraryDeckOut:
+        deck, words, met, due_now, learning, upcoming = row
+        return LibraryDeckOut(
+            id=deck.id,
+            title=deck.title,
+            word_count=words,
+            introduced_count=met,
+            learning_count=learning,
+            review_count=due_now - learning,
+            new_today=min(allowance, words - met),
+            next_due_at=upcoming,
+            groups=shared.get(deck.id, []),
+            group_name=given.group_name if given else None,
+            author=given.author if given else None,
+        )
+
+    mine = db.execute(
+        _counted_decks(user, now)
+        .where(Deck.kind == "user", Deck.owner_id == user.id)
+        .order_by(Deck.created_at.desc(), Deck.id)
+    )
+    return LibraryOut(
+        mine=[out(row) for row in mine],
+        from_groups=[
+            out(row, given) for row, given in _assigned_rows(db, user, now) if not given.is_mine
+        ],
+    )
 
 
 def active_session(db: Session, user: User, now: datetime) -> ActiveSessionOut:
+    """The unfinished lesson; an unfinished spelling is shown with the spelling buttons."""
     session = _open_session(db, user)
     return ActiveSessionOut(session=present_session(db, user, session, now) if session else None)
 
@@ -372,9 +476,9 @@ def _study_plan(
     db: Session, user: User, request: StartStudySession, now: datetime, time_zone: ZoneInfo
 ) -> tuple[str, list[PlannedExercise], int]:
     """One deck: its due cards, most overdue first, then its new words as today's pace allows
-    (ADR 0010). No deck («Продолжить»): due cards of every level, then new words: those of decks
-    given to my groups first (ADR 0017), then the current level's, so earlier levels keep coming
-    back (ADR 0014). Also returns the day's plan to record (pace.recorded_target)."""
+    (ADR 0010). The web always names a deck (ADR 0020); with none, due cards of every level, then
+    the current level's new words (ADR 0014). Also returns the day's plan to record
+    (pace.recorded_target)."""
     rows = _course_rows(db, user, now)
     current = _current_index(rows)
     if request.deck_id is None:
@@ -407,9 +511,6 @@ def _study_plan(
             db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
         )
         order = [word.id for word in _deck_words(db, deck.id)]
-        if request.deck_id is None:
-            # A course word a teacher linked comes with the teacher's deck, and only once.
-            order = list(dict.fromkeys(decks.assigned_words(db, user) + order))
         new = pick_new_words(order, introduced, today.next_lesson_size)
     if not due and not new:
         if today.blocked_by_reviews:
@@ -419,29 +520,31 @@ def _study_plan(
 
 
 def _spelling_plan(
-    db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[str, list[PlannedExercise]]:
-    """A spelling card for each word learned today, in the order learned (ADR 0016)."""
-    start, end = local_day_bounds(local_date(now, time_zone), time_zone)
-    # Answers are stored in the order given, so the first answer's id is the learning order.
-    first = func.min(ReviewAttempt.id)
-    learned = db.execute(
-        select(ReviewAttempt.word_id, first)
-        .where(
-            ReviewAttempt.user_id == user.id,
-            INTRODUCTION,
-            ReviewAttempt.answered_at >= start,
-            ReviewAttempt.answered_at < end,
-        )
-        .group_by(ReviewAttempt.word_id)
-        .order_by(first)
-    ).all()
-    words = [word_id for word_id, _ in learned]
-    if not words:
-        raise ApiError(409, "nothing_to_spell", "No new words learned today yet")
-    deck = db.scalar(select(DeckWord.deck_id).where(DeckWord.word_id == words[0]).limit(1))
-    assert deck is not None
-    return deck, plan_spelling(words, _tile_maker(db, user, now))
+    db: Session, user: User, request: StartSpellingSession, now: datetime, time_zone: ZoneInfo
+) -> tuple[str | None, list[PlannedExercise], int]:
+    """A spelling card for each word of the chosen set (ADR 0026); also how many of them are
+    today's new words."""
+    words = spelling_ladder.load(db, user, now, time_zone)
+    # Seeded, so «Вразброс» draws the same words if the request is repeated at the same moment.
+    rng = random.Random(f"{user.id}:{now.isoformat()}:spelling")  # noqa: S311
+    chosen = spelling_ladder.pick(request.mode, request.size, words, now, rng)
+    if not chosen:
+        raise ApiError(409, "nothing_to_spell", "No words to spell in this set")
+    # The session is about words from any deck; it names one the learner can see: a course
+    # level when the word is in one (a teacher may have linked it into someone else's deck).
+    deck = db.scalar(
+        select(DeckWord.deck_id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(DeckWord.word_id == chosen[0])
+        .order_by((Deck.kind == "course").desc(), DeckWord.deck_id)
+        .limit(1)
+    )
+    today = set(words.today)
+    return (
+        deck,
+        plan_spelling(chosen, _tile_maker(db, user, now)),
+        sum(1 for word in chosen if word in today),
+    )
 
 
 def _tile_maker(db: Session, user: User, now: datetime) -> "TileMaker":
@@ -482,12 +585,15 @@ def _hard_plan(db: Session, user: User, request: StartHardSession) -> list[Plann
 def start_session(
     db: Session, user: User, request: StartRequest, now: datetime, time_zone: ZoneInfo
 ) -> SessionOut:
-    """Start a session, or return the learner's unfinished one so it can be resumed."""
-    existing = _open_session(db, user)
+    """Start a session, or return the learner's unfinished one of that kind (a lesson, or
+    spelling) so it can be resumed."""
+    spelling_kind = isinstance(request, StartSpellingSession)
+    existing = _open_session(db, user, spelling_kind)
     if existing is not None:
         return present_session(db, user, existing, now)
 
     # Practice is never part of the plan, so it records none.
+    deck_id: str | None
     day_target: int | None = None
     promised_days: int | None = None
     spelling_words: int | None = None
@@ -495,8 +601,7 @@ def start_session(
         deck_id, plan, day_target = _study_plan(db, user, request, now, time_zone)
         promised_days = user.study_days_per_week
     elif isinstance(request, StartSpellingSession):
-        deck_id, plan = _spelling_plan(db, user, now, time_zone)
-        spelling_words = len(plan)
+        deck_id, plan, spelling_words = _spelling_plan(db, user, request, now, time_zone)
     else:
         deck_id, plan = request.deck_id, _hard_plan(db, user, request)
     session = LearningSession(
@@ -516,7 +621,7 @@ def start_session(
     except IntegrityError:
         # Another request (double tap, second device) opened a session first: use that one.
         db.rollback()
-        existing = _open_session(db, user)
+        existing = _open_session(db, user, spelling_kind)
         if existing is None:
             raise
         return present_session(db, user, existing, now)
@@ -636,7 +741,7 @@ def _rate(
     )
     was_review = before is not None and before.is_review and not repeat
     practice = session.kind == "hard"
-    after = before if practice and before else review(before, rating, now)
+    after = before if practice and before else review(before, rating, now, zone_of(user))
     assert after is not None
     stored = ReviewAttempt(
         session_id=session.id,
@@ -660,9 +765,12 @@ def _rate(
     inserted: list[InsertedExercise] = []
     if not practice:
         _save_schedule(db, user, step.word_id, progress, after, rating, now)
-    # Due again within minutes (learning steps): show it again later in this session. In
-    # practice the schedule stands still, so only a forgotten card comes round again.
-    soon = (after.due_at - now).total_seconds() <= REQUEUE_WITHIN_SECONDS
+    # Due again within minutes (learning steps): show it again later in this session. A review
+    # due at 4 AM is not one, even when answered at 3:55. In practice the schedule stands still,
+    # so only a forgotten card comes round again.
+    soon = after.state != REVIEW and (after.due_at - now) <= timedelta(
+        seconds=REQUEUE_WITHIN_SECONDS
+    )
     if (rating == AGAIN) if practice else soon:
         requeued = requeue(plan, plan.index(step), step.word_id)
         if requeued:
@@ -672,7 +780,8 @@ def _rate(
             fresh = _progress(db, user, [step.word_id]).get(step.word_id)
             inserted.append(
                 InsertedExercise(
-                    index=new_plan.index(again), exercise=_card_out(again, word, fresh, now)
+                    index=new_plan.index(again),
+                    exercise=_card_out(again, word, fresh, now, zone_of(user)),
                 )
             )
     return stored, inserted
@@ -701,7 +810,11 @@ def _spell(
         points=0,  # spelling never earns points or a place on the board
     )
     db.add(stored)
+    # Flush first: a second try at the same card fails here and leaves the ladder alone.
     db.flush()
+    # A hinted word was not spelled from memory: on the ladder it counts as a miss (ADR 0026).
+    right = bool(stored.correct) and step.hint is None
+    spelling_ladder.record(db, user, step.word_id, right, now, zone_of(user))
     return stored
 
 
@@ -746,6 +859,9 @@ def complete_session(
         raise ApiError(409, "session_incomplete", "Some cards have not been rated")
     if session.completed_at is None:
         session.completed_at = now
+        if session.kind == "study":
+            # A day is kept with every due review done (ADR 0022): what this lesson left.
+            session.reviews_left = min(pace.due_count(db, user, now), 32_000)
         db.commit()
 
     cards = [step for step in plan if not step.spelling]

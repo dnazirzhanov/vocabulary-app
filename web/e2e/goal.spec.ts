@@ -1,4 +1,4 @@
-import { button, expect, test } from './learner.ts';
+import { button, expect, openDeck, test } from './learner.ts';
 
 test.describe('a learner who has not chosen a pace', () => {
   test.use({ onboarded: false });
@@ -21,6 +21,7 @@ test.describe('a learner who has not chosen a pace', () => {
     await page.getByRole('radio', { name: '5', exact: true }).check();
     await button(page, 'Начать').click();
 
+    await openDeck(page);
     await expect(page.getByText('Разогрев, неделя 1 из 2: сегодня цель 5 из 10.')).toBeVisible();
     await expect(button(page, 'Начать урок · 5 слов')).toBeVisible();
   });

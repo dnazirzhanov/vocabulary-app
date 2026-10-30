@@ -51,6 +51,27 @@ class UserWordProgress(Base):
     lapses: Mapped[int] = mapped_column(server_default=text("0"))
 
 
+class SpellingProgress(Base):
+    """How well a learner spells one word: a short ladder, apart from FSRS's memory of its
+    meaning (ADR 0026). Created at the word's first spelling."""
+
+    __tablename__ = "spelling_progress"
+    __table_args__ = (
+        CheckConstraint("rung BETWEEN 0 AND 3", name="rung_range"),
+        Index("ix_spelling_progress_user_due", "user_id", "due_at"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    # 0 hard (misspelled), 1 and 2 on the way, 3 «умеет писать».
+    rung: Mapped[int] = mapped_column(SmallInteger)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_spelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    misses: Mapped[int] = mapped_column(server_default=text("0"))
+
+
 class LearningSession(Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (
@@ -60,10 +81,12 @@ class LearningSession(Base):
         ),
         CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
         CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
-        # A learner has at most one unfinished session; starting again resumes it.
+        # A learner has at most one unfinished lesson and one unfinished spelling (ADR 0026);
+        # starting again resumes it.
         Index(
             "uq_learning_sessions_open_per_user",
             "user_id",
+            text("(kind = 'spelling')"),
             unique=True,
             postgresql_where=text("completed_at IS NULL"),
         ),
@@ -71,7 +94,9 @@ class LearningSession(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    deck_id: Mapped[str] = mapped_column(ForeignKey("decks.id"))
+    # The deck it was studied from; null once that deck was deleted (ADR 0019): a finished lesson
+    # stays as history, so the day's plan and answers on course words keep counting.
+    deck_id: Mapped[str | None] = mapped_column(ForeignKey("decks.id", ondelete="SET NULL"))
     kind: Mapped[str] = mapped_column(String(16))
     # The ordered exercises including answer keys; never sent to clients as-is.
     plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
@@ -83,6 +108,9 @@ class LearningSession(Base):
     promised_days: Mapped[int | None] = mapped_column(SmallInteger)
     # A spelling session (ADR 0016): how many of the day's new words it covers.
     spelling_words: Mapped[int | None] = mapped_column(SmallInteger)
+    # A study session: the reviews still due, across every deck, when it was finished (ADR 0022).
+    # Null for sessions from before it was recorded: those count as done.
+    reviews_left: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReviewAttempt(Base):

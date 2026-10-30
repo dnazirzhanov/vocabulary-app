@@ -63,10 +63,11 @@ def db(database: None) -> Iterator[Session]:
         connection.execute(
             text(
                 "TRUNCATE learning_sessions, review_attempts, user_word_progress,"
-                " pace_dismissals, groups, group_members, deck_assignments CASCADE"
+                " spelling_progress, pace_dismissals, groups, group_members, deck_assignments"
+                " CASCADE"
             )
         )
-        connection.execute(text("DELETE FROM decks WHERE kind = 'group'"))
+        connection.execute(text("DELETE FROM decks WHERE kind = 'user'"))
         connection.execute(text("DELETE FROM users"))
     with get_sessionmaker()() as session:
         yield session

@@ -28,78 +28,6 @@
   font-weight: var(--weight-strong);
 }
 
-/* --- Words ------------------------------------------------------------------------------- */
-
-.bar {
-  position: relative;
-  height: 12px;
-  margin-top: var(--space-4);
-  border-radius: 6px;
-  background: var(--color-activity-none);
-  overflow: hidden;
-}
-
-.barMet,
-.barKnown {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  transition: width var(--duration-progress) var(--ease-out);
-}
-
-.barMet {
-  background: var(--color-activity-some);
-}
-
-.barKnown {
-  background: var(--color-activity-goal);
-}
-
-.figures {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin: var(--space-5) 0 0;
-}
-
-/* The number first, its caption under it; the markup keeps caption → number for screen readers. */
-.figures > div {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-.figures dd {
-  margin: 0;
-  font-size: var(--text-title);
-  font-weight: var(--weight-display);
-  font-variant-numeric: tabular-nums;
-}
-
-.figures dt {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.dotKnown,
-.dotMet {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 6px;
-  border-radius: 50%;
-}
-
-.dotKnown {
-  background: var(--color-activity-goal);
-}
-
-.dotMet {
-  background: var(--color-activity-some);
-}
-
 /* --- Consistency: this week ---------------------------------------------------------------- */
 
 .week {
@@ -179,32 +107,113 @@
   color: var(--color-success);
 }
 
-/* --- Consistency: the calendar ------------------------------------------------------------- */
+/* --- Consistency: the learning heatmap ---------------------------------------------------- */
 
-.calendar {
-  display: grid;
-  grid-template-rows: auto repeat(7, auto);
-  gap: 3px;
+/* Its own small heading with the scale beside it, as heatmaps are read: «меньше ▢▢▢▢ больше». */
+.heatHead {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
-.month,
-.rowName {
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
+.heatTitle {
+  margin: 0;
+  font-size: var(--text-body);
   font-weight: var(--weight-strong);
-  line-height: 1;
-  white-space: nowrap;
+}
+
+.yearSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.yearSwitch button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.yearSwitch button:hover:not(:disabled) {
+  background: var(--color-activity-none);
+}
+
+.yearSwitch button:disabled {
+  color: var(--color-border);
+  cursor: default;
+}
+
+.yearSwitch svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* The year: twelve small month calendars, three across on a phone, four on a wider screen. */
+.year {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-3);
+}
+
+@media (min-width: 560px) {
+  .year {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-5) var(--space-4);
+  }
 }
 
 .month {
-  grid-row: 1;
-  padding-bottom: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.rowName {
-  grid-column: 1;
-  padding-right: var(--space-2);
+.monthName {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* A week to a row, Monday first; the 1st sits under its weekday. */
+.monthDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  /* Room for today's and the picked day's outline at the edge. */
+  padding: 0 2px 2px 0;
+}
+
+.scale {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.scale .cell {
+  width: 12px;
+}
+
+.scale span:first-child {
+  margin-right: var(--space-1);
+}
+
+.scale span:last-child {
+  margin-left: var(--space-1);
 }
 
 .cell {
@@ -215,16 +224,26 @@
   background: var(--color-activity-none);
 }
 
-.cell[data-level='1'] {
-  background: var(--color-activity-some);
+.cell[data-shade='1'] {
+  background: var(--color-heat-1);
 }
 
-.cell[data-level='2'] {
-  background: var(--color-activity-goal);
+.cell[data-shade='2'] {
+  background: var(--color-heat-2);
 }
 
+.cell[data-shade='3'] {
+  background: var(--color-heat-3);
+}
+
+.cell[data-shade='4'] {
+  background: var(--color-heat-4);
+}
+
+/* Days still to come: an outline, so the whole year keeps its shape without claiming a miss. */
 .cell[data-future] {
   background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--color-activity-none);
 }
 
 .cell[data-today] {
@@ -232,24 +251,21 @@
   outline-offset: 1px;
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
+.year .cell:not([data-future]) {
+  cursor: pointer;
+}
+
+.cell[data-picked] {
+  outline: 2px solid var(--color-primary-strong);
+  outline-offset: 1px;
+}
+
+/* The picked day, or the whole period: one line under the grid, the same height either way. */
+.heatCaption {
+  min-height: 1.5em;
   margin: var(--space-3) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
   font-weight: var(--weight-strong);
-}
-
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.legend .cell {
-  width: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .footnote {
