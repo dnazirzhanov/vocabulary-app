@@ -36,12 +36,12 @@ START = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 
 def retrievability(t: float, s: float) -> float:
     """R(t, S) = (1 + factor · t / S)^(−w20), factor chosen so that R(S, S) = 0.9."""
-    return (1 + FACTOR * t / s) ** -DECAY
+    return float((1 + FACTOR * t / s) ** -DECAY)
 
 
 def interval(s: float, r: float = RETENTION) -> float:
     """The inverse: I(r, S) = S / factor · (r^(−1/w20) − 1)."""
-    return s / FACTOR * (r ** (-1 / DECAY) - 1)
+    return float(s / FACTOR * (r ** (-1 / DECAY) - 1))
 
 
 def s0(g: int) -> float:
@@ -60,20 +60,19 @@ def next_d(d: float, g: int) -> float:
 def s_recall(d: float, s: float, r: float, g: int) -> float:
     hard = W[15] if g == 2 else 1.0
     easy = W[16] if g == 4 else 1.0
-    return s * (
-        1 + math.exp(W[8]) * (11 - d) * s ** -W[9] * (math.exp(W[10] * (1 - r)) - 1) * hard * easy
-    )
+    growth = math.exp(W[8]) * (11 - d) * s ** -W[9] * (math.exp(W[10] * (1 - r)) - 1)
+    return float(s * (1 + growth * hard * easy))
 
 
 def s_forget(d: float, s: float, r: float) -> float:
     long_term = W[11] * d ** -W[12] * ((s + 1) ** W[13] - 1) * math.exp(W[14] * (1 - r))
-    return min(long_term, s / math.exp(W[17] * W[18]))
+    return float(min(long_term, s / math.exp(W[17] * W[18])))
 
 
 def s_short(s: float, g: int) -> float:
     """Same-day review: S · e^(w17·(G − 3 + w18)) · S^(−w19), never shrinking when recalled."""
     increase = math.exp(W[17] * (g - 3 + W[18])) * s ** -W[19]
-    return s * (max(increase, 1.0) if g >= 2 else increase)
+    return float(s * (max(increase, 1.0) if g >= 2 else increase))
 
 
 @dataclass
