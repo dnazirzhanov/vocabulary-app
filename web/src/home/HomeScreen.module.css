@@ -231,6 +231,13 @@
   font-size: var(--text-meta);
 }
 
+/* A group deck's deadline (ADR 0030): the one line on the row that asks for attention. */
+.deadline {
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
 .today {
   color: var(--color-count-new);
   font-size: var(--text-meta);

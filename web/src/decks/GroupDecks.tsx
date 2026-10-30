@@ -1,4 +1,4 @@
-import { dueLabel } from '../lib/deadline.ts';
+import { dueLabel, standingLabel } from '../lib/deadline.ts';
 import { plural } from '../i18n/plural.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import type { Assignment, Board } from '../lib/types.ts';
@@ -107,11 +107,27 @@ function DeckProgress({
         <div className={styles.mine}>
           <p>
             Вы встретили <strong>{mine}</strong> из {total}
+            {assignment.my_standing && (
+              <span
+                className={styles.standing}
+                data-status={assignment.my_standing.status}
+                data-behind={assignment.my_standing.behind > 0 || undefined}
+              >
+                {' '}
+                · {standingLabel(assignment.my_standing, true)}
+              </span>
+            )}
           </p>
           <Bar label={`«${title}»: вы встретили`} value={mine} max={total} />
         </div>
       )}
 
+      {assignment.due_on && assignment.on_track != null && (
+        <p className={styles.onTrack}>
+          К {dueLabel(assignment.due_on)} успевают <strong>{assignment.on_track}</strong> из{' '}
+          {learnersOf(group.learners)}
+        </p>
+      )}
       <p className={styles.groupLine}>
         Группа: встречено {group.met} из {group.total} · все слова встретили {group.finished} из{' '}
         {learnersOf(group.learners)}
@@ -132,6 +148,15 @@ function DeckProgress({
                 {learner.met} из {total}
                 {learner.known > 0 && <span className={styles.known}> · помнит {learner.known}</span>}
               </span>
+              {learner.standing && (
+                <span
+                  className={styles.standing}
+                  data-status={learner.standing.status}
+                  data-behind={learner.standing.behind > 0 || undefined}
+                >
+                  {standingLabel(learner.standing, learner.isMe)}
+                </span>
+              )}
             </li>
           ))}
         </ul>

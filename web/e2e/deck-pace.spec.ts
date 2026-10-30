@@ -63,11 +63,32 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
   // The student: four words over the two days before it, two today.
   const learner = await student.newPage();
   await learner.goto('/');
-  await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText(`выучить к ${dueText}`);
+  await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText(
+    'до срока 2\u00a0дня, осталось 4\u00a0слова',
+  );
   await learner.getByRole('button', { name: /^Unit 5/ }).click();
   await expect(learner.getByRole('note')).toHaveText(
     `Выучить к ${dueText}. Сегодня 2\u00a0слова, чтобы успеть, — последний день останется для повторения.`,
   );
   await expect(button(learner, 'Начать урок · 2 слова')).toBeVisible();
+
+  // Who keeps up (ADR 0030): the student sees only their own standing on the group page…
+  await learner.goto('/');
+  await learner
+    .getByRole('button', { name: /Друзья/ })
+    .first()
+    .click();
+  await learner.getByRole('button', { name: /^7Б английский/ }).click();
+  await expect(learner.getByText('Вы встретили 0 из 4 · ещё не начинали')).toBeVisible();
+  await expect(learner.getByText(/успевают/)).toHaveCount(0);
+  // …the teacher sees everyone's, and how many are on track.
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: /Друзья/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: /^7Б английский/ }).click();
+  await expect(page.getByText(`К ${dueText} успевают 2 из 2\u00a0участников`)).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Участники: «Unit 5»' })).toContainText('Анна0 из 4ещё не начинал');
   await student.close();
 });

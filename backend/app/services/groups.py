@@ -408,5 +408,7 @@ def board(
             learned=sum(row.learned for row in rows),
             cards=sum(row.cards for row in rows),
         ),
-        assignments=board_assignments(db, group.id, me, [member for member, _ in members]),
+        assignments=board_assignments(
+            db, group.id, me, [member for member, _ in members], today, zone
+        ),
     )

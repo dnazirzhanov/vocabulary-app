@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from app.services.decks import standing
 from app.services.pace import deadline_share, plan_day
 from tests.support import at, cards, finish
 
@@ -82,6 +83,26 @@ def test_the_day_s_goal_is_the_pace_or_the_deadline_share_plus_extra_words() -> 
     # Too many reviews hold new words back, except before a deadline.
     assert plan_day(5, None, 0, 500).blocked_by_reviews
     assert not plan_day(5, None, 0, 500, deadline=date(2026, 11, 7), share=4).blocked_by_reviews
+
+
+def test_a_member_s_standing_against_a_deadline() -> None:
+    thursday = date(2026, 11, 5)
+    friday, saturday = thursday + timedelta(days=1), thursday + timedelta(days=2)
+
+    def status(met: int, today: date, total: int = 12, due: date = saturday) -> tuple[str, int]:
+        result = standing(met, total, thursday, due, today)
+        return result.status, result.behind
+
+    # Given Thursday, due Saturday: six words a day on Thursday and Friday.
+    assert status(0, thursday) == ("not_started", 0)  # today is still theirs
+    assert status(3, thursday) == ("on_track", 0)
+    assert status(0, friday) == ("not_started", 6)
+    assert status(4, friday) == ("behind", 2)
+    assert status(6, friday) == ("on_track", 0)
+    assert status(10, saturday) == ("behind", 2)  # the deadline: every word was due
+    assert status(12, friday) == ("done", 0)
+    # Due the day it was given: all of it at once.
+    assert status(5, thursday, due=thursday) == ("behind", 7)
 
 
 # --- through the API -------------------------------------------------------------------------
@@ -180,7 +201,18 @@ def test_a_teacher_s_deadline_gives_even_shares_and_re_spreads_what_is_left(
     library = client.get("/api/decks/library", headers=as_("pavel")).json()
     assert library["from_groups"][0]["due_on"] == "2026-11-07"
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
-    assert board["assignments"][0]["due_on"] == "2026-11-07"
+    given_deck = board["assignments"][0]
+    assert given_deck["due_on"] == "2026-11-07"
+    # A member sees only their own standing; the owner sees everyone's and how many keep up.
+    assert given_deck["my_standing"] == {"status": "on_track", "behind": 0}
+    assert (given_deck["on_track"], given_deck["members"]) == (None, None)
+    on_friday = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga", FRIDAY)).json()[
+        "assignments"
+    ][0]
+    standings = {m["met"]: m["standing"] for m in on_friday["members"]}
+    assert standings[6] == {"status": "on_track", "behind": 0}  # Pavel: Thursday's six
+    assert standings[0] == {"status": "not_started", "behind": 6}  # Olga herself
+    assert on_friday["on_track"] == 1
 
     # The teacher moves it to tomorrow: everything left, today.
     moved = client.patch(
