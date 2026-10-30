@@ -131,7 +131,7 @@ test('one hint per card fills the next letter, and only that one', async ({ page
   await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
 });
 
-test('spelling left midway waits with its progress, on home and on the deck, and resumes there', async ({ page }) => {
+test('spelling left midway waits with its progress on the deck page, not home, and resumes there', async ({ page }) => {
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
   await spellOne(page, 'house'); // right
@@ -145,13 +145,17 @@ test('spelling left midway waits with its progress, on home and on the deck, and
   // A lesson is not blocked by it: the deck's own button is still a lesson's.
   await expect(button(page, 'Ещё 5 слов')).toBeVisible();
 
-  // Home shows it too; it resumes at the third word.
+  // Home stays about decks: the spelling waits on the deck's page, and resumes at the third word.
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Мои колоды' })).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await openDeck(page);
   await card.click();
   await expect(page.locator('[data-spelling] h1')).toHaveText('друг, подруга');
   await finishSession(page);
   await expect(page.getByText('5 слов · 4 верно с первого раза · 1 с ошибкой.', { exact: false })).toBeVisible();
   await button(page, 'На главную').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeVisible();
   await expect(button(page, 'Продолжить правописание')).toHaveCount(0);
 });
 

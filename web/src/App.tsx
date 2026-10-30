@@ -303,7 +303,6 @@ function Learning({ email }: { email: string | null }) {
         onOpenPage={(deckId) => openPage(deckId, 'home')}
         onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         onOpenCourse={() => setScreen({ name: 'course' })}
-        onResumeSpelling={async () => startSession(await api.startSpellingSession(), null)}
       />
     );
   }

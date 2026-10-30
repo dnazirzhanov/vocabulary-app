@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import type { Library, LibraryDeck, SpellingState } from '../lib/types.ts';
-import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
+import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { weeksWord } from '../i18n/plural.ts';
 import { FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
@@ -16,8 +15,6 @@ interface HomeScreenProps {
   onOpenDeck: (deckId: string) => void;
   /** The course: English words level by level. */
   onOpenCourse: () => void;
-  /** Back into an unfinished spelling session (ADR 0026). */
-  onResumeSpelling: () => Promise<void>;
 }
 
 /**
@@ -25,11 +22,10 @@ interface HomeScreenProps {
  * groups were given; each opens its page (ADR 0020). The course, level by level, is offered
  * below it, one tap away.
  */
-export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onResumeSpelling }: HomeScreenProps) {
+export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenProps) {
   const [library, setLibrary] = useState<Library | null>(null);
   // Weeks with the promise kept (ADR 0015); secondary, so home works without it.
   const [streak, setStreak] = useState<number | null>(null);
-  const [paused, setPaused] = useState<SpellingState['paused']>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
   const [title, setTitle] = useState('');
@@ -44,10 +40,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onResumeSpell
   useEffect(() => {
     void load();
     api.progress().then(
-      (progress) => {
-        setStreak(progress.streak_weeks);
-        setPaused(progress.spelling_today.paused);
-      },
+      (progress) => setStreak(progress.streak_weeks),
       () => setStreak(null),
     );
   }, [load]);
@@ -110,8 +103,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onResumeSpell
             </h1>
             <p className={styles.lead}>Свои колоды и колоды из ваших групп. Колода учится, когда вы её открываете.</p>
           </div>
-
-          {paused && <PausedSpelling paused={paused} disabled={busy} onResume={() => run(onResumeSpelling)} />}
 
           {naming ? (
             <form className={styles.newDeck} onSubmit={create}>
