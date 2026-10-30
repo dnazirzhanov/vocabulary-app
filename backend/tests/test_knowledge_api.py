@@ -60,8 +60,12 @@ def test_learned_means_recalled_in_a_later_review(client: TestClient) -> None:
     assert (row["is_mine"], row["kind"]) == (True, "user")
     # Ten days on: two recalled, one forgotten («Снова» is not learned).
     study(client, deck["id"], LATER, {"passport": 1})
-    (row,) = knowledge(client)["decks"]
+    report = knowledge(client)
+    (row,) = report["decks"]
     assert (row["met"], row["learned"]) == (3, 2)
+    # Both recalled this week (ADR 0034); a week later they are no longer this week's.
+    assert report["learned_this_week"] == 2
+    assert knowledge(client, LATER + timedelta(days=7))["learned_this_week"] == 0
 
 
 def test_decks_appear_once_started_and_totals_count_a_word_once(

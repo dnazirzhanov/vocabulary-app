@@ -38,6 +38,13 @@ export { expect };
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
+/** «Прогресс» → ⚙: sounds, reminders and the account live in a window there (ADR 0034). */
+export async function openSettings(page: Page) {
+  await page.getByRole('button', { name: 'Прогресс' }).first().click();
+  await page.getByRole('button', { name: 'Настройки' }).click();
+  await expect(page.getByRole('dialog', { name: 'Настройки' })).toBeVisible();
+}
+
 /** Opens a course level's page (ADR 0020): from home, through «Открыть курс» (ADR 0021). Lessons
  * are started there, one deck at a time. */
 export async function openDeck(page: Page, title = 'Основа') {

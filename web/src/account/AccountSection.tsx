@@ -12,16 +12,13 @@ export interface AccountProps {
   onAccountDeleted: () => void;
 }
 
-/** Sign-out and deleting your data, at the end of «Прогресс»; deletion asks once more in place instead of a browser dialog. */
+/** Sounds, reminders, sign-out and deleting your data, in «Прогресс» → ⚙ (ADR 0034); deletion asks once more in place instead of a browser dialog. */
 export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountProps) {
   const [confirming, setConfirming] = useState(false);
   const [sounds, setSounds] = useState(soundsOn);
   const { run, busy, error } = useAsyncAction();
   return (
-    <section aria-labelledby="account-heading" className={styles.account}>
-      <h2 id="account-heading" className={styles.sectionTitle}>
-        Аккаунт
-      </h2>
+    <section aria-label="Аккаунт" className={styles.account}>
       {email && <p className={styles.email}>{email}</p>}
       <label className={styles.toggle}>
         <input

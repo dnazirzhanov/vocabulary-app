@@ -323,6 +323,8 @@ class KnowledgeOut(BaseModel):
     met: int
     learned: int
     known: int
+    # Words of these decks first recalled since Monday: «+N за эту неделю» (ADR 0034).
+    learned_this_week: int = 0
 
 
 class ProgressOut(BaseModel):

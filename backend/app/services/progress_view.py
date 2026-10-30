@@ -256,4 +256,28 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             (UserWordProgress.word_id == words.c.word_id) & (UserWordProgress.user_id == user.id),
         )
     ).one()
-    return KnowledgeOut(decks=rows, met=int(met), learned=int(learned), known=int(known))
+    # Learned this week: the first recall of each word since Monday, in my own day.
+    monday, _ = local_day_bounds(week_of(local_date(now, time_zone))[0], time_zone)
+    first_recall = (
+        select(ReviewAttempt.word_id, func.min(ReviewAttempt.answered_at).label("at"))
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+        .group_by(ReviewAttempt.word_id)
+        .subquery()
+    )
+    this_week = db.scalar(
+        select(func.count(func.distinct(first_recall.c.word_id))).where(
+            first_recall.c.at >= monday,
+            first_recall.c.word_id.in_(select(words.c.word_id)),
+        )
+    )
+    return KnowledgeOut(
+        decks=rows,
+        met=int(met),
+        learned=int(learned),
+        known=int(known),
+        learned_this_week=int(this_week or 0),
+    )

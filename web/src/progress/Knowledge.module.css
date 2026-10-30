@@ -1,119 +1,104 @@
 /*
- * «Знания» (ADR 0022): a headline over distinct words, then one row per deck — a three-tone bar
- * (known well darkest, learned, met faint) and the counts in words, never colour alone.
+ * «Прогресс» (ADR 0034): a summary card — the words I know, this week's gain, the week's days —
+ * then each deck as a card: title and «met / total», one two-tone bar, its stages in plain words
+ * («знаю · учу · впереди»), and its goal.
  */
-.section {
+.summary {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-/* The same label as «Регулярность» below: small and quiet; the figure under it leads. */
-.sectionTitle {
-  margin: 0 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--text-body);
-  font-weight: var(--weight-strong);
-}
-
-/* The same figure as «Регулярность»: one big number, its words beside it. */
 .hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
 }
 
 .hero strong {
-  font-size: clamp(3rem, 2.4rem + 3vw, 4.5rem);
-  font-weight: var(--weight-display);
+  color: var(--color-primary-strong);
+  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.5rem);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
-.hero span {
+.sub {
   color: var(--color-text-muted);
-  font-size: var(--text-option);
   font-weight: var(--weight-strong);
 }
 
-.sub,
-.counts,
-.empty {
-  color: var(--color-text-muted);
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.sub,
-.counts,
-.goal {
-  font-size: var(--text-meta);
-}
-
-.counts strong {
-  color: var(--color-text);
-}
-
-/* A deck's goal: quiet when today is done, primary text while today's words are still to do. */
-.goal {
-  grid-column: 1;
-  color: var(--color-text-muted);
-}
-
-.goal[data-pending] {
-  color: var(--color-text);
-  font-weight: var(--weight-strong);
-}
-
-[data-tone='met'] {
-  background: var(--color-activity-some);
-}
-
-[data-tone='learned'] {
-  background: var(--color-activity-goal);
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
 }
 
 .list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--color-border);
 }
 
-.list li {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.row {
+.card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 20px;
   gap: var(--space-2) var(--space-3);
   align-items: center;
   width: 100%;
-  padding: var(--space-4) 0;
+  padding: var(--space-4);
   border: 0;
-  background: transparent;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
   color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: box-shadow var(--duration-state) var(--ease-out);
 }
 
-.row:hover {
-  background: rgb(38 38 38 / 0.03);
+.card:hover {
+  box-shadow: inset 0 0 0 1px var(--color-option-edge-hover);
 }
 
-.rowTitle,
+.cardHead,
 .bar,
-.counts {
+.stages,
+.goal {
   grid-column: 1;
 }
 
-.rowTitle {
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardTitle {
   font-size: var(--text-option);
   font-weight: var(--weight-display);
   overflow-wrap: anywhere;
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .bar {
@@ -129,6 +114,30 @@
   inset: 0 auto 0 0;
   border-radius: inherit;
   transition: width var(--duration-progress) var(--ease-out);
+}
+
+[data-tone='met'] {
+  background: var(--color-activity-some);
+}
+
+[data-tone='learned'] {
+  background: var(--color-activity-goal);
+}
+
+.stages {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* The goal: quiet once today is done; primary text while today's words are still to do. */
+.goal {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.goal[data-pending] {
+  color: var(--color-primary-strong);
 }
 
 .chevron {
