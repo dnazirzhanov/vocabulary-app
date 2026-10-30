@@ -141,46 +141,33 @@ export interface Summary {
   new_words: number;
   reviewed_words: number;
   ratings: { again: number; hard: number; good: number; easy: number };
-  /** Today's plan once this session is done (ADR 0015); practice is never part of it. */
-  today: TodayPlan;
+  /** Where spelling stands now: the summary's next step (ADR 0026). */
+  spelling_today: SpellingState;
   /** A spelling session's result (ADR 0016), or null for other sessions. */
   spelling: { words: number; first_try: number; needs_practice: number } | null;
 }
 
-export interface TodayPlan {
-  new_words: number;
-  target: number;
-  plan_done: boolean;
-  /** New words beyond today's target: extra, never part of the plan. */
-  extra_new: number;
-  /** Today's spelling, the plan's second part (ADR 0016). */
-  spelling: SpellingState;
-}
-
-/** One local day (ADR 0015). */
-export interface PlanDay {
+/** One local day (ADR 0027). */
+export interface StudyDay {
   /** Local calendar date, YYYY-MM-DD */
   date: string;
-  /** Any answers that day, practice included. */
+  /** Any answers that day. */
   active: boolean;
-  /** The day's own plan was done. */
-  plan_done: boolean;
-  new_words: number;
-  /** New words the plan asked for (0: no new word was possible; the reviews were the plan). */
-  target: number;
-  /** Cards answered that day, practice and spelling included: the calendar's shade. */
+  /** It counts: a session of any kind was finished that day. */
+  studied: boolean;
+  /** Cards answered that day, of any kind: the calendar's shade. */
   cards: number;
 }
 
 /** The whole course (every published level). */
 export interface Progress {
   words: { introduced: number; reviewing: number; well_learned: number; due: number };
-  today: PlanDay;
+  today: StudyDay;
   /** Weeks in a row with the promise kept. */
   streak_weeks: number;
   /** Days with answers in the last year, oldest first; days without any are absent. */
-  activity: PlanDay[];
-  /** This week's promise: days with the plan done. */
+  activity: StudyDay[];
+  /** This week's promise: days studied. */
   promised_days: number;
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
@@ -253,34 +240,33 @@ export interface GroupPreview {
   already_member: boolean;
 }
 
-/** The board's periods and rankings (ADR 0023). */
+/** The board's periods (ADR 0023). */
 export type Period = 'week' | 'month' | 'all';
-export type Ranking = 'steady' | 'learned' | 'cards';
 
 export interface BoardRow {
   member_id: string;
   nickname: string;
   role: 'owner' | 'member';
   is_me: boolean;
-  /** Over the period: days studied, days with the plan done, words learned, cards answered. */
-  days: number;
-  plan_days: number;
+  /** Over the period: words learned (recalled in a later review), days studied, cards answered. */
   learned: number;
+  days: number;
   cards: number;
-  /** Places by each ranking; null with nothing done in the period. Equal values share a place. */
-  ranks: Record<Ranking, number | null>;
-  /** This week, whatever the period: days promised, and Monday … Sunday with the plan done. */
+  /** The place by words learned, then days, then weeks in a row (ADR 0027); null with nothing
+   * answered in the period. Equal values share a place. */
+  rank: number | null;
+  /** This week, whatever the period: days promised, and Monday … Sunday studied. */
   promised_days: number;
   week: boolean[];
   /** Weeks in a row with the promise kept. */
   streak_weeks: number;
-  /** Answered anything today, in the member's own day. */
+  /** Finished a session today, in the member's own day. */
   studied_today: boolean;
 }
 
 /** A group in the list (ADR 0023): its pulse before opening it. */
 export interface GroupSummary extends Group {
-  /** My place this week by steadiness (null: nothing yet this week), among `ranked` members. */
+  /** My place this week by words learned (null: nothing yet this week), among `ranked` members. */
   my_rank: number | null;
   ranked: number;
   members: { nickname: string; is_me: boolean; studied_today: boolean }[];

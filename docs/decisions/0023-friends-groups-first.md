@@ -1,6 +1,6 @@
 # 0023 — «Друзья»: groups first; each group's statistics as its leaderboard
 
-**Status:** Accepted. Supersedes the ranking and the shared goal of ADR 0011 and ADR 0015 (places
+**Status:** Accepted; the three rankings are replaced by one (words learned) in ADR 0027. Supersedes the ranking and the shared goal of ADR 0011 and ADR 0015 (places
 only by the promise kept; extra work never on the board).
 
 ## Context

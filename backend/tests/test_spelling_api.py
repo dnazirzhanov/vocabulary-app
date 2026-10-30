@@ -100,14 +100,12 @@ def spelled_words(client: TestClient, body: Mapping[str, object], moment: dateti
     return [headword_of(session["id"], exercise["id"]) for exercise in session["exercises"]]
 
 
-def test_spelling_is_tracked_but_the_day_does_not_wait_for_it(
-    client: TestClient, play: Play
-) -> None:
+def test_spelling_is_tracked_and_offered_after_a_lesson(client: TestClient, play: Play) -> None:
     client.patch("/api/me", json={"daily_target_words": 5})
     play(STUDY, DAY0, spell=False)
     report = progress(client)
-    # ADR 0022: the lesson's words and cleared reviews keep the day; spelling is practice.
-    assert report["today"]["plan_done"] is True
+    # The finished lesson keeps the day (ADR 0027); spelling waits for the learner.
+    assert report["today"]["studied"] is True
     assert report["spelling_today"] | {"met": 5} == {
         "ready": 5,
         "due": 0,
@@ -143,9 +141,7 @@ def test_todays_words_can_be_spelled_again_and_extra_practice_changes_nothing(
     again = spell_today(client, at(DAY0 + timedelta(minutes=5)), start=today)
     assert again is not None and again["spelling"]["words"] == 5
     after = progress(client)
-    # The plan is unchanged; the heatmap counts the extra cards as the day's work.
-    plan = ("new_words", "target", "plan_done")
-    assert [after["today"][key] for key in plan] == [before["today"][key] for key in plan]
+    # The heatmap counts the extra cards as the day's work.
     assert after["today"]["cards"] == before["today"]["cards"] + 5
     # Right again the same day, before it is due: no word climbs twice in a day.
     assert (after["spelling_today"]["known"], after["spelling_today"]["hard"]) == (0, 0)

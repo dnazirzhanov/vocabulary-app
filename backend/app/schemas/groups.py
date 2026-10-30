@@ -42,7 +42,7 @@ class TodayMemberOut(BaseModel):
 class GroupSummaryOut(GroupOut):
     """A group in the list of my groups (ADR 0023): its pulse before opening it."""
 
-    # My place this week by steadiness (null: nothing done yet this week), among the ranked.
+    # My place this week by words learned (null: nothing done yet this week), among the ranked.
     my_rank: int | None
     ranked: int
     members: list[TodayMemberOut]
@@ -59,33 +59,25 @@ class GroupPreviewOut(BaseModel):
 Period = Literal["week", "month", "all"]
 
 
-class RanksOut(BaseModel):
-    """A member's place by each ranking (ADR 0023); null with nothing done in the period. Equal
-    values share a place."""
-
-    steady: int | None
-    learned: int | None
-    cards: int | None
-
-
 class BoardRow(BaseModel):
     member_id: UUID
     nickname: str
     role: Literal["owner", "member"]
     is_me: bool
-    # Over the period: days with any answers, days with the plan done (ADR 0022), words learned
-    # (first recalled in a later review), cards answered.
-    days: int
-    plan_days: int
+    # Over the period: words learned (first recalled in a later review), days studied (a session
+    # finished, ADR 0027), cards answered.
     learned: int
+    days: int
     cards: int
-    ranks: RanksOut
-    # This week, whatever the period: days promised, and Monday … Sunday with the plan done.
+    # The place by words learned, then days studied, then weeks in a row (ADR 0027); null with
+    # nothing answered in the period. Equal values share a place.
+    rank: int | None
+    # This week, whatever the period: days promised, and Monday … Sunday studied.
     promised_days: int
     week: list[bool]
     # Weeks in a row with the promise kept.
     streak_weeks: int
-    # Answered anything today, in the member's own day.
+    # Finished a session today, in the member's own day.
     studied_today: bool
 
 

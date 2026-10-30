@@ -1,7 +1,8 @@
 """Attempt points, introductions, local days and recall: the base rules others build on.
 
 Points are stored per attempt (ADR 0008, revised by ADR 0012) and recognise an introduction; they
-are no longer shown or used for a day's result, which is the plan (ADR 0015, services/plan_days).
+are no longer shown or used for a day's result, which is whether a session was finished (ADR 0027,
+services/study_days).
 """
 
 from datetime import date, datetime, time, timedelta

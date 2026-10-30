@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
-import { rankedBy, standingOf, visibleLines, type Standing } from '../lib/board.ts';
-import type { Board, BoardRow, Period, Ranking } from '../lib/types.ts';
+import { ranked, standingOf, visibleLines, type Measure, type Standing } from '../lib/board.ts';
+import type { Board, BoardRow, Period } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, CheckIcon, FlameIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -26,20 +26,7 @@ const PERIODS: { id: Period; label: string; during: string; whole: string }[] = 
   { id: 'month', label: 'Месяц', during: 'в этом месяце', whole: 'за месяц' },
   { id: 'all', label: 'Всё время', during: 'пока', whole: 'за всё время' },
 ];
-const RANKINGS: { id: Ranking; label: string; rule: string }[] = [
-  {
-    id: 'steady',
-    label: 'Регулярность',
-    rule: 'Место — по дням занятий; при равенстве — по дням с выполненным планом, затем по неделям подряд.',
-  },
-  { id: 'learned', label: 'Выучено', rule: 'Слова, которые участник вспомнил на повторении — через день или позже.' },
-  { id: 'cards', label: 'Карточки', rule: 'Все ответы: уроки, тренировки и правописание.' },
-];
 const periodOf = (id: Period) => PERIODS.find((period) => period.id === id)!;
-
-/** A ranking's measure for one member, as the row's big figure. */
-const headline = (row: BoardRow, ranking: Ranking) =>
-  ranking === 'steady' ? daysOf(row.days) : ranking === 'learned' ? wordsOf(row.learned) : cardsOf(row.cards);
 
 interface GroupScreenProps {
   groupId: string;
@@ -53,13 +40,12 @@ interface GroupScreenProps {
 
 /**
  * One group (ADR 0023), answering in order: who has studied today; where I stand and what would
- * move me up; how everyone compares — over a week, a month or all time, by steadiness, words
- * learned or cards; how we are doing together; and the group's decks. Housekeeping comes last.
+ * move me up; how everyone compares by words learned (ADR 0027) — over a week, a month or all
+ * time; how we are doing together; and the group's decks. Housekeeping comes last.
  */
 export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack, onLeft }: GroupScreenProps) {
   const [boards, setBoards] = useState<Partial<Record<Period, Board>>>({});
   const [period, setPeriod] = useState<Period>('week');
-  const [ranking, setRanking] = useState<Ranking>('steady');
   const [error, setError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(inviteOnOpen);
   const [managing, setManaging] = useState(false);
@@ -148,10 +134,11 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack,
               </h2>
               <Segmented label="Период" options={PERIODS} value={period} onChange={setPeriod} />
             </div>
-            <Segmented label="Рейтинг по" options={RANKINGS} value={ranking} onChange={setRanking} wide />
-            <p className={styles.rule}>{RANKINGS.find((option) => option.id === ranking)!.rule}</p>
-            <YourPlace standing={standingOf(board.rows, ranking)} ranking={ranking} board={board} />
-            <Leaderboard rows={board.rows} ranking={ranking} period={board.period} />
+            <p className={styles.rule}>
+              Место — по выученным словам: тем, что вы вспомнили на повторении. При равенстве — по дням занятий.
+            </p>
+            <YourPlace standing={standingOf(board.rows)} board={board} />
+            <Leaderboard rows={board.rows} period={board.period} />
           </section>
 
           <section aria-labelledby="together-title" className={styles.section}>
@@ -192,16 +179,15 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onBack,
   );
 }
 
-/** A small set of mutually exclusive buttons: the period, or what the ranking goes by. */
+/** A small set of mutually exclusive buttons: the period. */
 function Segmented<T extends string>(props: {
   label: string;
   options: { id: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
-  wide?: boolean;
 }) {
   return (
-    <div className={styles.segmented} role="group" aria-label={props.label} data-wide={props.wide || undefined}>
+    <div className={styles.segmented} role="group" aria-label={props.label}>
       {props.options.map((option) => (
         <button
           key={option.id}
@@ -234,7 +220,7 @@ function TodayStrip({ rows }: { rows: BoardRow[] }) {
             {row.nickname}
             {row.is_me && <span className={styles.me}>вы</span>}
             <span className="visually-hidden">
-              {row.studied_today ? ' — сегодня уже было занятие' : ' — сегодня ещё нет'}
+              {row.studied_today ? ' — сегодня уже закончил занятие' : ' — сегодня ещё нет'}
             </span>
           </li>
         ))}
@@ -243,14 +229,15 @@ function TodayStrip({ rows }: { rows: BoardRow[] }) {
   );
 }
 
-const MEASURE: Record<Exclude<Extract<Standing, { kind: 'chasing' }>['measure'], 'value'>, (n: number) => string> = {
-  days: (n) => `${daysOf(n)} занятий`,
-  plan_days: (n) => `${daysOf(n)} с выполненным планом`,
-  streak: (n) => `${n}\u00a0${weeksWord(n)} подряд с выполненным обещанием`,
+/** What passing the member ahead takes: words to learn, or, with as many words, a tie-break. */
+const MEASURE: Record<Measure, (n: number) => string> = {
+  learned: (n) => `выучить ещё ${wordsOf(n)}`,
+  days: (n) => `ещё ${daysOf(n)} занятий`,
+  streak: (n) => `ещё ${n}\u00a0${weeksWord(n)} подряд с выполненным обещанием`,
 };
 
-/** Where I stand in the chosen ranking, and what would move me up — or who is closest behind. */
-function YourPlace({ standing, ranking, board }: { standing: Standing; ranking: Ranking; board: Board }) {
+/** Where I stand, and what would move me up — or who is closest behind. */
+function YourPlace({ standing, board }: { standing: Standing; board: Board }) {
   const when = periodOf(board.period);
   if (standing.kind === 'unranked') {
     return (
@@ -260,11 +247,10 @@ function YourPlace({ standing, ranking, board }: { standing: Standing; ranking: 
       </div>
     );
   }
-  const amount = (n: number) => (ranking === 'learned' ? wordsOf(n) : ranking === 'cards' ? cardsOf(n) : daysOf(n));
   if (standing.kind === 'top') {
     const note = standing.next
       ? `Ближайший — ${standing.next.nickname}${
-          standing.next.behind > 0 ? `, на ${amount(standing.next.behind)} позади` : ''
+          standing.next.behind > 0 ? `, на ${wordsOf(standing.next.behind)} позади` : ''
         }.`
       : standing.shared.length === 0
         ? 'Пока вы единственный в рейтинге.'
@@ -278,23 +264,17 @@ function YourPlace({ standing, ranking, board }: { standing: Standing; ranking: 
       </div>
     );
   }
-  const what =
-    standing.measure === 'value'
-      ? ranking === 'learned'
-        ? `${wordsOf(standing.need)} выучить`
-        : `${cardsOf(standing.need)} ответить`
-      : MEASURE[standing.measure](standing.need);
+  const what = MEASURE[standing.measure](standing.need);
   // Days can't outnumber the days left in a week or month.
   const left = daysLeft(board);
-  const tooLate =
-    (standing.measure === 'days' || standing.measure === 'plan_days') && left !== null && standing.need > left;
+  const tooLate = standing.measure === 'days' && left !== null && standing.need > left;
   return (
     <div className={styles.place}>
       <p className={styles.placeTitle}>Вы на {standing.rank}-м месте</p>
       <p className={styles.placeNote}>
         {tooLate
-          ? `До ${standing.aheadRank}-го места (${standing.ahead}) нужно ещё ${what} — ${when.whole.replace('за', 'до конца')} столько уже не успеть.`
-          : `До ${standing.aheadRank}-го места (${standing.ahead}): ещё ${what}.`}
+          ? `До ${standing.aheadRank}-го места (${standing.ahead}) нужно ${what} — ${when.whole.replace('за', 'до конца')} столько уже не успеть.`
+          : `До ${standing.aheadRank}-го места (${standing.ahead}): ${what}.`}
       </p>
     </div>
   );
@@ -311,23 +291,23 @@ function daysLeft(board: Board): number | null {
   return Math.max(0, days - (me?.studied_today ? 1 : 0));
 }
 
-function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period }) {
-  const { rows, ranking, period } = props;
-  const ranked = rankedBy(rows, ranking);
-  const resting = rows.filter((row) => row.ranks[ranking] === null);
+function Leaderboard(props: { rows: BoardRow[]; period: Period }) {
+  const { rows, period } = props;
+  const placed = ranked(rows);
+  const resting = rows.filter((row) => row.rank === null);
   const when = periodOf(period);
   return (
     <>
-      {ranked.length === 0 ? (
+      {placed.length === 0 ? (
         <p className={styles.empty}>
           Пока никто не занимался {when.during === 'пока' ? '' : when.during}. Начните первым!
         </p>
       ) : (
         <ol className={styles.board}>
-          {visibleLines(ranked).map((line, index) =>
+          {visibleLines(placed).map((line, index) =>
             line.kind === 'row' ? (
               <li key={line.row.member_id} data-me={line.row.is_me || undefined}>
-                <Row row={line.row} ranking={ranking} period={period} />
+                <Row row={line.row} period={period} />
               </li>
             ) : (
               <li key={`gap-${index}`} className={styles.gap}>
@@ -355,15 +335,9 @@ function Leaderboard(props: { rows: BoardRow[]; ranking: Ranking; period: Period
   );
 }
 
-/** One member: place, name, the ranking's figure, and the other figures quietly beneath. */
-function Row({ row, ranking, period }: { row: BoardRow; ranking: Ranking; period: Period }) {
-  const place = row.ranks[ranking]!;
-  const others = [
-    ranking !== 'steady' && `${daysOf(row.days)} занятий`,
-    ranking === 'steady' && `план ${row.plan_days}`,
-    ranking !== 'learned' && `выучено ${number.format(row.learned)}`,
-    ranking !== 'cards' && cardsOf(row.cards),
-  ].filter(Boolean);
+/** One member: place, name, words learned, and days and cards quietly beneath. */
+function Row({ row, period }: { row: BoardRow; period: Period }) {
+  const place = row.rank!;
   return (
     <div className={styles.row}>
       <span className={styles.rank} data-top={place <= 3 ? place : undefined}>
@@ -383,20 +357,18 @@ function Row({ row, ranking, period }: { row: BoardRow; ranking: Ranking; period
             </span>
           )}
         </span>
-        <span className={styles.stats}>{others.join(' · ')}</span>
-        {ranking === 'steady' && period === 'week' && (
-          <span
-            className={styles.dots}
-            role="img"
-            aria-label={`План выполнен: ${daysOf(row.plan_days)} на этой неделе`}
-          >
+        <span className={styles.stats}>
+          {daysOf(row.days)} занятий · {cardsOf(row.cards)}
+        </span>
+        {period === 'week' && (
+          <span className={styles.dots} role="img" aria-label={`Дни с занятиями на этой неделе: ${row.days}`}>
             {row.week.map((met, index) => (
               <i key={index} data-on={met || undefined} title={WEEKDAYS[index]} aria-hidden="true" />
             ))}
           </span>
         )}
       </span>
-      <strong className={styles.value}>{headline(row, ranking)}</strong>
+      <strong className={styles.value}>{wordsOf(row.learned)}</strong>
     </div>
   );
 }

@@ -1,13 +1,13 @@
-import type { PlanDay } from './types.ts';
+import type { StudyDay } from './types.ts';
 
 /**
  * Consistency, as the progress screen shows it: a calendar of days and the week against the days
- * promised. A day counts when the learner's own plan was done (ADR 0015, the same rule as the
- * friends board); a day with some learning is shown lightly, never as a miss. Dates are the
+ * promised. A day counts when a session of any kind was finished (ADR 0027, the same rule as the
+ * friends board); a day with only some answers is shown lightly, never as a miss. Dates are the
  * learner's local days as the server reports them ("2026-11-02"): plain calendar arithmetic.
  */
 
-/** 0: nothing · 1: some learning, plan not done · 2: plan done. */
+/** 0: nothing · 1: some answers, nothing finished · 2: a session finished: the day counts. */
 export type Level = 0 | 1 | 2;
 
 /** The calendar's shade: 0 no cards, 1–4 more cards, relative to the learner's own busy days. */
@@ -29,11 +29,11 @@ const addDays = (day: string, days: number) => toDay(toTime(day) + days * DAY_MS
 const weekdayIndex = (day: string) => (new Date(toTime(day)).getUTCDay() + 6) % 7;
 const mondayOf = (day: string) => addDays(day, -weekdayIndex(day));
 
-export const levelOf = (day: PlanDay | undefined): Level => (day?.plan_done ? 2 : day?.active ? 1 : 0);
+export const levelOf = (day: StudyDay | undefined): Level => (day?.studied ? 2 : day?.active ? 1 : 0);
 
-const byDate = (activity: PlanDay[]) => new Map(activity.map((day) => [day.date, day]));
+const byDate = (activity: StudyDay[]) => new Map(activity.map((day) => [day.date, day]));
 
-function cellsFrom(first: string, count: number, activity: PlanDay[], today: string): Cell[] {
+function cellsFrom(first: string, count: number, activity: StudyDay[], today: string): Cell[] {
   const days = byDate(activity);
   return Array.from({ length: count }, (_, index) => {
     const date = addDays(first, index);
@@ -45,14 +45,14 @@ function cellsFrom(first: string, count: number, activity: PlanDay[], today: str
 export interface WeekProgress {
   /** Monday to Sunday. */
   days: Cell[];
-  /** Days with the plan done so far this week. */
+  /** Days studied so far this week. */
   done: number;
   target: number;
   /** The index of today in `days`. */
   todayIndex: number;
 }
 
-export function weekProgress(activity: PlanDay[], today: string, target: number): WeekProgress {
+export function weekProgress(activity: StudyDay[], today: string, target: number): WeekProgress {
   const days = cellsFrom(mondayOf(today), 7, activity, today);
   return {
     days,
@@ -78,9 +78,9 @@ export interface YearCalendar {
   year: number;
   /** January to December. */
   months: MonthGrid[];
-  /** Days with any learning, days with the plan done, and cards answered, over the year. */
+  /** Days with any answers, days studied, and cards answered, over the year. */
   activeDays: number;
-  goalDays: number;
+  studiedDays: number;
   cards: number;
 }
 
@@ -104,14 +104,14 @@ function busyDay(cells: Cell[]): number {
 }
 
 /** The years a learner can look at: from their first active day to this year. */
-export function yearsOf(activity: PlanDay[], today: string): number[] {
+export function yearsOf(activity: StudyDay[], today: string): number[] {
   const last = Number(today.slice(0, 4));
   const first = Math.min(last, ...activity.map((day) => Number(day.date.slice(0, 4))));
   return Array.from({ length: last - first + 1 }, (_, index) => first + index);
 }
 
 /** A whole calendar year, January to December, as twelve month grids; days after today are empty. */
-export function buildYear(activity: PlanDay[], today: string, year: number): YearCalendar {
+export function buildYear(activity: StudyDay[], today: string, year: number): YearCalendar {
   const first = `${year}-01-01`;
   const length = Math.round((toTime(`${year + 1}-01-01`) - toTime(first)) / DAY_MS);
   const plain = cellsFrom(first, length, activity, today);
@@ -126,7 +126,7 @@ export function buildYear(activity: PlanDay[], today: string, year: number): Yea
     year,
     months,
     activeDays: cells.filter((cell) => cell.level > 0).length,
-    goalDays: cells.filter((cell) => cell.level === 2).length,
+    studiedDays: cells.filter((cell) => cell.level === 2).length,
     cards: cells.reduce((sum, cell) => sum + cell.cards, 0),
   };
 }

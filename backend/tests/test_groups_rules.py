@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.errors import ApiError
-from app.schemas.groups import BoardRow, RanksOut
+from app.schemas.groups import BoardRow
 from app.services.groups import (
     CODE_ALPHABET,
     clean_group_name,
@@ -16,7 +16,7 @@ from app.services.groups import (
     period_bounds,
     rank,
 )
-from app.services.plan_days import week_of
+from app.services.study_days import week_of
 
 
 @pytest.mark.parametrize(
@@ -65,45 +65,44 @@ def test_the_week_runs_monday_to_sunday() -> None:
     assert (days[0], days[-1]) == (date(2026, 11, 2), date(2026, 11, 8))
 
 
-def row(nickname: str, days: int, plan_days: int = 0, learned: int = 0, cards: int = 0) -> BoardRow:
+def row(
+    nickname: str, learned: int = 0, days: int = 0, cards: int = 0, streak: int = 0
+) -> BoardRow:
     return BoardRow(
         member_id=uuid4(),
         nickname=nickname,
         role="member",
         is_me=False,
-        days=days,
-        plan_days=plan_days,
         learned=learned,
+        days=days,
         cards=cards,
-        ranks=RanksOut(steady=None, learned=None, cards=None),
+        rank=None,
         promised_days=5,
         week=[False] * 7,
-        streak_weeks=0,
+        streak_weeks=streak,
         studied_today=False,
     )
 
 
-def test_steadiness_ranks_days_studied_then_plan_days_and_equal_ones_share_a_place() -> None:
+def test_places_go_by_words_learned_then_days_then_streak_and_equal_ones_share_a_place() -> None:
     rows = [
-        row("Fast", 1, 1, learned=40, cards=300),  # one huge day
-        row("Steady", 5, 3, learned=10, cards=90),
-        row("Also steady", 5, 3, learned=12, cards=80),
-        row("Busy", 5, 5, learned=2, cards=60),
-        row("Resting", 0),
+        row("Cards", learned=2, days=5, cards=900),  # many cards don't buy a place
+        row("Learner", learned=30, days=2, cards=100),
+        row("Steady", learned=12, days=5, cards=80),
+        row("Also steady", learned=12, days=5, cards=60),
+        row("Longer streak", learned=12, days=5, cards=40, streak=3),
+        row("Started", cards=4),  # answered, nothing learned yet: last with a place
+        row("Resting"),
     ]
-    ranked = rank(rows)
-    assert [(r.nickname, r.ranks.steady) for r in ranked] == [
-        ("Busy", 1),
-        ("Also steady", 2),
-        ("Steady", 2),
-        ("Fast", 4),
+    assert [(r.nickname, r.rank) for r in rank(rows)] == [
+        ("Learner", 1),
+        ("Longer streak", 2),
+        ("Also steady", 3),
+        ("Steady", 3),
+        ("Cards", 5),
+        ("Started", 6),
         ("Resting", None),
     ]
-    by = {r.nickname: r.ranks for r in ranked}
-    # The other rankings are kept on every row, so the board can switch without asking again.
-    assert [by[name].learned for name in ("Fast", "Also steady", "Steady", "Busy")] == [1, 2, 3, 4]
-    assert [by[name].cards for name in ("Fast", "Steady", "Also steady", "Busy")] == [1, 2, 3, 4]
-    assert by["Resting"] == RanksOut(steady=None, learned=None, cards=None)
 
 
 def test_periods_are_this_week_this_month_and_all_time() -> None:

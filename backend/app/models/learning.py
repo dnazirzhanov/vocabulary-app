@@ -102,14 +102,14 @@ class LearningSession(Base):
     plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # The plan in force when a study session started (ADR 0015): the day's new-word target (0
-    # when no new words were possible) and the days a week promised. NULL for practice.
+    # When a study session started (ADR 0015): the day's new-word pace (0 when no new words were
+    # possible; no longer judged, ADR 0027) and the days a week promised. NULL for practice.
     day_target: Mapped[int | None] = mapped_column(SmallInteger)
     promised_days: Mapped[int | None] = mapped_column(SmallInteger)
     # A spelling session (ADR 0016): how many of the day's new words it covers.
     spelling_words: Mapped[int | None] = mapped_column(SmallInteger)
-    # A study session: the reviews still due, across every deck, when it was finished (ADR 0022).
-    # Null for sessions from before it was recorded: those count as done.
+    # A study session: the reviews still due when it was finished (ADR 0022). No longer recorded
+    # or read since days count by any finished session (ADR 0027); kept for old rows.
     reviews_left: Mapped[int | None] = mapped_column(SmallInteger)
 
 

@@ -1,6 +1,6 @@
 # 0022 — Progress by deck; a day kept with every review done
 
-**Status:** Accepted. Amends the plan-day rule of ADR 0015 and ADR 0016 (spelling leaves the
+**Status:** Accepted; its day rule is superseded by ADR 0027. Amends the plan-day rule of ADR 0015 and ADR 0016 (spelling leaves the
 day); replaces the course-words figure on «Прогресс» (ADR 0021's open question).
 
 ## Context

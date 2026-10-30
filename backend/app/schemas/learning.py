@@ -246,8 +246,8 @@ class SummaryOut(BaseModel):
     new_words: int
     reviewed_words: int
     ratings: RatingCounts
-    # Today's plan once this session is done (ADR 0015); practice sessions are never part of it.
-    today: "TodayPlanOut"
+    # Where spelling stands once this session is done (ADR 0026): the summary's next step.
+    spelling_today: "SpellingTodayOut"
     spelling: "SpellingSummaryOut | None" = None
 
 
@@ -269,27 +269,14 @@ class WordStages(BaseModel):
     due: int
 
 
-class PlanDayOut(BaseModel):
-    """One local day (ADR 0015): any answers at all, and whether the day's plan was done."""
+class StudyDayOut(BaseModel):
+    """One local day (ADR 0027): any answers at all, and whether it counts — a session finished."""
 
     date: date
     active: bool
-    plan_done: bool
-    new_words: int
-    # New words the plan asked for that day (0: no new word was possible; reviews were the plan).
-    target: int
-    # Cards answered that day, practice and spelling included (the calendar's shade).
+    studied: bool
+    # Cards answered that day, of any kind (the calendar's shade).
     cards: int = 0
-
-
-class TodayPlanOut(BaseModel):
-    new_words: int
-    target: int
-    plan_done: bool
-    # New words beyond today's target: extra, never part of the plan.
-    extra_new: int
-    # Today's spelling: part of the plan (ADR 0016).
-    spelling: "SpellingTodayOut"
 
 
 class RecallRate(BaseModel):
@@ -335,12 +322,12 @@ class ProgressOut(BaseModel):
     """The whole course: where the learner stands on its words and how steadily they practise."""
 
     words: WordStages
-    today: PlanDayOut
-    # Weeks in a row with the promise kept (ADR 0015).
+    today: StudyDayOut
+    # Weeks in a row with the promise kept (ADR 0015, 0027).
     streak_weeks: int
     # Days with answers in the last year, oldest first; the calendar fills the gaps.
-    activity: list[PlanDayOut]
-    # This week's promise: days with the plan done.
+    activity: list[StudyDayOut]
+    # This week's promise: days studied.
     promised_days: int
     recall: RecallRate
     spelling_today: "SpellingTodayOut"
