@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     SmallInteger,
@@ -48,3 +49,25 @@ class PaceDismissal(Base):
     )
     kind: Mapped[str] = mapped_column(String(16), primary_key=True)
     dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DeckPace(Base):
+    """New words a day in one deck (ADR 0028), and any extra words taken for one day. Course
+    levels have no row: they share the learner's course pace (`users.daily_target_words`)."""
+
+    __tablename__ = "deck_paces"
+    __table_args__ = (
+        CheckConstraint("daily_new BETWEEN 1 AND 100", name="daily_new_range"),
+        CheckConstraint("extra_words BETWEEN 1 AND 200", name="extra_words_range"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
+    )
+    daily_new: Mapped[int | None] = mapped_column(SmallInteger)
+    # Extra new words for one local day only: tomorrow the plain pace applies again.
+    extra_day: Mapped[date | None] = mapped_column(Date)
+    extra_words: Mapped[int | None] = mapped_column(SmallInteger)

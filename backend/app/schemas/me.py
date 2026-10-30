@@ -1,7 +1,7 @@
 """API contracts for the learner's own settings and daily pace (ADR 0010)."""
 
-from datetime import datetime
-from typing import Literal
+from datetime import date, datetime
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -53,6 +53,24 @@ class PaceOut(BaseModel):
     # The learner's median answering time (a default until there is enough history).
     seconds_per_exercise: float
     suggestion: SuggestionOut | None
+    # The pace is the course's (every level shares it) or this deck's own (ADR 0028).
+    course: bool
+    # A teacher's «Выучить к» and today's share of the words left; extra words taken for today.
+    deadline: date | None
+    deadline_share: int
+    extra_today: int
+
+
+class DeckPaceIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    daily_new: Annotated[int, Field(ge=1, le=100)]
+
+
+class ExtraIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    words: Annotated[int, Field(ge=1, le=50)]
 
 
 class DismissIn(BaseModel):

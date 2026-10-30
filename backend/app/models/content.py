@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     ARRAY,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     String,
@@ -121,6 +122,9 @@ class DeckAssignment(Base):
     )
     assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # «Выучить к»: the day of the next class, in the group's time zone (ADR 0028). Members get
+    # the words in even shares, done the day before; None: each member's own pace.
+    due_on: Mapped[date | None] = mapped_column(Date)
 
 
 class GlossaryForm(Base):

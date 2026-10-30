@@ -1,3 +1,4 @@
+import { dueLabel } from '../lib/deadline.ts';
 import { plural } from '../i18n/plural.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import type { Assignment, Board } from '../lib/types.ts';
@@ -83,7 +84,13 @@ function DeckProgress({
         <div className={styles.itemText}>
           <span className={styles.itemTitle}>{title}</span>
           <span className={styles.meta}>
-            {[source, wordsLabel(total), `задано ${dayMonth.format(new Date(assignment.assigned_at))}`]
+            {[
+              source,
+              wordsLabel(total),
+              assignment.due_on
+                ? `выучить к ${dueLabel(assignment.due_on)}`
+                : `задано ${dayMonth.format(new Date(assignment.assigned_at))}`,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </span>

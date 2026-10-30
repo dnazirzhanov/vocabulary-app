@@ -306,6 +306,11 @@ class DeckProgressOut(BaseModel):
     learned: int
     known: int
     last_studied_at: datetime | None
+    # Today in this deck (ADR 0028): new words met and the day's goal (0: nothing left to meet);
+    # a teacher's «Выучить к». Shown, never judged.
+    new_today: int = 0
+    goal_today: int = 0
+    due_on: date | None = None
 
 
 class KnowledgeOut(BaseModel):

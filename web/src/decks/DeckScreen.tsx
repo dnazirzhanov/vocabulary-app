@@ -9,7 +9,8 @@ import { SuggestionCard } from '../home/SuggestionCard.tsx';
 import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
 import { CardCounts } from '../today/CardCounts.tsx';
-import { BackIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
+import { DailyPace, ExtraWords } from './DeckPace.tsx';
+import { BackIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
 
@@ -27,12 +28,14 @@ interface DeckScreenProps {
 
 /**
  * A deck's page (ADR 0020): where I am with it — words met and remembered well, today's cards in
- * Anki's three numbers — and one button that studies this deck, within today's pace.
+ * Anki's three numbers, its own new words a day (ADR 0028) — and one button that studies this
+ * deck, within today's pace. More words today are one tap further.
  */
 export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEdit }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -123,6 +126,12 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
       : spelling.due > 0
         ? `${wordsLabel(spelling.due)} на повторение`
         : 'Слова, которые вы ещё не писали';
+  // Extra words today: there are words left to meet, and nothing else comes first.
+  const canAddWords = left > 0 && !stats.locked && !blocked && active === null && pace !== null;
+  const startWith = async (extra: number) => {
+    await api.addExtraWords(deckId, extra);
+    onSession(await api.startStudySession(deckId), deckId);
+  };
   const share = (part: number) => `${stats.word_count ? (part / stats.word_count) * 100 : 0}%`;
 
   return (
@@ -173,6 +182,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               counts={{ fresh: stats.new_today, learning: stats.learning_count, review: stats.review_count }}
             />
             {note && <p className={styles.note}>{note}</p>}
+            {pace && !stats.locked && left + pace.new_words_today > 0 && (
+              <DailyPace pace={pace} left={left} onSaved={() => void load()} />
+            )}
             {pace?.ramp_week != null && !stats.locked && (
               <p className={styles.note}>
                 Разогрев, неделя {pace.ramp_week + 1} из 2: сегодня цель {pace.effective_target} из {pace.target}.
@@ -196,6 +208,23 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           )}
 
           <nav className={styles.links} aria-label="Ещё по колоде">
+            {canAddWords && (
+              <button
+                type="button"
+                className={styles.link}
+                onClick={() => setExtraOpen(true)}
+                aria-label="Ещё слов сегодня"
+                aria-haspopup="dialog"
+                aria-describedby="extra-note"
+              >
+                <PlusIcon aria-hidden="true" />
+                <span>
+                  <strong>Ещё слов сегодня</strong>
+                  <small id="extra-note">Сколько хотите — только на сегодня</small>
+                </span>
+                <ForwardIcon className={styles.chevron} aria-hidden="true" />
+              </button>
+            )}
             {spelling.paused && (
               <div className={styles.paused}>
                 <PausedSpelling
@@ -261,6 +290,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               </button>
             )}
           </nav>
+          {extraOpen && pace && (
+            <ExtraWords open pace={pace} left={left} onClose={() => setExtraOpen(false)} onStart={startWith} />
+          )}
           {modesOpen && (
             <SpellingModes
               open
@@ -288,7 +320,14 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               className={styles.action}
               disabled={busy || stats.locked || !label}
               aria-busy={busy}
-              onClick={() => run(async () => onSession(active ?? (await api.startStudySession(deckId)), deckId))}
+              onClick={() =>
+                // The goal met, «Ещё N слов» takes them as today's extra words (ADR 0028).
+                run(async () =>
+                  bonus && !active
+                    ? startWith(fresh)
+                    : onSession(active ?? (await api.startStudySession(deckId)), deckId),
+                )
+              }
             >
               {busy ? 'Загружаем…' : (label ?? 'На сегодня всё')}
             </PrimaryButton>

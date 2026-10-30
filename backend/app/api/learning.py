@@ -112,9 +112,10 @@ def deck_stats(
 
 
 @router.get("/progress/decks")
-def knowledge(user: CurrentUser, db: DbSession, now: Now) -> KnowledgeOut:
-    """«Прогресс»: what I know, deck by deck, and in all (ADR 0022)."""
-    return progress_view.knowledge(db, user, now)
+def knowledge(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> KnowledgeOut:
+    """«Прогресс»: what I know, deck by deck, and in all (ADR 0022), with today's goal in each
+    (ADR 0028)."""
+    return progress_view.knowledge(db, user, now, time_zone)
 
 
 @router.get("/decks/{deck_id}/words")

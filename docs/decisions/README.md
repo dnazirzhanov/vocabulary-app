@@ -13,7 +13,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0007](0007-dev-clock-and-server-time.md) | Development clock override; day labels from server time | Accepted |
 | [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Goal and streak superseded by 0015 |
 | [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted |
-| [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted |
+| [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted (pace per deck: 0028) |
 | [0011](0011-friend-groups-and-board.md) | Friend groups with a weekly board that rewards showing up | Accepted |
 | [0012](0012-anki-style-flashcards-fsrs.md) | Anki-style flashcards scheduled by FSRS | Accepted; refined by 0025 |
 | [0013](0013-recorded-audio-and-tap-a-word.md) | Recorded neural-voice audio; every example word tappable | Accepted |
@@ -31,3 +31,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0025](0025-anki-days-and-ordered-intervals.md) | Scheduling days start at 4 AM; reviews due from the start of their day; Hard < Good < Easy, a day apart | Accepted |
 | [0026](0026-spelling-ladder-and-modes.md) | Spelling: a ladder per word (hard → 3 → 7 days → «умеет писать»), ten words at a time, modes today / hard / random | Accepted |
 | [0027](0027-no-plan-rank-by-words-learned.md) | No «план»: a day counts with any finished session; friends rank by words learned (ties: days, weeks in a row) | Accepted |
+| [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |

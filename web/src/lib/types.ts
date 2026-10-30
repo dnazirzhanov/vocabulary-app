@@ -212,6 +212,13 @@ export interface Pace {
   review_debt_limit: number;
   seconds_per_exercise: number;
   suggestion: PaceSuggestion | null;
+  /** The pace is the whole course's (its levels share one) or this deck's own (ADR 0028). */
+  course: boolean;
+  /** A teacher's «Выучить к» (YYYY-MM-DD) and today's share of the words left. */
+  deadline: string | null;
+  deadline_share: number;
+  /** Extra new words taken for today only. */
+  extra_today: number;
 }
 
 export type WordStatus = 'not_started' | 'new' | 'learning' | 'well_learned';
@@ -295,6 +302,8 @@ export interface Assignment {
   is_mine: boolean;
   word_count: number;
   assigned_at: string;
+  /** «Выучить к» (YYYY-MM-DD), or null: each member's own pace (ADR 0028). */
+  due_on: string | null;
   /** Words of it I have met (whoever gave it learns it too). */
   mine: number;
   /** The whole group on it: words met against everyone meeting every word; members done. */
@@ -364,6 +373,13 @@ export interface SuggestedCard extends DeckWordInput {
   provider: 'deepseek' | 'demo';
 }
 
+/** A group a deck is given to, with its «Выучить к» (ADR 0028). */
+export interface AssignedGroup {
+  id: string;
+  name: string;
+  due_on?: string | null;
+}
+
 /** A deck in «Мои колоды», with my counts on it. */
 export interface LibraryDeck {
   id: string;
@@ -372,11 +388,13 @@ export interface LibraryDeck {
   introduced_count: number;
   learning_count: number;
   review_count: number;
-  /** New words opening it would bring today, within the daily pace. */
+  /** New words opening it would bring today, within the deck's own pace (ADR 0028). */
   new_today: number;
   next_due_at: string | null;
+  /** A teacher's «Выучить к» for a deck from a group. */
+  due_on?: string | null;
   /** Mine: the groups it is given to. From a group: that group and its author's nickname. */
-  groups: { id: string; name: string }[];
+  groups: AssignedGroup[];
   group_name: string | null;
   author: string | null;
 }
@@ -394,7 +412,7 @@ export interface TeacherDeck {
   created_at: string;
   /** `from_course`: the course's own word, linked; its content is not edited here. */
   words: TeacherWord[];
-  groups: { id: string; name: string }[];
+  groups: AssignedGroup[];
   /** Topics it has been grown with, the latest first (ADR 0019). */
   topics: string[];
 }
@@ -421,6 +439,10 @@ export interface DeckProgress {
   learned: number;
   known: number;
   last_studied_at: string | null;
+  /** Today in this deck (ADR 0028): new words met and the day's goal (0: none left to meet). */
+  new_today: number;
+  goal_today: number;
+  due_on: string | null;
 }
 
 export interface Knowledge {

@@ -18,7 +18,7 @@ from app.schemas.learning import (
     StudyDayOut,
     WordStages,
 )
-from app.services import decks, spelling_ladder
+from app.services import decks, pace, spelling_ladder
 from app.services.progress import RECALL_RATE_DAYS, local_day_bounds, recall_counts
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 from app.services.study_days import (
@@ -116,7 +116,7 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
     return SpellingPausedOut(spelled=spelled, right=right, total=len(session.plan))
 
 
-def knowledge(db: Session, user: User, now: datetime) -> KnowledgeOut:
+def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> KnowledgeOut:
     """What I know, deck by deck (ADR 0022): my own decks, my groups' decks and the course levels
     I've started. «Learned» is evidence of memory, not exposure: a word recalled in a later review
     (reviews come a day or more after meeting it) with any answer but «Снова»."""
@@ -189,6 +189,10 @@ def knowledge(db: Session, user: User, now: datetime) -> KnowledgeOut:
         if size == 0 or (deck.kind == "course" and met == 0):
             continue
         item = given.get(deck.id)
+        # Today in this deck (ADR 0028): shown, never judged.
+        today = pace.day_plan(db, user, deck.id, now, time_zone)
+        # The course's levels share one pace: only a level with words left shows it.
+        shares_pace = deck.kind != "course" or met < size
         rows.append(
             DeckProgressOut(
                 id=deck.id,
@@ -203,6 +207,11 @@ def knowledge(db: Session, user: User, now: datetime) -> KnowledgeOut:
                 learned=learned,
                 known=known,
                 last_studied_at=last,
+                new_today=today.new_today if shares_pace else 0,
+                goal_today=min(today.effective_target, today.new_today + size - met)
+                if shares_pace
+                else 0,
+                due_on=item.due_on if item else None,
             )
         )
     rows.sort(

@@ -13,8 +13,9 @@ it is no longer introduced, while learners keep what they learned.
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Select, and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
@@ -53,7 +54,7 @@ from app.schemas.decks import (
 from app.schemas.groups import AssignmentMemberOut, AssignmentOut, GroupProgressOut
 from app.schemas.learning import WordOut
 from app.services.generation import DraftCard, Provider, flags, word_key
-from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS
+from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
 MAX_WORDS_PER_DECK = 500  # room to grow a topic deck day by day (ADR 0019)
 # A topic draft: at most two calls; the AI is shown at most this many of the deck's words to avoid
@@ -113,11 +114,16 @@ def _owned_group(db: Session, user: User, group_id: UUID) -> Group:
     return row[0]
 
 
-def _active_assignments(user: User) -> Select[str, datetime, UUID]:
+def _active_assignments(user: User) -> Select[str, datetime, UUID, date | None]:
     """Decks given to groups I am in, mine included: the giver learns them too, at their own
     pace."""
     return (
-        select(DeckAssignment.deck_id, DeckAssignment.assigned_at, DeckAssignment.group_id)
+        select(
+            DeckAssignment.deck_id,
+            DeckAssignment.assigned_at,
+            DeckAssignment.group_id,
+            DeckAssignment.due_on,
+        )
         .join(GroupMember, GroupMember.group_id == DeckAssignment.group_id)
         .join(Deck, Deck.id == DeckAssignment.deck_id)
         .where(
@@ -156,6 +162,8 @@ class GivenDeck:
     # The author's nickname in that group; None once they left it or deleted their account.
     author: str | None
     is_mine: bool
+    # The earliest «Выучить к» among my groups that were given it (ADR 0028).
+    due_on: date | None = None
 
 
 def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
@@ -164,16 +172,27 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
     given = _active_assignments(user).subquery()
     author = aliased(GroupMember)
     rows = db.execute(
-        select(Deck, Group.name, author.nickname)
+        select(Deck, Group.name, author.nickname, given.c.due_on)
         .join(given, given.c.deck_id == Deck.id)
         .join(Group, Group.id == given.c.group_id)
         .outerjoin(author, and_(author.group_id == Group.id, author.user_id == Deck.owner_id))
         .order_by(given.c.assigned_at, Deck.id)
     ).all()
+    soonest: dict[str, date] = {}
+    for deck, _, _, due_on in rows:
+        if due_on is not None and (deck.id not in soonest or due_on < soonest[deck.id]):
+            soonest[deck.id] = due_on
     seen: dict[str, GivenDeck] = {}
-    for deck, group_name, nickname in rows:
+    for deck, group_name, nickname, _ in rows:
         seen.setdefault(
-            deck.id, GivenDeck(deck, group_name, nickname, is_mine=deck.owner_id == user.id)
+            deck.id,
+            GivenDeck(
+                deck,
+                group_name,
+                nickname,
+                is_mine=deck.owner_id == user.id,
+                due_on=soonest.get(deck.id),
+            ),
         )
     return list(seen.values())
 
@@ -181,15 +200,17 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
 def shared_groups(db: Session, user: User) -> dict[str, list[AssignedGroupOut]]:
     """For each of my decks, the groups it is given to now."""
     rows = db.execute(
-        select(Deck.id, Group.id, Group.name)
+        select(Deck.id, Group.id, Group.name, DeckAssignment.due_on)
         .join(DeckAssignment, DeckAssignment.deck_id == Deck.id)
         .join(Group, Group.id == DeckAssignment.group_id)
         .where(Deck.owner_id == user.id, DeckAssignment.removed_at.is_(None))
         .order_by(DeckAssignment.assigned_at)
     )
     shared: dict[str, list[AssignedGroupOut]] = {}
-    for deck_id, group_id, name in rows:
-        shared.setdefault(deck_id, []).append(AssignedGroupOut(id=group_id, name=name))
+    for deck_id, group_id, name, due_on in rows:
+        shared.setdefault(deck_id, []).append(
+            AssignedGroupOut(id=group_id, name=name, due_on=due_on)
+        )
     return shared
 
 
@@ -204,7 +225,7 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
         .order_by(DeckWord.position)
     ).scalars()
     groups = db.execute(
-        select(Group.id, Group.name)
+        select(Group.id, Group.name, DeckAssignment.due_on)
         .join(DeckAssignment, DeckAssignment.group_id == Group.id)
         .where(DeckAssignment.deck_id == deck.id, DeckAssignment.removed_at.is_(None))
         .order_by(DeckAssignment.assigned_at)
@@ -215,7 +236,10 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
         status="published" if deck.status == "published" else "draft",
         created_at=deck.created_at,
         words=[_teacher_word(deck, word) for word in words],
-        groups=[AssignedGroupOut(id=group_id, name=name) for group_id, name in groups],
+        groups=[
+            AssignedGroupOut(id=group_id, name=name, due_on=due_on)
+            for group_id, name, due_on in groups
+        ],
         topics=list(
             db.scalars(
                 select(DeckTopic.topic)
@@ -603,24 +627,64 @@ def delete_deck(db: Session, user: User, deck_id: str) -> None:
 # --- giving a deck to a group ---------------------------------------------------------------
 
 
-def publish(db: Session, user: User, deck_id: str, group_id: UUID, now: datetime) -> TeacherDeckOut:
-    """Publish the deck and give it to a group I own. Repeating it changes nothing; a deck taken
-    back is given again."""
+def _check_due(group: Group, due_on: date | None, now: datetime) -> None:
+    """A deadline is a day still to come in the group's time zone, today at the earliest."""
+    if due_on is not None and due_on < local_date(now, ZoneInfo(group.time_zone)):
+        raise ApiError(422, "due_in_past", "Pick today or a later day")
+
+
+def publish(
+    db: Session,
+    user: User,
+    deck_id: str,
+    group_id: UUID,
+    now: datetime,
+    due_on: date | None = None,
+) -> TeacherDeckOut:
+    """Publish the deck and give it to a group I own, with an optional «Выучить к» (ADR 0028).
+    Repeating it only sets the deadline; a deck taken back is given again."""
     deck = _owned_deck(db, user, deck_id)
     group = _owned_group(db, user, group_id)
     if not _deck_word_ids(db, deck.id):
         raise ApiError(409, "deck_empty", "Add a word first")
+    _check_due(group, due_on, now)
     deck.status = "published"
     db.execute(
         insert(DeckAssignment)
-        .values(group_id=group.id, deck_id=deck.id, assigned_by=user.id, assigned_at=now)
+        .values(
+            group_id=group.id,
+            deck_id=deck.id,
+            assigned_by=user.id,
+            assigned_at=now,
+            due_on=due_on,
+        )
         .on_conflict_do_update(
             index_elements=[DeckAssignment.group_id, DeckAssignment.deck_id],
-            set_={"removed_at": None},
-            where=DeckAssignment.removed_at.is_not(None),
+            set_={"removed_at": None, "due_on": due_on},
         )
     )
     db.commit()
+    return _deck_out(db, deck)
+
+
+def set_due(
+    db: Session, user: User, group_id: UUID, deck_id: str, due_on: date | None, now: datetime
+) -> TeacherDeckOut:
+    """Change or remove the deadline of a deck given to a group I own (ADR 0028)."""
+    group = _owned_group(db, user, group_id)
+    assignment = db.scalar(
+        select(DeckAssignment).where(
+            DeckAssignment.group_id == group.id,
+            DeckAssignment.deck_id == deck_id,
+            DeckAssignment.removed_at.is_(None),
+        )
+    )
+    if assignment is None:
+        raise ApiError(404, "assignment_not_found", "This deck is not given to the group")
+    _check_due(group, due_on, now)
+    assignment.due_on = due_on
+    db.commit()
+    deck = db.get_one(Deck, deck_id)
     return _deck_out(db, deck)
 
 
@@ -695,6 +759,7 @@ def board_assignments(
         return AssignmentOut(
             deck_id=deck.id,
             title=deck.title,
+            due_on=assignment.due_on,
             author=nicknames.get(deck.owner_id) if deck.owner_id else None,
             is_mine=deck.owner_id == me.user_id,
             word_count=size,

@@ -365,10 +365,17 @@ def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> l
 
 
 def _allowance(db: Session, user: User, rows: list[Any], now: datetime, time_zone: ZoneInfo) -> int:
-    """New words today's pace still allows, anywhere (0 while too many reviews are due)."""
+    """New words the course's pace still allows today (0 while too many reviews are due)."""
     if not rows:
         return 0
-    today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+    return _deck_allowance(db, user, rows[_current_index(rows)][0].id, now, time_zone)
+
+
+def _deck_allowance(
+    db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
+) -> int:
+    """New words this deck's own plan still allows today (ADR 0028)."""
+    today = pace.day_plan(db, user, deck_id, now, time_zone)
     return 0 if today.blocked_by_reviews else today.remaining
 
 
@@ -381,7 +388,7 @@ def deck_stats(
     row = db.execute(_counted_decks(user, now).where(Deck.id == deck.id)).one()
     _, words, met, due_now, learning, upcoming = row
     locked = False
-    new_today = min(_allowance(db, user, rows, now, time_zone), words - met)
+    new_today = min(_deck_allowance(db, user, deck.id, now, time_zone), words - met)
     if deck.kind == "course":
         index = next((i for i, course_row in enumerate(rows) if course_row[0].id == deck.id), 0)
         locked = index > _current_index(rows)
@@ -422,11 +429,6 @@ def deck_stats(
 def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LibraryOut:
     """«Мои колоды» (ADR 0019): decks I wrote, newest first, and decks others gave my groups.
     Each shows what opening it would bring today, within the daily pace."""
-    rows = _course_rows(db, user, now)
-    allowance = 0
-    if rows:
-        today = pace.day_plan(db, user, rows[_current_index(rows)][0].id, now, time_zone)
-        allowance = 0 if today.blocked_by_reviews else today.remaining
     shared = decks.shared_groups(db, user)
 
     def out(row: Any, given: decks.GivenDeck | None = None) -> LibraryDeckOut:
@@ -438,8 +440,11 @@ def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Libr
             introduced_count=met,
             learning_count=learning,
             review_count=due_now - learning,
-            new_today=min(allowance, words - met),
+            new_today=min(_deck_allowance(db, user, deck.id, now, time_zone), words - met)
+            if words > met
+            else 0,
             next_due_at=upcoming,
+            due_on=given.due_on if given else None,
             groups=shared.get(deck.id, []),
             group_name=given.group_name if given else None,
             author=given.author if given else None,
