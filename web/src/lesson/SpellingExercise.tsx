@@ -12,6 +12,7 @@ import {
   withSeparators,
 } from '../lib/spelling.ts';
 import { describeError } from '../lib/api.ts';
+import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
 import { BulbIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -61,6 +62,12 @@ export function SpellingExercise({
   const editable = !busy && (result === null || (again && !builtRight));
 
   useEffect(() => savePicks(storageKey, result ? [] : picked), [storageKey, picked, result]);
+  // A word right on the first try rings a short chime (ADR 0024); a rebuild after the answer
+  // was shown, and flashcards, stay quiet.
+  const firstTryRight = Boolean(result?.correct);
+  useEffect(() => {
+    if (firstTryRight) playCorrect();
+  }, [firstTryRight]);
 
   const check = () => {
     if (full && !busy && result === null) onSubmit(answer);

@@ -46,6 +46,7 @@
   font-size: var(--text-display);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);
+  animation: rise 420ms var(--ease-pop) 180ms both;
 }
 
 .title:focus {
@@ -53,6 +54,7 @@
 }
 
 .lead {
+  animation: rise 420ms var(--ease-out) 300ms both;
   margin-top: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--text-option);
@@ -278,4 +280,35 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+/* The finish, in order (ADR 0024): the badge pops, the title and lead rise, then each word. */
+.wordRow {
+  animation: rise 360ms var(--ease-out) both;
+}
+
+.wordRow:nth-child(1) {
+  animation-delay: 420ms;
+}
+.wordRow:nth-child(2) {
+  animation-delay: 480ms;
+}
+.wordRow:nth-child(3) {
+  animation-delay: 540ms;
+}
+.wordRow:nth-child(4) {
+  animation-delay: 600ms;
+}
+.wordRow:nth-child(5) {
+  animation-delay: 660ms;
+}
+.wordRow:nth-child(n + 6) {
+  animation-delay: 720ms;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
 }

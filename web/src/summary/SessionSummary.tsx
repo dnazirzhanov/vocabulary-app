@@ -8,6 +8,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { CheckIcon, RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { Celebration } from '../ui/Celebration.tsx';
 import { CompletionBadge } from './CompletionBadge.tsx';
 import styles from './SessionSummary.module.css';
 
@@ -124,6 +125,7 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
 
   return (
     <div className={styles.screen}>
+      <Celebration />
       <main className={styles.main}>
         <div className={styles.layout}>
           <div className={styles.stage}>

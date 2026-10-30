@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api.ts';
+import { setSoundsOn, soundsOn } from '../lib/sounds.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './AccountSection.module.css';
@@ -13,6 +14,7 @@ export interface AccountProps {
 /** Sign-out and deleting your data, at the end of «Прогресс»; deletion asks once more in place instead of a browser dialog. */
 export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountProps) {
   const [confirming, setConfirming] = useState(false);
+  const [sounds, setSounds] = useState(soundsOn);
   const { run, busy, error } = useAsyncAction();
   return (
     <section aria-labelledby="account-heading" className={styles.account}>
@@ -20,6 +22,21 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
         Аккаунт
       </h2>
       {email && <p className={styles.email}>{email}</p>}
+      <label className={styles.toggle}>
+        <input
+          type="checkbox"
+          role="switch"
+          checked={sounds}
+          onChange={(event) => {
+            setSoundsOn(event.target.checked);
+            setSounds(event.target.checked);
+          }}
+        />
+        <span>
+          Звуки
+          <small>Короткий звон за верное слово и мелодия в конце урока</small>
+        </span>
+      </label>
       {confirming ? (
         <div className={styles.confirm} role="group" aria-labelledby="delete-warning">
           <p id="delete-warning">
