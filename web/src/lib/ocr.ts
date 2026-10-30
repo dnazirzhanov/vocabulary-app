@@ -2,8 +2,8 @@ import { tidyPhotoText } from './photos.ts';
 
 /**
  * Reading text from photos in the browser (ADR 0029), with Tesseract: free, and the photos never
- * leave the device. The engine and its English model (about 5 MB) load on first use and are
- * cached by the browser. Tests swap in `window.__ocrForTests`, so they need neither.
+ * leave the device. The engine and its English model (about 7 MB, served by this app under /ocr/)
+ * load on first use and are cached by the browser. Tests swap in `window.__ocrForTests`, so they need neither.
  */
 
 declare global {
@@ -47,6 +47,10 @@ export async function readPhotos(files: File[], onProgress: (done: number) => vo
   const timer = setTimeout(() => fail(new Error('Reading photos took too long')), GIVE_UP_MS);
   const worker = await Promise.race([
     createWorker('eng', 1, {
+      // From our own origin (vite.config.ts): school networks often block public CDNs.
+      workerPath: '/ocr/worker.min.js',
+      corePath: '/ocr/',
+      langPath: '/ocr/',
       logger: (message) => {
         if (message.status === 'recognizing text') onProgress(current + message.progress);
       },

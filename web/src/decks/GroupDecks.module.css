@@ -189,3 +189,28 @@
     grid-row: 2;
   }
 }
+
+/* Against a deadline (ADR 0030): the owner's line, and each member's standing under their bar. */
+.onTrack {
+  font-weight: var(--weight-strong);
+}
+
+.learner .standing {
+  grid-column: 2 / -1;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.standing {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.standing[data-status='on_track'],
+.standing[data-status='done'] {
+  color: var(--color-success);
+}
+
+.standing[data-behind] {
+  color: var(--color-error);
+}

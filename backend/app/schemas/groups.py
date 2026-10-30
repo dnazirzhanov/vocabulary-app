@@ -89,12 +89,26 @@ class TotalsOut(BaseModel):
     cards: int
 
 
+DeadlineStatus = Literal["done", "on_track", "behind", "not_started"]
+
+
+class StandingOut(BaseModel):
+    """Where one member is against a deck's deadline (ADR 0030): «готово», «успевает»,
+    «отстаёт на N слов» or «ещё не начинал». `behind`: words short of an even schedule from the
+    day it was given to the day before the deadline (after the deadline: words never met)."""
+
+    status: DeadlineStatus
+    behind: int
+
+
 class AssignmentMemberOut(BaseModel):
     member_id: UUID
     # Words of the deck this member has met, and of those the ones they now remember well
     # (FSRS stability ≥ 21 days, as on the progress page).
     met: int
     known: int
+    # Against the deadline, when the deck has one.
+    standing: StandingOut | None = None
 
 
 class GroupProgressOut(BaseModel):
@@ -115,6 +129,10 @@ class AssignmentOut(BaseModel):
     deck_id: str
     title: str
     due_on: date | None
+    # With a deadline: my own standing, for every member; the owner also sees how many are on
+    # track (done or not behind) out of all members (ADR 0030).
+    my_standing: StandingOut | None = None
+    on_track: int | None = None
     # Its author's nickname in the group (None once they left), and whether that is me.
     author: str | None
     is_mine: bool

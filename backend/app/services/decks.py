@@ -10,10 +10,11 @@ so nobody learns it twice. A published deck can be corrected and added to; a wor
 it is no longer introduced, while learners keep what they learned.
 """
 
+import math
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,12 @@ from app.schemas.decks import (
     TopicIn,
     valid_headword,
 )
-from app.schemas.groups import AssignmentMemberOut, AssignmentOut, GroupProgressOut
+from app.schemas.groups import (
+    AssignmentMemberOut,
+    AssignmentOut,
+    GroupProgressOut,
+    StandingOut,
+)
 from app.schemas.learning import WordOut
 from app.services.generation import DraftCard, Provider, flags, word_key
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
@@ -717,8 +723,33 @@ def take_back(db: Session, user: User, group_id: UUID, deck_id: str, now: dateti
 # --- on the board ---------------------------------------------------------------------------
 
 
+def standing(met: int, total: int, given_on: date, due_on: date, today: date) -> StandingOut:
+    """A member against a deadline (ADR 0030). The words are due, evenly, from the day the deck
+    was given to the day before the deadline (the deadline day is for review); a member is behind
+    by what they lack of the share up to yesterday, since today is still theirs. From the
+    deadline on, anything not met is behind."""
+    if total > 0 and met >= total:
+        return StandingOut(status="done", behind=0)
+    if today >= due_on:
+        expected = total
+    else:
+        last = max(given_on, due_on - timedelta(days=1))
+        days = (last - given_on).days + 1
+        done_days = min(max((today - given_on).days, 0), days)
+        expected = math.ceil(total * done_days / days)
+    behind = max(0, expected - met)
+    if met == 0:
+        return StandingOut(status="not_started", behind=behind)
+    return StandingOut(status="behind" if behind > 0 else "on_track", behind=behind)
+
+
 def board_assignments(
-    db: Session, group_id: UUID, me: GroupMember, members: Sequence[GroupMember]
+    db: Session,
+    group_id: UUID,
+    me: GroupMember,
+    members: Sequence[GroupMember],
+    today: date,
+    zone: ZoneInfo,
 ) -> list[AssignmentOut]:
     """Decks given to the group, with my own count of words met; the owner sees everyone's,
     their own included."""
@@ -766,10 +797,25 @@ def board_assignments(
     def out(assignment: DeckAssignment, deck: Deck) -> AssignmentOut:
         size = int(sizes.get(deck.id, 0))
         each = {member.user_id: counts.get((deck.id, member.user_id), (0, 0)) for member in members}
+        due_on = assignment.due_on
+        given_on = local_date(assignment.assigned_at, zone)
+        standings = (
+            {
+                user_id: standing(met, size, given_on, due_on, today)
+                for user_id, (met, _) in each.items()
+            }
+            if due_on is not None
+            else {}
+        )
+        owner = me.role == "owner"
         return AssignmentOut(
             deck_id=deck.id,
             title=deck.title,
-            due_on=assignment.due_on,
+            due_on=due_on,
+            my_standing=standings.get(me.user_id),
+            on_track=sum(s.behind == 0 for s in standings.values())
+            if owner and standings
+            else None,
             author=nicknames.get(deck.owner_id) if deck.owner_id else None,
             is_mine=deck.owner_id == me.user_id,
             word_count=size,
@@ -783,11 +829,14 @@ def board_assignments(
             ),
             members=[
                 AssignmentMemberOut(
-                    member_id=member.id, met=each[member.user_id][0], known=each[member.user_id][1]
+                    member_id=member.id,
+                    met=each[member.user_id][0],
+                    known=each[member.user_id][1],
+                    standing=standings.get(member.user_id),
                 )
                 for member in members
             ]
-            if me.role == "owner"
+            if owner
             else None,
         )
 

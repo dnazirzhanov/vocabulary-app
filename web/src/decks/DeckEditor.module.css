@@ -93,7 +93,8 @@
 /* A segmented control: the chosen way is a raised segment, named in words. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Columns as wide as their labels, spare room shared: «Вручную» is longer than «Тема». */
+  grid-template-columns: repeat(4, auto);
   gap: var(--space-1);
   padding: var(--space-1);
   border-radius: var(--radius-md);

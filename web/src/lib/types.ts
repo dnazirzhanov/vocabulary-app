@@ -1,3 +1,4 @@
+import type { Standing } from './deadline.ts';
 // Mirrors backend/app/schemas/learning.py. Answer keys are absent until a result comes back.
 
 export interface Word {
@@ -304,13 +305,16 @@ export interface Assignment {
   assigned_at: string;
   /** «Выучить к» (YYYY-MM-DD), or null: each member's own pace (ADR 0028). */
   due_on: string | null;
+  /** With a deadline: my own standing; the owner also gets how many are on track (ADR 0030). */
+  my_standing?: Standing | null;
+  on_track?: number | null;
   /** Words of it I have met (whoever gave it learns it too). */
   mine: number;
   /** The whole group on it: words met against everyone meeting every word; members done. */
   group: { met: number; total: number; finished: number; learners: number };
   /** Every member's counts, the owner's too, for the group's owner only: met, and remembered
    * well (FSRS, as on the progress page). */
-  members: { member_id: string; met: number; known: number }[] | null;
+  members: { member_id: string; met: number; known: number; standing?: Standing | null }[] | null;
 }
 
 export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'other';
