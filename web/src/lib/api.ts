@@ -116,6 +116,12 @@ export const api = {
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
   dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
+  /** New words a day in a deck; a course level sets the whole course's (ADR 0028). */
+  setDeckPace: (deckId: string, dailyNew: number) =>
+    request<Pace>('PUT', `/decks/${encodeURIComponent(deckId)}/pace`, { daily_new: dailyNew }),
+  /** More new words in a deck, today only. */
+  addExtraWords: (deckId: string, words: number) =>
+    request<Pace>('POST', `/decks/${encodeURIComponent(deckId)}/pace/extra`, { words }),
   groups: () => request<GroupSummary[]>('GET', '/groups'),
   createGroup: (name: string, nickname: string) => request<Group>('POST', '/groups', { name, nickname }),
   previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
@@ -153,8 +159,11 @@ export const api = {
   generateDeck: (deckId: string, text: string, count: number, level: string) =>
     request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level }, 120_000),
   /** Publish and give to a group I own; safe to repeat. */
-  giveDeck: (deckId: string, groupId: string) =>
-    request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId }),
+  giveDeck: (deckId: string, groupId: string, dueOn: string | null = null) =>
+    request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId, due_on: dueOn }),
+  /** Change or remove a given deck's «Выучить к» (ADR 0028). */
+  setDeckDue: (groupId: string, deckId: string, dueOn: string | null) =>
+    request<TeacherDeck>('PATCH', `/groups/${groupId}/decks/${deckId}`, { due_on: dueOn }),
   takeBackDeck: (groupId: string, deckId: string) => request<null>('DELETE', `/groups/${groupId}/decks/${deckId}`),
   /** Deletes the learner's account data on our server (sessions, answers, progress). */
   deleteAccount: () => request<null>('DELETE', '/me'),

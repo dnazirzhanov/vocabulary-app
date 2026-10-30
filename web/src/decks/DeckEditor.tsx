@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
+import { dueLabel, localToday } from '../lib/deadline.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import type {
   DeckWordInput,
@@ -75,6 +76,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   // A personal deck can be given to a group I own.
   const [ownGroups, setOwnGroups] = useState<Group[]>([]);
   const [giveTo, setGiveTo] = useState('');
+  // «Выучить к» for the group being given the deck (ADR 0028); empty: each member's own pace.
+  const [giveDue, setGiveDue] = useState('');
   // Deleting asks first, in a window: a deck and the progress on it can't be brought back.
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -443,27 +446,55 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
                 Группы
               </h2>
               <p className={styles.note}>
-                Участники группы найдут колоду у себя в «Мои колоды» и будут учить её в своём темпе.
+                Участники группы найдут колоду у себя в «Мои колоды» и будут учить её в своём темпе. Со сроком «Выучить
+                к» слова разойдутся поровну по дням до него, а последний день останется для повторения.
               </p>
               {deck.groups.length > 0 && (
                 <ul className={styles.givenTo} aria-label="Задано группам">
                   {deck.groups.map((group) => (
                     <li key={group.id}>
                       <CheckIcon aria-hidden="true" />
-                      <span>Задано группе «{group.name}» — правки сразу видны участникам</span>
-                      <button
-                        type="button"
-                        className={styles.linkButton}
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            await api.takeBackDeck(group.id, deck.id);
-                            await load();
-                          })
-                        }
-                      >
-                        Забрать
-                      </button>
+                      <span>
+                        Задано группе «{group.name}»
+                        {group.due_on ? ` — выучить к ${dueLabel(group.due_on)}` : ' — правки сразу видны участникам'}
+                      </span>
+                      <span className={styles.givenControls}>
+                        <label className={styles.dueEdit}>
+                          <span>Срок</span>
+                          <input
+                            type="date"
+                            min={localToday()}
+                            value={group.due_on ?? ''}
+                            disabled={busy}
+                            onChange={(event) =>
+                              run(async () => show(await api.setDeckDue(group.id, deck.id, event.target.value || null)))
+                            }
+                          />
+                        </label>
+                        {group.due_on && (
+                          <button
+                            type="button"
+                            className={styles.linkButton}
+                            disabled={busy}
+                            onClick={() => run(async () => show(await api.setDeckDue(group.id, deck.id, null)))}
+                          >
+                            Без срока
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={styles.linkButton}
+                          disabled={busy}
+                          onClick={() =>
+                            run(async () => {
+                              await api.takeBackDeck(group.id, deck.id);
+                              await load();
+                            })
+                          }
+                        >
+                          Забрать
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -480,11 +511,25 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
                       ))}
                     </select>
                   </label>
+                  <label className={styles.giveLabel}>
+                    <span>Выучить к (необязательно)</span>
+                    <input
+                      type="date"
+                      min={localToday()}
+                      value={giveDue}
+                      onChange={(event) => setGiveDue(event.target.value)}
+                    />
+                  </label>
                   <button
                     type="button"
                     className={styles.outlineButton}
                     disabled={busy || !giveTo || deck.groups.some((group) => group.id === giveTo)}
-                    onClick={() => run(async () => show(await api.giveDeck(deck.id, giveTo)))}
+                    onClick={() =>
+                      run(async () => {
+                        show(await api.giveDeck(deck.id, giveTo, giveDue || null));
+                        setGiveDue('');
+                      })
+                    }
                   >
                     {deck.groups.some((group) => group.id === giveTo) ? 'Уже задано' : 'Задать'}
                   </button>

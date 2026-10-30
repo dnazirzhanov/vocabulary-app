@@ -1,4 +1,5 @@
 import { plural } from '../i18n/plural.ts';
+import { dueLabel } from '../lib/deadline.ts';
 import type { DeckProgress, Knowledge as KnowledgeData, SpellingState } from '../lib/types.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
 import styles from './Knowledge.module.css';
@@ -89,6 +90,17 @@ function DeckRow({ deck, onOpen }: { deck: DeckProgress; onOpen: () => void }) {
           выучено {deck.learned} из {wordsOf(deck.word_count)}
           {deck.known > 0 && ` · надёжно ${deck.known}`}
         </span>
+        {(deck.goal_today > 0 || deck.due_on) && (
+          // Today in the deck (ADR 0028): shown, never judged.
+          <span className={styles.counts}>
+            {[
+              deck.goal_today > 0 && `сегодня ${deck.new_today} из ${deck.goal_today} новых`,
+              deck.due_on && `выучить к ${dueLabel(deck.due_on)}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        )}
         <ForwardIcon className={styles.chevron} aria-hidden="true" />
       </button>
     </li>

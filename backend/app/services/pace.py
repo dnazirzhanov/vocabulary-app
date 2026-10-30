@@ -1,6 +1,10 @@
 """Daily pace: how many new words today, and when to suggest a different target (ADR 0010).
 
-The learner picks a daily target; it is a plan, not a cap. Three rules sit on top of it:
+The pace is per deck (ADR 0028): each of my own and my groups' decks has its own new words a day,
+and the course's levels share one. A day's goal can grow by extra words for that day only, and a
+group deck with a teacher's deadline spreads what is left evenly over the days before it.
+
+The learner picks a daily target; it is a pace, not a cap. Three rules sit on top of it:
 
 - a ramp: large targets start at half, then three quarters, so the first weeks feel achievable;
 - a review-debt throttle: new words wait while too many reviews are due, because each new word
@@ -24,7 +28,16 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import Deck, DeckWord, PaceDismissal, ReviewAttempt, User, UserWordProgress
+from app.models import (
+    Deck,
+    DeckPace,
+    DeckWord,
+    LearningSession,
+    PaceDismissal,
+    ReviewAttempt,
+    User,
+    UserWordProgress,
+)
 from app.schemas.me import PaceOut, SuggestionOut
 from app.services import decks
 from app.services.progress import INTRODUCTION, local_day_bounds, recall_counts
@@ -32,6 +45,7 @@ from app.services.scheduling import local_date
 
 DEFAULT_TARGET = 5  # until the learner chooses (and the size every lesson had before pace)
 MAX_TARGET = 100
+MAX_EXTRA = 200  # extra new words one deck can hold for a day (up to 100 at a time)
 MAX_LESSON_WORDS = 10  # a bigger daily target becomes several lessons of at most this many words
 BONUS_LESSON_WORDS = 5  # "more words" after the target is met
 RAMP_MIN_TARGET = 10
@@ -67,6 +81,7 @@ class DayRecord:
 @dataclass(frozen=True)
 class DayPlan:
     target: int
+    # The day's goal: the pace (ramped), or the deadline's share when larger, plus extra words.
     effective_target: int
     ramp_week: int | None
     new_today: int
@@ -76,6 +91,9 @@ class DayPlan:
     blocked_by_reviews: bool
     due: int
     debt_limit: int
+    deadline: date | None = None
+    deadline_share: int = 0
+    extra: int = 0
 
 
 @dataclass(frozen=True)
@@ -104,8 +122,29 @@ def review_debt_limit(target: int) -> int:
     return max(DEBT_FLOOR, 2 * REVIEWS_PER_WORD * target)
 
 
-def plan_day(target: int, week: int | None, new_today: int, due: int) -> DayPlan:
-    goal = effective_target(target, week)
+def deadline_share(left_at_day_start: int, today: date, due_on: date) -> int:
+    """New words to meet today so that a deck is done the day before its deadline, which is
+    left for review (ADR 0028): an even share of what was left this morning over the days before
+    the deadline day. One day left, or the deadline here or past: all of it."""
+    if left_at_day_start <= 0:
+        return 0
+    days = (due_on - today).days
+    if days <= 1:
+        return left_at_day_start
+    return math.ceil(left_at_day_start / days)
+
+
+def plan_day(
+    target: int,
+    week: int | None,
+    new_today: int,
+    due: int,
+    *,
+    deadline: date | None = None,
+    share: int = 0,
+    extra: int = 0,
+) -> DayPlan:
+    goal = max(effective_target(target, week), share) + extra
     remaining = max(0, goal - new_today)
     limit = review_debt_limit(target)
     return DayPlan(
@@ -116,9 +155,13 @@ def plan_day(target: int, week: int | None, new_today: int, due: int) -> DayPlan
         remaining=remaining,
         next_lesson_size=min(MAX_LESSON_WORDS, remaining) if remaining else BONUS_LESSON_WORDS,
         bonus=remaining == 0,
-        blocked_by_reviews=due >= limit,
+        # A deadline wins over the review backlog: its words must be met in time.
+        blocked_by_reviews=due >= limit and deadline is None,
         due=due,
         debt_limit=limit,
+        deadline=deadline,
+        deadline_share=share,
+        extra=extra,
     )
 
 
@@ -263,21 +306,109 @@ def _quiet_kinds(db: Session, user: User, now: datetime) -> frozenset[Suggestion
     return frozenset(kind for kind in kinds if kind in ("lower", "raise"))  # type: ignore[misc]
 
 
+def deck_pace(db: Session, user: User, deck: Deck) -> int:
+    """New words a day in this deck: the course's pace for its levels, else the deck's own (the
+    course's until the learner sets one)."""
+    if deck.kind != "course":
+        own = db.scalar(
+            select(DeckPace.daily_new).where(
+                DeckPace.user_id == user.id, DeckPace.deck_id == deck.id
+            )
+        )
+        if own is not None:
+            return int(own)
+    return target_of(user)
+
+
+def _extra_today(db: Session, user: User, deck: Deck, today: date) -> int:
+    row = db.get(DeckPace, (user.id, deck.id))
+    return int(row.extra_words or 0) if row and row.extra_day == today else 0
+
+
+def _deck_left(db: Session, user: User, deck: Deck) -> int:
+    met = select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id)
+    return int(
+        db.scalar(
+            select(func.count())
+            .select_from(DeckWord)
+            .where(DeckWord.deck_id == deck.id, DeckWord.word_id.not_in(met))
+        )
+        or 0
+    )
+
+
+def deadline_of(db: Session, user: User, deck: Deck) -> date | None:
+    """The earliest «Выучить к» among my groups that were given this deck (ADR 0028)."""
+    given = next((item for item in decks.assigned_decks(db, user) if item.deck.id == deck.id), None)
+    return given.due_on if given else None
+
+
 def day_plan(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> DayPlan:
+    """Today in one deck (ADR 0028): new words met in it today against its pace, the deadline's
+    share and today's extra words. The course's levels count together: they share one pace."""
+    deck = db.get_one(Deck, deck_id)
     today = local_date(now, time_zone)
     start, end = local_day_bounds(today, time_zone)
-    new_today = db.scalar(
-        select(func.count()).where(
-            ReviewAttempt.user_id == user.id,
-            INTRODUCTION,
-            ReviewAttempt.answered_at >= start,
-            ReviewAttempt.answered_at < end,
-        )
+    in_scope = (
+        LearningSession.deck_id.in_(select(Deck.id).where(Deck.kind == "course"))
+        if deck.kind == "course"
+        else LearningSession.deck_id == deck.id
     )
-    target = target_of(user)
-    started = local_date(user.onboarded_at, time_zone) if user.onboarded_at else None
-    week = ramp_week(target, user.ramp_enabled, started, today)
-    return plan_day(target, week, int(new_today or 0), due_count(db, user, now))
+    new_today = int(
+        db.scalar(
+            select(func.count())
+            .select_from(ReviewAttempt)
+            .join(LearningSession, LearningSession.id == ReviewAttempt.session_id)
+            .where(
+                ReviewAttempt.user_id == user.id,
+                INTRODUCTION,
+                ReviewAttempt.answered_at >= start,
+                ReviewAttempt.answered_at < end,
+                in_scope,
+            )
+        )
+        or 0
+    )
+    target = deck_pace(db, user, deck)
+    week = None
+    if deck.kind == "course":
+        started = local_date(user.onboarded_at, time_zone) if user.onboarded_at else None
+        week = ramp_week(target, user.ramp_enabled, started, today)
+    due_on = deadline_of(db, user, deck)
+    share = deadline_share(_deck_left(db, user, deck) + new_today, today, due_on) if due_on else 0
+    return plan_day(
+        target,
+        week,
+        new_today,
+        due_count(db, user, now),
+        deadline=due_on,
+        share=share,
+        extra=_extra_today(db, user, deck, today),
+    )
+
+
+def set_deck_pace(db: Session, user: User, deck: Deck, daily_new: int) -> None:
+    """Change a deck's new words a day; course levels change the course's pace."""
+    if deck.kind == "course":
+        user.daily_target_words = daily_new
+    else:
+        row = db.get(DeckPace, (user.id, deck.id))
+        if row is None:
+            db.add(DeckPace(user_id=user.id, deck_id=deck.id, daily_new=daily_new))
+        else:
+            row.daily_new = daily_new
+    db.commit()
+
+
+def add_extra(db: Session, user: User, deck: Deck, words: int, today: date) -> None:
+    """More new words in this deck today only; a second time the same day adds to the first."""
+    row = db.get(DeckPace, (user.id, deck.id))
+    if row is None:
+        row = DeckPace(user_id=user.id, deck_id=deck.id)
+        db.add(row)
+    earlier = (row.extra_words or 0) if row.extra_day == today else 0
+    row.extra_day, row.extra_words = today, min(MAX_EXTRA, earlier + words)
+    db.commit()
 
 
 def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> PaceOut:
@@ -288,9 +419,10 @@ def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: Z
         DayRecord(day, count)
         for day, count in _new_words_by_local_day(db, user, since, time_zone).items()
     ]
-    # A pace is about new words: once the deck has none left, there is nothing to adjust.
+    # A pace is about new words: once the deck has none left, there is nothing to adjust. Only
+    # the course's pace is suggested: a deck's own words are the learner's to plan.
     suggestion = None
-    if words_left(db, user) > 0:
+    if db.get_one(Deck, deck_id).kind == "course" and words_left(db, user) > 0:
         suggestion = suggest(
             plan.target,
             history,
@@ -313,6 +445,10 @@ def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: Z
         due_count=plan.due,
         review_debt_limit=plan.debt_limit,
         seconds_per_exercise=seconds_per_exercise(_answer_gaps(db, user, since)),
+        course=db.get_one(Deck, deck_id).kind == "course",
+        deadline=plan.deadline,
+        deadline_share=plan.deadline_share,
+        extra_today=plan.extra,
         suggestion=SuggestionOut(
             kind=suggestion.kind,
             value=suggestion.value,

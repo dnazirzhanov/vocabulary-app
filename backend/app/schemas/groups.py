@@ -110,10 +110,11 @@ class GroupProgressOut(BaseModel):
 
 class AssignmentOut(BaseModel):
     """A deck given to the group (ADR 0017). It never changes a place on the board: everyone
-    meets its words within their own daily pace."""
+    meets its words within their own daily pace, or by its deadline (ADR 0028)."""
 
     deck_id: str
     title: str
+    due_on: date | None
     # Its author's nickname in the group (None once they left), and whether that is me.
     author: str | None
     is_mine: bool

@@ -565,8 +565,42 @@
   font-weight: var(--weight-strong);
 }
 
-.givenTo li span {
-  flex: 1;
+.givenTo li {
+  flex-wrap: wrap;
+}
+
+.givenTo li > span:first-of-type {
+  flex: 1 1 calc(100% - 30px);
+}
+
+/* A given deck's deadline, changed in place, and taking it back: one line under its name. */
+.givenControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  width: 100%;
+  padding-left: calc(18px + var(--space-2));
+  color: var(--color-text);
+  font-weight: var(--weight-regular, 400);
+}
+
+.dueEdit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.dueEdit input {
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-regular, 400);
 }
 
 .givenTo svg {
@@ -593,7 +627,8 @@
   font-weight: var(--weight-strong);
 }
 
-.giveLabel select {
+.giveLabel select,
+.giveLabel input {
   min-height: 48px;
   padding: 0 var(--space-3);
   border: var(--border-control) solid var(--color-option-edge);

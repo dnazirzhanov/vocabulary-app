@@ -1,0 +1,174 @@
+/* New words a day in a deck (ADR 0028): one quiet line, edited in place; a deadline above it. */
+.pace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.deadline {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.line strong {
+  font-weight: var(--weight-display);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.change,
+.cancel {
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.stepper {
+  display: flex;
+  align-items: stretch;
+  align-self: flex-start;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.stepper button {
+  width: 48px;
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.stepper button:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.05);
+}
+
+.stepper button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.stepper input {
+  width: 4.5ch;
+  border: 0;
+  border-inline: 1px solid var(--color-border);
+  font: inherit;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  text-align: center;
+  appearance: textfield;
+}
+
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.chips {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-activity-none);
+}
+
+.chips button {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.chips button:hover {
+  color: var(--color-text);
+}
+
+.chips button[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.save {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.save:disabled {
+  opacity: 0.6;
+}
+
+.own {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+}
+
+.own input {
+  width: 7ch;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  text-align: center;
+}
+
+.error {
+  color: var(--color-error);
+}

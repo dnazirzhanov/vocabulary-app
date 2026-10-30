@@ -1,7 +1,7 @@
 """API contracts for teachers' decks and giving them to a group (ADR 0017)."""
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -63,6 +63,12 @@ class DeckWordIn(_Input):
 
 class PublishIn(_Input):
     group_id: UUID
+    # «Выучить к»: the group's next class (ADR 0028); none: each member's own pace.
+    due_on: date | None = None
+
+
+class DueIn(_Input):
+    due_on: date | None
 
 
 class GenerateIn(_Input):
@@ -125,6 +131,7 @@ class TeacherWordOut(BaseModel):
 class AssignedGroupOut(BaseModel):
     id: UUID
     name: str
+    due_on: date | None = None
 
 
 class TeacherDeckOut(BaseModel):
@@ -162,9 +169,11 @@ class LibraryDeckOut(BaseModel):
     introduced_count: int
     learning_count: int
     review_count: int
-    # New words opening it would bring today, within the daily pace.
+    # New words opening it would bring today, within the deck's own pace (ADR 0028).
     new_today: int
     next_due_at: datetime | None
+    # A teacher's «Выучить к» for a deck from a group.
+    due_on: date | None = None
     # Mine: the groups it is given to. From a group: that group and the author's nickname there.
     groups: list[AssignedGroupOut]
     group_name: str | None = None

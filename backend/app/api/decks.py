@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 from app.core.ratelimit import limit_generations
 from app.schemas.decks import (
     DeckWordIn,
+    DueIn,
     FillIn,
     GenerateIn,
     GenerateOut,
@@ -152,8 +153,16 @@ def remove_word(
 def publish(
     deck_id: DeckId, body: PublishIn, user: CurrentUser, db: DbSession, now: Now
 ) -> TeacherDeckOut:
-    """Publish and give to a group I own; idempotent."""
-    return decks.publish(db, user, deck_id, body.group_id, now)
+    """Publish and give to a group I own, with an optional deadline; idempotent."""
+    return decks.publish(db, user, deck_id, body.group_id, now, body.due_on)
+
+
+@router.patch("/groups/{group_id}/decks/{deck_id}")
+def set_due(
+    group_id: UUID, deck_id: DeckId, body: DueIn, user: CurrentUser, db: DbSession, now: Now
+) -> TeacherDeckOut:
+    """Change or remove a given deck's «Выучить к» (ADR 0028)."""
+    return decks.set_due(db, user, group_id, deck_id, body.due_on, now)
 
 
 @router.delete("/groups/{group_id}/decks/{deck_id}", status_code=204)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
+import { dueLabel } from '../lib/deadline.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -233,6 +234,7 @@ function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }
           </>
         )}
         {source && ` · ${source}`}
+        {deck.due_on && ` · выучить к ${dueLabel(deck.due_on)}`}
       </span>
       {today.length > 0 && <span className={styles.today}>Сегодня: {today.join(' · ')}</span>}
     </span>

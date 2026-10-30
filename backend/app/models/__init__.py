@@ -16,11 +16,12 @@ from app.models.learning import (
     SpellingProgress,
     UserWordProgress,
 )
-from app.models.user import PaceDismissal, User
+from app.models.user import DeckPace, PaceDismissal, User
 
 __all__ = [
     "Deck",
     "DeckAssignment",
+    "DeckPace",
     "DeckSeenWord",
     "DeckTopic",
     "DeckWord",
