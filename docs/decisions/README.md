@@ -32,3 +32,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0026](0026-spelling-ladder-and-modes.md) | Spelling: a ladder per word (hard → 3 → 7 days → «умеет писать»), ten words at a time, modes today / hard / random | Accepted |
 | [0027](0027-no-plan-rank-by-words-learned.md) | No «план»: a day counts with any finished session; friends rank by words learned (ties: days, weeks in a row) | Accepted |
 | [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |
+| [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |

@@ -195,7 +195,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   // New cards are listed first, under the composer: bring them into view if they're below it.
   const drafted = (result: GenerateResult) => {
     show(result.deck);
-    if (result.added > 0) requestAnimationFrame(() => reveal(listRef.current));
+    // New cards go on top of the list: bring its heading up so the first of them shows whole.
+    if (result.added > 0) requestAnimationFrame(() => revealFirstCard(listRef.current));
   };
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);
@@ -265,7 +266,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
               {mode === 'topic' && (
                 <TopicPanel deckId={deck.id} topics={deck.topics} onAdded={drafted} onOpenDeck={onOpenDeck} />
               )}
-              {mode === 'text' && <GeneratePanel deckId={deck.id} onDrafted={drafted} />}
+              {mode === 'text' && <GeneratePanel deckId={deck.id} photosLeft={deck.photos_left} onDrafted={drafted} />}
               {mode === 'manual' && (
                 <form
                   className={styles.form}
@@ -620,6 +621,17 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
 }
 
 /** Scrolls the editor's own area (not the page) so `element` is in view; `top`: to its top. */
+/** Scrolls the list up to its heading unless its first card is already fully in view. */
+function revealFirstCard(list: HTMLElement | null) {
+  const first = list?.querySelector('li');
+  const main = list?.closest('main');
+  if (!list || !first || !main) return;
+  const card = first.getBoundingClientRect();
+  const view = main.getBoundingClientRect();
+  if (card.top >= view.top && card.bottom <= view.bottom) return;
+  reveal(list, true);
+}
+
 function reveal(element: HTMLElement | null, top = false) {
   const main = element?.closest('main');
   if (!element || !main) return;

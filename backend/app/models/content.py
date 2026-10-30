@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -43,6 +44,8 @@ class Deck(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Photos its words were drafted from, read in the author's browser (ADR 0029): at most 8.
+    photos_used: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
 
 
 class Word(Base):

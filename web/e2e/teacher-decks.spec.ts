@@ -93,6 +93,8 @@ test('a teacher gives words to a group and a student learns them first', async (
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).
 test('a teacher drafts cards from a lesson text and reviews them', async ({ page }) => {
+  // A laptop window: tall enough that the list's heading shows under the panel, its first card not.
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
   await newDeck(page, 'Unit 4');
   await page.getByRole('tab', { name: 'Текст' }).click();
@@ -100,11 +102,13 @@ test('a teacher drafts cards from a lesson text and reviews them', async ({ page
     .getByLabel('Текст урока')
     .fill('After several setbacks, the company managed to carry out the experiment in the laboratory.');
   await page.getByRole('radio', { name: '5', exact: true }).check();
-  await button(page, 'Подобрать слова').click();
+  await button(page, 'Подобрать 5\u00a0слов').click();
 
   await expect(page.getByRole('status').filter({ hasText: 'Добавлено' })).toContainText('Добавлено: 5');
   const words = page.getByRole('list').filter({ hasText: 'setbacks' });
   await expect(words.getByRole('listitem')).toHaveCount(5);
+  // The screen moves down to the new cards: the first one shows whole.
+  await expect(words.getByRole('listitem').first()).toBeInViewport({ ratio: 1 });
   // Each card shows the sentence it came from; the demo says its translations are not real.
   await expect(page.getByText('Демо-режим')).toBeVisible();
   // A review fix before giving the deck: the manual form opens for the word.

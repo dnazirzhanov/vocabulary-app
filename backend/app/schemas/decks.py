@@ -75,8 +75,10 @@ class GenerateIn(_Input):
     """A teacher's lesson material to draft cards from (ADR 0018). Read once, never stored."""
 
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=20, max_length=20_000)]
-    count: Literal[5, 10, 15, 20] = 10
+    count: Annotated[int, Field(ge=1, le=50)] = 10
     level: Literal["A1", "A2", "B1", "B2", "C1"] = "B1"
+    # Photos the text was read from in the browser (ADR 0029): up to 4 at a time, 8 per deck.
+    photos: Annotated[int, Field(ge=0, le=4)] = 0
 
 
 Level = Literal["A1", "A2", "B1", "B2", "C1"]
@@ -144,6 +146,8 @@ class TeacherDeckOut(BaseModel):
     groups: list[AssignedGroupOut]
     # Topics it has been grown with, the latest first (ADR 0019).
     topics: list[str] = []
+    # Photos it can still be drafted from (ADR 0029).
+    photos_left: int = 0
 
 
 class SkippedOut(BaseModel):

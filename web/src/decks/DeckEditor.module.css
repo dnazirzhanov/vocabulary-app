@@ -381,7 +381,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  min-width: 48px;
+  min-width: 44px;
   min-height: 48px;
   border: var(--border-control) solid var(--color-option-edge);
   border-radius: var(--radius-md);
@@ -405,6 +405,82 @@
 .segment:has(input:focus-visible) {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* A screenshot dragged over the text panel: the whole panel takes it. */
+.paneForm {
+  position: relative;
+}
+
+.dropHint {
+  position: absolute;
+  inset: calc(-1 * var(--space-2));
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-8, 64px) var(--space-4) var(--space-4);
+  border: 2px dashed var(--color-primary-strong);
+  border-radius: var(--radius-md);
+  background: rgb(255 241 234 / 0.94);
+  color: var(--color-primary-strong);
+  font-weight: var(--weight-display);
+  text-align: center;
+  pointer-events: none;
+}
+
+.dropHint svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* Dragging and pasting files is for a mouse and keyboard; a phone picks photos with the button. */
+@media (hover: none) {
+  .desktopOnly {
+    display: none;
+  }
+}
+
+/* Photos of a page (ADR 0029): the button, then what is left of the deck's eight. */
+.photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.photos button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reading {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--color-primary);
+}
+
+/* «Своё число» under the quick counts: any number up to 50. */
+.countOwn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.countOwn input {
+  width: 6ch;
+  min-height: 48px;
+  padding: 0 var(--space-2);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  text-align: center;
 }
 
 .generateStatus:empty {
