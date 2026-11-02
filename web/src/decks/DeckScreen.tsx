@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
-import { deckStages } from '../lib/deckGoal.ts';
+import { deckStages } from '../lib/deckStages.ts';
 import { deckToday, studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -126,10 +126,6 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
     word_count: stats.word_count,
     met: stats.introduced_count,
     learned: stats.learned,
-    new_today: 0,
-    goal_today: 0,
-    pace: 0,
-    deadline: null,
   });
   const share = (part: number) => `${stats.word_count ? (part / stats.word_count) * 100 : 0}%`;
 

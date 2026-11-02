@@ -252,7 +252,7 @@ export function GeneratePanel({
           </label>
         </fieldset>
         <label className={styles.field}>
-          <span>Уровень учеников</span>
+          <span>Уровень</span>
           <select value={level} disabled={working} onChange={(event) => setLevel(event.target.value)}>
             {LEVELS.map((value) => (
               <option key={value}>{value}</option>
