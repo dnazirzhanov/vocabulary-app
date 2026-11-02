@@ -1,7 +1,8 @@
 /*
  * A deck's editor (ADR 0019). Its main job is making cards, so one centered column at every size:
  * the deck's name, then the composer — the screen's raised card, one way of adding at a time —
- * then the cards, newest first, then sharing with groups. «Учить» waits in the bar at the bottom.
+ * then the cards, newest first; giving the deck to a group is a button on the composer, in a
+ * window (ADR 0036). «Учить» waits in the bar at the bottom.
  */
 .screen {
   display: grid;
@@ -83,6 +84,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.composerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
 }
 
 .composerTitle {
@@ -176,12 +185,6 @@
 /* --- the cards ------------------------------------------------------------------------------- */
 
 .cards,
-.sharing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .sectionTitle {
   font-size: var(--text-option);
   font-weight: var(--weight-display);
@@ -556,8 +559,7 @@
 
 /* Our own chevron, set in from the edge: the browser's own sits on the border and differs by
    system. Its colour is the muted text's. */
-.field select,
-.giveLabel select {
+.field select {
   padding-right: calc(var(--space-4) + 24px);
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23595959' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
@@ -567,8 +569,7 @@
   cursor: pointer;
 }
 
-.field select:disabled,
-.giveLabel select:disabled {
+.field select:disabled {
   cursor: default;
   opacity: 0.6;
 }
@@ -661,97 +662,6 @@
 }
 
 /* The groups the deck is given to, each with a way to take it back. */
-.givenTo {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.givenTo li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-success);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.givenTo li {
-  flex-wrap: wrap;
-}
-
-.givenTo li > span:first-of-type {
-  flex: 1 1 calc(100% - 30px);
-}
-
-/* A given deck's deadline, changed in place, and taking it back: one line under its name. */
-.givenControls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-  width: 100%;
-  padding-left: calc(18px + var(--space-2));
-  color: var(--color-text);
-  font-weight: var(--weight-regular, 400);
-}
-
-.dueEdit {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-}
-
-.dueEdit input {
-  min-height: 40px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-weight: var(--weight-regular, 400);
-}
-
-.givenTo svg {
-  flex: none;
-  width: 18px;
-  height: 18px;
-}
-
-/* A deck given to a group I own. */
-.giveRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.giveLabel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 160px;
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.giveLabel select,
-.giveLabel input {
-  min-height: 48px;
-  padding: 0 var(--space-3);
-  border: var(--border-control) solid var(--color-option-edge);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
 /* --- deleting: last on the screen, red outline; it always asks first ------------------------- */
 
 .danger {
