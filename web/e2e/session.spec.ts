@@ -30,7 +30,7 @@ test('a new learner studies five flashcards and the progress survives a reload',
   await button(page, 'Открыть курс').click();
   await expect(page.getByRole('button', { name: /^Основа/ })).toContainText('5 из 100');
   await openDeck(page);
-  await expect(page.getByText(/5\s*из 100\sслов встречено/)).toBeVisible();
+  await expect(page.getByText('учу 5 · впереди 95', { exact: true })).toBeVisible();
   await expect(button(page, 'Ещё 5 слов')).toBeVisible(); // the daily target is met: a bonus lesson
 });
 

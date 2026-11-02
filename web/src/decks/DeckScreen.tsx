@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
+import { deckStages } from '../lib/deckGoal.ts';
 import { deckToday, studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -121,6 +122,15 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
     await api.addExtraWords(deckId, extra);
     onSession(await api.startStudySession(deckId), deckId);
   };
+  const stages = deckStages({
+    word_count: stats.word_count,
+    met: stats.introduced_count,
+    learned: stats.learned,
+    new_today: 0,
+    goal_today: 0,
+    pace: 0,
+    deadline: null,
+  });
   const share = (part: number) => `${stats.word_count ? (part / stats.word_count) * 100 : 0}%`;
 
   return (
@@ -192,24 +202,23 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
             <h2 id="deck-progress" className="visually-hidden">
               Прогресс по колоде
             </h2>
+            {/* The same words as «Прогресс» (ADR 0034): знаю inside учу, the rest впереди. */}
             <p className={styles.figure}>
-              <strong>{stats.introduced_count}</strong> из {wordsLabel(stats.word_count)} встречено
+              <strong>{stats.introduced_count}</strong> из {wordsLabel(stats.word_count)}
             </p>
             <div
               className={styles.bar}
               role="progressbar"
-              aria-label="Встречено слов"
+              aria-label="Слов начато"
+              aria-valuetext={stages}
               aria-valuemin={0}
               aria-valuemax={stats.word_count}
               aria-valuenow={stats.introduced_count}
             >
               <span className={styles.barMet} style={{ width: share(stats.introduced_count) }} />
-              <span className={styles.barKnown} style={{ width: share(stats.well_learned) }} />
+              <span className={styles.barKnown} style={{ width: share(stats.learned) }} />
             </div>
-            <p className={styles.legend}>
-              <span className={styles.keyKnown} aria-hidden="true" /> помню хорошо: {stats.well_learned}
-              <span className={styles.keyMet} aria-hidden="true" /> встречено: {stats.introduced_count}
-            </p>
+            <p className={styles.legend}>{stages}</p>
           </section>
 
           <section className={styles.today} aria-label="Сегодня в колоде">

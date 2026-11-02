@@ -406,6 +406,16 @@ def deck_stats(
             UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS,
         )
     )
+    learned = db.scalar(
+        select(func.count(func.distinct(ReviewAttempt.word_id)))
+        .join(DeckWord, DeckWord.word_id == ReviewAttempt.word_id)
+        .where(
+            DeckWord.deck_id == deck.id,
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+    )
     given = next((item for item in decks.assigned_decks(db, user) if item.deck.id == deck.id), None)
     return DeckStatsOut(
         id=deck.id,
@@ -420,6 +430,7 @@ def deck_stats(
         learning_count=learning,
         review_count=due_now - learning,
         well_learned=int(known or 0),
+        learned=int(learned or 0),
         new_today=new_today,
         next_due_at=upcoming,
         locked=locked,

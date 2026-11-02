@@ -32,6 +32,8 @@ they were doing.
   - the goal: «Сегодня: 3 новых» (orange while due) or «✓ на сегодня», then «≈ 7 дней до конца»
     or the teacher's «к 2 ноября».
 - **The heatmap** stays as it was, under its own heading.
+- **A deck's own page uses the same words:** «68 из 100 слов», the same two-tone bar, and «знаю 21
+  · учу 47 · впереди 32» instead of «помню хорошо / встречено» (deck stats gain `learned`).
 - **Settings move behind ⚙** in the page's header, into a «Настройки» window: sounds, reminders,
   signing out, deleting progress.
 
