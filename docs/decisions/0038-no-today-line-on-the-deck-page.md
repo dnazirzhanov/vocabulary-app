@@ -1,4 +1,4 @@
-# 0038 — No «today» line on a deck's page
+# 0038 — A quieter deck page: no «today» line, no «Ваша колода»
 
 **Status:** Accepted. Supersedes the one-sentence «today» line of ADR 0035.
 
@@ -13,6 +13,9 @@ The owner asked for such text to go.
 - What stays on the page, top to bottom: the title, the progress bar with «знаю · учу · впереди»,
   «В день: N новых слов · Изменить», the quiet links, and the one button, which carries the day's
   content in its label.
+
+- **«Ваша колода»** above the title goes too: on my own deck it says nothing new. The line stays
+  where it tells something: a course level's («A1–A2») and a group's deck's («от Ольга · 7Б»).
 
 ## Consequences
 - The page no longer says when the next review is («Следующее повторение — завтра»), nor, for a

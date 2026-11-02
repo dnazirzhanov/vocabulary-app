@@ -114,8 +114,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
   const bonus = stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (pace?.bonus ?? false);
   const fresh = bonus ? Math.min(pace?.next_lesson_size ?? 0, left) : stats.new_today;
   const label = resumeHere ? 'Продолжить урок' : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
+  // Where the deck comes from: nothing to say for my own; for the others, who gave it or the level.
   const source = stats.is_mine
-    ? 'Ваша колода'
+    ? null
     : stats.author
       ? `от ${stats.author} · ${stats.group_name}`
       : (stats.group_name ?? stats.level);
