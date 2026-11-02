@@ -1,8 +1,4 @@
-import type { Page } from '@playwright/test';
 import { button, expect, finishSession, openDeck, test } from './learner.ts';
-
-/** The big figure with its unit beside it, e.g. «1 из 6 дней на этой неделе». */
-const figure = (page: Page, unit: string) => page.getByText(unit).locator('..');
 
 test('progress answers two questions: what I remember, deck by deck, and how steadily', async ({ page, learner }) => {
   // A Monday: the whole week is still ahead, so the weekly nudge has room to show.
@@ -10,10 +6,10 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   await page.goto('/');
   await button(page, 'Прогресс').click();
   await expect(page.getByRole('heading', { name: 'Прогресс' })).toBeFocused();
-  // Nothing studied yet: no decks, and what «learned» means.
-  await expect(page.getByText('Пока ничего не выучено')).toBeVisible();
-  await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^0\s*из 6 дней/);
-  await expect(page.getByText('Ещё 6 дней до цели недели')).toBeVisible();
+  // Nothing studied yet: an invitation, no decks, and the week ahead.
+  await expect(page.getByText('Начните первую колоду')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Колоды' })).toHaveCount(0);
+  await expect(page.getByText('0 из 6 дней на этой неделе · ещё 6 дней до цели')).toBeVisible();
   await button(page, 'Сегодня').click();
 
   await openDeck(page);
@@ -26,18 +22,17 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   await expect(page.getByText(/подряд/)).toHaveCount(0);
 
   await button(page, 'Прогресс').click();
-  // Met, not learned: a word counts as learned once recalled in a later review.
-  await expect(figure(page, 'слов выучено')).toHaveText(/^0\s*слов выучено/);
-  // Each deck in two lines (ADR 0033): how far along, then its goal — today done, and the finish
-  // at its own pace.
+  // Met, not known yet: a word is known once recalled in a later review (ADR 0034).
+  await expect(page.getByText('Вы учите 5 слов')).toBeVisible();
+  // Each deck as a card, in plain words: «учу · впереди», then its goal.
   const level = page.getByRole('button', { name: /^Основа/ });
-  await expect(level).toContainText('выучено 0 · встречено 5 из 100\u00a0слов');
-  await expect(level).toContainText('на сегодня ✓ · осталось 95\u00a0слов ≈ 19\u00a0дней');
-  await expect(level).not.toContainText('%');
-  await expect(page.getByText(/^Правописание:/)).toHaveCount(0);
+  await expect(level).toContainText('5 / 100');
+  await expect(level).toContainText('учу 5 · впереди 95');
+  await expect(level).toContainText('✓ на сегодня · ≈ 19\u00a0дней до конца');
+  await expect(level).not.toContainText(/%|встречено|выучено/);
 
   // Today counts toward the week and the calendar; the week is a commitment, not a streak.
-  await expect(figure(page, 'из 6 дней на этой неделе')).toHaveText(/^1\s*из 6 дней/);
+  await expect(page.getByText('1 из 6 дней на этой неделе · ещё 5 дней до цели')).toBeVisible();
   await expect(page.getByRole('listitem', { name: /день засчитан/ })).toHaveAttribute('aria-current', 'date');
   await expect(page.getByRole('img', { name: /^2026: 1 день с занятиями, из них засчитано 1$/ })).toBeVisible();
   // The year's heatmap (January to December) names a day on hover or tap.
@@ -46,7 +41,6 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
   await expect(page.getByText(/^2026: 1 день с занятиями · \d+ карточ/)).toBeVisible();
   await page.locator('[data-today]').last().click();
   await expect(page.getByText(/: \d+ карточ\S* · день засчитан$/)).toBeVisible();
-  await expect(page.getByText('Ещё 5 дней до цели недели')).toBeVisible();
 
   // A row opens the deck's page, which goes back to «Прогресс».
   await level.click();

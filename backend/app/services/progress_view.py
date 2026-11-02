@@ -118,9 +118,10 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
 
 
 def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> KnowledgeOut:
-    """What I know, deck by deck (ADR 0022): my own decks, my groups' decks and the course levels
-    I've started. «Learned» is evidence of memory, not exposure: a word recalled in a later review
-    (reviews come a day or more after meeting it) with any answer but «Снова»."""
+    """What I know, deck by deck (ADR 0022): the decks I've started — my own, my groups' and the
+    course's levels — each once I've studied in it (ADR 0033). «Learned» is evidence of memory,
+    not exposure: a word recalled in a later review (reviews come a day or more after meeting it)
+    with any answer but «Снова»."""
     given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
     candidates = list(
         db.scalars(
@@ -192,12 +193,26 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
         ),
         None,
     )
+    # Decks I've studied myself: a lesson or hard-words practice in them with an answer. A word met
+    # in another deck (a course word in my own, say) doesn't start this one (ADR 0033).
+    studied = set(
+        db.scalars(
+            select(LearningSession.deck_id)
+            .join(ReviewAttempt, ReviewAttempt.session_id == LearningSession.id)
+            .where(
+                LearningSession.user_id == user.id,
+                LearningSession.kind != "spelling",
+                LearningSession.deck_id.in_(ids),
+            )
+            .distinct()
+        )
+    )
     rows: list[DeckProgressOut] = []
     for deck in candidates:
         met, learned, known, last = counts.get(deck.id, (0, 0, 0, None))
         size = int(sizes.get(deck.id, 0))
-        # A course level appears once started; my decks and my groups' always, unless empty.
-        if size == 0 or (deck.kind == "course" and met == 0):
+        # Only decks I've started; the rest wait in «Мои колоды».
+        if size == 0 or deck.id not in studied:
             continue
         item = given.get(deck.id)
         # Today in this deck (ADR 0028): shown, never judged.
@@ -242,4 +257,28 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             (UserWordProgress.word_id == words.c.word_id) & (UserWordProgress.user_id == user.id),
         )
     ).one()
-    return KnowledgeOut(decks=rows, met=int(met), learned=int(learned), known=int(known))
+    # Learned this week: the first recall of each word since Monday, in my own day.
+    monday, _ = local_day_bounds(week_of(local_date(now, time_zone))[0], time_zone)
+    first_recall = (
+        select(ReviewAttempt.word_id, func.min(ReviewAttempt.answered_at).label("at"))
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+        .group_by(ReviewAttempt.word_id)
+        .subquery()
+    )
+    this_week = db.scalar(
+        select(func.count(func.distinct(first_recall.c.word_id))).where(
+            first_recall.c.at >= monday,
+            first_recall.c.word_id.in_(select(words.c.word_id)),
+        )
+    )
+    return KnowledgeOut(
+        decks=rows,
+        met=int(met),
+        learned=int(learned),
+        known=int(known),
+        learned_this_week=int(this_week or 0),
+    )

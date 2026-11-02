@@ -20,34 +20,17 @@ const dayLine = (cell: Cell) => {
 };
 
 /**
- * Consistency without a streak to lose: this week against the days the learner promised, and a
- * whole year of days, January to December, shaded by the cards answered each day.
+ * This week against the days promised (ADR 0015, 0027): seven dots and one line, for the summary at
+ * the top of «Прогресс» (ADR 0034).
  */
-export function Consistency({ progress }: { progress: Progress }) {
+export function WeekDays({ progress }: { progress: Progress }) {
   const today = progress.today.date;
   const week = weekProgress(progress.activity, today, progress.promised_days);
-  const years = yearsOf(progress.activity, today);
-  const [year, setYear] = useState(years[years.length - 1]);
-  const calendar = buildYear(progress.activity, today, year);
   const left = week.target - week.done;
-  const [picked, setPicked] = useState<string | null>(null);
-  const pickedCell = calendar.months.flatMap((month) => month.days).find((cell) => cell.date === picked);
-  const pick = (target: EventTarget) => {
-    const date = (target as HTMLElement).dataset.date;
-    if (date) setPicked(date);
-  };
-
+  // Only a nudge toward what is still possible; a week that can no longer be met says nothing.
+  const reachable = week.days.filter((day) => day.future || day.date === today).length >= left;
   return (
-    <section aria-labelledby="consistency-heading">
-      <h2 id="consistency-heading" className={styles.sectionTitle}>
-        Регулярность
-      </h2>
-      <p className={styles.hero}>
-        <strong>{week.done}</strong>{' '}
-        <span>
-          из {week.target} {daysAfterOf(week.target)} на этой неделе
-        </span>
-      </p>
+    <div className={styles.weekBlock}>
       <ol className={styles.week} aria-label="Дни этой недели">
         {week.days.map((day, index) => (
           <li
@@ -67,19 +50,39 @@ export function Consistency({ progress }: { progress: Progress }) {
         ))}
       </ol>
       <p className={styles.weekNote}>
+        <strong>{week.done}</strong> из {week.target} {daysAfterOf(week.target)} на этой неделе
         {left <= 0 ? (
-          <>
-            <CheckIcon aria-hidden="true" /> Цель недели выполнена
-          </>
+          <span className={styles.weekDone}>
+            {' '}
+            · <CheckIcon aria-hidden="true" /> цель недели выполнена
+          </span>
         ) : (
-          // Only a nudge toward what is still possible; a week that can no longer be met says nothing.
-          week.days.filter((day) => day.future || day.date === today).length >= left &&
-          `Ещё ${left} ${dayWord(left)} до цели недели`
+          reachable && ` · ещё ${left} ${dayWord(left)} до цели`
         )}
       </p>
+    </div>
+  );
+}
 
+/** A whole year of days, January to December, shaded by the cards answered each day. */
+export function Heatmap({ progress }: { progress: Progress }) {
+  const today = progress.today.date;
+  const years = yearsOf(progress.activity, today);
+  const [year, setYear] = useState(years[years.length - 1]);
+  const calendar = buildYear(progress.activity, today, year);
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedCell = calendar.months.flatMap((month) => month.days).find((cell) => cell.date === picked);
+  const pick = (target: EventTarget) => {
+    const date = (target as HTMLElement).dataset.date;
+    if (date) setPicked(date);
+  };
+
+  return (
+    <section aria-labelledby="heat-heading" className={styles.heat}>
       <div className={styles.heatHead}>
-        <h3 className={styles.heatTitle}>Карточки по дням</h3>
+        <h2 id="heat-heading" className={styles.heatTitle}>
+          Карточки по дням
+        </h2>
         <div className={styles.yearSwitch}>
           <button
             type="button"

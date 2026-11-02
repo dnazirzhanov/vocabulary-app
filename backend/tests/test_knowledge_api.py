@@ -60,24 +60,32 @@ def test_learned_means_recalled_in_a_later_review(client: TestClient) -> None:
     assert (row["is_mine"], row["kind"]) == (True, "user")
     # Ten days on: two recalled, one forgotten («Снова» is not learned).
     study(client, deck["id"], LATER, {"passport": 1})
-    (row,) = knowledge(client)["decks"]
+    report = knowledge(client)
+    (row,) = report["decks"]
     assert (row["met"], row["learned"]) == (3, 2)
+    # Both recalled this week (ADR 0034); a week later they are no longer this week's.
+    assert report["learned_this_week"] == 2
+    assert knowledge(client, LATER + timedelta(days=7))["learned_this_week"] == 0
 
 
-def test_course_levels_appear_once_started_and_totals_count_a_word_once(
+def test_decks_appear_once_started_and_totals_count_a_word_once(
     client: TestClient, play: Play
 ) -> None:
     assert knowledge(client, DAY0)["decks"] == []  # nothing started: no rows
+    # A deck of my own with words but none met yet waits in «Мои колоды», not here.
+    own_deck(client, ["luggage", "passport"])
+    assert knowledge(client, DAY0)["decks"] == []
     # «money» is a course word: in my deck it is the course's word, one word in both.
     deck = own_deck(client, ["money", "ticket"])
     study(client, deck["id"], DAY0)
     report = knowledge(client, DAY0)
-    titles = [row["title"] for row in report["decks"]]
-    assert "Путешествия" in titles and "Основа" in titles  # money started the first level
-    assert all(
-        row["title"] not in ("Уверенный уровень", "Продвинутый уровень") for row in report["decks"]
-    )
-    assert report["met"] == 2  # money and ticket, money once
+    # Only the deck studied: meeting «money» there doesn't start the course's first level.
+    assert [row["title"] for row in report["decks"]] == ["Путешествия"]
+    assert report["met"] == 2  # money and ticket
+    # Studying the level itself starts it.
+    study(client, "a1-a2", DAY0)
+    report = knowledge(client, DAY0)
+    assert sorted(row["title"] for row in report["decks"]) == ["Основа", "Путешествия"]
 
 
 def test_a_finished_lesson_keeps_the_day_with_reviews_left_in_another_deck(

@@ -1,4 +1,4 @@
-/* The progress tab: a title, two figures (words, consistency) and the account at the bottom. */
+/* «Прогресс» (ADR 0034): a title with ⚙, the summary, the decks, the heatmap. */
 .screen {
   min-height: 100%;
 }
@@ -6,7 +6,7 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: var(--space-7);
+  gap: var(--space-6);
   max-width: 640px;
   margin: 0 auto;
   padding: max(var(--space-6), env(safe-area-inset-top)) var(--gutter) var(--space-7);
@@ -20,6 +20,37 @@
 
 .title:focus {
   outline: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Settings (sounds, reminders, account): one tap away, not part of the progress. */
+.settings {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings:hover {
+  background: var(--color-primary-tint);
+}
+
+.settings svg {
+  width: 22px;
+  height: 22px;
 }
 
 .message {

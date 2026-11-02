@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { button, expect, finishSession, openDeck, spell, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, openSettings, spell, test } from './learner.ts';
 
 /**
  * The page's tones, counted: every oscillator started is a note played (lib/sounds.ts). Installed
@@ -39,13 +39,14 @@ test('flashcards stay quiet; the finish celebrates with confetti and a chord', a
   await expect(page.locator('[data-celebration]')).toHaveCount(0);
 });
 
-test('sounds can be turned off under «Аккаунт» on «Прогресс»', async ({ page }) => {
+test('sounds can be turned off in the settings on «Прогресс»', async ({ page }) => {
   await countNotes(page);
   await page.goto('/');
-  await button(page, 'Прогресс').click();
+  await openSettings(page);
   const sounds = page.getByRole('switch', { name: /Звуки/ });
   await expect(sounds).toBeChecked();
   await sounds.uncheck();
+  await page.keyboard.press('Escape');
   await button(page, 'Сегодня').click();
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
