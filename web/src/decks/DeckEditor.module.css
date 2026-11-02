@@ -99,41 +99,6 @@
   font-weight: var(--weight-display);
 }
 
-/* Giving the deck to a group (ADR 0036): a small button beside the title; a check and the group's
-   name once it is given. */
-.giveButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 40px;
-  max-width: 100%;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-  cursor: pointer;
-}
-
-.giveButton:hover {
-  background: var(--color-primary-tint);
-}
-
-.giveButton svg {
-  flex: none;
-  width: 18px;
-  height: 18px;
-}
-
-.giveButton .giveName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* A segmented control: the chosen way is a raised segment, named in words. */
 .tabs {
   display: grid;

@@ -5,8 +5,9 @@ import type { DeckWordInput, GenerateResult, PartOfSpeech, Session, TeacherDeck,
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { AlertIcon, BackIcon, CheckIcon, PencilIcon, PersonPlusIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
+import { AlertIcon, BackIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { GeneratePanel } from './GeneratePanel.tsx';
+import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
@@ -236,27 +237,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
                 </h2>
                 {/* Giving the deck to a group sits here, beside the cards it will hold (ADR 0036). */}
                 {!editing && (canGive || deck.groups.length > 0) && count > 0 && (
-                  <button
-                    type="button"
-                    className={styles.giveButton}
-                    onClick={() => setGiving(true)}
-                    aria-haspopup="dialog"
-                  >
-                    {deck.groups.length === 0 ? (
-                      <>
-                        <PersonPlusIcon aria-hidden="true" /> Дать группе
-                      </>
-                    ) : (
-                      <>
-                        <CheckIcon aria-hidden="true" />
-                        <span className={styles.giveName}>
-                          {deck.groups.length === 1
-                            ? `В группе «${deck.groups[0].name}»`
-                            : `В группах: ${deck.groups.length}`}
-                        </span>
-                      </>
-                    )}
-                  </button>
+                  <GiveButton groups={deck.groups} onClick={() => setGiving(true)} />
                 )}
               </div>
               <div className={styles.tabs} role="tablist" aria-label="Как добавить">

@@ -18,9 +18,11 @@ and nothing on a deck's own page led to it.
 - **In the editor:** a small button on the «Новые карточки» card, beside its title, where the
   cards are made. Once given it reads «В группе «7Б»» (or «В группах: 2») with a check, and still
   opens the window. The old section at the bottom is gone.
-- **On a deck's own page:** a quiet icon beside the title and the rename pencil, only for my own
-  deck with words, and only if I own a group. No new row on the page; the «Изменить колоду» row no
-  longer mentions groups.
+- **On a deck's own page:** the same labelled button (`GiveButton`) under the title, only for my
+  own deck with words, and only if I own a group. It says «В группе «7Б»» once given.
+  (It was first an icon beside the rename pencil; the owner asked for the labelled button.)
+- **Its own icon:** an arrow out of a tray, so it is never mistaken for «Пригласить» on a group's
+  page, which keeps the person-plus icon.
 
 ## Consequences
 - Giving a deck is two taps from either screen, and no longer needs scrolling.

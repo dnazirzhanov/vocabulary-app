@@ -10,12 +10,20 @@ import { SuggestionCard } from '../home/SuggestionCard.tsx';
 import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
 import { DailyPace, ExtraWords } from './DeckPace.tsx';
+import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
-import { BackIcon, ForwardIcon, PencilIcon, PersonPlusIcon, PlusIcon } from '../ui/icons.tsx';
+import { BackIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
 
-type Loaded = { stats: DeckStats; active: Session | null; pace: Pace | null; canGive: boolean };
+type Loaded = {
+  stats: DeckStats;
+  active: Session | null;
+  pace: Pace | null;
+  /** I own a group, so I can give this deck to it; `given`: the groups that have it (ADR 0036). */
+  canGive: boolean;
+  given: { name: string }[];
+};
 
 interface DeckScreenProps {
   deckId: string;
@@ -57,7 +65,13 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                 () => false,
               )
             : false;
-          setLoaded({ stats, active: active.session, pace, canGive });
+          const given = canGive
+            ? await api.teacherDeck(deckId).then(
+                (deck) => deck.groups,
+                () => [],
+              )
+            : [];
+          setLoaded({ stats, active: active.session, pace, canGive, given });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [deckId],
@@ -90,7 +104,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
     );
   }
 
-  const { stats, active, pace, canGive } = loaded;
+  const { stats, active, pace, canGive, given } = loaded;
   const due = stats.learning_count + stats.review_count;
   // An unfinished lesson in this deck is resumed here; one in another deck is set aside when this
   // one starts (ADR 0035). An unfinished spelling waits beside it, on its own card (ADR 0026).
@@ -189,20 +203,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                   {stats.title}
                 </h1>
                 {stats.is_mine && (
-                  // Two quiet icons beside the title: rename, and give the deck to a group (ADR 0036).
                   <div className={styles.titleActions}>
-                    {canGive && stats.word_count > 0 && (
-                      <button
-                        type="button"
-                        className={styles.renameButton}
-                        onClick={() => setGiving(true)}
-                        aria-label="Дать группе"
-                        aria-haspopup="dialog"
-                        title="Дать группе"
-                      >
-                        <PersonPlusIcon aria-hidden="true" />
-                      </button>
-                    )}
                     <button
                       type="button"
                       className={styles.renameButton}
@@ -214,6 +215,12 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+            {/* The same labelled button as on the editor's card (ADR 0036). */}
+            {!renaming && canGive && stats.word_count > 0 && (
+              <div className={styles.giveRow}>
+                <GiveButton groups={given} onClick={() => setGiving(true)} />
               </div>
             )}
           </div>
@@ -351,7 +358,13 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           {extraOpen && pace && (
             <ExtraWords open pace={pace} left={left} onClose={() => setExtraOpen(false)} onStart={startWith} />
           )}
-          {giving && <GiveDialog deckId={deckId} onClose={() => setGiving(false)} />}
+          {giving && (
+            <GiveDialog
+              deckId={deckId}
+              onClose={() => setGiving(false)}
+              onChanged={(deck) => setLoaded((now) => (now ? { ...now, given: deck.groups } : now))}
+            />
+          )}
           {modesOpen && (
             <SpellingModes
               open

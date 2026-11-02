@@ -75,6 +75,10 @@
   gap: var(--space-3);
 }
 
+.giveRow {
+  margin-top: var(--space-2);
+}
+
 .titleActions {
   display: flex;
   flex: none;
