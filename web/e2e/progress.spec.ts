@@ -23,12 +23,12 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
 
   await button(page, 'Прогресс').click();
   // Met, not known yet: a word is known once recalled in a later review (ADR 0034).
-  await expect(page.getByText('Вы учите 5 слов')).toBeVisible();
+  await expect(page.getByText('Вы учите слов: 5')).toBeVisible();
   // Each deck as a card, in plain words: «учу · впереди», then its goal.
   const level = page.getByRole('button', { name: /^Основа/ });
   await expect(level).toContainText('5 / 100');
   await expect(level).toContainText('учу 5 · впереди 95');
-  await expect(level).toContainText('✓ на сегодня · ≈ 19\u00a0дней до конца');
+  await expect(level).not.toContainText(/сегодня|до конца/);
   await expect(level).not.toContainText(/%|встречено|выучено/);
 
   // Today counts toward the week and the calendar; the week is a commitment, not a streak.

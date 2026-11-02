@@ -1,12 +1,9 @@
-import { plural } from '../i18n/plural.ts';
-import { dueLabel } from '../lib/deadline.ts';
-import { deckGoal, deckStages } from '../lib/deckGoal.ts';
+import { deckStages } from '../lib/deckStages.ts';
 import type { DeckProgress, Knowledge as KnowledgeData, Progress } from '../lib/types.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
 import { WeekDays } from './Consistency.tsx';
 import styles from './Knowledge.module.css';
 
-const wordsWord = (n: number) => plural(n, { one: 'слово', few: 'слова', many: 'слов' });
 const width = (part: number, whole: number) => `${whole ? Math.min(100, (part / whole) * 100) : 0}%`;
 
 /**
@@ -22,12 +19,11 @@ export function Summary({ data, progress }: { data: KnowledgeData; progress: Pro
       </h2>
       {data.learned > 0 ? (
         <p className={styles.hero}>
-          Вы знаете <strong>{data.learned}</strong> {wordsWord(data.learned)}
+          {/* «Слов: N» is plural whatever the number; «21 слов» would be wrong Russian. */}
+          Вы знаете слов: <strong>{data.learned}</strong>
         </p>
       ) : (
-        <p className={styles.hero}>
-          {learning > 0 ? `Вы учите ${learning} ${wordsWord(learning)}` : 'Начните первую колоду'}
-        </p>
+        <p className={styles.hero}>{learning > 0 ? `Вы учите слов: ${learning}` : 'Начните первую колоду'}</p>
       )}
       <p className={styles.sub}>
         {data.learned > 0
@@ -44,7 +40,7 @@ export function Summary({ data, progress }: { data: KnowledgeData; progress: Pro
   );
 }
 
-/** Each deck I've started, as a card: how far along, in plain stages, and its goal. */
+/** Each deck I've started, as a card: its name, how far along, and its stages. */
 export function Decks({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (deckId: string) => void }) {
   if (data.decks.length === 0) return null;
   return (
@@ -62,9 +58,7 @@ export function Decks({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (
 }
 
 function DeckCard({ deck, onOpen }: { deck: DeckProgress; onOpen: () => void }) {
-  const input = { ...deck, deadline: deck.due_on ? `к ${dueLabel(deck.due_on)}` : null };
-  const goal = deckGoal(input);
-  const stages = deckStages(input);
+  const stages = deckStages(deck);
   return (
     <li>
       <button type="button" className={styles.card} onClick={onOpen}>
@@ -80,11 +74,6 @@ function DeckCard({ deck, onOpen }: { deck: DeckProgress; onOpen: () => void }) 
           <span data-tone="learned" style={{ width: width(deck.learned, deck.word_count) }} />
         </span>
         <span className={styles.stages}>{stages}</span>
-        {goal.text && (
-          <span className={styles.goal} data-pending={goal.pending || undefined}>
-            {goal.text}
-          </span>
-        )}
         <ForwardIcon className={styles.chevron} aria-hidden="true" />
       </button>
     </li>
