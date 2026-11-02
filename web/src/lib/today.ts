@@ -51,7 +51,6 @@ export const newWords = (n: number) =>
  */
 export function deckToday({
   locked,
-  blocked,
   fresh,
   due,
   bonus,
@@ -59,8 +58,6 @@ export function deckToday({
   nextReview,
 }: {
   locked: boolean;
-  /** Too many reviews due: new words wait until they are done. */
-  blocked: boolean;
   fresh: number;
   due: number;
   /** Today's new words done, words left: more can be taken. */
@@ -71,7 +68,6 @@ export function deckToday({
   nextReview: string | null;
 }): string {
   if (locked) return 'Этот уровень откроется, когда вы встретите все слова предыдущего.';
-  if (blocked) return `Сначала повторение: ${wordsLabel(due)}. Новые слова — сразу после него.`;
   if (bonus && due === 0) return 'На сегодня всё. Можно взять ещё слов.';
   if (due > 0 && fresh > 0) return `Сегодня ${newWords(fresh)} и ${due} на повторение.`;
   if (fresh > 0) return `Сегодня ${newWords(fresh)}.`;

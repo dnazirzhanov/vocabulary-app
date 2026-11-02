@@ -17,8 +17,10 @@ The owner found the deck page noisy:
   - «Сегодня 1 слово на повторение.»
   - «На сегодня всё. Можно взять ещё слов.»
   - «На сегодня всё. Следующее повторение — завтра.»
-  - «Сначала повторение: 40 слов…»
   - For a locked level, what opens it.
+  
+  When many reviews hold new words back, the line just says «Сегодня 40 слов на повторение.»; the
+  owner asked to drop the «Сначала повторение… Новые слова — сразу после него» note.
   
   The three counts go from this page.
 - **The daily number under it:** «В день: 5 новых слов · Изменить», with «· пока 3, разогрев»
