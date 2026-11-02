@@ -79,6 +79,14 @@ export const PersonIcon = (props: IconProps) => (
   </svg>
 );
 
+/** An arrow out of a tray: handing something on — «Дать группе» (the invite keeps PersonPlusIcon). */
+export const ShareIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 15V4M8 8l4-4 4 4" />
+    <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+  </svg>
+);
+
 export const PersonPlusIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <circle cx="9" cy="8.5" r="3.5" />
