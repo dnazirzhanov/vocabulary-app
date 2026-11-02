@@ -16,9 +16,7 @@ test('a deck’s new words a day change in place, and extra words are for today 
   await button(page, 'Начать урок · 8 слов').click();
   await finishSession(page);
   await button(page, 'На главную').click();
-  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(
-    'На сегодня всё. Можно взять ещё слов.',
-  );
+  await expect(button(page, 'Ещё 5 слов')).toBeVisible(); // today's words are done: a bonus lesson
 
   // Ten more today: the deck's next words, then today reads 18 of 18.
   await page.getByRole('button', { name: 'Ещё слов сегодня' }).click();
@@ -28,9 +26,7 @@ test('a deck’s new words a day change in place, and extra words are for today 
   await extra.getByRole('button', { name: 'Начать · 10\u00a0слов' }).click();
   await finishSession(page);
   await button(page, 'На главную').click();
-  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(
-    'На сегодня всё. Можно взять ещё слов.',
-  );
+  await expect(button(page, 'Ещё 5 слов')).toBeVisible(); // today's words are done: a bonus lesson
 });
 
 test('a teacher’s «Выучить к» spreads a deck over the days before it', async ({ page, context, browser }) => {

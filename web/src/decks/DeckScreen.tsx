@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import { relativeDay } from '../lib/relativeDay.ts';
 import { deckStages } from '../lib/deckStages.ts';
-import { deckToday, studyLabel } from '../lib/today.ts';
+import { studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SuggestionCard } from '../home/SuggestionCard.tsx';
@@ -115,14 +114,6 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
   const bonus = stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (pace?.bonus ?? false);
   const fresh = bonus ? Math.min(pace?.next_lesson_size ?? 0, left) : stats.new_today;
   const label = resumeHere ? 'Продолжить урок' : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
-  const today = deckToday({
-    locked: stats.locked,
-    fresh: stats.new_today,
-    due,
-    bonus,
-    left,
-    nextReview: stats.next_due_at ? relativeDay(stats.next_due_at) : null,
-  });
   const source = stats.is_mine
     ? 'Ваша колода'
     : stats.author
@@ -247,14 +238,12 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
             <p className={styles.legend}>{stages}</p>
           </section>
 
-          <section className={styles.today} aria-label="Сегодня в колоде">
-            <p className={styles.todayLine}>
-              {resumeHere ? 'Урок начат — продолжите с того места, где остановились.' : today}
-            </p>
-            {pace && !stats.locked && left + pace.new_words_today > 0 && (
+          {/* What the day holds is on the button below; only the daily number is shown here. */}
+          {pace && !stats.locked && left + pace.new_words_today > 0 && (
+            <section className={styles.today} aria-label="Темп">
               <DailyPace pace={pace} left={left} onSaved={() => void load()} />
-            )}
-          </section>
+            </section>
+          )}
 
           {pace?.suggestion && !resumeHere && (
             <SuggestionCard

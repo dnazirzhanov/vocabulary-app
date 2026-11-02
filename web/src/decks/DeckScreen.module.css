@@ -160,12 +160,6 @@
   cursor: pointer;
 }
 
-/* Today in one sentence (ADR 0035). */
-.todayLine {
-  font-size: var(--text-option);
-  font-weight: var(--weight-strong);
-}
-
 .title:focus {
   outline: none;
 }

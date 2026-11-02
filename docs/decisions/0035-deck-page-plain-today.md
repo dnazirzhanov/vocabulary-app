@@ -1,6 +1,6 @@
 # 0035 — A deck's page: today in one sentence, no blocking, rename in place
 
-**Status:** Accepted. Refines ADR 0014 and 0020 (the deck page's Anki counts) and ADR 0026's
+**Status:** Accepted; its one-sentence «today» line was removed later (ADR 0038). Refines ADR 0014 and 0020 (the deck page's Anki counts) and ADR 0026's
 one-open-lesson rule.
 
 ## Context
