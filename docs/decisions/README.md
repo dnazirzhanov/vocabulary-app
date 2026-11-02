@@ -40,3 +40,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0034](0034-progress-at-a-glance.md) | «Прогресс» at a glance: «Вы знаете N слов, +M за неделю», the week, deck cards in plain stages (знаю · учу · впереди) with a goal; settings behind ⚙ | Accepted |
 | [0035](0035-deck-page-plain-today.md) | A deck's page: today in one sentence, «В день: N новых слов · Изменить», no «finish the other lesson first» (it is set aside), rename in place | Accepted |
 | [0036](0036-give-to-a-group-in-a-window.md) | Giving a deck to a group in a window: a button on the editor's «Новые карточки» card and a quiet icon on a deck's page | Accepted |
+| [0037](0037-quiet-opening-page.md) | A quieter opening page: no intro sentence, no «Созданные мной» heading, no «Сегодня: …» on deck cards | Accepted |

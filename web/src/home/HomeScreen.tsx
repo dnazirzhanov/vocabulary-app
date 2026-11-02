@@ -102,7 +102,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
               Мои колоды
             </h1>
-            <p className={styles.lead}>Свои колоды и колоды из ваших групп. Колода учится, когда вы её открываете.</p>
           </div>
 
           {naming ? (
@@ -145,7 +144,9 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           )}
 
           <section aria-labelledby="mine-title" className={styles.section}>
-            <h2 id="mine-title" className={styles.sectionTitle}>
+            {/* No visible heading: the decks under «Создать колоду» are the learner's own. It stays
+                for screen readers, which name the section by it. */}
+            <h2 id="mine-title" className="visually-hidden">
               Созданные мной
             </h2>
             {library.mine.length === 0 ? (
@@ -215,13 +216,8 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
 const sharedLine = (deck: LibraryDeck) =>
   deck.groups.length ? `в группе ${deck.groups.map((group) => group.name).join(', ')}` : null;
 
-/** Name, size, today's counts in words (not columns: rows need room for the edit button). */
+/** Name and size; today's counts are on the deck's own page, not here (ADR 0037). */
 function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }) {
-  const today = [
-    deck.new_today && `${deck.new_today} нов.`,
-    deck.learning_count && `${deck.learning_count} изуч.`,
-    deck.review_count && `${deck.review_count} повт.`,
-  ].filter(Boolean);
   return (
     <span className={styles.text}>
       <strong>{deck.title}</strong>
@@ -241,7 +237,6 @@ function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }
           {deadlineLeft(deck.due_on, localToday(), deck.word_count - deck.introduced_count)}
         </span>
       )}
-      {today.length > 0 && <span className={styles.today}>Сегодня: {today.join(' · ')}</span>}
     </span>
   );
 }
