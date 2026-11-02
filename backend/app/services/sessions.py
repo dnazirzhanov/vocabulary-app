@@ -167,6 +167,7 @@ def _open_session(db: Session, user: User, spelling: bool = False) -> LearningSe
         select(LearningSession).where(
             LearningSession.user_id == user.id,
             LearningSession.completed_at.is_(None),
+            LearningSession.set_aside_at.is_(None),
             kind if spelling else ~kind,
         )
     )
@@ -590,11 +591,20 @@ def start_session(
     db: Session, user: User, request: StartRequest, now: datetime, time_zone: ZoneInfo
 ) -> SessionOut:
     """Start a session, or return the learner's unfinished one of that kind (a lesson, or
-    spelling) so it can be resumed."""
+    spelling) so it can be resumed. A lesson open in another deck is set aside instead: the
+    learner chose this deck now, and its answers are already saved (ADR 0035)."""
     spelling_kind = isinstance(request, StartSpellingSession)
     existing = _open_session(db, user, spelling_kind)
     if existing is not None:
-        return present_session(db, user, existing, now)
+        other_deck = (
+            not isinstance(request, StartSpellingSession)
+            and request.deck_id is not None
+            and existing.deck_id != request.deck_id
+        )
+        if not other_deck:
+            return present_session(db, user, existing, now)
+        existing.set_aside_at = now
+        db.flush()
 
     # Practice is never part of the plan, so it records none.
     deck_id: str | None

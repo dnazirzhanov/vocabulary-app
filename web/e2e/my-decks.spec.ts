@@ -96,7 +96,7 @@ test('a deck keeps its topic; a new topic is offered its own deck', async ({ pag
   await expect(fork).toContainText('Эта колода — о теме «климат»');
   await fork.getByRole('button', { name: 'Создать колоду «Технологии»' }).click();
   // The new deck opens with its cards; the climate deck is untouched.
-  await expect(page.getByRole('textbox', { name: 'Название набора' })).toHaveValue('Технологии');
+  await expect(page.getByRole('textbox', { name: 'Название колоды' })).toHaveValue('Технологии');
   await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('10');
   await button(page, 'Мои колоды').click();
   await expect(page.getByRole('button', { name: /^Климат/ })).toContainText('5 слов');

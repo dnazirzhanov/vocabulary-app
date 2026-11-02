@@ -5,18 +5,20 @@ import { button, DEMO, expect, finishSession, openDeck, test } from './learner.t
 test('a deck’s new words a day change in place, and extra words are for today only', async ({ page }) => {
   await page.goto('/');
   await openDeck(page);
-  await expect(page.getByText(/^Новых слов в день: 5/)).toContainText('для всего курса');
+  await expect(page.getByText(/^В день: 5\u00a0новых слов/)).toContainText('для всего курса');
 
   // Two taps to change it: «Изменить», then the number.
   await page.getByRole('button', { name: 'Изменить число новых слов в день' }).click();
   for (let n = 0; n < 3; n += 1) await page.getByRole('button', { name: 'Больше' }).click();
   await expect(page.getByLabel('Слов в день', { exact: true })).toHaveValue('8');
   await button(page, 'Сохранить').click();
-  await expect(page.getByText(/^Новых слов в день: 8/)).toBeVisible();
+  await expect(page.getByText(/^В день: 8\u00a0новых слов/)).toBeVisible();
   await button(page, 'Начать урок · 8 слов').click();
   await finishSession(page);
   await button(page, 'На главную').click();
-  await expect(page.getByText(/^Новых слов в день: 8/)).toContainText('сегодня 8 из 8');
+  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(
+    'На сегодня всё. Можно взять ещё слов.',
+  );
 
   // Ten more today: the deck's next words, then today reads 18 of 18.
   await page.getByRole('button', { name: 'Ещё слов сегодня' }).click();
@@ -26,7 +28,9 @@ test('a deck’s new words a day change in place, and extra words are for today 
   await extra.getByRole('button', { name: 'Начать · 10\u00a0слов' }).click();
   await finishSession(page);
   await button(page, 'На главную').click();
-  await expect(page.getByText(/^Новых слов в день: 8/)).toContainText('сегодня 18 из 18 (+10 сверх)');
+  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(
+    'На сегодня всё. Можно взять ещё слов.',
+  );
 });
 
 test('a teacher’s «Выучить к» spreads a deck over the days before it', async ({ page, context, browser }) => {

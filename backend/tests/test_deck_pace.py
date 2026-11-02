@@ -242,3 +242,39 @@ def test_a_teacher_s_deadline_gives_even_shares_and_re_spreads_what_is_left(
     )
     plain = pace(client, "pavel", deck["id"])
     assert (plain["deadline"], plain["effective_target"], plain["remaining_today"]) == (None, 2, 0)
+
+
+def test_starting_another_deck_sets_the_open_lesson_aside(client: TestClient) -> None:
+    """ADR 0035: no «finish the other lesson first» — the new deck's lesson starts, the other
+    one's answers stay, and it never counts as finished."""
+    deck = a_deck(client, "olga")
+    course = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}, headers=as_("olga")
+    ).json()
+    client.post(
+        f"/api/sessions/{course['id']}/attempts",
+        json={
+            "exercise_id": course["exercises"][0]["id"],
+            "response": {"kind": "rating", "rating": 3},
+        },
+        headers=as_("olga"),
+    )
+    # The same deck again: the open lesson is resumed, as before.
+    again = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}, headers=as_("olga")
+    ).json()
+    assert again["id"] == course["id"]
+    # Another deck: its own lesson, and that one is now the open one.
+    mine = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": deck["id"]}, headers=as_("olga")
+    ).json()
+    assert mine["id"] != course["id"] and mine["deck_id"] == deck["id"]
+    active = client.get("/api/sessions/active", headers=as_("olga")).json()["session"]
+    assert active["id"] == mine["id"]
+    # The set-aside lesson isn't finished: no study day from it, and the course starts afresh.
+    today = client.get("/api/progress", headers=as_("olga")).json()["today"]
+    assert (today["active"], today["studied"]) == (True, False)
+    fresh = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": "a1-a2"}, headers=as_("olga")
+    ).json()
+    assert fresh["id"] not in (course["id"], mine["id"])

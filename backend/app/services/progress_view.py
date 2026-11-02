@@ -104,6 +104,7 @@ def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
             LearningSession.user_id == user.id,
             LearningSession.kind == "spelling",
             LearningSession.completed_at.is_(None),
+            LearningSession.set_aside_at.is_(None),
         )
     )
     if session is None:

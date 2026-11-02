@@ -38,3 +38,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted |
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |
 | [0034](0034-progress-at-a-glance.md) | «Прогресс» at a glance: «Вы знаете N слов, +M за неделю», the week, deck cards in plain stages (знаю · учу · впереди) with a goal; settings behind ⚙ | Accepted |
+| [0035](0035-deck-page-plain-today.md) | A deck's page: today in one sentence, «В день: N новых слов · Изменить», no «finish the other lesson first» (it is set aside), rename in place | Accepted |

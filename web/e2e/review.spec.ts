@@ -12,7 +12,7 @@ test('cards come back when they are due and are studied first', async ({ page, l
   await learner.travelTo(new Date(Date.now() + 10 * DAY));
   await page.reload();
   await openDeck(page);
-  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText(/К повторению\s*5/);
+  await expect(page.getByRole('region', { name: 'Сегодня в колоде' })).toContainText('и 5 на повторение');
   await page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ }).click();
 
   // Reviews first: the first card is one of the five words met ten days ago (all due from 4 AM

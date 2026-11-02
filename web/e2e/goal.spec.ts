@@ -22,7 +22,7 @@ test.describe('a learner who has not chosen a pace', () => {
     await button(page, 'Начать').click();
 
     await openDeck(page);
-    await expect(page.getByText('Разогрев, неделя 1 из 2: сегодня цель 5 из 10.')).toBeVisible();
+    await expect(page.getByText(/^В день: 10\u00a0новых слов · пока 5, разогрев/)).toBeVisible();
     await expect(button(page, 'Начать урок · 5 слов')).toBeVisible();
   });
 });
