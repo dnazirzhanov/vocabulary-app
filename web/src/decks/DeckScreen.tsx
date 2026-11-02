@@ -94,7 +94,6 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
   const label = resumeHere ? 'Продолжить урок' : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
   const today = deckToday({
     locked: stats.locked,
-    blocked,
     fresh: stats.new_today,
     due,
     bonus,
