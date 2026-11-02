@@ -63,9 +63,22 @@ test('a teacher gives words to a group and a student learns them first', async (
   await button(page, 'Сохранить').click();
   await expect(words).toContainText('проводить, выполнять');
 
-  await page.getByLabel('Дать группе').selectOption({ label: '7Б английский' });
-  await button(page, 'Задать').click();
-  await expect(page.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  // Giving the deck to the group: a button on the «Новые карточки» card opens a window, not a
+  // section far down the page (ADR 0036).
+  await expect(page.getByRole('heading', { name: 'Группы', exact: true })).toHaveCount(0);
+  await button(page, 'Дать группе').click();
+  const give = page.getByRole('dialog', { name: 'Дать группе' });
+  await give.getByLabel('Группа').selectOption({ label: '7Б английский' });
+  await give.getByRole('button', { name: 'Задать' }).click();
+  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  // Taken back from the same window, the group is offered again.
+  await give.getByRole('button', { name: 'Забрать' }).click();
+  await expect(give.getByRole('list', { name: 'Задано группам' })).toHaveCount(0);
+  await give.getByRole('button', { name: 'Задать' }).click();
+  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  await page.keyboard.press('Escape');
+  // The button now says where it is.
+  await expect(button(page, 'В группе «7Б английский»')).toBeVisible();
   await page.goto('/');
   await openGroup(page);
   // The group's decks are folded under «Управление группой», with «Изменить» for the author.
