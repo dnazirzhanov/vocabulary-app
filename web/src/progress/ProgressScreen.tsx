@@ -2,15 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import type { Knowledge as KnowledgeData, Progress } from '../lib/types.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { Consistency } from './Consistency.tsx';
+import { Heatmap } from './Consistency.tsx';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
-import { Knowledge } from './Knowledge.tsx';
+import { Decks, Summary } from './Knowledge.tsx';
+import { Dialog } from '../ui/Dialog.tsx';
+import { GearIcon } from '../ui/icons.tsx';
 import styles from './ProgressScreen.module.css';
 
 /**
- * Two questions, answered at a glance (ADR 0022, 0033): do I actually remember — words learned,
- * and each deck's way to its goal — and am I studying steadily — my week against my own promise,
- * and the year's calendar.
+ * «Прогресс» (ADR 0034), read top to bottom: the answer at a glance — words I know, this week's
+ * gain, the week's days — then each deck as a card with its goal, then the year's calendar.
+ * Settings are behind ⚙, not on the page.
  */
 export function ProgressScreen({
   onOpenDeck,
@@ -22,6 +24,7 @@ export function ProgressScreen({
 }) {
   const [loaded, setLoaded] = useState<{ progress: Progress; knowledge: KnowledgeData } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [settings, setSettings] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
@@ -68,13 +71,27 @@ export function ProgressScreen({
   return (
     <div className={styles.screen}>
       <main className={styles.main}>
-        <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-          Прогресс
-        </h1>
-        <Knowledge data={loaded.knowledge} onOpenDeck={onOpenDeck} />
-        <Consistency progress={loaded.progress} />
-        <AccountSection {...account} />
+        <div className={styles.head}>
+          <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+            Прогресс
+          </h1>
+          <button
+            type="button"
+            className={styles.settings}
+            onClick={() => setSettings(true)}
+            aria-label="Настройки"
+            title="Настройки"
+          >
+            <GearIcon aria-hidden="true" />
+          </button>
+        </div>
+        <Summary data={loaded.knowledge} progress={loaded.progress} />
+        <Decks data={loaded.knowledge} onOpenDeck={onOpenDeck} />
+        <Heatmap progress={loaded.progress} />
       </main>
+      <Dialog open={settings} onClose={() => setSettings(false)} title="Настройки">
+        <AccountSection {...account} />
+      </Dialog>
     </div>
   );
 }

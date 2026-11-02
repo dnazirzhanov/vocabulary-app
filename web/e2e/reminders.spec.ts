@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { DEMO, expect, test } from './learner.ts';
+import { DEMO, expect, openSettings, test } from './learner.ts';
 
 // Deadline reminders (ADR 0031). Real delivery needs a push service and the server's keys; here
 // the browser's push is a stand-in and the server's key is given, so the test checks the app's
@@ -36,7 +36,7 @@ test('reminders are turned on once, told to the server, and off again', async ({
     return route.fulfill({ status: 204 });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Прогресс' }).first().click();
+  await openSettings(page);
   const reminders = page.getByRole('switch', { name: /Напоминания о сроках/ });
   await expect(reminders).not.toBeChecked();
   await expect(

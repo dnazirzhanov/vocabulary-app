@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Request, type Route } from '@playwright/test';
+import { openSettings } from './learner.ts';
 
 const SUPABASE = 'http://localhost:54321';
 
@@ -111,7 +112,7 @@ test('the session survives a reload, and signing out returns to the form', async
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Прогресс' }).click(); // the account is at the end of «Прогресс»
+  await openSettings(page); // the account is behind ⚙ on «Прогресс»
   await expect(page.getByText('right@example.com')).toBeVisible();
   await page.getByRole('button', { name: 'Выйти' }).click();
   await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
@@ -125,7 +126,7 @@ test('deleting progress asks first, then signs the learner out', async ({ page }
   await page.goto('/');
   await fillForm(page, 'right@example.com', 'long-enough-1');
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
-  await page.getByRole('button', { name: 'Прогресс' }).click(); // the account is at the end of «Прогресс»
+  await openSettings(page); // the account is behind ⚙ on «Прогресс»
 
   await page.getByRole('button', { name: 'Удалить мой прогресс' }).click();
   await expect(page.getByText('восстановить их будет нельзя')).toBeVisible();

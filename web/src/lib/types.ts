@@ -457,6 +457,8 @@ export interface DeckProgress {
 
 export interface Knowledge {
   decks: DeckProgress[];
+  /** Words first recalled since Monday: «+N за эту неделю» (ADR 0034). */
+  learned_this_week: number;
   /** Over distinct words: a word in two decks counts once. */
   met: number;
   learned: number;
