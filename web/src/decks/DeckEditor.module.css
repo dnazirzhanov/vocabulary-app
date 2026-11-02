@@ -198,12 +198,30 @@
   font-weight: var(--weight-strong);
 }
 
-/* The title reads as the screen's heading and is edited in place. */
+/* The title reads as the screen's heading and is edited in place; a pencil at its end and a
+   faint underline say it can be changed. */
+.titleField {
+  position: relative;
+  display: block;
+}
+
+.titlePencil {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  width: 22px;
+  height: 22px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
 .titleField input {
   width: 100%;
   margin-left: calc(-1 * var(--space-2));
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) calc(var(--space-2) + 30px) var(--space-1) var(--space-2);
   border: var(--border-control) solid transparent;
+  border-bottom-color: var(--color-border);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);

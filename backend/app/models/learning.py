@@ -81,14 +81,14 @@ class LearningSession(Base):
         ),
         CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
         CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
-        # A learner has at most one unfinished lesson and one unfinished spelling (ADR 0026);
-        # starting again resumes it.
+        # A learner has at most one open lesson and one open spelling (ADR 0026); starting again
+        # in the same deck resumes it, in another deck sets it aside (ADR 0035).
         Index(
             "uq_learning_sessions_open_per_user",
             "user_id",
             text("(kind = 'spelling')"),
             unique=True,
-            postgresql_where=text("completed_at IS NULL"),
+            postgresql_where=text("completed_at IS NULL AND set_aside_at IS NULL"),
         ),
     )
 
@@ -102,6 +102,9 @@ class LearningSession(Base):
     plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A lesson left unfinished when another deck's was started (ADR 0035): no longer open, never
+    # finished; its answers stay.
+    set_aside_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When a study session started (ADR 0015): the day's new-word pace (0 when no new words were
     # possible; no longer judged, ADR 0027) and the days a week promised. NULL for practice.
     day_target: Mapped[int | None] = mapped_column(SmallInteger)

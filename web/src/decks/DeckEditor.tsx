@@ -14,7 +14,7 @@ import type {
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { AlertIcon, BackIcon, CheckIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
+import { AlertIcon, BackIcon, CheckIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { GeneratePanel } from './GeneratePanel.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
@@ -227,7 +227,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
               {deck.title}
             </h1>
             <label className={styles.titleField}>
-              <span className="visually-hidden">Название набора</span>
+              <span className="visually-hidden">Название колоды</span>
               <input
                 value={title}
                 maxLength={80}
@@ -235,6 +235,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
                 onBlur={saveTitle}
                 onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
               />
+              {/* The title is edited right here; the pencil says so (ADR 0035). */}
+              <PencilIcon className={styles.titlePencil} aria-hidden="true" />
             </label>
           </div>
 

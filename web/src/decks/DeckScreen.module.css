@@ -67,6 +67,95 @@
   overflow-wrap: anywhere;
 }
 
+/* The title, and for my own deck a pencil to rename it in place. */
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.renameButton {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: var(--space-1);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.renameButton:hover {
+  background: var(--color-primary-tint);
+}
+
+.renameButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.rename {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rename input {
+  min-height: 52px;
+  padding: 0 var(--space-3);
+  border: var(--border-control) solid var(--color-primary-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.renameButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.renameSave {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.renameSave:disabled {
+  opacity: 0.6;
+}
+
+.renameCancel {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Today in one sentence (ADR 0035). */
+.todayLine {
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+}
+
 .title:focus {
   outline: none;
 }

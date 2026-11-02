@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/api.ts';
 import { localToday, deadlineNote } from '../lib/deadline.ts';
 import { MAX_TARGET, MIN_TARGET, wordsLabel } from '../lib/pace.ts';
+import { newWords } from '../lib/today.ts';
 import type { Pace } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
@@ -23,8 +24,6 @@ export function DailyPace({ pace, left, onSaved }: { pace: Pace; left: number; o
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(pace.target);
   const { run, busy, error } = useAsyncAction();
-  // Today's goal, never more than the words still there to meet.
-  const goal = Math.min(pace.effective_target, pace.new_words_today + left);
   const deadline = deadlineNote(pace.deadline, localToday(), pace.deadline_share, left, pace.target);
 
   return (
@@ -36,16 +35,11 @@ export function DailyPace({ pace, left, onSaved }: { pace: Pace; left: number; o
         </div>
       )}
       <div className={styles.line}>
+        {/* The number the learner chose (ADR 0028, 0035); today's count is in the sentence above. */}
         <p>
-          Новых слов в день: <strong>{pace.target}</strong>
+          В день: <strong>{newWords(pace.target)}</strong>
+          {pace.ramp_week != null && <span className={styles.muted}> · пока {pace.effective_target}, разогрев</span>}
           {pace.course && <span className={styles.muted}> · для всего курса</span>}
-          {goal > 0 && (
-            <span className={styles.muted}>
-              {' '}
-              · сегодня {pace.new_words_today} из {goal}
-              {pace.extra_today > 0 && ` (+${pace.extra_today} сверх)`}
-            </span>
-          )}
         </p>
         {!editing && (
           <button

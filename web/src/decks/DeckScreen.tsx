@@ -2,19 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
-import { studyLabel } from '../lib/today.ts';
+import { deckToday, studyLabel } from '../lib/today.ts';
 import type { DeckStats, Pace, Session } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SuggestionCard } from '../home/SuggestionCard.tsx';
 import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
-import { CardCounts } from '../today/CardCounts.tsx';
 import { DailyPace, ExtraWords } from './DeckPace.tsx';
 import { BackIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
 
-type Loaded = { stats: DeckStats; active: Session | null; activeTitle: string | null; pace: Pace | null };
+type Loaded = { stats: DeckStats; active: Session | null; pace: Pace | null };
 
 interface DeckScreenProps {
   deckId: string;
@@ -35,6 +34,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
+  // Renaming my own deck, in place (ADR 0035).
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState('');
   const [extraOpen, setExtraOpen] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -45,15 +47,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
         .then(async ([stats, active]) => {
           // The pace (its suggestion, the review brake) is secondary: the page works without it.
           const pace = await api.pace(deckId).catch(() => null);
-          const session = active.session;
-          const activeTitle =
-            session && session.deck_id !== deckId
-              ? await api.deckStats(session.deck_id).then(
-                  (other) => other.title,
-                  () => null,
-                )
-              : null;
-          setLoaded({ stats, active: session, activeTitle, pace });
+          setLoaded({ stats, active: active.session, pace });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [deckId],
@@ -86,31 +80,26 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
     );
   }
 
-  const { stats, active, activeTitle, pace } = loaded;
+  const { stats, active, pace } = loaded;
   const due = stats.learning_count + stats.review_count;
-  // An unfinished lesson: in this deck it is resumed here; elsewhere it is finished first. An
-  // unfinished spelling is not a lesson: it waits beside it, on its own card (ADR 0026).
+  // An unfinished lesson in this deck is resumed here; one in another deck is set aside when this
+  // one starts (ADR 0035). An unfinished spelling waits beside it, on its own card (ADR 0026).
   const resumeHere = active !== null && active.deck_id === deckId;
-  const elsewhere = active !== null && !resumeHere;
   const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
   const left = stats.word_count - stats.introduced_count;
   // Today's pace done but words left: a bonus lesson is still there to take (ADR 0010).
   const bonus = stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (pace?.bonus ?? false);
   const fresh = bonus ? Math.min(pace?.next_lesson_size ?? 0, left) : stats.new_today;
   const label = resumeHere ? 'Продолжить урок' : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
-  const nextReview = stats.next_due_at ? `Следующее повторение — ${relativeDay(stats.next_due_at)}.` : null;
-  let note: string | null = null;
-  if (stats.locked) note = 'Этот уровень откроется, когда вы встретите все слова предыдущего.';
-  else if (elsewhere) note = `Сначала закончите начатый урок${activeTitle ? ` в колоде «${activeTitle}»` : ''}.`;
-  else if (blocked) note = `Сначала повторение: ${wordsLabel(due)} ждут. Новые слова вернутся сразу после него.`;
-  else if (bonus && due === 0) note = 'Цель на сегодня выполнена. Можно взять ещё слов — бонусом.';
-  else if (!label)
-    note =
-      stats.introduced_count < stats.word_count
-        ? `На сегодня новых слов хватит — темп выполнен.${nextReview ? ` ${nextReview}` : ''}`
-        : nextReview
-          ? `Все слова колоды встречены. ${nextReview}`
-          : 'Все слова колоды встречены.';
+  const today = deckToday({
+    locked: stats.locked,
+    blocked,
+    fresh: stats.new_today,
+    due,
+    bonus,
+    left,
+    nextReview: stats.next_due_at ? relativeDay(stats.next_due_at) : null,
+  });
   const source = stats.is_mine
     ? 'Ваша колода'
     : stats.author
@@ -127,7 +116,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
         ? `${wordsLabel(spelling.due)} на повторение`
         : 'Слова, которые вы ещё не писали';
   // Extra words today: there are words left to meet, and nothing else comes first.
-  const canAddWords = left > 0 && !stats.locked && !blocked && active === null && pace !== null;
+  const canAddWords = left > 0 && !stats.locked && !blocked && !resumeHere && pace !== null;
   const startWith = async (extra: number) => {
     await api.addExtraWords(deckId, extra);
     onSession(await api.startStudySession(deckId), deckId);
@@ -145,9 +134,58 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
         <div className={styles.column}>
           <div className={styles.head}>
             {source && <p className={styles.eyebrow}>{source}</p>}
-            <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              {stats.title}
-            </h1>
+            {renaming ? (
+              <form
+                className={styles.rename}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const clean = name.trim();
+                  if (clean.length < 2 || clean === stats.title) return setRenaming(false);
+                  run(async () => {
+                    await api.renameDeck(deckId, clean);
+                    setRenaming(false);
+                    await load();
+                  });
+                }}
+              >
+                <label className="visually-hidden" htmlFor="deck-name">
+                  Название колоды
+                </label>
+                <input
+                  id="deck-name"
+                  value={name}
+                  maxLength={80}
+                  autoFocus
+                  onChange={(event) => setName(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Escape' && setRenaming(false)}
+                />
+                <div className={styles.renameButtons}>
+                  <button type="submit" className={styles.renameSave} disabled={busy || name.trim().length < 2}>
+                    Сохранить
+                  </button>
+                  <button type="button" className={styles.renameCancel} onClick={() => setRenaming(false)}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className={styles.titleRow}>
+                <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+                  {stats.title}
+                </h1>
+                {stats.is_mine && (
+                  <button
+                    type="button"
+                    className={styles.renameButton}
+                    onClick={() => (setName(stats.title), setRenaming(true))}
+                    aria-label="Переименовать колоду"
+                    title="Переименовать"
+                  >
+                    <PencilIcon aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <section className={styles.progress} aria-labelledby="deck-progress">
@@ -174,25 +212,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
             </p>
           </section>
 
-          <section className={styles.today} aria-labelledby="deck-today">
-            <h2 id="deck-today" className={styles.sectionTitle}>
-              Сегодня в колоде
-            </h2>
-            <CardCounts
-              counts={{ fresh: stats.new_today, learning: stats.learning_count, review: stats.review_count }}
-            />
-            {note && <p className={styles.note}>{note}</p>}
+          <section className={styles.today} aria-label="Сегодня в колоде">
+            <p className={styles.todayLine}>
+              {resumeHere ? 'Урок начат — продолжите с того места, где остановились.' : today}
+            </p>
             {pace && !stats.locked && left + pace.new_words_today > 0 && (
               <DailyPace pace={pace} left={left} onSaved={() => void load()} />
             )}
-            {pace?.ramp_week != null && !stats.locked && (
-              <p className={styles.note}>
-                Разогрев, неделя {pace.ramp_week + 1} из 2: сегодня цель {pace.effective_target} из {pace.target}.
-              </p>
-            )}
           </section>
 
-          {pace?.suggestion && !active && (
+          {pace?.suggestion && !resumeHere && (
             <SuggestionCard
               suggestion={pace.suggestion}
               target={pace.target}
@@ -310,11 +339,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               {error}
             </p>
           )}
-          {elsewhere && active ? (
-            <PrimaryButton type="button" className={styles.action} onClick={() => onSession(active, active.deck_id)}>
-              Продолжить начатый урок
-            </PrimaryButton>
-          ) : (
+          {
             <PrimaryButton
               type="button"
               className={styles.action}
@@ -323,15 +348,17 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               onClick={() =>
                 // The goal met, «Ещё N слов» takes them as today's extra words (ADR 0028).
                 run(async () =>
-                  bonus && !active
-                    ? startWith(fresh)
-                    : onSession(active ?? (await api.startStudySession(deckId)), deckId),
+                  resumeHere
+                    ? onSession(active, deckId)
+                    : bonus
+                      ? startWith(fresh)
+                      : onSession(await api.startStudySession(deckId), deckId),
                 )
               }
             >
               {busy ? 'Загружаем…' : (label ?? 'На сегодня всё')}
             </PrimaryButton>
-          )}
+          }
         </div>
       </footer>
     </div>
