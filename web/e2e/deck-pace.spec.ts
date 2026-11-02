@@ -58,11 +58,18 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
   const dueText = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long' }).format(due);
   await page.goto('/');
   await page.getByRole('button', { name: /^Unit 5/ }).click();
-  await page.getByRole('button', { name: /^Изменить колоду/ }).click();
-  await page.getByLabel('Дать группе').selectOption({ label: '7Б английский' });
-  await page.getByLabel('Выучить к (необязательно)').fill(dueOn);
-  await button(page, 'Задать').click();
-  await expect(page.getByRole('list', { name: 'Задано группам' })).toContainText(`выучить к ${dueText}`);
+  // From the deck's own page, the quiet icon beside the title opens the window (ADR 0036).
+  await button(page, 'Дать группе').click();
+  const give = page.getByRole('dialog', { name: 'Дать группе' });
+  await give.getByLabel('Группа').selectOption({ label: '7Б английский' });
+  await give.getByLabel('Выучить к (необязательно)').fill(dueOn);
+  await give.getByRole('button', { name: 'Задать' }).click();
+  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText(`выучить к ${dueText}`);
+  // Given to its only group: nothing more to offer.
+  await expect(give).toContainText('Колода задана всем вашим группам.');
+  await page.keyboard.press('Escape');
+  // The deck's page says where it is, on the same labelled button as the editor's card.
+  await expect(button(page, 'В группе «7Б английский»')).toBeVisible();
 
   // The student: four words over the two days before it, two today.
   const learner = await student.newPage();

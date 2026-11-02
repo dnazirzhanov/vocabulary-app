@@ -1,7 +1,7 @@
 /*
  * «Прогресс» (ADR 0034): a summary card — the words I know, this week's gain, the week's days —
  * then each deck as a card: title and «met / total», one two-tone bar, its stages in plain words
- * («знаю · учу · впереди»), and its goal.
+ * («знаю · учу · впереди»).
  */
 .summary {
   display: flex;
@@ -22,7 +22,7 @@
 
 .hero strong {
   color: var(--color-primary-strong);
-  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.5rem);
+  font-size: 1.875rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -76,8 +76,7 @@
 
 .cardHead,
 .bar,
-.stages,
-.goal {
+.stages {
   grid-column: 1;
 }
 
@@ -129,20 +128,9 @@
   font-size: var(--text-meta);
 }
 
-/* The goal: quiet once today is done; primary text while today's words are still to do. */
-.goal {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.goal[data-pending] {
-  color: var(--color-primary-strong);
-}
-
 .chevron {
   grid-column: 2;
-  grid-row: 1 / span 4;
+  grid-row: 1 / span 3;
   width: 20px;
   height: 20px;
   color: var(--color-text-muted);
