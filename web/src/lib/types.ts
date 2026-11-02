@@ -365,6 +365,8 @@ export interface DeckStats {
   review_count: number;
   /** Remembered well (FSRS), as on the progress page. */
   well_learned: number;
+  /** «Знаю»: recalled in a later review, as on «Прогресс» (ADR 0034). */
+  learned: number;
   /** New words studying it would bring today, within the daily pace. */
   new_today: number;
   next_due_at: string | null;

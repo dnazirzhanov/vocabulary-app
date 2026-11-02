@@ -31,7 +31,7 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   // Back on the deck's page: today's new words are done; what is left is a bonus.
   await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeVisible();
   await expect(today(page)).toHaveText('На сегодня всё. Можно взять ещё слов.');
-  await expect(page.getByText(/5\s*из 100\sслов встречено/)).toBeVisible();
+  await expect(page.getByText('учу 5 · впереди 95', { exact: true })).toBeVisible();
   await expect(button(page, 'Ещё 5 слов')).toBeVisible();
 
   await learner.travelTo(new Date(Date.now() + 10 * DAY));

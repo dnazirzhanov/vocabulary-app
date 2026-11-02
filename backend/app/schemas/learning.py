@@ -72,6 +72,9 @@ class DeckStatsOut(BaseModel):
     review_count: int
     # Remembered well: FSRS stability of 21 days or more, as on the progress page.
     well_learned: int
+    # «Знаю»: words recalled in a later review, any answer but «Снова» (ADR 0034), as on
+    # «Прогресс».
+    learned: int = 0
     # New words opening it would bring today, within the daily pace (0 for a locked level).
     new_today: int
     next_due_at: datetime | None

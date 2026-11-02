@@ -63,6 +63,9 @@ def test_learned_means_recalled_in_a_later_review(client: TestClient) -> None:
     report = knowledge(client)
     (row,) = report["decks"]
     assert (row["met"], row["learned"]) == (3, 2)
+    # The deck's own page counts «знаю» the same way.
+    stats = client.get(f"/api/decks/{deck['id']}/stats", headers=at(LATER)).json()
+    assert (stats["introduced_count"], stats["learned"]) == (3, 2)
     # Both recalled this week (ADR 0034); a week later they are no longer this week's.
     assert report["learned_this_week"] == 2
     assert knowledge(client, LATER + timedelta(days=7))["learned_this_week"] == 0

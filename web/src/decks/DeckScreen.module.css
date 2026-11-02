@@ -201,30 +201,10 @@
   background: var(--color-activity-goal);
 }
 
+/* «знаю 21 · учу 47 · впереди 32»: the bar's two tones named in order, as on «Прогресс». */
 .legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--text-meta);
-}
-
-.keyKnown,
-.keyMet {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-}
-
-.keyMet {
-  margin-left: var(--space-2);
-  background: var(--color-activity-some);
-}
-
-.keyKnown {
-  background: var(--color-activity-goal);
 }
 
 /* --- today ----------------------------------------------------------------------------------- */
