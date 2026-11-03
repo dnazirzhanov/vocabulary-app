@@ -1,0 +1,84 @@
+/* «Моё обещание» in a window (ADR 0039): the weekdays, then a pause. */
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.problem {
+  color: var(--color-error);
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.pause {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.pauseTitle {
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+}
+
+.pauseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.field input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.outlineButton,
+.linkButton {
+  min-height: 44px;
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.outlineButton {
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge-hover);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.outlineButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.linkButton {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

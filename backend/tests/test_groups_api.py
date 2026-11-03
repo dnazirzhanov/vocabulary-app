@@ -83,6 +83,13 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
         "week",
         "streak_weeks",
         "studied_today",
+        "week_states",
+        "month_misses",
+        "promise_today",
+        "promise_weekdays",
+        "paused",
+        "known",
+        "learning",
     }
 
 
@@ -100,9 +107,8 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
     code = group["invite_code"]
     join(client, "pavel", code, "Весёлый Кот")
     join(client, "rest", code, "Тихий Лис")
-    client.patch(
-        "/api/me", json={"daily_target_words": 3, "study_days_per_week": 3}, headers=as_("olga")
-    )
+    client.patch("/api/me", json={"daily_target_words": 3}, headers=as_("olga"))
+    client.put("/api/me/promise", json={"weekdays": [0, 1, 2]}, headers=as_("olga"))
 
     # Olga: a lesson on each of three days, new words only. Pavel: one lesson back in October,
     # then four in one day this week, the first recalling October's five words.
@@ -134,7 +140,8 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
     assert olga["is_me"] and olga["streak_weeks"] == 1
     assert (pavel["studied_today"], olga["studied_today"]) == (True, False)
     assert rest["rank"] is None
-    assert [row["nickname"] for row in board["rows"]] == ["Весёлый Кот", "Смелый Ёж", "Тихий Лис"]
+    # The report lists me first and then the others alphabetically, never by place.
+    assert [row["nickname"] for row in board["rows"]] == ["Смелый Ёж", "Весёлый Кот", "Тихий Лис"]
     assert board["totals"] == {
         "days": 4,
         "learned": olga["learned"] + pavel["learned"],
@@ -155,11 +162,15 @@ def test_the_list_of_groups_shows_each_group_s_pulse(client: TestClient) -> None
     session = client.post("/api/sessions", json=NEW, headers=as_("pavel")).json()
     play_as(client, "pavel", session, THURSDAY)
     (summary,) = client.get("/api/groups", headers=as_("olga")).json()
-    # Nothing done yet this week: no place for Olga, one ranked member, Pavel studied today.
-    assert (summary["my_rank"], summary["ranked"]) == (None, 1)
-    assert summary["members"] == [
-        {"nickname": "Весёлый Кот", "is_me": False, "studied_today": True},
+    # By the promise (Пн–Сб by default): both are promised today, Pavel has done it, Olga not yet.
+    assert (summary["today_promised"], summary["today_done"], summary["my_today"]) == (
+        2,
+        1,
+        "pending",
+    )
+    assert summary["members"] == [  # me first, then alphabetical
         {"nickname": "Смелый Ёж", "is_me": True, "studied_today": False},
+        {"nickname": "Весёлый Кот", "is_me": False, "studied_today": True},
     ]
 
 
@@ -172,16 +183,16 @@ def play_as(
     spell_today(client, as_(user, moment, zone))
 
 
-def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClient) -> None:
-    group = create(client)
+def test_the_days_of_the_report_are_the_groups(client: TestClient) -> None:
+    # A group in Bishkek (UTC+6): 23:30 UTC on Sunday 1 November is already Monday 2 November there.
+    group = client.post(
+        "/api/groups",
+        json={"name": "Бишкек", "nickname": "Ольга"},
+        headers=as_("olga", zone="Asia/Bishkek"),
+    ).json()
     join(client, "aibek", group["invite_code"], "Ранний Орёл")
-    # 23:30 UTC on Sunday 1 November is already Monday 2 November in Bishkek (UTC+6).
     late_sunday = datetime(2026, 11, 1, 23, 30, tzinfo=UTC)
     client.patch("/api/me", json={"daily_target_words": 3}, headers=as_("aibek", late_sunday))
-    client.get(
-        "/api/me/pace", params={"deck_id": "a1-a2"}, headers=as_("aibek", zone="Asia/Bishkek")
-    )
-    # Every request from Aibek's browser carries his zone, starting a session too.
     session = client.post(
         "/api/sessions", json=NEW, headers=as_("aibek", late_sunday, "Asia/Bishkek")
     ).json()
@@ -189,7 +200,7 @@ def test_each_member_s_days_are_counted_in_their_own_time_zone(client: TestClien
 
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     aibek = next(row for row in board["rows"] if row["nickname"] == "Ранний Орёл")
-    assert aibek["week"][0] is True  # Monday, in Aibek's own zone
+    assert aibek["week"][0] is True  # Monday, in the group's day
     assert aibek["days"] == 1
 
 

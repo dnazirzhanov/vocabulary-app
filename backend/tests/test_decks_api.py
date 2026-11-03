@@ -257,8 +257,8 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
         "Иван": (0, 0),
     }
     # Places are the board's own rule: Pavel answered this week, so he alone has one.
-    first = owner["rows"][0]
-    assert (nicknames[first["member_id"]], first["rank"]) == ("Павел", 1)
+    pavel = next(row for row in owner["rows"] if nicknames[row["member_id"]] == "Павел")
+    assert pavel["rank"] == 1
 
 
 def test_progress_toward_the_course_goal_counts_course_words_only(client: TestClient) -> None:

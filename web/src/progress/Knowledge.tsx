@@ -10,7 +10,15 @@ const width = (part: number, whole: number) => `${whole ? Math.min(100, (part / 
  * The answer at a glance (ADR 0034): how many words I know — recalled a day or more after meeting
  * them — what this week added, how many I'm still learning, and the week's days.
  */
-export function Summary({ data, progress }: { data: KnowledgeData; progress: Progress }) {
+export function Summary({
+  data,
+  progress,
+  onPromiseChanged,
+}: {
+  data: KnowledgeData;
+  progress: Progress;
+  onPromiseChanged?: () => void;
+}) {
   const learning = Math.max(0, data.met - data.learned);
   return (
     <section aria-labelledby="summary-heading" className={styles.summary}>
@@ -35,7 +43,7 @@ export function Summary({ data, progress }: { data: KnowledgeData; progress: Pro
               .join(' · ')
           : 'Слово становится знакомым, когда вы вспомните его на повторении — через день или позже.'}
       </p>
-      <WeekDays progress={progress} />
+      <WeekDays progress={progress} onPromiseChanged={onPromiseChanged} />
     </section>
   );
 }

@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import Group, GroupMember, ReviewAttempt, User
+from app.models import Group, GroupMember, ReviewAttempt, User, UserWordProgress
 from app.schemas.groups import (
     BehindOut,
     BoardOut,
@@ -31,17 +31,17 @@ from app.schemas.groups import (
 )
 from app.services.decks import board_assignments
 from app.services.progress import local_day_bounds
-from app.services.scheduling import local_date
-from app.services.study_days import (
-    HISTORY_DAYS,
-    StudyDay,
-    days_by_user,
-    promises_by_user,
-    week_days,
-    week_of,
+from app.services.promise import (
+    load_promises,
+    month_misses,
+    promised_week,
+    today_state,
+    week_states,
     week_streak,
-    zone_of,
+    weekdays_of,
 )
+from app.services.scheduling import local_date
+from app.services.study_days import HISTORY_DAYS, StudyDay, days_by_user, week_of
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
 CODE_LENGTH = 8
@@ -120,7 +120,7 @@ def membership(db: Session, user: User, group_id: UUID) -> tuple[Group, GroupMem
 
 
 def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
-    """My groups, each with its pulse (ADR 0023): my place this week and who studied today."""
+    """My groups, each with its pulse (ADR 0023, 0039): how many kept today's promise, and me."""
     rows = db.execute(
         select(Group, GroupMember)
         .join(GroupMember, GroupMember.group_id == Group.id)
@@ -135,8 +135,9 @@ def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
             GroupSummaryOut(
                 **_group_out(db, group, member).model_dump(),
                 behind_for_class=_most_behind(week),
-                my_rank=me.rank,
-                ranked=sum(row.rank is not None for row in week.rows),
+                today_promised=week.today_promised,
+                today_done=week.today_done,
+                my_today=me.promise_today,
                 members=[
                     TodayMemberOut(
                         nickname=row.nickname, is_me=row.is_me, studied_today=row.studied_today
@@ -354,9 +355,26 @@ def _learned(
     return {user.id: int(counts.get(user.id, 0)) for user in users}
 
 
+def _met(db: Session, users: list[User]) -> dict[UUID, int]:
+    """Words each learner has met in all (a word in two decks counts once)."""
+    counts: dict[UUID, int] = dict(
+        db.execute(
+            select(UserWordProgress.user_id, func.count())
+            .where(UserWordProgress.user_id.in_([user.id for user in users]))
+            .group_by(UserWordProgress.user_id)
+        )
+        .tuples()
+        .all()
+    )
+    return {user.id: int(counts.get(user.id, 0)) for user in users}
+
+
 def board(
     db: Session, user: User, group_id: UUID, now: datetime, period: Period = "week"
 ) -> BoardOut:
+    """The group's report (ADR 0039): for each member the promise this week and this month, today,
+    and the words known; the days are the group's (its time zone). Places by words learned are
+    still computed (`rank`) for later games, but nothing shows them."""
     group, me = membership(db, user, group_id)
     members = db.execute(
         select(GroupMember, User)
@@ -368,29 +386,34 @@ def board(
     days = week_of(today)
     first, last = period_bounds(period, today)
 
-    # Everyone's days, each member's counted in their own time zone (ADR 0011, 0015).
     users = [member_user for _, member_user in members]
     history = HISTORY_DAYS if period != "all" else 365 * 30
     since = now - timedelta(days=history + 1)
-    studied = days_by_user(db, users, since)
-    promises = promises_by_user(db, users, since)
+    studied = days_by_user(db, users, since, zone)
+    promises = load_promises(db, users)
     learned = _learned(
         db,
         users,
         local_day_bounds(first, zone)[0] if first else None,
         local_day_bounds(last, zone)[1],
     )
+    known = _learned(db, users, None, now + timedelta(days=1))
+    met = _met(db, users)
 
     def in_period(day: StudyDay) -> bool:
         return (first is None or day.day >= first) and day.day <= last
 
     rows: list[BoardRow] = []
+    promised_today: set[UUID] = set()  # members whose promise includes today
     for member, member_user in members:
         mine = studied[member_user.id]
-        promised = promises[member_user.id].get(days[0], member_user.study_days_per_week)
-        week = week_days(mine, days, promised)
-        member_today = local_date(now, zone_of(member_user))
+        promise = promises[member_user.id]
+        if promise.promised_on(today):
+            promised_today.add(member.id)
+        # The day after joining is the first that can be missed.
+        first_counted = local_date(member.joined_at, zone) + timedelta(days=1)
         counted = [day for day in mine.values() if in_period(day)]
+        state = today_state(promise, mine, today)
         rows.append(
             BoardRow(
                 member_id=member.id,
@@ -401,26 +424,36 @@ def board(
                 days=sum(day.studied for day in counted),
                 cards=sum(day.answers for day in counted),
                 rank=None,
-                promised_days=promised,
-                week=week.studied,
-                streak_weeks=week_streak(
-                    mine,
-                    promises[member_user.id],
-                    member_user.study_days_per_week,
-                    member_today,
-                ),
-                studied_today=member_today in mine and mine[member_today].studied,
+                promised_days=sum(promised_week(promise, today)),
+                week=[day in mine and mine[day].studied for day in days],
+                streak_weeks=week_streak(promise, mine, today),
+                studied_today=state == "done",
+                week_states=week_states(promise, mine, today, first_counted),
+                month_misses=month_misses(promise, mine, today, first_counted),
+                promise_today=state,
+                promise_weekdays=weekdays_of(promise.mask_on(today)),
+                paused=bool(promise.pause and promise.pause[0] <= today <= promise.pause[1]),
+                known=known[member_user.id],
+                learning=max(0, met[member_user.id] - known[member_user.id]),
             )
         )
-
+    places_by = places(rows)
+    rows = [row.model_copy(update={"rank": places_by[row.member_id]}) for row in rows]
+    # Me first, then alphabetical: the report is a list of friends, never an order of merit.
+    rows.sort(key=lambda row: (not row.is_me, row.nickname.casefold()))
     return BoardOut(
         group=_group_out(db, group, me),
+        today=today,
+        today_promised=len(promised_today),
+        today_done=sum(
+            row.promise_today == "done" for row in rows if row.member_id in promised_today
+        ),
         week_start=days[0],
         week_end=days[-1],
         period=period,
         period_start=first,
         period_end=last,
-        rows=rank(rows),
+        rows=rows,
         totals=TotalsOut(
             days=sum(row.days for row in rows),
             learned=sum(row.learned for row in rows),

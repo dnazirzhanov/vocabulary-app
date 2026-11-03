@@ -26,6 +26,8 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "ramp_enabled": True,
         "onboarded": False,
         "onboarded_at": None,
+        # Пн–Сб until the learner chooses (ADR 0039).
+        "promise": {"weekdays": [0, 1, 2, 3, 4, 5], "pending": None, "pause": None},
     }
     changed = client.patch(
         "/api/me", json={"daily_target_words": 3, "study_days_per_week": 5}, headers=at(DAY_1)
@@ -36,6 +38,8 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "ramp_enabled": True,
         "onboarded": True,
         "onboarded_at": DAY_1.isoformat().replace("+00:00", "Z"),
+        # «5 days a week» is Пн–Пт; nothing was finished before, so it applies at once.
+        "promise": {"weekdays": [0, 1, 2, 3, 4], "pending": None, "pause": None},
     }
 
 

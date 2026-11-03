@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { promiseText, weekdaysOf } from '../lib/promise.ts';
+import { PromiseDialog } from '../promise/PromiseDialog.tsx';
 import { daysAfterOf, plural } from '../i18n/plural.ts';
 import { buildYear, weekProgress, yearsOf, type Cell, type Level } from '../lib/consistency.ts';
 import type { Progress } from '../lib/types.ts';
@@ -23,9 +25,10 @@ const dayLine = (cell: Cell) => {
  * This week against the days promised (ADR 0015, 0027): seven dots and one line, for the summary at
  * the top of «Прогресс» (ADR 0034).
  */
-export function WeekDays({ progress }: { progress: Progress }) {
+export function WeekDays({ progress, onPromiseChanged }: { progress: Progress; onPromiseChanged?: () => void }) {
   const today = progress.today.date;
-  const week = weekProgress(progress.activity, today, progress.promised_days);
+  const week = weekProgress(progress.activity, today, progress.promised_week);
+  const [editing, setEditing] = useState(false);
   const left = week.target - week.done;
   // Only a nudge toward what is still possible; a week that can no longer be met says nothing.
   const reachable = week.days.filter((day) => day.future || day.date === today).length >= left;
@@ -38,6 +41,7 @@ export function WeekDays({ progress }: { progress: Progress }) {
             className={styles.weekDay}
             data-level={day.level}
             data-future={day.future || undefined}
+            data-off={(!day.promised && day.level === 0) || undefined}
             data-today={index === week.todayIndex || undefined}
             aria-label={describe(day)}
             aria-current={index === week.todayIndex ? 'date' : undefined}
@@ -50,16 +54,33 @@ export function WeekDays({ progress }: { progress: Progress }) {
         ))}
       </ol>
       <p className={styles.weekNote}>
-        <strong>{week.done}</strong> из {week.target} {daysAfterOf(week.target)} на этой неделе
-        {left <= 0 ? (
-          <span className={styles.weekDone}>
-            {' '}
-            · <CheckIcon aria-hidden="true" /> цель недели выполнена
-          </span>
-        ) : (
-          reachable && ` · ещё ${left} ${dayWord(left)} до цели`
-        )}
+        Обещание:{' '}
+        <strong>{week.target > 0 ? promiseText(weekdaysOf(progress.promised_week)) : 'на этой неделе пауза'}</strong>
+        <button type="button" className={styles.weekEdit} onClick={() => setEditing(true)}>
+          Изменить
+        </button>
       </p>
+      {week.target > 0 && (
+        <p className={styles.weekNote}>
+          <strong>{week.done}</strong> из {week.target} {daysAfterOf(week.target)} на этой неделе
+          {left <= 0 ? (
+            <span className={styles.weekDone}>
+              {' '}
+              · <CheckIcon aria-hidden="true" /> обещание недели выполнено
+            </span>
+          ) : (
+            reachable && ` · ещё ${left} ${dayWord(left)} до цели`
+          )}
+        </p>
+      )}
+      {editing && (
+        <PromiseDialog
+          onClose={() => {
+            setEditing(false);
+            onPromiseChanged?.();
+          }}
+        />
+      )}
     </div>
   );
 }

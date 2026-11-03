@@ -104,9 +104,9 @@ test('a teacher gives words to a group and a student learns them first', async (
   // The teacher finds it among her own decks, given to the group.
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
-  // The student learned this week: on the league, with today's check.
+  // The student finished a lesson today: a day done in the report (ADR 0039).
   await openGroup(page);
-  await expect(page.getByRole('button', { name: /Анна, сегодня уже есть занятие/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Анна: пропусков: 0.*сделано/ })).toBeVisible();
 });
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).

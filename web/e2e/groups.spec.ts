@@ -1,6 +1,14 @@
 import { button, expect, finishSession, openDeck, test } from './learner.ts';
 
-test('a learner creates a group, a friend joins by link, both are on the board', async ({ page, browser }) => {
+// A Monday: the server clock is fixed so "today" is a promised day (Пн–Сб by default).
+const MONDAY = '2026-11-02T09:00:00Z';
+
+test('a learner creates a group, a friend joins by link, both are in the report', async ({
+  page,
+  browser,
+  learner,
+}) => {
+  await learner.travelTo(new Date(MONDAY));
   await page.goto('/');
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
@@ -29,30 +37,31 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await page.keyboard.press('Escape');
   await expect(button(page, 'Пригласить')).toBeFocused();
 
-  // Only what to act on (ADR 0032): my week in one line, then the week's league — one number a
-  // person and ✓ for who studied today. No period switch, no rule paragraph, no totals.
-  await expect(page.getByText('Вы на 1-м месте')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Неделя' })).toBeVisible();
-  const me = page.getByRole('button', { name: /^1-е место: Ёжик \(вы\)/ });
-  await expect(me).toContainText('0\u00a0слов');
-  await expect(me).toHaveAccessibleName(/сегодня уже есть занятие/);
+  // A promise and a report (ADR 0039): today by the promise, then each member's week. No places,
+  // points or ranking.
+  await expect(page.getByRole('heading', { name: 'Сегодня по обещанию' })).toBeVisible();
+  await expect(page.getByText('1 из 1')).toBeVisible();
+  await expect(page.getByText('Вы: сделано')).toBeVisible();
+  await expect(page.getByText(/Моё обещание: Пн–Сб/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Отчёт · ноябрь' })).toBeVisible();
+  const me = page.getByRole('button', { name: /^Ёжик \(вы\): пропусков: 0/ });
+  await expect(me).toHaveAccessibleName(/Пн — сделано/);
+  await expect(page.getByRole('main')).not.toContainText(/мест[оае]|очк|рейтинг|карточ/i);
   for (const gone of ['Всё время', 'Месяц']) await expect(button(page, gone)).toHaveCount(0);
-  await expect(page.getByText(/^Вместе за/)).toHaveCount(0);
-  await expect(page.getByText(/^Место — по выученным словам/)).toHaveCount(0);
-  await expect(page.getByRole('main')).not.toContainText(/план|(?<!карт)очк|карточ/i); // no plan, points, cards
-  // The rule is one tap away; a person's figures open from their row.
-  await button(page, 'Как считаются места?').click();
-  await expect(page.getByRole('dialog', { name: 'Как считаются места' })).toContainText('по выученным словам');
+  // The rule is one tap away; a person's window shows their words apart from the promise.
+  await button(page, 'Как это считается?').click();
+  await expect(page.getByRole('dialog', { name: 'Как это считается' })).toContainText('первого числа каждого месяца');
   await page.keyboard.press('Escape');
   await me.click();
   const window = page.getByRole('dialog', { name: 'Ёжик (вы)' });
-  await expect(window).toContainText('дней занятий на этой неделе1');
-  await expect(window).toContainText(/карточек на этой неделе\d+/);
-  await expect(window).toContainText('выучено за всё время0\u00a0слов');
+  await expect(window).toContainText('пропусков в этом месяце0');
+  await expect(window).toContainText('знаю 0 · учу 5');
   await page.keyboard.press('Escape');
 
   // A friend (a different learner) opens the link.
-  const friendContext = await browser.newContext({ extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}` } });
+  const friendContext = await browser.newContext({
+    extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}`, 'X-Dev-Now': MONDAY },
+  });
   await friendContext.request.patch('/api/me', { data: { daily_target_words: 3 } });
   const friend = await friendContext.newPage();
   await friend.goto(new URL(link).pathname);
@@ -66,19 +75,20 @@ test('a learner creates a group, a friend joins by link, both are on the board',
   await friend.getByRole('button', { name: 'Вступить', exact: true }).click();
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
-  await expect(friend.getByText('Вы ещё не занимались на этой неделе')).toBeVisible();
-  await expect(friend.getByText('Ещё не начинали: Лис (вы)')).toBeVisible();
+  await expect(friend.getByText('Вы: ещё нет')).toBeVisible();
+  await expect(friend.getByText('1 из 2')).toBeVisible();
+  await expect(friend.getByRole('button', { name: /^Лис \(вы\): пропусков: 0/ })).toBeVisible();
   await friendContext.close();
 
   // «Друзья» always opens the list, even with one group: each group with its pulse.
   await button(page, 'Сегодня').click();
   await button(page, 'Друзья').click();
   await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
-  // One line a group: my place and how many studied today.
+  // One line a group: today by the promise, and me.
   const row = page.getByRole('button', { name: /^7Б английский/ });
-  await expect(row).toContainText('вы на 1-м месте · сегодня занимались 1 из 2');
+  await expect(row).toContainText('сегодня по обещанию 1 из 2 · вы ✓');
   await row.click();
-  await expect(page.getByText('Ещё не начинали: Лис')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Лис: пропусков: 0/ })).toBeVisible();
   // Housekeeping is folded away at the bottom.
   await expect(button(page, 'Выйти из группы')).toBeHidden();
   await page.getByText('Управление группой').click();

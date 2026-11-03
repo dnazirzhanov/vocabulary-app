@@ -13,7 +13,9 @@ test('a day counts once a session is finished; answers alone are shown lightly',
   assert.equal(levelOf(day('2026-11-02', true)), 2);
 });
 
-test('the week runs Monday to Sunday and counts goal days so far', () => {
+const WORKWEEK = [true, true, true, true, true, false, false];
+
+test('the week runs Monday to Sunday and counts the promised days done so far', () => {
   const week = weekProgress(
     [
       day('2026-11-02', true),
@@ -22,7 +24,7 @@ test('the week runs Monday to Sunday and counts goal days so far', () => {
       day('2026-11-01', true), // last Sunday: another week
     ],
     TODAY,
-    5,
+    WORKWEEK,
   );
   assert.deepEqual(
     week.days.map((day) => day.date),
@@ -37,10 +39,20 @@ test('the week runs Monday to Sunday and counts goal days so far', () => {
     [false, false, false, false, true, true, true],
   );
   assert.deepEqual([week.done, week.target, week.todayIndex], [2, 5, 3]);
+  assert.deepEqual(
+    week.days.map((day) => day.promised),
+    WORKWEEK,
+  );
+});
+
+test('a day off studied anyway is shown done but is not counted against the promise', () => {
+  const week = weekProgress([day('2026-11-07', true), day('2026-11-02', true)], '2026-11-08', WORKWEEK);
+  assert.deepEqual([week.done, week.target], [1, 5]);
+  assert.equal(week.days[5].level, 2);
 });
 
 test('a Sunday still belongs to the week that began on Monday', () => {
-  const week = weekProgress([], '2026-11-08', 5);
+  const week = weekProgress([], '2026-11-08', WORKWEEK);
   assert.deepEqual([week.days[0].date, week.todayIndex], ['2026-11-02', 6]);
 });
 

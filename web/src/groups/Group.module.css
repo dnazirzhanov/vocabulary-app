@@ -1,6 +1,7 @@
 /*
- * One group (ADR 0023, 0032): my week, «К уроку» when a deadline is set, the week's league. Quiet
- * sections on paper; orange only for my place's edge, the top places and today's checks.
+ * One group (ADR 0039): today by the promise, «К уроку» when a deadline is set, then the report —
+ * each member's week of dots and the month's missed days. Quiet sections on paper; orange only for
+ * the days done.
  */
 .page {
   gap: var(--space-6);
@@ -68,54 +69,103 @@
   line-height: 1.4;
 }
 
-/* --- my place -------------------------------------------------------------------------------- */
+/* --- today by the promise -------------------------------------------------------------------- */
 
-.place {
-  padding: var(--space-3) var(--space-4);
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border-left: 4px solid var(--color-text);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
 }
 
-.place[data-top] {
-  border-left-color: var(--color-primary);
+.todayTitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
 }
 
-.placeTitle {
+.todayCount {
   font-size: var(--text-option);
-  font-weight: var(--weight-display);
 }
 
-.placeNote {
-  margin-top: var(--space-1);
+.todayCount strong {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.todayNote {
   color: var(--color-text-muted);
 }
 
-/* --- the board ------------------------------------------------------------------------------- */
+.mine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
 
-.board {
+.mineState {
+  font-weight: var(--weight-display);
+}
+
+.mineState[data-done] {
+  color: var(--color-success);
+}
+
+.mineState svg {
+  vertical-align: -4px;
+  width: 20px;
+  height: 20px;
+}
+
+.promiseLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.promiseLine strong {
+  color: var(--color-text);
+}
+
+/* --- the report ------------------------------------------------------------------------------ */
+
+/* The weekday names sit once above the column of dots, aligned with them. */
+.dayNames {
+  padding: 0 var(--space-2);
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+.report {
   margin: 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--color-border);
-  transition: opacity var(--duration-state) var(--ease-out);
 }
 
-.board > li {
+.report > li {
   border-bottom: 1px solid var(--color-border);
 }
 
-.board > li[data-me] {
+.report > li[data-me] {
   background: var(--color-primary-tint);
 }
 
 .row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
   align-items: center;
   width: 100%;
-  min-height: 56px;
+  min-height: 72px;
   padding: var(--space-2);
   border: 0;
   background: transparent;
@@ -129,35 +179,8 @@
   background: rgb(38 38 38 / 0.03);
 }
 
-/* Studied today: a small check after the name, the league's only sign of the day. */
-.todayMark {
-  width: 18px;
-  height: 18px;
-  margin-left: var(--space-2);
-  color: var(--color-success);
-}
-
-.rank {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--color-border);
-  font-weight: var(--weight-display);
-  font-variant-numeric: tabular-nums;
-}
-
-.rank[data-top='1'] {
-  background: var(--color-primary);
-  box-shadow: none;
-  color: var(--color-on-primary);
-}
-
-.rank[data-top='2'],
-.rank[data-top='3'] {
-  background: var(--color-primary-tint);
-  box-shadow: inset 0 0 0 2px var(--color-heat-2);
+.row > ol {
+  grid-column: 1 / -1;
 }
 
 .nick {
@@ -168,26 +191,49 @@
   overflow-wrap: anywhere;
 }
 
-.value {
-  font-weight: var(--weight-display);
+.misses {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.gap {
-  padding: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  text-align: center;
+.misses[data-none] {
+  color: var(--color-success);
 }
 
-.empty,
-.resting {
+.empty {
   color: var(--color-text-muted);
 }
 
-.resting {
-  font-size: var(--text-meta);
+/* Room to spare: name, week and count on one line, the weekday names aligned over the dots. */
+@media (min-width: 640px) {
+  .dayNames {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 6.5rem;
+    margin-bottom: calc(-1 * var(--space-3));
+  }
+
+  .dayNames > :first-child {
+    grid-column: 2;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto 6.5rem;
+    min-height: 56px;
+  }
+
+  .row > ol {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .misses {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+  }
 }
 
 /* --- a person's window ----------------------------------------------------------------------- */
@@ -218,6 +264,49 @@
   color: var(--color-text-muted);
   font-size: var(--text-meta);
   font-weight: var(--weight-strong);
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.wordsTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+}
+
+/* known over learning, as on «Прогресс»: the bar is everything met so far. */
+.bar {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--color-activity-none);
+}
+
+.barKnown,
+.barLearning {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.barLearning {
+  background: var(--color-activity-some);
+}
+
+.barKnown {
+  background: var(--color-activity-goal);
+}
+
+.legend {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
 }
 
 /* --- members (owner) ------------------------------------------------------------------------- */

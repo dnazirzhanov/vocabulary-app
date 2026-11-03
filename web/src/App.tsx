@@ -243,6 +243,7 @@ function Learning({ email }: { email: string | null }) {
           inviteOnOpen={screen.invite}
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onStudyDeck={(deckId) => openPage(deckId, 'home')}
+          onStudy={goHome}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
             setScreen({ name: 'groups' });

@@ -10,11 +10,13 @@ import {
   REALITY_CHECK_TARGET,
   wordsLabel,
 } from '../lib/pace.ts';
+import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
 import styles from './PacePicker.module.css';
 
 export interface PaceChoice {
   words: number;
-  days: number;
+  /** The weekdays promised: 0 = Monday … 6 = Sunday (ADR 0039). */
+  weekdays: number[];
   ramp: boolean;
 }
 
@@ -24,9 +26,7 @@ interface PacePickerProps {
   secondsPerExercise?: number;
 }
 
-const DAY_OPTIONS = [5, 6, 7];
-
-/** Preset cards named by time, a custom amount, the days per week and the warm-up. */
+/** Preset cards named by time, a custom amount, the weekdays promised and the warm-up. */
 export function PacePicker({ value, onChange, secondsPerExercise }: PacePickerProps) {
   const id = useId();
   const custom = !presetFor(value.words);
@@ -95,23 +95,11 @@ export function PacePicker({ value, onChange, secondsPerExercise }: PacePickerPr
       )}
 
       <fieldset className={styles.days}>
-        <legend className={styles.daysLegend}>Сколько дней в неделю будете заниматься?</legend>
-        <div className={styles.segments}>
-          {DAY_OPTIONS.map((days) => (
-            <label key={days} className={styles.segment} data-selected={value.days === days}>
-              <input
-                type="radio"
-                name={`${id}-days`}
-                className={styles.input}
-                checked={value.days === days}
-                onChange={() => set({ days })}
-              />
-              {days}
-            </label>
-          ))}
-        </div>
+        <legend className={styles.daysLegend}>В какие дни вы обещаете заниматься?</legend>
+        <WeekdayPicker value={value.weekdays} onChange={(weekdays) => set({ weekdays })} />
         <p className={styles.hint}>
-          Это ваша цель на неделю: она показана на странице «Прогресс». Выходные — это нормально.
+          Это ваше обещание: оно показано на странице «Прогресс», а друзья из группы увидят, выполнили ли вы его.
+          Выходные — это нормально.
         </p>
       </fieldset>
     </div>

@@ -1,0 +1,80 @@
+/* Seven dots in a fixed width, so a column of members lines up under one row of weekday names. */
+.dots {
+  display: grid;
+  grid-template-columns: repeat(7, 28px);
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dots li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.dot svg {
+  width: 14px;
+  height: 14px;
+}
+
+.name {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: var(--weight-strong);
+}
+
+.dots[data-names] .name {
+  line-height: 1.4;
+}
+
+/* done: filled, with a check */
+li[data-state='done'] .dot {
+  background: var(--color-activity-goal);
+  color: var(--color-on-primary);
+}
+
+/* missed: an empty ring with a dash — neutral graphite, not an alarm */
+li[data-state='missed'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-text-muted);
+}
+
+li[data-state='missed'] .dot::after {
+  content: '';
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-text-muted);
+}
+
+/* today, still open: a ring set apart by an outline */
+li[data-state='today'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-activity-none);
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+/* promised, still to come: a faint ring */
+li[data-state='later'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-activity-none);
+}
+
+/* not promised: a small quiet dot */
+li[data-state='off'] .dot::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-activity-none);
+}

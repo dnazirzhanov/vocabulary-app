@@ -18,11 +18,17 @@ test.describe('a learner who has not chosen a pace', () => {
     await expect(page.getByRole('checkbox', { name: /Разогрев/ })).toBeChecked();
     await page.getByRole('radio', { name: /Быстрый/ }).check();
     await expect(page.getByText(/Через месяц/)).toHaveCount(0);
-    await page.getByRole('radio', { name: '5', exact: true }).check();
+    // The days are weekdays now (ADR 0039): Пн–Сб until chosen, a preset narrows them.
+    await expect(button(page, 'Сб')).toHaveAttribute('aria-pressed', 'true');
+    await button(page, 'Пн–Пт').click();
+    await expect(button(page, 'Сб')).toHaveAttribute('aria-pressed', 'false');
     await button(page, 'Начать').click();
 
     await openDeck(page);
     await expect(page.getByText(/^В день: 10\u00a0новых слов · пока 5, разогрев/)).toBeVisible();
     await expect(button(page, 'Начать урок · 5 слов')).toBeVisible();
+    // The promise reads on «Прогресс»; nothing is finished yet, so it applies from today.
+    await button(page, 'Прогресс').click();
+    await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
   });
 });

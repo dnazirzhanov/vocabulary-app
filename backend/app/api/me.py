@@ -6,22 +6,62 @@ from fastapi import APIRouter, Path, Query, Response
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
-from app.schemas.me import DeckPaceIn, DismissIn, ExtraIn, MeOut, MeUpdate, PaceOut
+from app.schemas.me import (
+    DeckPaceIn,
+    DismissIn,
+    ExtraIn,
+    MeOut,
+    MeUpdate,
+    PaceOut,
+    PauseIn,
+    PromiseIn,
+    PromiseOut,
+)
 from app.services import decks, pace
 from app.services.me import me_out, remember_time_zone, update_me
+from app.services.promise import end_pause, promise_out, set_pause, set_weekdays
 from app.services.scheduling import local_date
 
 router = APIRouter(tags=["me"])
 
 
 @router.get("/me")
-def get_me(user: CurrentUser) -> MeOut:
-    return me_out(user)
+def get_me(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> MeOut:
+    return me_out(db, user, now, time_zone)
 
 
 @router.patch("/me")
-def patch_me(changes: MeUpdate, user: CurrentUser, db: DbSession, now: Now) -> MeOut:
-    return update_me(db, user, changes, now)
+def patch_me(
+    changes: MeUpdate, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> MeOut:
+    return update_me(db, user, changes, now, time_zone)
+
+
+@router.put("/me/promise")
+def put_promise(
+    body: PromiseIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> PromiseOut:
+    """Promise these weekdays from tomorrow (ADR 0039)."""
+    today = local_date(now, time_zone)
+    set_weekdays(db, user, body.weekdays, today)
+    return promise_out(db, user, today)
+
+
+@router.put("/me/promise/pause")
+def put_pause(
+    body: PauseIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> PromiseOut:
+    """Pause the promise from tomorrow until a date, at most 31 days."""
+    today = local_date(now, time_zone)
+    set_pause(db, user, body.until, today)
+    return promise_out(db, user, today)
+
+
+@router.delete("/me/promise/pause")
+def delete_pause(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> PromiseOut:
+    today = local_date(now, time_zone)
+    end_pause(db, user, today)
+    return promise_out(db, user, today)
 
 
 @router.get("/me/pace")

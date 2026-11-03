@@ -21,6 +21,12 @@ export interface Cell {
   future: boolean;
 }
 
+/** A day of the week against the promise (ADR 0039). */
+export interface WeekCell extends Cell {
+  /** The weekday is one I promised. */
+  promised: boolean;
+}
+
 const DAY_MS = 86_400_000;
 const toTime = (day: string) => Date.parse(`${day}T00:00:00Z`);
 const toDay = (time: number) => new Date(time).toISOString().slice(0, 10);
@@ -44,20 +50,25 @@ function cellsFrom(first: string, count: number, activity: StudyDay[], today: st
 
 export interface WeekProgress {
   /** Monday to Sunday. */
-  days: Cell[];
-  /** Days studied so far this week. */
+  days: WeekCell[];
+  /** Promised days done so far this week. */
   done: number;
+  /** Days promised this week. */
   target: number;
   /** The index of today in `days`. */
   todayIndex: number;
 }
 
-export function weekProgress(activity: StudyDay[], today: string, target: number): WeekProgress {
-  const days = cellsFrom(mondayOf(today), 7, activity, today);
+/** `promised`: Monday … Sunday, true on the weekdays promised (ADR 0039). */
+export function weekProgress(activity: StudyDay[], today: string, promised: boolean[]): WeekProgress {
+  const days = cellsFrom(mondayOf(today), 7, activity, today).map((cell, index) => ({
+    ...cell,
+    promised: promised[index] ?? false,
+  }));
   return {
     days,
-    done: days.filter((day) => day.level === 2).length,
-    target,
+    done: days.filter((day) => day.promised && day.level === 2).length,
+    target: days.filter((day) => day.promised).length,
     todayIndex: weekdayIndex(today),
   };
 }

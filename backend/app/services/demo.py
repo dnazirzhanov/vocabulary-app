@@ -1,7 +1,7 @@
 """Local demo data: a group of made-up classmates with a week of activity, so the board can be seen
 and screenshotted without six real people (development databases only)."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -51,6 +51,8 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
     ).all()
     db.execute(delete(Group).where(Group.id.in_(old)))
 
+    # Everyone joined at the start of the month, so the report has misses to show (ADR 0039).
+    joined = datetime.combine(local_date(now, ZONE).replace(day=1), time(0), tzinfo=ZONE)
     group = Group(name=DEMO_GROUP, invite_code=new_invite_code(), time_zone=ZONE.key)
     db.add(group)
     db.flush()
@@ -60,7 +62,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             user_id=owner.id,
             nickname="Мудрый Филин",
             role="owner",
-            joined_at=now,
+            joined_at=joined,
         )
     )
 
@@ -85,7 +87,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                 user_id=classmate.id,
                 nickname=nickname,
                 role="member",
-                joined_at=now,
+                joined_at=joined,
             )
         )
         met = 0  # each classmate meets new words in deck order, so every day's words are new

@@ -1,7 +1,7 @@
 # 0032 — «Друзья» without the noise
 
 **Status:** Accepted. Refines ADR 0023 (week only; one number per row) and ADR 0030 (the teacher
-sees, by name, only who isn't keeping up).
+sees, by name, only who isn't keeping up). The weekly league and «my place» are replaced by ADR 0039.
 
 ## Context
 A group's page had grown to about twenty pieces of information: a today strip, a period switch

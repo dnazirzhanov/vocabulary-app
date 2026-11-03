@@ -15,6 +15,7 @@ import type {
   Knowledge,
   Me,
   MeUpdate,
+  PromiseInfo,
   Pace,
   Progress,
   Rating,
@@ -114,6 +115,11 @@ export const api = {
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
+  /** The weekdays I promise, from tomorrow (ADR 0039). */
+  setPromise: (weekdays: number[]) => request<PromiseInfo>('PUT', '/me/promise', { weekdays }),
+  /** Pause the promise from tomorrow until a date (at most 31 days); `endPause` drops it. */
+  setPause: (until: string) => request<PromiseInfo>('PUT', '/me/promise/pause', { until }),
+  endPause: () => request<PromiseInfo>('DELETE', '/me/promise/pause'),
   pace: (deckId: string) => request<Pace>('GET', `/me/pace?deck_id=${encodeURIComponent(deckId)}`),
   dismissSuggestion: (kind: 'lower' | 'raise') => request<null>('POST', '/me/pace/dismiss', { kind }),
   /** New words a day in a deck; a course level sets the whole course's (ADR 0028). */

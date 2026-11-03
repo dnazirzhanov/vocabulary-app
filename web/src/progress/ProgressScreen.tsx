@@ -85,7 +85,7 @@ export function ProgressScreen({
             <GearIcon aria-hidden="true" />
           </button>
         </div>
-        <Summary data={loaded.knowledge} progress={loaded.progress} />
+        <Summary data={loaded.knowledge} progress={loaded.progress} onPromiseChanged={() => void load()} />
         <Decks data={loaded.knowledge} onOpenDeck={onOpenDeck} />
         <Heatmap progress={loaded.progress} />
       </main>

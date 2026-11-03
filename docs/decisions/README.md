@@ -35,9 +35,10 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
 | [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Accepted |
 | [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted |
-| [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted |
+| [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted (the league replaced by 0039) |
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |
 | [0034](0034-progress-at-a-glance.md) | «Прогресс» at a glance: «Вы знаете N слов, +M за неделю», the week, deck cards in plain stages (знаю · учу · впереди) with a goal; settings behind ⚙ | Accepted |
 | [0035](0035-deck-page-plain-today.md) | A deck's page: today in one sentence, «В день: N новых слов · Изменить», no «finish the other lesson first» (it is set aside), rename in place | Accepted |
 | [0036](0036-give-to-a-group-in-a-window.md) | Giving a deck to a group in a window: a button on the editor's «Новые карточки» card and a quiet icon on a deck's page | Accepted |
 | [0037](0037-quiet-opening-page.md) | A quieter opening page: no intro sentence, no «Созданные мной» heading, no «Сегодня: …» on deck cards | Accepted |
+| [0039](0039-promise-and-report.md) | «Друзья» as a promise and a report: chosen weekdays, who kept it today, missed days this month, pauses; the league goes | Accepted |

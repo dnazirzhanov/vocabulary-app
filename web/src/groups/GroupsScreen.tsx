@@ -18,8 +18,8 @@ interface GroupsScreenProps {
 }
 
 /**
- * «Друзья» (ADR 0023): always the list of my groups first, each with its pulse — my place this
- * week and who has studied today — so a learner in several groups chooses before anything else.
+ * «Друзья» (ADR 0023): always the list of my groups first, each with its pulse — how many kept
+ * today's promise and whether I did — so a learner in several groups chooses before anything else.
  * Creating a group and joining by code are two quiet buttons that open a window each.
  */
 export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
@@ -44,7 +44,7 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
           <p className={styles.lead}>
             {empty
               ? 'Учиться вместе веселее. Создайте группу с друзьями или классом — или войдите по коду приглашения. Только имена в приложении, без e-mail и переписки.'
-              : 'Ваши группы: место на этой неделе и кто уже занимался сегодня.'}
+              : 'Ваши группы: кто уже выполнил сегодняшнее обещание.'}
           </p>
 
           {loadError && <p role="alert">{loadError}</p>}
@@ -86,18 +86,14 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
 }
 
 /**
- * One group, one line under its name (ADR 0032): a deadline I'm behind on, the most urgent thing,
- * or else my place this week and how many studied today.
+ * One group, one line under its name (ADR 0032, 0039): a deadline I'm behind on, the most urgent
+ * thing, or else today by the promise — how many did it, and me.
  */
 function GroupRow({ group, onOpen }: { group: GroupSummary; onOpen: () => void }) {
-  const today = group.members.filter((member) => member.studied_today).length;
   const late = group.behind_for_class;
   const line = late
     ? `«${late.title}»: ${late.status === 'not_started' ? 'ещё не начинали, ' : ''}отстаёте на ${wordsLabel(late.behind)}`
-    : [
-        group.my_rank === null ? 'вы ещё не занимались на этой неделе' : `вы на ${group.my_rank}-м месте`,
-        `сегодня занимались ${today} из ${group.member_count}`,
-      ].join(' · ');
+    : todayLine(group);
   return (
     <button type="button" className={styles.group} onClick={onOpen}>
       <span className={styles.groupText}>
@@ -110,6 +106,18 @@ function GroupRow({ group, onOpen }: { group: GroupSummary; onOpen: () => void }
     </button>
   );
 }
+
+const MINE: Record<GroupSummary['my_today'], string> = {
+  done: 'вы ✓',
+  pending: 'вы ещё нет',
+  off: 'у вас выходной',
+};
+
+/** «сегодня по обещанию 5 из 7 · вы ✓» */
+const todayLine = (group: GroupSummary) =>
+  group.today_promised === 0
+    ? 'сегодня ни у кого нет занятия по обещанию'
+    : `сегодня по обещанию ${group.today_done} из ${group.today_promised} · ${MINE[group.my_today]}`;
 
 function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }) {
   const [name, setName] = useState('');
