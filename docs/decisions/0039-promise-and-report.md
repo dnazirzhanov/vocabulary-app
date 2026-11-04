@@ -50,9 +50,11 @@ Kept simple, as plain lists of names:
      not on every row.
    - With several decks the bar is the total; with none there is nothing to measure against, so
      the row says only how many words the friend knows in all.
-4. A row opens a **friend's window:** their week of dots (✓ done, an empty ring with a dash
-   missed, a ringed ring today, a faint ring a day to come, a small dot a day off; nothing is red),
-   promise, weeks in a row, and for each deck a «знаю · учу · впереди» bar.
+4. A row opens a **friend's window:** their week as large dots under the weekdays (✓ done, an
+   empty ring with a dash missed, a ringed ring today, a faint ring a day to come, a small dot a
+   day off; nothing is red). The dots are the promise: the promised days are the ones that are not
+   a small dot, so the window has no «обещание» text and no weeks-in-a-row figure. Then
+   «Пропущено дней в этом месяце: N», and for each deck a «знаю · учу · впереди» bar.
 5. **«К уроку»** for decks with a deadline, unchanged (ADR 0030); deadlines stay informational and
    are not part of the promise record.
 6. «Как это считается?» opens the rule.

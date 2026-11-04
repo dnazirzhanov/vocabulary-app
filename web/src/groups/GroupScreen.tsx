@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { dueLabel, standingLabel } from '../lib/deadline.ts';
 import {
@@ -347,25 +346,17 @@ function RowWords({ row }: { row: BoardRow }) {
   );
 }
 
-/** A person's window: their week and promise, and for each deck how many words they know. */
+/**
+ * A friend's window: their week as the days-of-the-week dots (which also show the promised days),
+ * the promised days missed this month, and for each deck how many words they know.
+ */
 function MemberWindow({ row, onClose }: { row: BoardRow; onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
-      <DayDots states={row.week_states} named />
-      <dl className={styles.figures}>
-        <div>
-          <dt>обещание</dt>
-          <dd>{row.paused ? 'пауза' : promiseText(row.promise_weekdays)}</dd>
-        </div>
-        <div>
-          <dt>пропусков в этом месяце</dt>
-          <dd>{number.format(row.month_misses)}</dd>
-        </div>
-        <div>
-          <dt>{weeksWord(row.streak_weeks)} подряд без пропусков</dt>
-          <dd>{number.format(row.streak_weeks)}</dd>
-        </div>
-      </dl>
+      <DayDots states={row.week_states} />
+      <p className={styles.missed}>
+        Пропущено дней в этом месяце: <strong>{number.format(row.month_misses)}</strong>
+      </p>
       <section aria-labelledby="words-title" className={styles.wordsBlock}>
         <h3 id="words-title" className={styles.wordsTitle}>
           Слова

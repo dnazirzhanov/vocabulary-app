@@ -268,32 +268,15 @@
 
 /* --- a person's window ----------------------------------------------------------------------- */
 
-.figures {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-3);
-  margin: 0;
+/* The month's missed days, one line under the week. */
+.missed {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-option);
 }
 
-/* The number first, its caption under it; the markup keeps caption → number for screen readers. */
-.figures > div {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-.figures dd {
-  margin: 0;
-  font-size: var(--text-title);
+.missed strong {
   font-weight: var(--weight-display);
   font-variant-numeric: tabular-nums;
-}
-
-.figures dt {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
 }
 
 .wordsBlock {
@@ -301,6 +284,8 @@
   flex-direction: column;
   gap: var(--space-3);
   margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
 .deckBar {

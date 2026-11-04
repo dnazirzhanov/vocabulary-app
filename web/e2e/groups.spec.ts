@@ -54,7 +54,9 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await page.keyboard.press('Escape');
   await me.click();
   const window = page.getByRole('dialog', { name: 'Ёжик (вы)' });
-  await expect(window).toContainText('пропусков в этом месяце0');
+  await expect(window).toContainText('Пропущено дней в этом месяце: 0');
+  // The week of dots says the promise; no weeks-in-a-row figure.
+  await expect(window).not.toContainText(/недел|Обещание/i);
   await expect(window).toContainText('знаю 0 · учу 5');
   await page.keyboard.press('Escape');
 
