@@ -34,6 +34,8 @@ def configure_logging(level: int = logging.INFO) -> None:
     # uvicorn's own access log would duplicate the request log below.
     logging.getLogger("uvicorn.access").handlers = []
     logging.getLogger("uvicorn.access").propagate = False
+    # It logs every outgoing URL, and deleting a login's URL names that learner (ADR 0043).
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 async def log_requests(

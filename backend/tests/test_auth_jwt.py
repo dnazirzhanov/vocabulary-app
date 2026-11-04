@@ -1,5 +1,6 @@
 """Production sign-in: Supabase-issued tokens verified locally against the issuer's public keys."""
 
+import logging
 import os
 import time
 from collections.abc import Callable, Iterator
@@ -271,6 +272,11 @@ def test_deleting_needs_a_fresh_sign_in(
     assert error_code(jwt_client.delete("/api/me", headers=headers)) == (403, "reauth_required")
     assert subjects(db) == ["supabase|abc-123"]
     assert supabase.calls == []
+
+
+def test_outgoing_urls_are_not_logged(jwt_client: TestClient) -> None:
+    """Deleting a login's URL names the learner; the logs must not keep it after they've gone."""
+    assert not logging.getLogger("httpx2").isEnabledFor(logging.INFO)
 
 
 def test_production_refuses_to_start_without_the_secret_key() -> None:
