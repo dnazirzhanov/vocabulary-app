@@ -82,3 +82,10 @@
   height: 28px;
   place-items: center;
 }
+
+/* In a heading the day-off mark has to be seen: a firmer dot than the week's faint one. */
+.mark[data-state='off'] .dot::after {
+  width: 8px;
+  height: 8px;
+  background: var(--color-text-muted);
+}
