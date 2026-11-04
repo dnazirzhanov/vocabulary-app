@@ -120,6 +120,8 @@ test('a teacher gives words to a group and a student learns them first', async (
 test('a teacher drafts cards from a lesson text and reviews them', async ({ page }) => {
   // A laptop window: tall enough that the list's heading shows under the panel, its first card not.
   await page.setViewportSize({ width: 1280, height: 900 });
+  // Where the screen ends up is what counts here; a click during the smooth scroll can miss on a busy machine.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await newDeck(page, 'Unit 4');
   await page.getByRole('tab', { name: 'Текст' }).click();
