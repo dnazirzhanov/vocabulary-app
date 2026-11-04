@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.me import DayState, TodayState
 
@@ -73,6 +73,17 @@ class GroupPreviewOut(BaseModel):
 Period = Literal["week", "month", "all"]
 
 
+class MemberDeckOut(BaseModel):
+    """One member on one deck given to the group (ADR 0039): the words they have met, and of those
+    the ones they have learned — recalled in a later review, as «знаю» on the progress page."""
+
+    deck_id: str
+    title: str
+    word_count: int
+    met: int
+    learned: int
+
+
 class BoardRow(BaseModel):
     member_id: UUID
     nickname: str
@@ -103,6 +114,8 @@ class BoardRow(BaseModel):
     paused: bool
     known: int
     learning: int
+    # Each deck given to the group, in the order it was given.
+    decks: list[MemberDeckOut] = Field(default_factory=list)
 
 
 class TotalsOut(BaseModel):

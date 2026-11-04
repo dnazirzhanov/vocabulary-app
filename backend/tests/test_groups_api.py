@@ -90,6 +90,7 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
         "paused",
         "known",
         "learning",
+        "decks",
     }
 
 

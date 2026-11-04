@@ -1,4 +1,4 @@
-/* Seven dots in a fixed width, so a column of members lines up under one row of weekday names. */
+/* A week of seven dots, Monday first. */
 .dots {
   display: grid;
   grid-template-columns: repeat(7, 28px);
@@ -33,10 +33,6 @@
   color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: var(--weight-strong);
-}
-
-.dots[data-names] .name {
-  line-height: 1.4;
 }
 
 /* done: filled, with a check */

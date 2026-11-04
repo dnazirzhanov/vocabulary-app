@@ -37,15 +37,15 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await page.keyboard.press('Escape');
   await expect(button(page, 'Пригласить')).toBeFocused();
 
-  // A promise and a report (ADR 0039): today by the promise, then each member's week. No places,
+  // A promise and a report (ADR 0039): who did today's promise as plain lists of names. No places,
   // points or ranking.
   await expect(page.getByRole('heading', { name: 'Сегодня по обещанию' })).toBeVisible();
-  await expect(page.getByText('1 из 1')).toBeVisible();
   await expect(page.getByText('Вы: сделано')).toBeVisible();
   await expect(page.getByText(/Моё обещание: Пн–Сб/)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Отчёт · ноябрь' })).toBeVisible();
-  const me = page.getByRole('button', { name: /^Ёжик \(вы\): пропусков: 0/ });
-  await expect(me).toHaveAccessibleName(/Пн — сделано/);
+  const done = page.getByRole('region', { name: 'Сделали сегодня' });
+  const me = done.getByRole('button', { name: /^Ёжик.*пропусков: 0/ });
+  await expect(me).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Ещё нет' })).toHaveCount(0);
   await expect(page.getByRole('main')).not.toContainText(/мест[оае]|очк|рейтинг|карточ/i);
   for (const gone of ['Всё время', 'Месяц']) await expect(button(page, gone)).toHaveCount(0);
   // The rule is one tap away; a person's window shows their words apart from the promise.
@@ -76,8 +76,8 @@ test('a learner creates a group, a friend joins by link, both are in the report'
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
   await expect(friend.getByText('Вы: ещё нет')).toBeVisible();
-  await expect(friend.getByText('1 из 2')).toBeVisible();
-  await expect(friend.getByRole('button', { name: /^Лис \(вы\): пропусков: 0/ })).toBeVisible();
+  await expect(friend.getByRole('region', { name: 'Сделали сегодня' })).toContainText('Ёжик');
+  await expect(friend.getByRole('region', { name: 'Ещё нет' }).getByRole('button', { name: /^Лис/ })).toBeVisible();
   await friendContext.close();
 
   // «Друзья» always opens the list, even with one group: each group with its pulse.
@@ -88,7 +88,9 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   const row = page.getByRole('button', { name: /^7Б английский/ });
   await expect(row).toContainText('сегодня по обещанию 1 из 2 · вы ✓');
   await row.click();
-  await expect(page.getByRole('button', { name: /^Лис: пропусков: 0/ })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Ещё нет' }).getByRole('button', { name: /^Лис.*пропусков: 0/ }),
+  ).toBeVisible();
   // Housekeeping is folded away at the bottom.
   await expect(button(page, 'Выйти из группы')).toBeHidden();
   await page.getByText('Управление группой').click();

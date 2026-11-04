@@ -32,22 +32,25 @@ consistent.
   nor breaks the streak.
 
 ### The report (the group page)
-1. **Today by the promise:** «3 из 6» members promised today who have done it; my own status, with
-   «Заниматься» when it is still open; «Моё обещание: Пн–Пт · Изменить».
-2. **«К уроку»** for decks with a deadline, unchanged (ADR 0030). Deadlines stay informational and
+Kept simple, as plain lists of names:
+1. **«Сегодня по обещанию»:** my own status, with «Заниматься» when it is still open, and «Моё
+   обещание: Пн–Пт · Изменить».
+2. **Who did it, by name,** in three lists: «Сделали сегодня», «Ещё нет», «Сегодня выходной»
+   (a day off or a pause). Me first, then alphabetically, never by a score.
+3. **Each friend's row** carries what they have learned from the deck given to the group
+   («Unit 4: выучено 12 из 30»: words recalled in a later review, the «знаю» of «Прогресс») and
+   «пропусков: N», the promised days missed since the 1st of the calendar month. That count
+   restarts each month by construction, and counting starts the day after joining the group.
+   - With several decks, the row shows the total; with none, the words the friend knows in all.
+4. A row opens a **friend's window:** their week of dots (✓ done, an empty ring with a dash
+   missed, a ringed ring today, a faint ring a day to come, a small dot a day off; nothing is red),
+   promise, weeks in a row, and for each deck a «знаю · учу · впереди» bar.
+5. **«К уроку»** for decks with a deadline, unchanged (ADR 0030); deadlines stay informational and
    are not part of the promise record.
-3. **«Отчёт · ноябрь»:** one row per member, me first and then alphabetical, never by a score.
-   - Seven dots for the week: ✓ done, an empty ring with a dash missed, a ringed ring today (still
-     open), a faint ring a day to come, a small dot a day off. Shapes differ as well as colours,
-     and nothing is red.
-   - «пропусков: N»: promised days missed since the 1st of the calendar month, so the count
-     restarts each month by construction. Counting starts the day after joining the group.
-4. A row opens a **person's window:** their week, promise, misses this month, weeks in a row, and
-   words **known** and **learning** (a two-tone bar). Words stay visible apart from the promise.
-5. «Как это считается?» opens the rule.
+6. «Как это считается?» opens the rule.
 
-Everyone in the group sees who kept the promise and who didn't. Only nicknames are shown, and the
-wording is neutral in gender («ещё нет», «пропусков»).
+Everyone in the group sees who kept the promise and who didn't, and how far each friend is in the
+deck. Only nicknames are shown, and the wording is neutral in gender («ещё нет», «пропусков»).
 
 The groups list shows «сегодня по обещанию 3 из 6 · вы ✓»; a deadline I'm behind on still takes
 the line.
@@ -78,7 +81,8 @@ them now.
 - `GET /me` gains `promise {weekdays, pending, pause}`.
 - `PUT /me/promise {weekdays}`, `PUT /me/promise/pause {until}`, `DELETE /me/promise/pause`.
 - The board's rows gain `week_states`, `month_misses`, `promise_today`, `promise_weekdays`,
-  `paused`, `known`, `learning`; the board gains `today`, `today_promised`, `today_done`. The
+  `paused`, `known`, `learning` and `decks` (per deck given to the group: `word_count`, `met`,
+  `learned`); the board gains `today`, `today_promised`, `today_done`. The
   groups list gains `today_promised`, `today_done`, `my_today` and drops `my_rank` and `ranked`.
 - `GET /progress` returns `promised_week` (seven flags) in place of `promised_days`.
 

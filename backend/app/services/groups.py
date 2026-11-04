@@ -25,11 +25,12 @@ from app.schemas.groups import (
     GroupOut,
     GroupPreviewOut,
     GroupSummaryOut,
+    MemberDeckOut,
     Period,
     TodayMemberOut,
     TotalsOut,
 )
-from app.services.decks import board_assignments
+from app.services.decks import board_assignments, member_deck_progress
 from app.services.progress import local_day_bounds
 from app.services.promise import (
     load_promises,
@@ -399,6 +400,12 @@ def board(
     )
     known = _learned(db, users, None, now + timedelta(days=1))
     met = _met(db, users)
+    assignments = board_assignments(
+        db, group.id, me, [member for member, _ in members], today, zone
+    )
+    deck_progress = member_deck_progress(
+        db, [given.deck_id for given in assignments], [member_user.id for member_user in users]
+    )
 
     def in_period(day: StudyDay) -> bool:
         return (first is None or day.day >= first) and day.day <= last
@@ -435,6 +442,16 @@ def board(
                 paused=bool(promise.pause and promise.pause[0] <= today <= promise.pause[1]),
                 known=known[member_user.id],
                 learning=max(0, met[member_user.id] - known[member_user.id]),
+                decks=[
+                    MemberDeckOut(
+                        deck_id=given.deck_id,
+                        title=given.title,
+                        word_count=given.word_count,
+                        met=deck_progress.get((given.deck_id, member_user.id), (0, 0))[0],
+                        learned=deck_progress.get((given.deck_id, member_user.id), (0, 0))[1],
+                    )
+                    for given in assignments
+                ],
             )
         )
     places_by = places(rows)
@@ -459,7 +476,5 @@ def board(
             learned=sum(row.learned for row in rows),
             cards=sum(row.cards for row in rows),
         ),
-        assignments=board_assignments(
-            db, group.id, me, [member for member, _ in members], today, zone
-        ),
+        assignments=assignments,
     )

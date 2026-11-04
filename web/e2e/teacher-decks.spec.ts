@@ -85,7 +85,9 @@ test('a teacher gives words to a group and a student learns them first', async (
   await expect(button(page, 'Дать слова группе')).toHaveCount(0);
   await page.getByText('Управление группой').click();
   await expect(page.getByRole('heading', { name: 'Колоды группы' })).toBeVisible();
-  await expect(page.getByRole('listitem').filter({ hasText: 'Unit 4' })).toContainText('2\u00a0слова');
+  await expect(page.locator('details').getByRole('listitem').filter({ hasText: 'Unit 4' })).toContainText(
+    '2\u00a0слова',
+  );
 
   // The student finds it in «Мои колоды» and studies it from its page, within their own pace.
   const learner = await student.newPage();
@@ -104,9 +106,11 @@ test('a teacher gives words to a group and a student learns them first', async (
   // The teacher finds it among her own decks, given to the group.
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
-  // The student finished a lesson today: a day done in the report (ADR 0039).
+  // The student finished a lesson today: named among those who kept the promise, with what she has
+  // learned from the deck (met, not yet recalled in a later review) (ADR 0039).
   await openGroup(page);
-  await expect(page.getByRole('button', { name: /^Анна: пропусков: 0.*сделано/ })).toBeVisible();
+  const kept = page.getByRole('region', { name: 'Сделали сегодня' });
+  await expect(kept.getByRole('button', { name: /^Анна/ })).toContainText('Unit 4: выучено 0 из 2');
 });
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).

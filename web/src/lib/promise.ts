@@ -1,4 +1,4 @@
-import type { DayState } from './types.ts';
+import type { BoardRow, DayState, TodayState } from './types.ts';
 
 /**
  * The promise in words (ADR 0039): which weekdays a learner promised to study, and how the report
@@ -52,3 +52,35 @@ export const plusDays = (day: string, days: number) =>
 
 export const sameDays = (a: number[], b: number[]) =>
   a.length === b.length && [...a].sort().every((weekday, index) => weekday === [...b].sort()[index]);
+
+/** Today's report as names (ADR 0039): who did the promise, who hasn't yet, who has the day off. */
+export interface TodayList {
+  state: TodayState;
+  title: string;
+  rows: BoardRow[];
+}
+
+const TODAY_TITLES: Record<TodayState, string> = {
+  done: 'Сделали сегодня',
+  pending: 'Ещё нет',
+  off: 'Сегодня выходной',
+};
+
+/** The rows keep the board's order (me, then alphabetical); a list with nobody in it is left out. */
+export const todayLists = (rows: BoardRow[]): TodayList[] =>
+  (['done', 'pending', 'off'] as const)
+    .map((state) => ({ state, title: TODAY_TITLES[state], rows: rows.filter((row) => row.promise_today === state) }))
+    .filter((list) => list.rows.length > 0);
+
+/**
+ * What a friend has learned from the deck given to the group: «Unit 4: выучено 12 из 30». With
+ * several decks, the total; with none, the words they know in all (empty when there are none).
+ */
+export function wordsLine(row: BoardRow): string {
+  const { decks } = row;
+  if (decks.length === 0) return row.known > 0 ? `выучено слов: ${row.known}` : '';
+  if (decks.length === 1) return `${decks[0].title}: выучено ${decks[0].learned} из ${decks[0].word_count}`;
+  const learned = decks.reduce((sum, deck) => sum + deck.learned, 0);
+  const total = decks.reduce((sum, deck) => sum + deck.word_count, 0);
+  return `Выучено ${learned} из ${total} слов в колодах группы`;
+}

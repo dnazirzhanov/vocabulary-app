@@ -1,7 +1,7 @@
 """Teachers' decks through the API (ADR 0017): written by a group's owner, given to the group, met
 by its members first within their own daily pace, never counted toward the course goal."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -259,6 +259,38 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
     # Places are the board's own rule: Pavel answered this week, so he alone has one.
     pavel = next(row for row in owner["rows"] if nicknames[row["member_id"]] == "Павел")
     assert pavel["rank"] == 1
+
+
+def test_every_member_sees_how_many_words_each_friend_learned_from_the_deck(
+    client: TestClient,
+) -> None:
+    group = class_group(client)
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
+    learn(client, "pavel", deck)  # Thursday: three words met, none recalled yet
+    later = at(THURSDAY + timedelta(days=10))  # reviews fall due after a gap of days
+    session = client.post(
+        "/api/sessions", json=lesson_of(deck), headers={"X-Dev-User": "pavel"} | later
+    ).json()
+    finish(client, session, {"X-Dev-User": "pavel"} | later)  # ten days on: the three come back
+    client.post(f"/api/sessions/{session['id']}/complete", headers={"X-Dev-User": "pavel"} | later)
+
+    for viewer in ("ivan", "pavel"):  # a member, not only the owner, sees everyone's
+        board = client.get(
+            f"/api/groups/{group['id']}/board",
+            headers={"X-Dev-User": viewer} | later,
+        ).json()
+        decks = {row["nickname"]: row["decks"] for row in board["rows"]}
+        assert decks["Павел"] == [
+            {"deck_id": deck["id"], "title": "Unit 4", "word_count": 3, "met": 3, "learned": 3}
+        ]
+        assert [(d["met"], d["learned"]) for d in decks["Иван"]] == [(0, 0)]
+        assert [(d["met"], d["learned"]) for d in decks["Ольга"]] == [(0, 0)]
+
+
+def test_a_group_with_no_deck_has_no_deck_lines(client: TestClient) -> None:
+    group = class_group(client)
+    board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
+    assert all(row["decks"] == [] for row in board["rows"])
 
 
 def test_progress_toward_the_course_goal_counts_course_words_only(client: TestClient) -> None:

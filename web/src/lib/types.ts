@@ -293,6 +293,17 @@ export interface BoardRow {
   /** Words known (recalled in a later review) and learning (met, not yet known), in all. */
   known: number;
   learning: number;
+  /** Each deck given to the group: how many of its words this member has met and learned. */
+  decks: MemberDeck[];
+}
+
+export interface MemberDeck {
+  deck_id: string;
+  title: string;
+  word_count: number;
+  met: number;
+  /** Recalled in a later review with any answer but «Снова»: «знаю» on «Прогресс». */
+  learned: number;
 }
 
 /** A group in the list (ADR 0023): its pulse before opening it. */

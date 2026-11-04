@@ -89,17 +89,19 @@ test('the group report shows a missed promise, and a paused one is not missed', 
   await page.goto('/');
   await button(page, 'Друзья').click();
   await page.getByRole('button', { name: /^7Б английский/ }).click();
-  await expect(page.getByRole('heading', { name: 'Отчёт · ноябрь' })).toBeVisible();
-  const olga = page.getByRole('button', { name: /^Ольга \(вы\): пропусков: 0/ });
-  await expect(olga).toHaveAccessibleName(/Вт — сделано/);
-  const anna = page.getByRole('button', { name: /^Анна: пропусков: 1/ });
-  await expect(anna).toHaveAccessibleName(/Пн — не по обещанию, Вт — пропущено/);
-  const boris = page.getByRole('button', { name: /^Борис: пропусков: 0/ });
-  await expect(boris).toHaveAccessibleName(/Вт — не по обещанию/);
-  // Today by the promise: Ольга and Анна are promised, Борис is paused; nobody has studied yet.
-  await expect(page.getByText('0 из 2')).toBeVisible();
+  // Names by today's promise: nobody has studied yet, Борис is paused.
+  await expect(page.getByRole('region', { name: 'Сделали сегодня' })).toHaveCount(0);
+  const open = page.getByRole('region', { name: 'Ещё нет' });
+  await expect(open.getByRole('button', { name: /^Ольга.*пропусков: 0/ })).toBeVisible();
+  await expect(open.getByRole('button', { name: /^Анна.*пропусков: 1/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Сегодня выходной' })).toContainText('Борис');
+  await expect(page.getByRole('region', { name: 'Сегодня выходной' })).toContainText('пропусков: 0');
   await expect(page.getByText('Вы: ещё нет')).toBeVisible();
-  // The members are listed alphabetically after me, not by any score.
-  const names = await page.getByRole('list').filter({ has: boris }).getByRole('button').allInnerTexts();
-  expect(names.map((text) => text.split('\n')[0])).toEqual(['Ольга', 'Анна', 'Борис']);
+  // Me first, then alphabetically: no score orders the friends.
+  const names = await open.getByRole('button').allInnerTexts();
+  expect(names.map((text) => text.split('\n')[0])).toEqual(['Ольга', 'Анна']);
+  // A friend's window has their week: Анна joined Monday, so Tuesday is the first she could miss.
+  await open.getByRole('button', { name: /^Анна/ }).click();
+  const window = page.getByRole('dialog', { name: 'Анна' });
+  await expect(window.getByRole('img', { name: /Пн — не по обещанию, Вт — пропущено/ })).toBeVisible();
 });

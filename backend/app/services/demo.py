@@ -9,6 +9,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Deck,
+    DeckAssignment,
     DeckWord,
     Group,
     GroupMember,
@@ -23,6 +25,9 @@ from app.services.scheduling import local_date
 from app.services.study_days import week_of
 
 DEMO_GROUP = "Демо-группа"
+# A deck given to the group, so the report can show how much of it each friend has learned.
+DEMO_DECK = "demo-unit-4"
+DEMO_DECK_WORDS = 30
 ZONE = ZoneInfo("Asia/Bishkek")
 # Nickname and new words per day, Monday to Sunday (None: no study that day).
 CLASSMATES: list[tuple[str, int, int, list[int | None]]] = [
@@ -44,6 +49,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
         db.add(owner)
         db.flush()
     db.execute(delete(User).where(User.auth_subject.like("dev|classmate-%")))
+    db.execute(delete(Deck).where(Deck.id == DEMO_DECK))
     old = db.scalars(
         select(Group.id)
         .join(GroupMember, GroupMember.group_id == Group.id)
@@ -69,6 +75,27 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
     words = list(
         db.scalars(
             select(DeckWord.word_id).where(DeckWord.deck_id == "a1-a2").order_by(DeckWord.position)
+        )
+    )
+    db.add(
+        Deck(
+            id=DEMO_DECK,
+            title="Unit 4",
+            description="",
+            learning_language="en",
+            explanation_language="ru",
+            status="published",
+            content_version=1,
+            kind="user",
+            owner_id=owner.id,
+        )
+    )
+    db.flush()
+    for position, word_id in enumerate(words[:DEMO_DECK_WORDS]):
+        db.add(DeckWord(deck_id=DEMO_DECK, word_id=word_id, position=position))
+    db.add(
+        DeckAssignment(
+            group_id=group.id, deck_id=DEMO_DECK, assigned_by=owner.id, assigned_at=joined
         )
     )
     days = week_of(local_date(now, ZONE))

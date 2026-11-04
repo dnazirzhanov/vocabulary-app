@@ -24,16 +24,3 @@ export function DayDots({ states, named = false }: { states: DayState[]; named?:
     </ol>
   );
 }
-
-/** The weekday names above a column of dots. */
-export function DayNames() {
-  return (
-    <ol className={styles.dots} aria-hidden="true" data-names="">
-      {WEEKDAY_NAMES.map((name) => (
-        <li key={name}>
-          <span className={styles.name}>{name}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
