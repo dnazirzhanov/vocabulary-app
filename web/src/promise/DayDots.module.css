@@ -36,17 +36,17 @@
 }
 
 /* done: filled, with a check */
-li[data-state='done'] .dot {
+[data-state='done'] .dot {
   background: var(--color-activity-goal);
   color: var(--color-on-primary);
 }
 
 /* missed: an empty ring with a dash — neutral graphite, not an alarm */
-li[data-state='missed'] .dot {
+[data-state='missed'] .dot {
   box-shadow: inset 0 0 0 2px var(--color-text-muted);
 }
 
-li[data-state='missed'] .dot::after {
+[data-state='missed'] .dot::after {
   content: '';
   width: 8px;
   height: 2px;
@@ -55,22 +55,30 @@ li[data-state='missed'] .dot::after {
 }
 
 /* today, still open: a ring set apart by an outline */
-li[data-state='today'] .dot {
+[data-state='today'] .dot {
   box-shadow: inset 0 0 0 2px var(--color-activity-none);
   outline: 2px solid var(--color-text);
   outline-offset: 1px;
 }
 
 /* promised, still to come: a faint ring */
-li[data-state='later'] .dot {
+[data-state='later'] .dot {
   box-shadow: inset 0 0 0 2px var(--color-activity-none);
 }
 
 /* not promised: a small quiet dot */
-li[data-state='off'] .dot::after {
+[data-state='off'] .dot::after {
   content: '';
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--color-activity-none);
+}
+
+.mark {
+  display: inline-grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
 }

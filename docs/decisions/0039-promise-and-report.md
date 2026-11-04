@@ -37,6 +37,9 @@ Kept simple, as plain lists of names:
    обещание: Пн–Пт · Изменить».
 2. **Who did it, by name,** in three lists: «Сделали сегодня», «Ещё нет», «Сегодня выходной»
    (a day off or a pause). Me first, then alphabetically, never by a score.
+   - The headings are the report's structure, so they are set at body size in bold with a mark from
+     the week's dots (✓ done, a ringed ring not yet, a small dot a day off) and the count; the
+     day-off list is the same size but quieter.
 3. **Each friend's row** shows what they have learned from the deck given to the group, and
    «пропусков: N», the promised days missed since the 1st of the calendar month. That count
    restarts each month by construction, and counting starts the day after joining the group.

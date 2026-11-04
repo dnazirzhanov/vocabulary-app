@@ -120,14 +120,32 @@
 .names {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
+/*
+ * The three lists are the report's structure, so their headings read as headings: a mark from the
+ * dots of a friend's week (✓ done, ringed ring not yet, small dot a day off), the label at body
+ * size in bold, the count beside it. The day-off list is the same size but quieter.
+ */
 .namesTitle {
-  margin: var(--space-2) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.namesTitle[data-state='off'] {
   color: var(--color-text-muted);
-  font-size: var(--text-meta);
+}
+
+.namesCount {
+  color: var(--color-text-muted);
   font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .report {

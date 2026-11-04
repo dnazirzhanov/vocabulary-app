@@ -13,7 +13,7 @@ import {
 } from '../lib/promise.ts';
 import type { Assignment, Board, BoardRow } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { DayDots } from '../promise/DayDots.tsx';
+import { DayDots, StateMark } from '../promise/DayDots.tsx';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
 import { BackIcon, CheckIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
@@ -299,8 +299,10 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
       )}
       {todayLists(rows).map((list) => (
         <section key={list.state} aria-label={list.title} className={styles.names}>
-          <h3 className={styles.namesTitle}>
-            {list.title} · {list.rows.length}
+          <h3 className={styles.namesTitle} data-state={list.state}>
+            <StateMark state={list.state} />
+            {list.title}
+            <span className={styles.namesCount}>{list.rows.length}</span>
           </h3>
           <ul className={styles.report}>
             {list.rows.map((row) => (
