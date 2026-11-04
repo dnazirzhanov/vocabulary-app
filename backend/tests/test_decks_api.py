@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import UserWordProgress
+from app.models import Deck, DeckAssignment, User, UserWordProgress
 from tests.support import at, cards, finish
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -291,6 +291,29 @@ def test_a_group_with_no_deck_has_no_deck_lines(client: TestClient) -> None:
     group = class_group(client)
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     assert all(row["decks"] == [] for row in board["rows"])
+
+
+def test_deleting_a_group_keeps_its_decks_and_what_was_learned(
+    client: TestClient, db: Session
+) -> None:
+    group = class_group(client)
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT, MONEY]), group["id"])
+    learn(client, "pavel", deck)
+    assert client.delete(f"/api/groups/{group['id']}", headers=as_("olga")).status_code == 204
+
+    assert db.scalar(select(func.count()).select_from(DeckAssignment)) == 0
+    assert db.get(Deck, deck["id"]) is not None  # still its author's deck
+    pavels = (
+        select(func.count())
+        .select_from(UserWordProgress)
+        .join(User, User.id == UserWordProgress.user_id)
+    )
+    assert db.scalar(pavels.where(User.auth_subject == "dev|pavel")) == 3
+    # The author can give it to another group.
+    other = client.post(
+        "/api/groups", json={"name": "8А", "nickname": "Ольга"}, headers=as_("olga")
+    ).json()
+    assert give(client, deck, other["id"])["status"] == "published"
 
 
 def test_progress_toward_the_course_goal_counts_course_words_only(client: TestClient) -> None:

@@ -93,7 +93,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   }, [load]);
   useEffect(() => {
     api.groups().then(
-      (groups) => setCanGive(groups.some((group) => group.role === 'owner')),
+      (groups) => setCanGive(groups.some((group) => group.can.includes('give_decks'))),
       () => setCanGive(false),
     );
   }, []);

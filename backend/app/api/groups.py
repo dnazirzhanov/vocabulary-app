@@ -1,4 +1,4 @@
-"""Friend groups: create, join by invite code, leave, and the weekly board."""
+"""Friend groups: create, join by invite code, rename, leave, hand over, and the weekly board."""
 
 from uuid import UUID
 
@@ -15,6 +15,8 @@ from app.schemas.groups import (
     GroupSummaryOut,
     JoinGroupIn,
     Period,
+    RenameGroupIn,
+    TransferIn,
 )
 from app.services import groups
 from app.services.me import remember_time_zone
@@ -62,9 +64,36 @@ def group_board(
     return groups.board(db, user, group_id, now, period)
 
 
+@router.patch("/groups/{group_id}")
+def rename_group(group_id: UUID, body: RenameGroupIn, user: CurrentUser, db: DbSession) -> GroupOut:
+    return groups.rename_group(db, user, group_id, body.name)
+
+
+@router.delete("/groups/{group_id}", status_code=204)
+def delete_group(group_id: UUID, user: CurrentUser, db: DbSession) -> Response:
+    groups.delete_group(db, user, group_id)
+    return Response(status_code=204)
+
+
+@router.post("/groups/{group_id}/invite")
+def reset_invite(group_id: UUID, user: CurrentUser, db: DbSession) -> GroupOut:
+    """A new invite link; the old one stops working."""
+    return groups.reset_invite(db, user, group_id)
+
+
+@router.put("/groups/{group_id}/owner")
+def transfer_ownership(
+    group_id: UUID, body: TransferIn, user: CurrentUser, db: DbSession
+) -> GroupOut:
+    return groups.transfer_ownership(db, user, group_id, body.member_id)
+
+
 @router.delete("/groups/{group_id}/members/me", status_code=204)
-def leave_group(group_id: UUID, user: CurrentUser, db: DbSession) -> Response:
-    groups.leave(db, user, group_id)
+def leave_group(
+    group_id: UUID, user: CurrentUser, db: DbSession, successor: UUID | None = None
+) -> Response:
+    """Leave; an owner names the member who takes the group over (`successor`)."""
+    groups.leave(db, user, group_id, successor)
     return Response(status_code=204)
 
 
