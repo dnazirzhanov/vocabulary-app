@@ -187,6 +187,14 @@ def test_drafts_are_limited_per_day(client: TestClient) -> None:
     assert responses[-1].json()["error"]["code"] == "generation_limit"
 
 
+PRODUCTION: dict[str, Any] = {
+    "environment": "production",
+    "auth_mode": "jwt",
+    "auth_issuer": "https://x.supabase.co/auth/v1",
+    "supabase_secret_key": "k",
+}
+
+
 def settings(**values: Any) -> Settings:
     # Explicit values win over the environment and .env, so a developer's own key changes nothing.
     values = {"deepseek_api_key": None, "generation_provider": "auto"} | values
@@ -199,11 +207,7 @@ def test_which_provider_drafts() -> None:
     assert isinstance(
         provider_for(settings(generation_provider="demo", deepseek_api_key="k")), DemoProvider
     )
-    production = {
-        "environment": "production",
-        "auth_mode": "jwt",
-        "auth_issuer": "https://x.supabase.co/auth/v1",
-    }
+    production = PRODUCTION
     with pytest.raises(ApiError) as missing:
         provider_for(settings(**production))
     assert missing.value.status == 503
@@ -314,10 +318,7 @@ def test_a_dev_header_asks_for_the_demo_whatever_the_server_holds() -> None:
     assert isinstance(get_provider(asked, keyed), DemoProvider)  # type: ignore[arg-type]
     plain = SimpleNamespace(headers={})
     assert get_provider(plain, keyed).name == "deepseek"  # type: ignore[arg-type]
-    production = settings(
-        generation_provider="deepseek", deepseek_api_key="k", environment="production",
-        auth_mode="jwt", auth_issuer="https://x.supabase.co/auth/v1",
-    )  # fmt: skip
+    production = settings(generation_provider="deepseek", deepseek_api_key="k", **PRODUCTION)
     assert get_provider(asked, production).name == "deepseek"  # type: ignore[arg-type]
 
 

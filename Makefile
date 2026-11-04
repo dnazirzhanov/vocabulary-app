@@ -1,5 +1,5 @@
 # Common tasks. `make help` lists them.
-.PHONY: help setup db-migrate content-load api web dev check test test-e2e
+.PHONY: help setup db-migrate content-load api web dev dev-supabase check test test-e2e
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-11s %s\n", $$1, $$2}'
@@ -25,6 +25,9 @@ web: ## Run the web app on http://localhost:5173 (proxies /api to the API)
 
 dev: ## Run the API and the web app together
 	$(MAKE) -j2 api web
+
+dev-supabase: ## Run both with real sign-in (stop `make dev` first; keys in .env, see docs/deploy.md)
+	set -a && . ./.env && set +a && AUTH_MODE=jwt VITE_AUTH_MODE=supabase $(MAKE) -j2 api web
 
 check: ## Lint, format check and type check everything
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy .

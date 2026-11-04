@@ -87,12 +87,46 @@
   font-weight: var(--weight-body);
 }
 
+/* The password and its «Показать», as one control. */
+.passwordRow {
+  position: relative;
+}
+
+.passwordRow input {
+  width: 100%;
+  padding-right: 6.5rem;
+}
+
+.reveal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  min-width: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+/* The code from an email: digits a learner reads off and checks at a glance. */
+.field input.code {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.15em;
+}
+
 .error {
   color: var(--color-error);
   font-weight: var(--weight-strong);
 }
 
 .switch {
+  margin-block: calc(-1 * var(--space-2));
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -107,6 +141,13 @@
   font-weight: var(--weight-strong);
   text-decoration: underline;
   cursor: pointer;
+}
+
+.switch button:disabled {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+  text-decoration: none;
+  cursor: default;
 }
 
 .note {

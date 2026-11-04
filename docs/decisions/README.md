@@ -12,7 +12,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0006](0006-leitner-scheduler.md) | Leitner-style review scheduler (1/3/7/16/35 days) | Superseded by 0012 |
 | [0007](0007-dev-clock-and-server-time.md) | Development clock override; day labels from server time | Accepted |
 | [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Goal and streak superseded by 0015 |
-| [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted |
+| [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted (confirmation, reset and deletion replaced by 0043) |
 | [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted (pace per deck: 0028) |
 | [0011](0011-friend-groups-and-board.md) | Friend groups with a weekly board that rewards showing up | Accepted |
 | [0012](0012-anki-style-flashcards-fsrs.md) | Anki-style flashcards scheduled by FSRS | Accepted; refined by 0025 |
@@ -44,3 +44,5 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0038](0038-no-today-line-on-the-deck-page.md) | A quieter deck page: no «today» sentence (the button carries it), no «Ваша колода» | Accepted |
 | [0039](0039-promise-and-report.md) | «Друзья» as a promise and a report: chosen weekdays, who kept it today by name, words learned from the deck, missed days this month, pauses; the league goes | Accepted |
 | [0040](0040-group-rights.md) | Group rights in one table the API reports (`can`): rename in place, leave from a visible link (an owner names a successor), hand over, new invite link, delete | Accepted |
+| [0043](0043-accounts.md) | Accounts for a class: codes by email through a free Gmail sender, reset, per-device sign-out, deleting the login too with the password asked again | Accepted |
+| [0045](0045-first-run-two-questions.md) | Login first; a new password typed twice; «Выйти» on the main screen; first run as two small questions with no pitch or pictures | Accepted |

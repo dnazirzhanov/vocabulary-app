@@ -39,6 +39,17 @@ class User(Base):
     time_zone: Mapped[str | None] = mapped_column(String(64))
 
 
+class DeletedLogin(Base):
+    """A login whose account was just deleted (ADR 0043). Its tokens stay valid until they expire,
+    so without this a phone still signed in would quietly create a new, unreachable account. Only
+    the provider's opaque id; swept a day later."""
+
+    __tablename__ = "deleted_logins"
+
+    auth_subject: Mapped[str] = mapped_column(String(255), primary_key=True)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class PaceDismissal(Base):
     """A pace suggestion the learner said no to; the same kind stays quiet for a week."""
 

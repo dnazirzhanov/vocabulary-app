@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # jwt mode: the token issuer, e.g. https://<project>.supabase.co/auth/v1
     auth_issuer: str | None = None
     auth_audience: str = "authenticated"
+    # jwt mode: Supabase's secret key, only to delete a login with its account (ADR 0043). It can
+    # manage every login, so it lives in the host's secrets and never reaches the browser.
+    supabase_secret_key: SecretStr | None = None
     # Comma-separated origins for a deployed web app; empty when the API serves the web app itself.
     allowed_origins: str = ""
     # Built web app (web/dist) to serve from the API in production; unset in development.
@@ -61,6 +64,8 @@ class Settings(BaseSettings):
             if not self.auth_issuer or not self.auth_issuer.startswith("https://"):
                 raise ValueError("AUTH_MODE=jwt needs AUTH_ISSUER (an https:// URL)")
             self.auth_issuer = self.auth_issuer.rstrip("/")
+            if self.environment == "production" and self.supabase_secret_key is None:
+                raise ValueError("AUTH_MODE=jwt in production needs SUPABASE_SECRET_KEY")
         return self
 
     @property

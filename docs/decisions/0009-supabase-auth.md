@@ -1,7 +1,8 @@
 # 0009 — Supabase Auth with locally verified tokens; one container
 
 **Status:** Accepted (provider chosen by the product owner after the comparison in
-`docs/research/hosting-and-auth-2026-10.md`)
+`docs/research/hosting-and-auth-2026-10.md`). Confirmation, password reset, and what deleting an
+account removes are replaced by ADR 0043.
 
 ## Decision
 - Learners sign up and in with **email and password** through Supabase Auth in the browser. For the

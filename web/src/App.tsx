@@ -1,5 +1,6 @@
+import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { AuthScreen } from './auth/AuthScreen.tsx';
+import { AuthScreen, NewPasswordScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
 import { DeckScreen } from './decks/DeckScreen.tsx';
 import { WordsScreen } from './words/WordsScreen.tsx';
@@ -13,9 +14,9 @@ import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
+import { forgetDevice } from './lib/push.ts';
 import { currentDeck } from './lib/today.ts';
 import type { Deck, Me, Session, Summary } from './lib/types.ts';
-import { courseOf } from './lib/course.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
@@ -71,28 +72,53 @@ const startScreen = (): Screen => {
   return code ? { name: 'join', code } : { name: 'home' };
 };
 
-type Account = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; email: string | null };
+type Account =
+  | { status: 'loading' }
+  | { status: 'signedOut' }
+  // A recovery code was accepted: signed in, but a new password comes before anything else.
+  | { status: 'newPassword'; email: string | null }
+  | { status: 'signedIn'; email: string | null };
 
 /** Development builds have no sign-in; production builds wait for a Supabase session. */
-function useAccount(): Account {
+function useAccount() {
   const [account, setAccount] = useState<Account>(
     authMode === 'dev' ? { status: 'signedIn', email: null } : { status: 'loading' },
   );
   useEffect(() => {
     if (!supabase) return;
-    const apply = (email: string | null | undefined, signedIn: boolean) =>
-      setAccount(signedIn ? { status: 'signedIn', email: email ?? null } : { status: 'signedOut' });
-    void supabase.auth.getSession().then(({ data }) => apply(data.session?.user.email, Boolean(data.session)));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user.email, Boolean(session)));
+    const apply = (event: AuthChangeEvent | null, session: AuthSession | null) =>
+      setAccount((current) => {
+        if (!session) return { status: 'signedOut' };
+        const email = session.user.email ?? null;
+        if (event === 'PASSWORD_RECOVERY') return { status: 'newPassword', email };
+        // Token refreshes and returning to the tab must not skip the new password.
+        return current.status === 'newPassword' ? current : { status: 'signedIn', email };
+      });
+    void supabase.auth.getSession().then(({ data }) => apply(null, data.session));
+    const { data } = supabase.auth.onAuthStateChange(apply);
     return () => data.subscription.unsubscribe();
   }, []);
-  return account;
+  const passwordSaved = useCallback(
+    () =>
+      setAccount((current) =>
+        current.status === 'newPassword' ? { status: 'signedIn', email: current.email } : current,
+      ),
+    [],
+  );
+  return { account, passwordSaved };
+}
+
+/** This device only: a phone stays signed in when the laptop signs out, its reminders stop here. */
+async function signOutHere() {
+  await forgetDevice().catch(() => undefined);
+  await supabase?.auth.signOut({ scope: 'local' });
 }
 
 export function App() {
-  const account = useAccount();
+  const { account, passwordSaved } = useAccount();
   if (account.status === 'loading') return null;
   if (account.status === 'signedOut') return <AuthScreen invited={pendingInvite() !== null} />;
+  if (account.status === 'newPassword') return <NewPasswordScreen onDone={passwordSaved} />;
   // Keyed by account, so signing in as someone else starts from a fresh home screen.
   return <Learning key={account.email ?? 'dev'} email={account.email} />;
 }
@@ -163,7 +189,6 @@ function Learning({ email }: { email: string | null }) {
   if (current && !me.onboarded) {
     return (
       <GoalScreen
-        course={courseOf(decks)}
         me={me}
         onDone={(updated) => {
           setProfile({ me: updated, decks });
@@ -270,9 +295,9 @@ function Learning({ email }: { email: string | null }) {
           onOpenDeck={(deckId) => openPage(deckId, 'progress')}
           account={{
             email,
-            onSignOut: supabase ? () => void supabase?.auth.signOut() : undefined,
+            onSignOut: supabase ? signOutHere : undefined,
             onAccountDeleted: () => {
-              if (supabase) void supabase.auth.signOut();
+              if (supabase) void signOutHere();
               else goHome();
             },
           }}
@@ -305,6 +330,7 @@ function Learning({ email }: { email: string | null }) {
         onOpenPage={(deckId) => openPage(deckId, 'home')}
         onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         onOpenCourse={() => setScreen({ name: 'course' })}
+        onSignOut={supabase ? signOutHere : undefined}
       />
     );
   }

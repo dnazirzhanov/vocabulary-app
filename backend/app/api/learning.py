@@ -5,8 +5,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path, Response
 
-from app.core.auth import CurrentUser, DbSession
+from app.core.auth import CurrentUser, DbSession, require_recent_sign_in
 from app.core.clock import Now, TimeZone
+from app.core.config import Settings, get_settings
 from app.core.ratelimit import limit_attempts
 from app.schemas.learning import (
     ActiveSessionOut,
@@ -91,10 +92,12 @@ def complete_session(
     return sessions.complete_session(db, user, session_id, now, time_zone)
 
 
-@router.delete("/me", status_code=204)
-def delete_account(user: CurrentUser, db: DbSession) -> Response:
-    """Deletes the learner and, by cascade, every session, attempt and progress record."""
-    sessions.delete_learner(db, user)
+@router.delete("/me", status_code=204, dependencies=[Depends(require_recent_sign_in)])
+def delete_account(
+    user: CurrentUser, db: DbSession, settings: Annotated[Settings, Depends(get_settings)]
+) -> Response:
+    """Deletes the learner, their data and their login (ADR 0043)."""
+    sessions.delete_learner(db, user, settings)
     return Response(status_code=204)
 
 

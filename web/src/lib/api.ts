@@ -1,4 +1,4 @@
-import { accessToken } from './auth.ts';
+import { accessToken, dropSession } from './auth.ts';
 import { syncWithServer } from './clock.ts';
 import type {
   AttemptResult,
@@ -72,6 +72,7 @@ async function request<T>(
   }
   syncWithServer(response.headers.get('X-Server-Time'));
   const data: unknown = await response.json().catch(() => null);
+  if (response.status === 401) await dropSession();
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
     throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
@@ -184,12 +185,14 @@ export const api = {
   pushKey: () => request<{ public_key: string | null }>('GET', '/push/key'),
   subscribePush: (subscription: PushSubscriptionJSON) => request<null>('POST', '/push/subscriptions', subscription),
   unsubscribePush: (endpoint: string) => request<null>('DELETE', '/push/subscriptions', { endpoint }),
-  /** Deletes the learner's account data on our server (sessions, answers, progress). */
+  /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };
 
 // Errors the learner can act on, by the server's error code.
 const MESSAGES: Record<string, string> = {
+  account_delete_failed: 'Не удалось удалить аккаунт, ничего не изменилось. Попробуйте ещё раз через минуту.',
+  reauth_required: 'Введите пароль ещё раз, чтобы удалить аккаунт.',
   nickname_taken: 'Это имя уже занято в группе — выберите другое.',
   invalid_nickname: 'Такое имя не подойдёт: только буквы, цифры, пробел и дефис.',
   invalid_group_name: 'Название: от 2 до 40 символов, без ссылок.',

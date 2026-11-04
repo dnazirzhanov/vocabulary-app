@@ -19,6 +19,7 @@ export type PushState =
   | 'on';
 
 const WORKER = '/sw.js';
+const FORGET_WAIT_MS = 3000;
 
 function installed(): boolean {
   return (
@@ -65,4 +66,18 @@ export async function disablePush(): Promise<PushState> {
     await device.unsubscribe();
   }
   return 'off';
+}
+
+/**
+ * Signing out on a shared phone: the next person must not get this learner's reminders. The server
+ * is told if it answers quickly; the browser unsubscribes regardless, and the push service then
+ * tells the server the subscription is gone.
+ */
+export async function forgetDevice(): Promise<void> {
+  if (!supported()) return;
+  const device = await subscription();
+  if (!device) return;
+  const told = api.unsubscribePush(device.endpoint).catch(() => null);
+  await Promise.race([told, new Promise((resolve) => setTimeout(resolve, FORGET_WAIT_MS))]);
+  await device.unsubscribe();
 }

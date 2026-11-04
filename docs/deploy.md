@@ -3,17 +3,40 @@
 Nothing here has been run for you: it creates accounts and publishes the app. Do it when ready.
 For a first class, follow `pilot.md`: these steps in order, plus what the class needs.
 
-## 1. Supabase (Frankfurt, free)
+## 1. Supabase (Frankfurt, free) and email (ADR 0043)
 1. Create a project in **Frankfurt (eu-central-1)**; note the database password.
-2. Authentication → Sign In / Providers → Email: **turn off "Confirm email"** (demo; no email domain).
-3. Authentication → JWT Signing Keys: **create an asymmetric (ECC P-256) key and rotate to it**.
-4. Collect: project URL, publishable key, the session-pooler connection string.
-5. Your issuer is `https://<project>.supabase.co/auth/v1`.
+2. Authentication → JWT Signing Keys: **create an asymmetric (ECC P-256) key and rotate to it**.
+   Leave the JWT expiry at its default (an hour); never set it above a day.
+3. **A dedicated Gmail account** for the app's mail, not your own: turn on 2-Step Verification, then
+   make an app password (Google Account → Security → App passwords).
+4. Authentication → SMTP settings → custom SMTP: host `smtp.gmail.com`, port `587`, your Gmail address
+   and app password; sender name «Словарь». Without this Supabase only mails its own project team.
+5. Authentication → Sign In / Providers → Email: **«Confirm email» on**, minimum password length 8.
+6. Authentication → Email Templates: the app asks for a **code**, so use `{{ .Token }}` and no link.
+   - «Confirm signup», subject «Код для входа в Словарь»: `<p>Ваш код: <b>{{ .Token }}</b></p>`
+   - «Reset password», subject «Код для нового пароля»: `<p>Ваш код: <b>{{ .Token }}</b></p><p>Если это были не вы, просто удалите письмо.</p>`
+7. Authentication → Rate Limits: **a school shares one IP**, and the defaults stop a class. Raise
+   sign-ups and sign-ins, token verifications and token refreshes per IP, and emails per hour (custom
+   SMTP starts at 30). Check the numbers against a real class before relying on them; Gmail's own
+   limit is 500 a day.
+8. Collect: project URL, publishable key, **secret key**, the session-pooler connection string.
+9. Your issuer is `https://<project>.supabase.co/auth/v1`.
+
+**If sign-up hangs for about 35 seconds and no email comes,** Supabase cannot reach the mail server:
+it answers `504 upstream request timeout` and keeps no account. Check the SMTP host and port above;
+Authentication logs in the dashboard give the exact reason. Never test with made-up addresses: bounces
+count against the Gmail account.
+
+To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET_KEY`,
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`, stop `make dev`, and run
+`make dev-supabase`.
 
 ## 2. Host the container (Koyeb Frankfurt, or Render)
 Build from the repo `Dockerfile` with build args `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 Runtime variables (secrets in the host's secret store, never in git):
-`DATABASE_URL=postgresql+psycopg://…`, `AUTH_ISSUER=https://<project>.supabase.co/auth/v1`.
+`DATABASE_URL=postgresql+psycopg://…`, `AUTH_ISSUER=https://<project>.supabase.co/auth/v1`,
+`SUPABASE_SECRET_KEY=…` (the app refuses to start without it; it can manage every login, so it never
+goes anywhere else).
 Health check: `/api/health/ready`. The free host sleeps when idle; the first visit can take a minute.
 
 ## 3. Deadline reminders (optional; ADR 0031)
