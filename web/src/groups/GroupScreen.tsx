@@ -347,18 +347,24 @@ function RowWords({ row }: { row: BoardRow }) {
 }
 
 /**
- * A friend's window: their week as the days-of-the-week dots (which also show the promised days),
+ * A friend's window: «Расписание обещания», their week as the days-of-the-week dots (which show the
+ * promised days),
  * the promised days missed this month, and for each deck how many words they know.
  */
 function MemberWindow({ row, onClose }: { row: BoardRow; onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
-      <DayDots states={row.week_states} />
+      <section aria-labelledby="schedule-title" className={styles.block}>
+        <h3 id="schedule-title" className={styles.blockTitle}>
+          Расписание обещания
+        </h3>
+        <DayDots states={row.week_states} />
+      </section>
       <p className={styles.missed}>
         Пропущено дней в этом месяце: <strong>{number.format(row.month_misses)}</strong>
       </p>
       <section aria-labelledby="words-title" className={styles.wordsBlock}>
-        <h3 id="words-title" className={styles.wordsTitle}>
+        <h3 id="words-title" className={styles.blockTitle}>
           Слова
         </h3>
         {row.decks.length > 0 ? (

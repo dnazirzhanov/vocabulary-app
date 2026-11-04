@@ -300,7 +300,14 @@
   overflow-wrap: anywhere;
 }
 
-.wordsTitle {
+/* A labelled block of the window: «Расписание обещания», «Слова». */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.blockTitle {
   margin: 0;
   font-size: var(--text-body);
   font-weight: var(--weight-display);
