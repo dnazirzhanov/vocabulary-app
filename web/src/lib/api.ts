@@ -136,7 +136,15 @@ export const api = {
     request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`, { nickname }),
   board: (groupId: string, period: Period = 'week') =>
     request<Board>('GET', `/groups/${groupId}/board?period=${period}`),
-  leaveGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}/members/me`),
+  /** Leave; an owner names the member who takes the group over (ADR 0040). */
+  leaveGroup: (groupId: string, successorId?: string) =>
+    request<null>('DELETE', `/groups/${groupId}/members/me${successorId ? `?successor=${successorId}` : ''}`),
+  renameGroup: (groupId: string, name: string) => request<Group>('PATCH', `/groups/${groupId}`, { name }),
+  /** A new invite link; the old one stops working. */
+  resetInvite: (groupId: string) => request<Group>('POST', `/groups/${groupId}/invite`),
+  transferOwnership: (groupId: string, memberId: string) =>
+    request<Group>('PUT', `/groups/${groupId}/owner`, { member_id: memberId }),
+  deleteGroup: (groupId: string) => request<null>('DELETE', `/groups/${groupId}`),
   removeMember: (groupId: string, memberId: string) =>
     request<null>('DELETE', `/groups/${groupId}/members/${memberId}`),
   // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
@@ -197,7 +205,10 @@ const MESSAGES: Record<string, string> = {
   deck_full: 'В колоде может быть не больше 500 слов.',
   deck_empty: 'Сначала добавьте хотя бы одно слово.',
   course_word: 'Это слово из курса: его перевод и пример менять нельзя.',
-  not_group_owner: 'Давать слова группе может только её создатель.',
+  not_group_owner: 'Давать слова группе может только её владелец.',
+  not_owner: 'Это может сделать только владелец группы.',
+  not_allowed: 'В этой группе вам это не разрешено.',
+  already_owner: 'Выберите другого участника.',
   generation_limit: 'На сегодня подбор слов исчерпан (20 раз в день). Попробуйте завтра.',
   generation_unavailable: 'Подбор слов пока не настроен на сервере.',
   generation_busy: 'Сервис подбора слов сейчас занят. Попробуйте через минуту.',

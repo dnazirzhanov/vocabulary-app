@@ -61,6 +61,7 @@ from app.schemas.groups import (
 )
 from app.schemas.learning import WordOut
 from app.services.generation import DraftCard, Provider, flags, word_key
+from app.services.group_rights import can, require
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
 
 MAX_WORDS_PER_DECK = 500  # room to grow a topic deck day by day (ADR 0019)
@@ -118,8 +119,7 @@ def _owned_group(db: Session, user: User, group_id: UUID) -> Group:
     ).one_or_none()
     if row is None:
         raise ApiError(404, "group_not_found", "Group not found")
-    if row[1] != "owner":
-        raise ApiError(403, "not_group_owner", "Only the group's owner can give it words")
+    require(row[1], "give_decks", "not_group_owner", "Only the group's owner can give it words")
     return row[0]
 
 
@@ -874,7 +874,7 @@ def board_assignments(
             if due_on is not None
             else {}
         )
-        owner = me.role == "owner"
+        owner = can(me.role, "see_standings")
         return AssignmentOut(
             deck_id=deck.id,
             title=deck.title,

@@ -33,7 +33,7 @@ export function GiveDialog({
     Promise.all([api.teacherDeck(deckId), api.groups()]).then(
       ([loaded, groups]) => {
         setDeck(loaded);
-        setOwned(groups.filter((group) => group.role === 'owner'));
+        setOwned(groups.filter((group) => group.can.includes('give_decks')));
       },
       (caught: unknown) => setLoadError(describeError(caught)),
     );

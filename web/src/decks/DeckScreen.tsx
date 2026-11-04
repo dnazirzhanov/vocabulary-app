@@ -60,7 +60,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           // Giving a deck to a group is for a group's owner (ADR 0036).
           const canGive = stats.is_mine
             ? await api.groups().then(
-                (groups) => groups.some((group) => group.role === 'owner'),
+                (groups) => groups.some((group) => group.can.includes('give_decks')),
                 () => false,
               )
             : false;

@@ -1,32 +1,84 @@
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
+import { api } from '../lib/api.ts';
+import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
+import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { CheckIcon } from '../ui/icons.tsx';
 import styles from './Groups.module.css';
 
 const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
 
+/** Those who may reset the link (ADR 0040): the group, and what to do with its new code. */
+interface ResetLink {
+  groupId: string;
+  onReset: (code: string) => void;
+}
+
 interface InviteDialogProps {
   code: string;
   groupName: string;
   open: boolean;
   onClose: () => void;
+  reset?: ResetLink;
 }
 
 /**
  * The invitation in a modal window: a QR code, the code, the link, and ways to copy, share or save
  * it. Everything is made in the browser, so the code never reaches another service.
  */
-export function InviteDialog({ code, groupName, open, onClose }: InviteDialogProps) {
+export function InviteDialog({ code, groupName, open, onClose, reset }: InviteDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title="Пригласить друзей">
-      <InviteContent code={code} groupName={groupName} />
+      <InviteContent code={code} groupName={groupName} reset={reset} />
     </Dialog>
   );
 }
 
-function InviteContent({ code, groupName }: { code: string; groupName: string }) {
+/** «Новая ссылка»: asks once, since the old link and QR code stop working. */
+function NewLink({ groupId, onReset }: ResetLink) {
+  const [asking, setAsking] = useState(false);
+  const { run, busy, error } = useAsyncAction();
+  return (
+    <div className={styles.newLink}>
+      {asking ? (
+        <>
+          <p className={styles.hint}>Старая ссылка и QR-код перестанут работать. Те, кто уже в группе, останутся.</p>
+          <span className={styles.confirm}>
+            <button
+              type="button"
+              className={styles.dangerButton}
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  onReset((await api.resetInvite(groupId)).invite_code);
+                  setAsking(false);
+                })
+              }
+            >
+              Да, создать
+            </button>
+            <SecondaryButton type="button" className={styles.smallSecondary} onClick={() => setAsking(false)}>
+              Отмена
+            </SecondaryButton>
+          </span>
+        </>
+      ) : (
+        <button type="button" className={styles.linkButton} onClick={() => setAsking(true)}>
+          Новая ссылка
+        </button>
+      )}
+      {error && (
+        <p className={styles.problem} role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function InviteContent({ code, groupName, reset }: { code: string; groupName: string; reset?: ResetLink }) {
   const link = `${location.origin}/join/${code}`;
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -84,6 +136,7 @@ function InviteContent({ code, groupName }: { code: string; groupName: string })
           </a>
         )}
       </div>
+      {reset && <NewLink {...reset} />}
       {isLocal && (
         <p className={styles.note}>
           Сейчас приложение работает только на этом компьютере: ссылка заработает у друзей, когда его опубликуют.
