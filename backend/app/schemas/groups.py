@@ -101,7 +101,6 @@ class BoardRow(BaseModel):
     promised_days: int
     week: list[bool]
     # Weeks in a row with every promised day done.
-    streak_weeks: int
     # Finished a session today, in the group's day.
     studied_today: bool
     # The report (ADR 0039): this week's seven days, promised days missed this calendar month, and

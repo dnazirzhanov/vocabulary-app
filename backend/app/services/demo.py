@@ -117,6 +117,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                 joined_at=joined,
             )
         )
+        progress: dict[str, UserWordProgress] = {}
         met = 0  # each classmate meets new words in deck order, so every day's words are new
         reviewed = 0  # earlier days' words come back in that order; one in four is forgotten
         for day, count in zip(days, daily, strict=True):
@@ -140,15 +141,15 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             db.flush()
             for index in range(count):
                 word_id = words[(met + index) % len(words)]
-                db.add(
-                    UserWordProgress(
-                        user_id=classmate.id,
-                        word_id=word_id,
-                        introduced_at=moment,
-                        last_seen_at=moment,
-                        due_at=moment + timedelta(days=1),
-                    )
+                met_word = UserWordProgress(
+                    user_id=classmate.id,
+                    word_id=word_id,
+                    introduced_at=moment,
+                    last_seen_at=moment,
+                    due_at=moment + timedelta(days=1),
                 )
+                db.add(met_word)
+                progress[word_id] = met_word
                 db.add(
                     ReviewAttempt(
                         session_id=session.id,
@@ -165,6 +166,10 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             # Words met on earlier days come back as reviews: recalled ones are words learned.
             due = range(reviewed, met)
             for index, position in enumerate(due):
+                rating = 1 if position % 4 == 3 else 3
+                word_progress = progress[words[position % len(words)]]
+                if rating >= 2 and word_progress.first_recalled_at is None:
+                    word_progress.first_recalled_at = moment
                 db.add(
                     ReviewAttempt(
                         session_id=session.id,
@@ -173,7 +178,7 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
                         exercise_id=f"rev-{index}",
                         exercise_type="card",
                         correct=None,
-                        rating=1 if position % 4 == 3 else 3,
+                        rating=rating,
                         was_review=True,
                         answered_at=moment,
                         points=0,

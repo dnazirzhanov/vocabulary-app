@@ -1,11 +1,12 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -49,6 +50,9 @@ class UserWordProgress(Base):
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_count: Mapped[int] = mapped_column(server_default=text("0"))
     lapses: Mapped[int] = mapped_column(server_default=text("0"))
+    # The first later review recalled with any answer but «Снова»: a word learned, the «знаю» of
+    # «Прогресс» (ADR 0022). Kept here because old answers are removed (ADR 0044).
+    first_recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SpellingProgress(Base):
@@ -90,6 +94,12 @@ class LearningSession(Base):
             unique=True,
             postgresql_where=text("completed_at IS NULL AND set_aside_at IS NULL"),
         ),
+        # Finished lessons whose plan and answers are still to be removed (ADR 0044).
+        Index(
+            "ix_learning_sessions_to_clean_up",
+            "completed_at",
+            postgresql_where=text("completed_at IS NOT NULL AND plan <> '[]'::jsonb"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
@@ -114,6 +124,20 @@ class LearningSession(Base):
     # A study session: the reviews still due when it was finished (ADR 0022). No longer recorded
     # or read since days count by any finished session (ADR 0027); kept for old rows.
     reviews_left: Mapped[int | None] = mapped_column(SmallInteger)
+
+
+class StudyDayTotal(Base):
+    """One learner's day once its answers are removed (ADR 0044): what the calendar and the
+    promise still need of it. The day is local to the learner's zone at the time."""
+
+    __tablename__ = "study_day_totals"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    answers: Mapped[int]
+    finished: Mapped[bool] = mapped_column(Boolean)
 
 
 class ReviewAttempt(Base):

@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     allowed_origins: str = ""
     # Built web app (web/dist) to serve from the API in production; unset in development.
     web_dist: str | None = None
+    # Requests worked on at once; more are refused for the web app to retry (ADR 0044). Measured at
+    # 0.1 CPU: with 12, too many were turned away at 30 students; without a limit, 60 got nothing.
+    max_requests_in_flight: int = 20
     # Answer submissions allowed per learner per minute (in-process limit; one instance).
     attempts_per_minute: int = 120
     # Drafting a deck from a teacher's text (ADR 0018): "deepseek" needs DEEPSEEK_API_KEY; "demo"

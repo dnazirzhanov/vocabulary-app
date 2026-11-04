@@ -1,6 +1,7 @@
 """Deadline reminders on the learner's phone by Web Push (ADR 0031)."""
 
 import secrets
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Response
@@ -11,6 +12,7 @@ from app.core.clock import Now
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.services import reminders
+from app.services.cleanup import clean_up
 
 router = APIRouter(tags=["push"])
 
@@ -86,6 +88,19 @@ def get_sender(settings: SettingsDep) -> reminders.Sender:
     if not settings.vapid_private_key:
         raise ApiError(503, "reminders_unavailable", "Reminders are not set up on this server")
     return reminders.WebPushSender(settings)
+
+
+class CleanedOut(BaseModel):
+    lessons: int
+    answers: int
+    finished: bool
+
+
+@router.post("/internal/cleanup", dependencies=[Depends(require_reminders_token)])
+def clean_up_old_answers(db: DbSession, now: Now) -> CleanedOut:
+    """Called every night by the same scheduler: old answers give way (ADR 0044). If it stops
+    short of finished, the next run carries on."""
+    return CleanedOut(**asdict(clean_up(db, now)))
 
 
 @router.post("/internal/reminders", dependencies=[Depends(require_reminders_token)])

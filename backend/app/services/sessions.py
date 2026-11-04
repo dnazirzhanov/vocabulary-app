@@ -410,13 +410,13 @@ def deck_stats(
         )
     )
     learned = db.scalar(
-        select(func.count(func.distinct(ReviewAttempt.word_id)))
-        .join(DeckWord, DeckWord.word_id == ReviewAttempt.word_id)
+        select(func.count())
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
         .where(
             DeckWord.deck_id == deck.id,
-            ReviewAttempt.user_id == user.id,
-            ReviewAttempt.was_review.is_(True),
-            ReviewAttempt.rating >= 2,
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.first_recalled_at.is_not(None),
         )
     )
     given = next((item for item in decks.assigned_decks(db, user) if item.deck.id == deck.id), None)
@@ -791,6 +791,8 @@ def _rate(
     # fails here, before the schedule is touched.
     db.flush()
     inserted: list[InsertedExercise] = []
+    if was_review and rating >= 2 and progress and progress.first_recalled_at is None:
+        progress.first_recalled_at = now
     if not practice:
         _save_schedule(db, user, step.word_id, progress, after, rating, now)
     # Due again within minutes (learning steps): show it again later in this session. A review

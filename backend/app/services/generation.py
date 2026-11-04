@@ -12,7 +12,6 @@ Providers sit behind one small interface, so tests and development run without a
 import re
 from typing import Literal, Protocol
 
-import openai
 from pydantic import BaseModel, ValidationError, field_validator
 
 from app.core.config import Settings
@@ -192,6 +191,10 @@ class DeepSeekProvider:
     name: Literal["deepseek", "demo"] = "deepseek"
 
     def __init__(self, api_key: str, model: str) -> None:
+        # Here, not at the top: it was half of the server's start-up, on a host that sleeps, and
+        # only drafting needs it (ADR 0044).
+        import openai
+
         self._client = openai.OpenAI(
             api_key=api_key, base_url=DEEPSEEK_URL, timeout=TIMEOUT_SECONDS, max_retries=1
         )
@@ -228,6 +231,7 @@ class DeepSeekProvider:
             raise _failed(
                 "generation_failed", "empty", "The drafting service answered with nothing"
             )
+
         try:
             return Draft.model_validate_json(content).cards
         except ValidationError as error:
@@ -236,6 +240,8 @@ class DeepSeekProvider:
             ) from error
 
     def _ask(self, system: str, prompt: str) -> str:
+        import openai
+
         try:
             response = self._client.chat.completions.create(
                 model=self._model,

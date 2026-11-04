@@ -42,6 +42,7 @@ known-third-party = ["alembic"]
 
 [tool.ruff.lint.per-file-ignores]
 "alembic/versions/*" = ["E501"]
+"loadtest/*" = ["S311", "S603", "S607", "E501"] # a local tool: seeded data, runs ps and uvicorn
 "tests/*" = ["S311"] # seeded random is how tests make option order reproducible
 
 [tool.mypy]
