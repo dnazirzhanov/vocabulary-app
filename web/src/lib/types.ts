@@ -246,6 +246,10 @@ export interface DeckWord {
 
 // Mirrors backend/app/schemas/groups.py: members are nicknames and member ids, nothing more.
 
+/** What a role may do in a group (ADR 0040); the server says which ones I may. */
+export type GroupAction =
+  'rename' | 'give_decks' | 'see_standings' | 'reset_invite' | 'remove_member' | 'transfer_ownership' | 'delete_group';
+
 export interface Group {
   id: string;
   name: string;
@@ -253,6 +257,8 @@ export interface Group {
   member_count: number;
   role: 'owner' | 'member';
   nickname: string;
+  /** The actions my role allows here: the web never repeats the table of rights. */
+  can: GroupAction[];
 }
 
 export interface GroupPreview {

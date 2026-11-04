@@ -227,6 +227,180 @@ def test_owners_can_remove_members_and_ownership_passes_on(client: TestClient) -
     assert client.get(f"/api/groups/join/{code}", headers=as_("pavel")).status_code == 404
 
 
+def member_id(client: TestClient, group_id: str, nickname: str, viewer: str = "olga") -> str:
+    board = client.get(f"/api/groups/{group_id}/board", headers=as_(viewer)).json()
+    return str(next(row["member_id"] for row in board["rows"] if row["nickname"] == nickname))
+
+
+def code_of(response_json: dict[str, Any]) -> str:
+    return str(response_json["error"]["code"])
+
+
+# --- rights (ADR 0040) ---------------------------------------------------------------------
+
+
+def test_each_role_is_told_what_it_may_do(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    (mine,) = client.get("/api/groups", headers=as_("olga")).json()
+    assert group["can"] == mine["can"]
+    assert set(mine["can"]) == {
+        "rename",
+        "give_decks",
+        "see_standings",
+        "reset_invite",
+        "remove_member",
+        "transfer_ownership",
+        "delete_group",
+    }
+    (theirs,) = client.get("/api/groups", headers=as_("pavel")).json()
+    assert theirs["can"] == []
+
+
+def test_the_owner_renames_the_group_and_everyone_sees_it(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    renamed = client.patch(
+        f"/api/groups/{group['id']}", json={"name": "  8А   английский "}, headers=as_("olga")
+    )
+    assert (renamed.status_code, renamed.json()["name"]) == (200, "8А английский")
+    board = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
+    assert board["group"]["name"] == "8А английский"
+    assert client.get("/api/groups", headers=as_("pavel")).json()[0]["name"] == "8А английский"
+
+
+def test_only_the_owner_renames_and_the_name_follows_the_rules(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    path = f"/api/groups/{group['id']}"
+    member = client.patch(path, json={"name": "Мой класс"}, headers=as_("pavel"))
+    assert (member.status_code, code_of(member.json())) == (403, "not_allowed")
+    stranger = client.patch(path, json={"name": "Мой класс"}, headers=as_("stranger"))
+    assert stranger.status_code == 404
+    for bad in ("x", "https://spam.example", "a@b.c", "<b>класс</b>"):
+        refused = client.patch(path, json={"name": bad}, headers=as_("olga"))
+        assert refused.status_code == 422, bad
+    assert client.patch(path, json={"name": "x" * 41}, headers=as_("olga")).status_code == 422
+    assert client.get(path + "/board", headers=as_("olga")).json()["group"]["name"] == (
+        "7Б английский"
+    )
+
+
+def test_a_new_invite_link_stops_the_old_one(client: TestClient) -> None:
+    group = create(client)
+    old = group["invite_code"]
+    join(client, "pavel", old, "Весёлый Кот")
+    path = f"/api/groups/{group['id']}/invite"
+    assert client.post(path, headers=as_("pavel")).status_code == 403
+    fresh = client.post(path, headers=as_("olga")).json()
+    assert fresh["invite_code"] != old and len(fresh["invite_code"]) == 8
+    assert client.get(f"/api/groups/join/{old}", headers=as_("rest")).status_code == 404
+    assert join(client, "rest", fresh["invite_code"], "Тихий Лис").status_code == 200
+    # Nobody already in the group is thrown out by it.
+    assert client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).status_code == 200
+
+
+def test_the_owner_hands_the_group_over_and_becomes_a_member(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    join(client, "rest", group["invite_code"], "Тихий Лис")
+    path = f"/api/groups/{group['id']}/owner"
+    pavel = member_id(client, group["id"], "Весёлый Кот")
+    assert client.put(path, json={"member_id": pavel}, headers=as_("rest")).status_code == 403
+    mine = member_id(client, group["id"], "Смелый Ёж")
+    to_self = client.put(path, json={"member_id": mine}, headers=as_("olga"))
+    assert (to_self.status_code, code_of(to_self.json())) == (409, "already_owner")
+    nobody = client.put(path, json={"member_id": str(group["id"])}, headers=as_("olga"))
+    assert nobody.status_code == 404
+
+    handed = client.put(path, json={"member_id": pavel}, headers=as_("olga"))
+    assert (handed.status_code, handed.json()["role"], handed.json()["can"]) == (200, "member", [])
+    (theirs,) = client.get("/api/groups", headers=as_("pavel")).json()
+    assert theirs["role"] == "owner" and "delete_group" in theirs["can"]
+    # The old owner no longer manages the group.
+    assert (
+        client.patch(f"/api/groups/{group['id']}", json={"name": "Назад"}, headers=as_("olga"))
+    ).status_code == 403
+
+
+def test_the_owner_deletes_the_group_and_nobody_else_can(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    path = f"/api/groups/{group['id']}"
+    assert client.delete(path, headers=as_("pavel")).status_code == 403
+    assert client.delete(path, headers=as_("stranger")).status_code == 404
+    assert client.delete(path, headers=as_("olga")).status_code == 204
+    for user in ("olga", "pavel"):
+        assert client.get("/api/groups", headers=as_(user)).json() == []
+        assert client.get(path + "/board", headers=as_(user)).status_code == 404
+    assert (
+        client.get(f"/api/groups/join/{group['invite_code']}", headers=as_("rest")).status_code
+        == 404
+    )
+
+
+def test_a_member_leaves_and_the_group_carries_on(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    leave = client.delete(f"/api/groups/{group['id']}/members/me", headers=as_("pavel"))
+    assert leave.status_code == 204
+    assert client.get("/api/groups", headers=as_("pavel")).json() == []
+    (kept,) = client.get("/api/groups", headers=as_("olga")).json()
+    assert (kept["role"], kept["member_count"]) == ("owner", 1)
+    # They can come back by the same link, under any free name.
+    assert join(client, "pavel", group["invite_code"], "Весёлый Кот").status_code == 200
+
+
+def test_an_owner_who_leaves_names_who_takes_over(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    join(client, "rest", group["invite_code"], "Тихий Лис")
+    path = f"/api/groups/{group['id']}/members/me"
+    # Pavel joined first and would take over on his own; the owner chooses the other one.
+    rest = member_id(client, group["id"], "Тихий Лис")
+    assert client.delete(path, params={"successor": rest}, headers=as_("olga")).status_code == 204
+    roles = {
+        g["nickname"]: g["role"]
+        for u in ("pavel", "rest")
+        for g in client.get("/api/groups", headers=as_(u)).json()
+    }
+    assert roles == {"Весёлый Кот": "member", "Тихий Лис": "owner"}
+
+
+def test_naming_a_successor_follows_the_rules(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    path = f"/api/groups/{group['id']}/members/me"
+    mine = member_id(client, group["id"], "Смелый Ёж")
+    # A member hands nothing over; an owner cannot name themselves or a stranger.
+    assert client.delete(path, params={"successor": mine}, headers=as_("pavel")).status_code == 403
+    self_named = client.delete(path, params={"successor": mine}, headers=as_("olga"))
+    assert (self_named.status_code, code_of(self_named.json())) == (409, "already_owner")
+    nobody = client.delete(path, params={"successor": str(group["id"])}, headers=as_("olga"))
+    assert nobody.status_code == 404
+    # Nothing changed: Olga still owns the group, with both members in it.
+    (kept,) = client.get("/api/groups", headers=as_("olga")).json()
+    assert (kept["role"], kept["member_count"]) == ("owner", 2)
+
+
+def test_an_owner_cannot_remove_themselves(client: TestClient) -> None:
+    group = create(client)
+    join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    mine = member_id(client, group["id"], "Смелый Ёж")
+    refused = client.delete(f"/api/groups/{group['id']}/members/{mine}", headers=as_("olga"))
+    assert (refused.status_code, code_of(refused.json())) == (409, "cannot_remove_self")
+
+
+def test_the_last_member_leaving_deletes_the_group(client: TestClient) -> None:
+    group = create(client)
+    leave = client.delete(f"/api/groups/{group['id']}/members/me", headers=as_("olga"))
+    assert leave.status_code == 204
+    assert (
+        client.get(f"/api/groups/join/{group['invite_code']}", headers=as_("pavel")).status_code
+        == 404
+    )
+
+
 def test_deleting_an_account_hands_over_its_groups(client: TestClient) -> None:
     group = create(client)
     join(client, "pavel", group["invite_code"], "Весёлый Кот")
