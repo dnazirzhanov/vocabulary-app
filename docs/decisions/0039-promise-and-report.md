@@ -4,7 +4,9 @@
 0023; replaces the «days a week» count of ADR 0015 with chosen weekdays. Reminders follow in ADR 0040.
 
 ## Context
+
 The group page ranked members by words learned. The owner questioned it:
+
 - A deck finished before its deadline can't be the measure.
 - Consistency is a better basis, but any score invites tapping «Знаю» on every card to collect it.
 - A leaderboard may belong to future Kahoot-like games, not to «Друзья» now.
@@ -14,9 +16,11 @@ during the day, and report at its end. Feeling bad before friends when it wasn't
 consistent.
 
 ## Decision
+
 «Друзья» becomes **a promise and a report**, not a ranking.
 
 ### The promise
+
 - A learner promises chosen **weekdays** («Пн–Пт», «Пн Ср Пт», every day).
 - A day is **done** when a session of any kind was finished that day (ADR 0027's rule).
 - A day is **missed** when it was promised, is over, and nothing was finished.
@@ -32,7 +36,9 @@ consistent.
   nor breaks the streak.
 
 ### The report (the group page)
+
 Kept simple, as plain lists of names:
+
 1. **«Сегодня по обещанию»:** my own status, with «Заниматься» when it is still open, and «Моё
    обещание: Пн–Пт · Изменить».
 2. **Who did it, by name,** in three lists: «Сделали сегодня», «Не сделали», «Сегодня выходной»
@@ -50,7 +56,7 @@ Kept simple, as plain lists of names:
      not on every row.
    - With several decks the bar is the total; with none there is nothing to measure against, so
      the row says only how many words the friend knows in all.
-4. A row opens a **friend's window:** «Расписание обещания», their week as large dots under the weekdays (✓ done, an
+4. A row opens a **friend's window:** «Обещанные дни», their week as large dots under the weekdays (✓ done, an
    empty ring with a dash missed, a ringed ring today, a faint ring a day to come, a small dot a
    day off; nothing is red). The dots are the promise: the promised days are the ones that are not
    a small dot, so the window has no «обещание» text and no weeks-in-a-row figure. Then
@@ -66,19 +72,23 @@ The groups list shows «сегодня по обещанию 3 из 6 · вы �
 the line.
 
 ### Where the promise is set
+
 - The first-run screen and «Прогресс» («Обещание: Пн–Пт · Изменить») and the group page open the
   same window (`PromiseDialog`) with a `WeekdayPicker`: seven toggles and two presets.
 - The demo classmates joined at the start of the month so the report has days to show.
 
 ### Days
+
 The report's days are the **group's** (its time zone), as the week already was. «Прогресс» uses the
 learner's own. In a class in one zone they agree.
 
 ### The leaderboard
+
 Gone from the UI. `rank` and `learned` stay in the board's data for future games; nothing reads
 them now.
 
 ## Why this answers the gaming worry
+
 - **There is nothing to win.** No points, no places. Pressing «Знаю» on every card buys only a ✓
   in front of friends it would be pointless to fake.
 - **The record is personal and binary:** did I do what I promised today? Volume counts for nothing,
@@ -88,6 +98,7 @@ them now.
   bar shows real knowledge.
 
 ## API
+
 - `GET /me` gains `promise {weekdays, pending, pause}`.
 - `PUT /me/promise {weekdays}`, `PUT /me/promise/pause {until}`, `DELETE /me/promise/pause`.
 - The board's rows gain `week_states`, `month_misses`, `promise_today`, `promise_weekdays`,
@@ -97,6 +108,7 @@ them now.
 - `GET /progress` returns `promised_week` (seven flags) in place of `promised_days`.
 
 ## Not in scope
+
 - A peer «Напомнить» button, any ranking or points, and speed or effort checks.
 - A promise set by a teacher for a whole group: it stays personal.
 - Push reminders (ADR 0040).

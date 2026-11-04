@@ -3,12 +3,14 @@
 **Status:** Accepted. Builds on ADR 0017.
 
 ## Context
+
 Writing a deck by hand (ADR 0017) is still the slow part of a teacher's work. They already have
 the material: the text of tomorrow's lesson. Choosing the words worth learning from it and writing
 a meaning that fits that text is a language task a model does well; checking lengths, duplicates
 and spelling rules is not, and is done in code.
 
 ## Decision
+
 - **Paste, draft, review.** In the deck editor the teacher pastes a text (20–20,000 characters),
   picks how many words (5, 10, 15 or 20) and the learners' level (A1–C1). The drafted cards are
   added to the deck for review; nothing reaches students until the teacher gives the deck to the
@@ -40,6 +42,7 @@ and spelling rules is not, and is done in code.
   problem in the pilot.
 
 ## Consequences
+
 - The teacher's text is sent to DeepSeek, a service in China. Its data-handling terms and the
   data law for schools must be checked by the owner before real lesson material is used (see
   product requirements, Privacy).

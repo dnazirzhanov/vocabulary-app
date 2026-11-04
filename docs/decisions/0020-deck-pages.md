@@ -4,12 +4,14 @@
 (home) and ADR 0019 (where decks are studied).
 
 ## Context
+
 Home had one big button that studied "everything": due cards of every level, then words of decks
 given to my groups, then the current level. A learner couldn't tell which deck they were
 continuing, and group decks sat among the course's levels on home. The owner asked for study to
 be tied to a deck: tap a deck, see where you are with it, study it.
 
 ## Decision
+
 - **Home is the course's levels.** Each with today's Anki counts and its lock, and the entry to
   «Мои колоды». No «Сегодня» block and no study button: decks I wrote or my groups were given live
   only in «Мои колоды».
@@ -29,6 +31,7 @@ be tied to a deck: tap a deck, see where you are with it, study it.
   since a word may be linked into other people's decks.
 
 ## Consequences
+
 - `GET /api/decks` lists course levels only; `GET /api/decks/{id}/stats` serves the page.
 - The API still plans a lesson with no deck (every level's reviews, then the current level), but
   the web never asks for one.

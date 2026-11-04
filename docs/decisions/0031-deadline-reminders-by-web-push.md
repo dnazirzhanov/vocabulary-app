@@ -3,11 +3,13 @@
 **Status:** Accepted.
 
 ## Context
+
 A teacher's deadline (ADR 0028) only works if students remember to open the app. The owner chose
 phone notifications over e-mail: no outside account, and no students' e-mail addresses stored
 (many are minors).
 
 ## Decision
+
 - **Web Push**, the browsers' own channel: the phone's push service (Google's for Android Chrome,
   Apple's for iPhone) delivers a notification even with the app closed. The server signs with a
   VAPID key pair it holds; there is no account with any service and nothing to pay.
@@ -26,6 +28,7 @@ phone notifications over e-mail: no outside account, and no students' e-mail add
   the CLI does the same locally.
 
 ## Consequences
+
 - Delivered end to end in development: Chrome subscribed through the app, the server sent via
   Google's push service, and the notification showed. Not tried on a real iPhone.
 - Changing the VAPID keys cuts off every subscribed device.

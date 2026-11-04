@@ -3,10 +3,12 @@
 **Status:** Accepted.
 
 ## Context
+
 Finishing a lesson or a round of spelling ended on a still screen. The owner wants the finish to
 feel rewarding, like Khan Academy's, and spelling — the effortful part — rewarded word by word.
 
 ## Decision
+
 - **Every finish screen celebrates** (`ui/Celebration.tsx`): confetti falls past the screen for
   about three seconds and a short chord plays (a rising C-major arpeggio, then the chord with a
   little sparkle, under two seconds). The badge pops, then the title, the lead and each word rise
@@ -20,5 +22,6 @@ feel rewarding, like Khan Academy's, and spelling — the effortful part — rew
 - **Sounds can be turned off**: «Звуки» under «Аккаунт» on «Прогресс», remembered per browser.
 
 ## Consequences
+
 - Classrooms can mute the app per device; the confetti still shows.
 - The browser test counts the notes the page starts, so silence for flashcards is tested.

@@ -56,7 +56,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   const window = page.getByRole('dialog', { name: 'Ёжик (вы)' });
   await expect(window).toContainText('Пропущено дней в этом месяце: 0');
   // The week of dots, under its label, says the promise; no weeks-in-a-row figure.
-  await expect(window.getByRole('region', { name: 'Расписание обещания' })).toBeVisible();
+  await expect(window.getByRole('region', { name: 'Обещанные дни' })).toBeVisible();
   await expect(window).not.toContainText(/недел/i);
   await expect(window).toContainText('знаю 0 · учу 5');
   await page.keyboard.press('Escape');

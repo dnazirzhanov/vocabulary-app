@@ -4,6 +4,7 @@
 stays as practice.
 
 ## Context
+
 Flashcards teach a word's meaning but never its spelling. The owner asked for spelling with
 letter tiles. A first version (guided building with the word visible, recall later in the same
 lesson, retries, hints and a review schedule) was judged too complicated and replaced by this one.
@@ -13,6 +14,7 @@ feedback gave fifth-graders better later spelling than copying. It does not say 
 is best, so those choices are product defaults.
 
 ## Decision
+
 - **One exercise, one card per word.** A spelling card shows a word's Russian meaning, empty
   slots and letter tiles; the learner builds the English word. Nothing else: no guided step, no reviews.
 - **Its own session and button.** The lesson stays flashcards only. «Правописание» starts a
@@ -39,6 +41,7 @@ is best, so those choices are product defaults.
   the device, since the word is then visible — or left with «Дальше».
 
 ## Consequences
+
 - Days from before this rule whose words were never spelled no longer count toward the plan.
 - Spelling covers single plain words and, since ADR 0017, phrases: spaces, hyphens and
   apostrophes are fixed gaps between the slots, never tiles, and a hint counts letters only.

@@ -6,6 +6,7 @@ page puts it in order and adds what a class needs.
 
 **Checked before this was written (Oct 30 2026):** with no Docker on the development machine, the
 image's steps were reproduced by hand.
+
 - A production web build was served by the API in production mode (`ENVIRONMENT=production`,
   `AUTH_MODE=jwt`), against a fresh database after `alembic upgrade head` and `load-content`.
 - The health check, the sign-in page, the app manifest, the icons, the service worker and the
@@ -13,19 +14,22 @@ image's steps were reproduced by hand.
 - The API refused anonymous calls, and the reminders endpoint answered only with its secret.
 
 ## 1. Before anything goes public (about 1 hour)
+
 - [ ] **Merge PRs #31, #32 and #33**, in that order (photos, deadline status, reminders).
 - [ ] **Decide who the pilot is with:** a teacher you know, one class, 10–30 students.
 - [ ] **Consent.** Students may be minors. Agree with the school what is stored:
   - an e-mail to sign in;
   - a nickname inside the group (no real names, no chat, ADR 0011);
   - progress, and optional reminder subscriptions (no e-mail used for them).
-  
+
   Ask whether parents need to be told. «Удалить мой прогресс» deletes a student's data at any
   time. Removing the sign-in e-mail too is done by you in Supabase.
+
 - [ ] **Decide the support channel:** where students and the teacher report problems (e.g. a
-  Telegram chat with you). Tell the teacher.
+      Telegram chat with you). Tell the teacher.
 
 ## 2. Accounts and deployment (about 2 hours; `deploy.md` §1–2)
+
 - [ ] **Supabase project** (Frankfurt), «Confirm email» off, an asymmetric JWT key.
 - [ ] **Host:**
   - Koyeb or Render, building the `Dockerfile` with `VITE_SUPABASE_URL` and
@@ -39,6 +43,7 @@ image's steps were reproduced by hand.
 - [ ] **Open the URL on a phone:** sign up, see «Мои колоды», open the course, finish one lesson.
 
 ## 3. Reminders (about 20 minutes; `deploy.md` §3)
+
 - [ ] **Keys:**
   - run `uv run python -m app.cli vapid-keys` once;
   - add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:<you>` and a random
@@ -54,19 +59,22 @@ image's steps were reproduced by hand.
   - wait for the evening run.
 
 ## 4. Backups (about 30 minutes; `deploy.md` §4)
+
 - [ ] **Nightly encrypted `pg_dump`,** stored outside Supabase.
 - [ ] **Restore it once** into a scratch database before inviting anyone.
 
 ## 5. The teacher's setup (with the teacher, about 30 minutes)
+
 - [ ] **The teacher signs up** and creates the group in «Друзья», then shows the class the
-  invite's QR code.
+      invite's QR code.
 - [ ] **The teacher makes the first deck** in «Мои колоды» from a photo of the textbook page
-  («Текст» → «Добавить фото»), checks the words, and gives it to the group with «Выучить к» set
-  to the next lesson.
+      («Текст» → «Добавить фото»), checks the words, and gives it to the group with «Выучить к» set
+      to the next lesson.
 - [ ] **Show the teacher where to check readiness:** «Друзья» → the group → «Колоды группы»
-  («успевает» / «отстаёт на N слов»).
+      («успевает» / «отстаёт на N слов»).
 
 ## 6. First lesson with the class (10 minutes of class time)
+
 - [ ] **Students join and turn on reminders:**
   - sign up on their phones and join by the QR code (nickname only);
   - iPhones: add the app to the home screen first;
@@ -74,20 +82,23 @@ image's steps were reproduced by hand.
 - [ ] **Everyone finishes one lesson in class,** so problems show up while you are there.
 
 ## 7. During the pilot: what to watch, weekly
+
 - [ ] **Readiness:** the group page before each class. How many «успевают»? Ask the teacher
-  whether it matched who knew the words.
+      whether it matched who knew the words.
 - [ ] **Steadiness:** the friends board (words learned this week) and days studied. Do students
-  come back on days without a class?
+      come back on days without a class?
 - [ ] **Reminders:** do they arrive, at a sensible time? Too many?
 - [ ] **Problems** reported in the support channel. Host logs record failed drafts and reminders,
-  never students' texts.
+      never students' texts.
 
 ## 8. After the pilot
+
 - [ ] **A short talk** with the teacher and 3–5 students: what helped, what was confusing, what
-  they skipped.
+      they skipped.
 - [ ] **Decide what to keep:** keep the data and continue, or delete the group and the accounts
-  (Supabase users, then the database rows by deleting each account).
+      (Supabase users, then the database rows by deleting each account).
 
 ## Rollback
+
 Redeploy the previous image. If a migration is at fault: `alembic downgrade -1`. Reminders stop
 when the scheduled workflow is disabled.

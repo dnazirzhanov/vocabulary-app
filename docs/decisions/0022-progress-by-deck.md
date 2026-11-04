@@ -4,6 +4,7 @@
 day); replaces the course-words figure on «Прогресс» (ADR 0021's open question).
 
 ## Context
+
 With own decks, group decks and course levels side by side, «Прогресс» still measured the course's
 words against its 1,300-word goal. The day rule (new words at the pace, then spelled) could not be
 met once a learner had no new words left, and said nothing about reviews — the part of spaced
@@ -11,6 +12,7 @@ repetition that actually builds memory. The account actions sat on «Прогр�
 progress.
 
 ## Decision
+
 - **«Прогресс» answers two questions.** «Знания»: how many words I've learned, in all and deck by
   deck — my own decks, my groups' decks and the course levels I've started — each row with its
   percentage and a three-tone bar (known well / learned / met). A row opens the deck's page.
@@ -25,10 +27,11 @@ progress.
   sessions from before it was recorded count as cleared, so history is not rewritten.
 - **Spelling is practice**, offered after a lesson, no longer part of the day.
 - **«Аккаунт»** (sign out, delete my data) moves to the end of «Мой профиль».
-  *Later (Oct 30 2026): «Профиль» was removed — one's own and members' profile windows — and
-  «Аккаунт» returned to the end of «Прогресс». The board's rows carry the members' statistics.*
+  _Later (Oct 30 2026): «Профиль» was removed — one's own and members' profile windows — and
+  «Аккаунт» returned to the end of «Прогресс». The board's rows carry the members' statistics._
 
 ## Consequences
+
 - The week, weeks in a row and the group board follow the new rule without other changes.
 - A learner with many decks must clear all their reviews for the day to count; the lesson summary
   says so («Остались повторения в других колодах»).

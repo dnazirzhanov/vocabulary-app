@@ -8,22 +8,22 @@ Russian-speaking students (initially in Kyrgyzstan) want a stronger English voca
 
 ## Target user
 
-A student who studies on a phone, in short sessions, with Russian as the explanation language. The pilot is a small group of real learners. **Learner age is not decided yet**, so the product is designed for the stricter case — minors (see *Privacy*).
+A student who studies on a phone, in short sessions, with Russian as the explanation language. The pilot is a small group of real learners. **Learner age is not decided yet**, so the product is designed for the stricter case — minors (see _Privacy_).
 
 ## Hypotheses and how the pilot tests them
 
-| Hypothesis | Evidence we will look for |
-|---|---|
-| The starter words are useful to these students | Learners and a teacher rate the deck; few words reported as "already known" or "useless" |
-| Exercises are understandable without help | First session completed unassisted in observed tests; few hesitations or wrong taps on controls |
-| A short session works on a phone | Session completion rate; median session length ≈ 3–5 minutes |
-| Learners return without reminders | Share of learners with a session on day 1 and in week 1 after their first session, with no personal nudges |
-| Words are remembered after a delay | Correct-answer rate on reviews ≥ 1 day and ≥ 7 days after the previous exposure |
-| People would pay for more content / competitions | Asked directly in pilot interviews; **nothing is built for this before evidence** |
+| Hypothesis                                       | Evidence we will look for                                                                                  |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| The starter words are useful to these students   | Learners and a teacher rate the deck; few words reported as "already known" or "useless"                   |
+| Exercises are understandable without help        | First session completed unassisted in observed tests; few hesitations or wrong taps on controls            |
+| A short session works on a phone                 | Session completion rate; median session length ≈ 3–5 minutes                                               |
+| Learners return without reminders                | Share of learners with a session on day 1 and in week 1 after their first session, with no personal nudges |
+| Words are remembered after a delay               | Correct-answer rate on reviews ≥ 1 day and ≥ 7 days after the previous exposure                            |
+| People would pay for more content / competitions | Asked directly in pilot interviews; **nothing is built for this before evidence**                          |
 
 Numbers are a baseline to learn from, not targets.
 
-**North Star (draft):** words correctly recalled after a meaningful delay per active learner per week. Proposed definitions, to confirm before use: *meaningful delay* = at least 24 hours since the word was last seen; *recalled* = correct on a production or recall exercise (not multiple choice); *active learner* = completed at least one session that week.
+**North Star (draft):** words correctly recalled after a meaningful delay per active learner per week. Proposed definitions, to confirm before use: _meaningful delay_ = at least 24 hours since the word was last seen; _recalled_ = correct on a production or recall exercise (not multiple choice); _active learner_ = completed at least one session that week.
 
 ## Learning vocabulary (definitions used in UI and data)
 
@@ -44,15 +44,15 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 
 ## Current state vs P0 (after Phase 3)
 
-| P0 area | Today | Gap |
-|---|---|---|
-| A. Accounts and persistence | Server-side persistence with an auth seam (development user) | Auth provider and sign-up (Phase 4) |
-| B. Vocabulary content | 30-word starter deck (draft) with validation and an idempotent import; course goal: about 1,300 NGSL words ≈ 80% of everyday text | Russian review; swap the 4 words outside the NGSL top 1,300; grow toward the goal in NGSL order |
-| C. Learning session | New words: introduce → choose → type. Reviews: recall → type. Server-checked, resumable, summaries distinguish meeting a word from recalling it later | — |
-| D. Spaced repetition | Leitner scheduler (1/3/7/16/35 days); review sessions with recall-before-reveal; due words first | Validate intervals with pilot data |
-| E. Progress | Progress screen: words met / reviewing / currently well learned / due, 7-day activity, delayed-recall rate (labelled as such), total points | Validate with pilot learners |
-| F. Gamification | Points for evidence of learning (none for practice), daily goal (30), streak, session points on the summary; a sourced course goal and a learner-chosen daily pace with ramp, review-debt brake and suggestions (ADR 0010) | Validate goal size and pace thresholds; roadmap with finish dates, stepping-stone path, word list, friend groups with a weekly board (ADR 0011) |
-| G. Responsive interface | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px | Real-device checks (iOS Safari, on-screen keyboard) |
+| P0 area                     | Today                                                                                                                                                                                                                      | Gap                                                                                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| A. Accounts and persistence | Server-side persistence with an auth seam (development user)                                                                                                                                                               | Auth provider and sign-up (Phase 4)                                                                                                             |
+| B. Vocabulary content       | 30-word starter deck (draft) with validation and an idempotent import; course goal: about 1,300 NGSL words ≈ 80% of everyday text                                                                                          | Russian review; swap the 4 words outside the NGSL top 1,300; grow toward the goal in NGSL order                                                 |
+| C. Learning session         | New words: introduce → choose → type. Reviews: recall → type. Server-checked, resumable, summaries distinguish meeting a word from recalling it later                                                                      | —                                                                                                                                               |
+| D. Spaced repetition        | Leitner scheduler (1/3/7/16/35 days); review sessions with recall-before-reveal; due words first                                                                                                                           | Validate intervals with pilot data                                                                                                              |
+| E. Progress                 | Progress screen: words met / reviewing / currently well learned / due, 7-day activity, delayed-recall rate (labelled as such), total points                                                                                | Validate with pilot learners                                                                                                                    |
+| F. Gamification             | Points for evidence of learning (none for practice), daily goal (30), streak, session points on the summary; a sourced course goal and a learner-chosen daily pace with ramp, review-debt brake and suggestions (ADR 0010) | Validate goal size and pace thresholds; roadmap with finish dates, stepping-stone path, word list, friend groups with a weekly board (ADR 0011) |
+| G. Responsive interface     | Home, lesson (3 exercise types), summary; loading/error/retry states; screenshot-tested at 320–1440px                                                                                                                      | Real-device checks (iOS Safari, on-screen keyboard)                                                                                             |
 
 ## Acceptance criteria by phase
 

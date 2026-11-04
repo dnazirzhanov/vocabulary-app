@@ -276,28 +276,33 @@ Design the data model around the learning process, not around individual screens
 At minimum, consider these entities:
 
 **User**
+
 - Stable identifier.
 - Authentication-provider identifier or relationship.
 - Creation timestamp.
 - Minimal preferences.
 
 **Deck**
+
 - Stable identifier.
 - Title, description, and language configuration.
 - Publication status.
 - Content version.
 
 **Word**
+
 - Stable identifier.
 - Headword and linguistic metadata.
 - Meanings and examples.
 - Content version and validation status.
 
 **DeckWord**
+
 - Relationship between a deck and a word.
 - Optional ordering or curriculum metadata.
 
 **UserWordProgress**
+
 - User identifier and word identifier.
 - Learning status.
 - Introduction timestamp.
@@ -308,6 +313,7 @@ At minimum, consider these entities:
 Enforce one progress record per user and word unless there is a deliberate reason to support multiple learning contexts.
 
 **ReviewAttempt**
+
 - User and word identifiers.
 - Timestamp.
 - Exercise type.
@@ -318,6 +324,7 @@ Enforce one progress record per user and word unless there is a deliberate reaso
 Keep attempt records minimal. Do not store unnecessary free-text answers or personal information.
 
 **LearningSession**
+
 - User identifier.
 - Start and completion timestamps.
 - Session outcome and summary.
@@ -426,6 +433,7 @@ Events should have a documented schema, stable identifiers, and a clear definiti
 ### Key measures
 
 **Learning**
+
 - Recall accuracy during immediate practice.
 - Recall accuracy after a meaningful delay.
 - Retention at approximately one day and seven days.
@@ -434,6 +442,7 @@ Events should have a documented schema, stable identifiers, and a clear definiti
 - Number of reviews required for successful recall.
 
 **Engagement**
+
 - Percentage of new users who complete their first session.
 - Voluntary return the following day and week.
 - Session completion and abandonment.
@@ -441,6 +450,7 @@ Events should have a documented schema, stable identifiers, and a clear definiti
 - Review burden and the number of overdue reviews.
 
 **Distribution**
+
 - Invites sent and accepted.
 - Active learners per teacher-created group.
 - Participation in weekly challenges.
@@ -535,6 +545,7 @@ Do not start a leaderboard or payment system simply because it was in the origin
 Use a testing pyramid.
 
 **Unit tests**
+
 - Review scheduling.
 - Answer evaluation.
 - Point calculations.
@@ -543,6 +554,7 @@ Use a testing pyramid.
 - Authorization and business rules.
 
 **Integration tests**
+
 - API endpoints.
 - Database persistence.
 - Authentication and resource ownership.
@@ -550,6 +562,7 @@ Use a testing pyramid.
 - Migration behavior.
 
 **End-to-end tests**
+
 - New learner completes a session.
 - Learner returns and reviews due words.
 - Progress survives a page refresh.

@@ -36,15 +36,15 @@ docs/                  brief, requirements, this file, ADRs
 
 ## Modules
 
-| Module (brief §5) | Lives in | Phase |
-|---|---|---|
-| Auth and user profile | `core/auth.py`, `models/user.py` | seam in 1–2, provider in 4 |
-| Vocabulary and decks | `services/content.py`, `models/content.py` | 2 |
-| Learning sessions and answer evaluation | `services/learning.py` (pure), `services/sessions.py` (DB) | 2 |
-| Review scheduling | `services/scheduling.py` (pure) | 3 |
-| Progress, points, goal and streaks | `services/progress.py` (pure rules + queries) | 3 |
-| Analytics | derived from `review_attempts` / `learning_sessions` first | 3+ |
-| Admin and content validation | `app/cli.py`, `services/content.py` | 2 |
+| Module (brief §5)                       | Lives in                                                   | Phase                      |
+| --------------------------------------- | ---------------------------------------------------------- | -------------------------- |
+| Auth and user profile                   | `core/auth.py`, `models/user.py`                           | seam in 1–2, provider in 4 |
+| Vocabulary and decks                    | `services/content.py`, `models/content.py`                 | 2                          |
+| Learning sessions and answer evaluation | `services/learning.py` (pure), `services/sessions.py` (DB) | 2                          |
+| Review scheduling                       | `services/scheduling.py` (pure)                            | 3                          |
+| Progress, points, goal and streaks      | `services/progress.py` (pure rules + queries)              | 3                          |
+| Analytics                               | derived from `review_attempts` / `learning_sessions` first | 3+                         |
+| Admin and content validation            | `app/cli.py`, `services/content.py`                        | 2                          |
 
 Rule: HTTP handlers parse input, call one service function, and shape the response. Learning rules never live in handlers or React components.
 
@@ -52,16 +52,16 @@ Rule: HTTP handlers parse input, call one service function, and shape the respon
 
 All timestamps are `timestamptz`, stored and compared in UTC.
 
-| Table | Key columns | Constraints |
-|---|---|---|
-| `users` | `id uuid`, `auth_subject text`, `display_name text null`, `created_at` | `UNIQUE(auth_subject)` |
-| `decks` | `id text` (stable slug; a teacher's deck `g-…`), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int`, `kind` (`course` \| `user`: a deck someone wrote, ADR 0019), `owner_id null` (a user deck's author), `created_at` | `kind` check |
-| `words` | `id text` (stable slug; a teacher's word `t-…`), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null`, `owner_deck_id null` (a teacher's word belongs to its deck), `source_sentence null` (the line of the teacher's text it was drafted from) | |
-| `deck_assignments` | `id uuid`, `group_id`, `deck_id`, `assigned_by null`, `assigned_at`, `removed_at null` | `UNIQUE(group_id, deck_id)`; a deck taken back keeps its row (ADR 0017) |
-| `deck_words` | `deck_id`, `word_id`, `position` | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)` |
-| `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count`, `stage`, `due_at`, `last_reviewed_at`, `review_count`, `lapses` | `PK(user_id, word_id)`; `stage BETWEEN 1 AND 5`; index `(user_id, due_at)` |
-| `learning_sessions` | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice` \| `review`), `plan jsonb`, `started_at`, `completed_at null` | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
-| `review_attempts` | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type` (`card`; older quiz types kept for history), `rating 1–4` (cards), `was_review`, `answered_at`, `due_after`, `points` | `UNIQUE(session_id, exercise_id)`; a rating exactly for cards |
+| Table                | Key columns                                                                                                                                                                                                                                                                                                               | Constraints                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `users`              | `id uuid`, `auth_subject text`, `display_name text null`, `created_at`                                                                                                                                                                                                                                                    | `UNIQUE(auth_subject)`                                                                   |
+| `decks`              | `id text` (stable slug; a teacher's deck `g-…`), `title`, `description`, `learning_language`, `explanation_language`, `status`, `content_version int`, `kind` (`course` \| `user`: a deck someone wrote, ADR 0019), `owner_id null` (a user deck's author), `created_at`                                                  | `kind` check                                                                             |
+| `words`              | `id text` (stable slug; a teacher's word `t-…`), `headword`, `pos`, `translation`, `also_accept text[]` (extra English spellings), `example`, `example_ru`, `illustration null`, `owner_deck_id null` (a teacher's word belongs to its deck), `source_sentence null` (the line of the teacher's text it was drafted from) |                                                                                          |
+| `deck_assignments`   | `id uuid`, `group_id`, `deck_id`, `assigned_by null`, `assigned_at`, `removed_at null`                                                                                                                                                                                                                                    | `UNIQUE(group_id, deck_id)`; a deck taken back keeps its row (ADR 0017)                  |
+| `deck_words`         | `deck_id`, `word_id`, `position`                                                                                                                                                                                                                                                                                          | `PK(deck_id, word_id)`, `UNIQUE(deck_id, position)`                                      |
+| `user_word_progress` | `user_id`, `word_id`, `introduced_at`, `last_seen_at`, `correct_count`, `incorrect_count`, `stage`, `due_at`, `last_reviewed_at`, `review_count`, `lapses`                                                                                                                                                                | `PK(user_id, word_id)`; `stage BETWEEN 1 AND 5`; index `(user_id, due_at)`               |
+| `learning_sessions`  | `id uuid`, `user_id`, `deck_id`, `kind` (`new` \| `practice` \| `review`), `plan jsonb`, `started_at`, `completed_at null`                                                                                                                                                                                                | partial `UNIQUE(user_id) WHERE completed_at IS NULL` — at most one open session per user |
+| `review_attempts`    | `id bigint`, `session_id`, `user_id`, `word_id`, `exercise_id`, `exercise_type` (`card`; older quiz types kept for history), `rating 1–4` (cards), `was_review`, `answered_at`, `due_after`, `points`                                                                                                                     | `UNIQUE(session_id, exercise_id)`; a rating exactly for cards                            |
 
 Scheduling state was added to `user_word_progress` by its own migration in Phase 3 (existing words got their first review the day after they were met).
 
@@ -72,7 +72,7 @@ Scheduling state was added to `user_word_progress` by its own migration in Phase
 1. **Plan** (`services/learning.py`, pure and deterministic): take the next 5 words in deck order that the user has not been introduced to. Build the exercise list:
    - for each word: `introduce`, then `choose_meaning` (English word → pick the Russian meaning from 4 options);
    - then, for each word again: `type_word` (Russian meaning + English example with the word blanked → type the English word).
-   Distractors come from the same deck, preferring the same part of speech, chosen by a seeded shuffle so a plan is reproducible in tests.
+     Distractors come from the same deck, preferring the same part of speech, chosen by a seeded shuffle so a plan is reproducible in tests.
 2. **Store** the plan (including answer keys) as JSON on the session row. Clients receive exercises **without answer keys**.
 3. **Attempt**: the client submits one response per exercise, in plan order (skipping ahead returns `409 out_of_order`). The server evaluates it, writes the attempt and updates progress **in one transaction**. A second submission for the same exercise returns the stored result unchanged (idempotent; prevents double counting and answer fishing). When two devices race, the unique constraint fails at flush time and the loser returns the stored result — covered by `tests/test_concurrency.py`.
 4. **Resume**: the open session (if any) is returned with the results so far; the client continues at the first unanswered exercise.
@@ -87,48 +87,49 @@ Typed-answer normalisation: trim, lowercase, collapse whitespace, unify apostrop
 
 JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "message": "..."}}`; unexpected errors return `internal_error` with no internal details.
 
-| Method & path | Purpose |
-|---|---|
-| `GET /api/health/live` | process is up |
-| `GET /api/health/ready` | database reachable |
-| `GET /api/decks` | the course's levels for home, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0020) |
-| `GET /api/decks/{id}/stats` | a deck's page: met, learning, due, remembered well, new words today within the pace, next review, locked, today's spelling (ADR 0020) |
-| `GET /api/sessions/active` | `{ "session": … }` or `{ "session": null }` |
-| `POST /api/sessions` | `{kind: "study", deck_id}` (due cards from every deck, then new words sized by the daily pace) or `{kind: "hard", deck_id}` (practice on the hardest words; schedule unchanged); returns the open session if one exists; `409 nothing_to_study` / `409 nothing_to_practice` |
-| `GET /api/sessions/{id}` | session with exercises and results so far |
-| `POST /api/sessions/{id}/attempts` | `{exercise_id, response: {kind: "rating", rating: 1–4}}` → `{rating, next_due_at, appended, appended_index}` (a card due again within minutes is inserted later in the session) |
-| `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
-| `GET /api/progress` | the whole course: word stages (met, reviewing, well learned, due), today's plan, a year of days (plan done or not, ADR 0015), this week's promise, weeks kept in a row, delayed-recall rate over 30 days |
-| `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
-| `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
-| `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
-| `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group: author, my words met, the group's progress, and each member's met and well-remembered words for the owner (ADR 0017, 0019); members only; no points |
-| `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
-| `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
-| `POST /api/sessions/{id}/attempts` | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any |
-| `POST /api/sessions/{id}/exercises/{exercise_id}/hint` | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016) |
-| `GET /api/decks/mine`, `POST /api/decks` | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019) |
-| `DELETE /api/decks/{id}` | my deck, for good: its own cards and everyone's progress on them, its unfinished lessons and assignments; finished lessons stay without a deck (ADR 0019) |
-| `GET /api/decks/library` | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019) |
-| `POST /api/decks/{id}/words/topic` | cards for a topic `{topic, count, level}`: the AI chooses the words, saved with checks (ADR 0019) |
-| `POST /api/decks/{id}/words/fill`, `POST …/words/suggest` | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019) |
-| `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}` | the deck as its author edits it (anyone else: 404); rename |
-| `POST /api/decks/{id}/words`, `PUT …/words/{word_id}`, `DELETE …/words/{word_id}` | add (a course word is linked), correct, take out a word |
-| `POST /api/decks/{id}/generate` | draft cards from a teacher's text `{text, count, level}` into the deck: added cards, skipped ones with reasons, the provider; the text is not stored; 20 a day (ADR 0018) |
-| `POST /api/decks/{id}/publish`, `DELETE /api/groups/{group_id}/decks/{deck_id}` | publish and give to a group I own `{group_id}` (idempotent); take back |
-| `GET /api/me/profile`, `GET /api/groups/{id}/members/{member_id}/profile` | a learner's week against their own promise and the learning beyond it (ADR 0015); one's own for everyone, a member's for members of that group only; nickname, no ids or e-mail |
-| `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
-| `GET /api/me/pace?deck_id=` | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion |
-| `POST /api/me/pace/dismiss` | `{kind: "lower" \| "raise"}`: that suggestion stays quiet for 7 days |
+| Method & path                                                                       | Purpose                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health/live`                                                              | process is up                                                                                                                                                                                                                                                                                                                                                               |
+| `GET /api/health/ready`                                                             | database reachable                                                                                                                                                                                                                                                                                                                                                          |
+| `GET /api/decks`                                                                    | the course's levels for home, with the current user's counts (`word_count`, `introduced_count`, `due_count`, `next_due_at`) and the sourced `course_goal` (ADR 0020)                                                                                                                                                                                                        |
+| `GET /api/decks/{id}/stats`                                                         | a deck's page: met, learning, due, remembered well, new words today within the pace, next review, locked, today's spelling (ADR 0020)                                                                                                                                                                                                                                       |
+| `GET /api/sessions/active`                                                          | `{ "session": … }` or `{ "session": null }`                                                                                                                                                                                                                                                                                                                                 |
+| `POST /api/sessions`                                                                | `{kind: "study", deck_id}` (due cards from every deck, then new words sized by the daily pace) or `{kind: "hard", deck_id}` (practice on the hardest words; schedule unchanged); returns the open session if one exists; `409 nothing_to_study` / `409 nothing_to_practice`                                                                                                 |
+| `GET /api/sessions/{id}`                                                            | session with exercises and results so far                                                                                                                                                                                                                                                                                                                                   |
+| `POST /api/sessions/{id}/attempts`                                                  | `{exercise_id, response: {kind: "rating", rating: 1–4}}` → `{rating, next_due_at, appended, appended_index}` (a card due again within minutes is inserted later in the session)                                                                                                                                                                                             |
+| `POST /api/sessions/{id}/complete`                                                  | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id`                                                                                                                                                                                                                                           |
+| `GET /api/progress`                                                                 | the whole course: word stages (met, reviewing, well learned, due), today's plan, a year of days (plan done or not, ADR 0015), this week's promise, weeks kept in a row, delayed-recall rate over 30 days                                                                                                                                                                    |
+| `GET /api/decks/{id}/words`                                                         | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at`                                                                                                                                                                                                                          |
+| `GET /api/groups`, `POST /api/groups`                                               | my groups; create one `{name, nickname}` (ADR 0011)                                                                                                                                                                                                                                                                                                                         |
+| `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}`                       | invite preview (name, member count) and joining with `{nickname}`; rate-limited                                                                                                                                                                                                                                                                                             |
+| `GET /api/groups/{id}/board`                                                        | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group: author, my words met, the group's progress, and each member's met and well-remembered words for the owner (ADR 0017, 0019); members only; no points |
+| `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member                                                                                                                                                                                                                                                                                                                                           |
+| `GET /api/glossary`                                                                 | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013)                                                                                                                                                                                                                                                                                  |
+| `POST /api/sessions/{id}/attempts`                                                  | one answer per exercise, in order, idempotent: a card rating, or a word built with letter tiles (`{kind: spelling, answer}`, first try checked on the server and discarded, ADR 0016); returns a card shown again later, if any                                                                                                                                             |
+| `POST /api/sessions/{id}/exercises/{exercise_id}/hint`                              | the letter of one slot of a spelling card (`{position}`); one hint per card, kept with the session (ADR 0016)                                                                                                                                                                                                                                                               |
+| `GET /api/decks/mine`, `POST /api/decks`                                            | my decks; a new deck `{title}`, always its author's own until given to a group (ADR 0019)                                                                                                                                                                                                                                                                                   |
+| `DELETE /api/decks/{id}`                                                            | my deck, for good: its own cards and everyone's progress on them, its unfinished lessons and assignments; finished lessons stay without a deck (ADR 0019)                                                                                                                                                                                                                   |
+| `GET /api/decks/library`                                                            | «Мои колоды»: `mine` and `from_groups`, each with my counts and today's new words if opened (ADR 0019)                                                                                                                                                                                                                                                                      |
+| `POST /api/decks/{id}/words/topic`                                                  | cards for a topic `{topic, count, level}`: the AI chooses the words, saved with checks (ADR 0019)                                                                                                                                                                                                                                                                           |
+| `POST /api/decks/{id}/words/fill`, `POST …/words/suggest`                           | full cards from the words named `{words, level}`, saved with checks; one card for the manual form, not saved (ADR 0019)                                                                                                                                                                                                                                                     |
+| `GET /api/decks/{id}/edit`, `PATCH /api/decks/{id}`                                 | the deck as its author edits it (anyone else: 404); rename                                                                                                                                                                                                                                                                                                                  |
+| `POST /api/decks/{id}/words`, `PUT …/words/{word_id}`, `DELETE …/words/{word_id}`   | add (a course word is linked), correct, take out a word                                                                                                                                                                                                                                                                                                                     |
+| `POST /api/decks/{id}/generate`                                                     | draft cards from a teacher's text `{text, count, level}` into the deck: added cards, skipped ones with reasons, the provider; the text is not stored; 20 a day (ADR 0018)                                                                                                                                                                                                   |
+| `POST /api/decks/{id}/publish`, `DELETE /api/groups/{group_id}/decks/{deck_id}`     | publish and give to a group I own `{group_id}` (idempotent); take back                                                                                                                                                                                                                                                                                                      |
+| `GET /api/me/profile`, `GET /api/groups/{id}/members/{member_id}/profile`           | a learner's week against their own promise and the learning beyond it (ADR 0015); one's own for everyone, a member's for members of that group only; nickname, no ids or e-mail                                                                                                                                                                                             |
+| `GET /api/me`, `PATCH /api/me`                                                      | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010)                                                                                                                                                                                                                |
+| `GET /api/me/pace?deck_id=`                                                         | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion                                                                                                                                                                                                                     |
+| `POST /api/me/pace/dismiss`                                                         | `{kind: "lower" \| "raise"}`: that suggestion stays quiet for 7 days                                                                                                                                                                                                                                                                                                        |
 
 Requests carry `X-Time-Zone` (the browser's IANA zone) so "today" and streaks follow the learner's calendar (ADR 0008).
 
 Every query is filtered by the authenticated user. A session that exists but belongs to someone else returns **404**, not 403, so identifiers cannot be probed. Request bodies are validated by Pydantic with explicit length limits (e.g. typed answers ≤ 100 characters).
 
 ## Home: the stepping-stone path (M8)
+
 The home screen shows the deck as stones across water (`web/src/lib/path.ts`, `web/src/path/`).
-Every 5 words in deck order are a stone and every 2 stones a level. A stone is *done* when all its
-words are met and *firm* when all are "помню хорошо" (stage ≥ 4). The state is derived in the
+Every 5 words in deck order are a stone and every 2 stones a level. A stone is _done_ when all its
+words are met and _firm_ when all are "помню хорошо" (stage ≥ 4). The state is derived in the
 browser from `GET /api/decks/{id}/words`, so the path and the word list cannot disagree. No server
 state is added. When the learner comes back from a lesson that finished a stone, the frog hops
 forward. The last stone seen is kept in memory for the visit only, so a reload shows the position
@@ -156,13 +157,13 @@ Validation runs in CI, so a broken deck cannot be merged.
 
 A Leitner-style scheduler in a pure module, `services/scheduling.py`:
 
-| Stage | Next review after | Reached by |
-|---|---|---|
-| 1 | 1 day | being introduced, or missing a review |
-| 2 | 3 days | one review recalled |
-| 3 | 7 days | two in a row |
-| 4 | 16 days | three in a row — "currently well learned" |
-| 5 | 35 days (cap) | four or more in a row |
+| Stage | Next review after | Reached by                                |
+| ----- | ----------------- | ----------------------------------------- |
+| 1     | 1 day             | being introduced, or missing a review     |
+| 2     | 3 days            | one review recalled                       |
+| 3     | 7 days            | two in a row                              |
+| 4     | 16 days           | three in a row — "currently well learned" |
+| 5     | 35 days (cap)     | four or more in a row                     |
 
 - **Review sessions** take up to 8 due words, most overdue first. Each word gets `recall_meaning`
   (options hidden until the learner asks for them) and later `type_word`; it counts as recalled
@@ -188,11 +189,11 @@ A Leitner-style scheduler in a pure module, `services/scheduling.py`:
 
 Settings come from environment variables (`.env` locally, never committed; `.env.example` lists every key with placeholder values) and are validated at startup:
 
-| Variable | Purpose |
-|---|---|
-| `ENVIRONMENT` | `development` \| `test` \| `production` |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `AUTH_MODE` | `dev` (Phase 4 adds `jwt`) |
+| Variable          | Purpose                                                                       |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `ENVIRONMENT`     | `development` \| `test` \| `production`                                       |
+| `DATABASE_URL`    | PostgreSQL connection string                                                  |
+| `AUTH_MODE`       | `dev` (Phase 4 adds `jwt`)                                                    |
 | `ALLOWED_ORIGINS` | CORS origins for deployed web app; empty in development (Vite proxies `/api`) |
 
 Local development: Homebrew PostgreSQL with `vocab_dev` and `vocab_test` databases.

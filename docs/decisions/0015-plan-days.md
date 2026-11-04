@@ -4,6 +4,7 @@
 and streak of ADR 0008; amends the ranking of ADR 0011.
 
 ## Context
+
 A "consistent day" was 30 points everywhere: the friends board (ranked by such days, ties broken
 by points), the Progress calendar, the streak and the lesson summary. Points grow with volume, so
 the board rewarded whoever had more time or took bonus lessons, and nobody could tell what made a
@@ -11,6 +12,7 @@ point. The owner wants consistency measured against each learner's own promise �
 week, 20 words a day" — and extra learning recognised in a profile, never on the board.
 
 ## Decision
+
 - **A plan day** is a day with study answers and at least that day's target of new words met.
   When the app allowed no new word that day (too many reviews due, or every word met), the plan
   was the reviews: a finished study session makes the day. Practice («Трудные слова») is never
@@ -30,6 +32,7 @@ week, 20 words a day" — and extra learning recognised in a profile, never on t
 - **Extra** (profile only): new words beyond each day's target, and practice answers.
 
 ## Consequences
+
 - Points stay in the database: an introduction is recognised by its points, and the column keeps
   the history. They are no longer shown.
 - Sessions from before this decision have no recorded plan; their days use the learner's current

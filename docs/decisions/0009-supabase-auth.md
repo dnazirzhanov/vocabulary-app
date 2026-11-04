@@ -4,6 +4,7 @@
 `docs/research/hosting-and-auth-2026-10.md`)
 
 ## Decision
+
 - Learners sign up and in with **email and password** through Supabase Auth in the browser. For the
   demo, email confirmation is switched off in Supabase (no sending domain yet) and password reset is
   handled by the organizer; both are revisited before a wider pilot.
@@ -18,6 +19,7 @@
   project URL are baked into the web build; nothing secret is.
 
 ## Consequences
+
 - Switching provider later means changing the issuer and JWKS URL, not the endpoints.
 - Free-tier gaps (no backups, one-week pause, no outgoing email) are mitigated in `docs/deploy.md`.
 - Without email confirmation anyone can register with any address; acceptable for a demo only.
