@@ -186,6 +186,17 @@ test('too many emails is not explained as a typo', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('слишком много писем');
 });
 
+test('the sign-in service failing is not explained as a typo', async ({ page }) => {
+  await mockSupabase(page);
+  await page.route(`${SUPABASE}/**/signup`, (route) =>
+    route.fulfill({ status: 504, headers: cors, body: 'upstream request timeout' }),
+  );
+  await page.goto('/');
+  await fillForm(page, 'new@example.com', 'long-enough-1');
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await expect(page.getByRole('alert')).toContainText('Сервис входа сейчас не отвечает');
+});
+
 test('a forgotten password: email, code, then a new password before the lessons', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');

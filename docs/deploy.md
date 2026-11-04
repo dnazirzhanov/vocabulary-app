@@ -22,6 +22,11 @@ For a first class, follow `pilot.md`: these steps in order, plus what the class 
 8. Collect: project URL, publishable key, **secret key**, the session-pooler connection string.
 9. Your issuer is `https://<project>.supabase.co/auth/v1`.
 
+**If sign-up hangs for about 35 seconds and no email comes,** Supabase cannot reach the mail server:
+it answers `504 upstream request timeout` and keeps no account. Check the SMTP host and port above;
+Authentication logs in the dashboard give the exact reason. Never test with made-up addresses: bounces
+count against the Gmail account.
+
 To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET_KEY`,
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`, stop `make dev`, and run
 `make dev-supabase`.

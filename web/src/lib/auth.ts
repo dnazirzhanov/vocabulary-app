@@ -61,6 +61,10 @@ export function describeAuthError(error: AuthFailure | null): string {
   if (!error) return 'Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
   if (error.code && AUTH_MESSAGES[error.code]) return AUTH_MESSAGES[error.code];
   if (error.status === 429) return AUTH_MESSAGES.over_request_rate_limit;
+  // The sign-in service failed, often because its email could not be sent: not the learner's typo.
+  if (error.status !== undefined && error.status >= 500) {
+    return 'Сервис входа сейчас не отвечает. Попробуйте ещё раз через несколько минут.';
+  }
   const message = (error.message ?? '').toLowerCase();
   if (message.includes('invalid login')) return AUTH_MESSAGES.invalid_credentials;
   if (message.includes('already registered')) return AUTH_MESSAGES.user_already_exists;
