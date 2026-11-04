@@ -71,12 +71,6 @@ export function PromiseDialog({
               setSaved(false);
             }}
           />
-          {info.pending && (
-            <p className={styles.note}>
-              С {dueLabel(info.pending.effective_from)}: <strong>{promiseText(info.pending.weekdays)}</strong>. Сейчас:{' '}
-              {promiseText(info.weekdays)}.
-            </p>
-          )}
           <PrimaryButton
             type="button"
             disabled={busy || sameDays(chosen, settled)}

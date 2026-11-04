@@ -35,7 +35,7 @@ test('a learner changes the promise, which starts tomorrow once a lesson is done
   await button(page, 'Изменить').click();
   await dialog.getByRole('button', { name: 'Каждый день' }).click();
   await dialog.getByRole('button', { name: 'Сохранить' }).click();
-  await expect(dialog).toContainText('С 3 ноября: каждый день. Сейчас: Пн–Пт.');
+  await expect(dialog.getByRole('status')).toHaveText('Сохранено: каждый день');
   await page.keyboard.press('Escape');
   await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
   await learner.travelTo(TUESDAY);
