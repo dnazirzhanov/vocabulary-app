@@ -94,8 +94,10 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await expect(
     page.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис.*пропусков: 0/ }),
   ).toBeVisible();
-  // Housekeeping is folded away at the bottom.
-  await expect(button(page, 'Выйти из группы')).toBeHidden();
-  await page.getByText('Управление группой').click();
+  // Leaving is a quiet link at the bottom for everyone (ADR 0040), not folded away; the group's own
+  // management is.
   await expect(button(page, 'Выйти из группы')).toBeVisible();
+  await expect(button(page, 'Удалить группу')).toBeHidden();
+  await page.getByText('Управление группой').click();
+  await expect(button(page, 'Удалить группу')).toBeVisible();
 });

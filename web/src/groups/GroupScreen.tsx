@@ -10,16 +10,18 @@ import {
   wordsLabel,
   wordsProgress,
 } from '../lib/promise.ts';
-import type { Assignment, Board, BoardRow } from '../lib/types.ts';
-import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import type { Assignment, Board, BoardRow, Group } from '../lib/types.ts';
 import { DayDots, StateMark } from '../promise/DayDots.tsx';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
-import { BackIcon, CheckIcon, PersonPlusIcon } from '../ui/icons.tsx';
+import { BackIcon, CheckIcon } from '../ui/icons.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
+import { DeleteGroup } from './DeleteGroup.tsx';
+import { GroupTitle } from './GroupTitle.tsx';
 import { InviteDialog } from './InviteDialog.tsx';
+import { LeaveGroup } from './LeaveGroup.tsx';
+import { ManageMember } from './ManageMember.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
 
@@ -95,7 +97,10 @@ export function GroupScreen({
   }
 
   const { group } = board;
-  const owner = group.role === 'owner';
+  // Who sees everyone's standing under «К уроку» is a right of the role (ADR 0040).
+  const owner = group.can.includes('see_standings');
+  const showFold =
+    board.assignments.length > 0 || group.can.includes('give_decks') || group.can.includes('delete_group');
   const forClass = board.assignments.filter((assignment) => assignment.due_on);
   const me = board.rows.find((row) => row.is_me);
 
@@ -108,20 +113,12 @@ export function GroupScreen({
       </header>
       <main className={shared.main}>
         <div className={`${shared.column} ${styles.page}`}>
-          <div className={styles.head}>
-            <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
-              {group.name}
-            </h1>
-            <button
-              type="button"
-              className={styles.invite}
-              onClick={() => setInviting(true)}
-              aria-label="Пригласить"
-              title="Пригласить"
-            >
-              <PersonPlusIcon aria-hidden="true" />
-            </button>
-          </div>
+          <GroupTitle
+            group={group}
+            headingRef={headingRef}
+            onInvite={() => setInviting(true)}
+            onRenamed={(renamed) => setBoard((current) => current && { ...current, group: renamed })}
+          />
 
           <section aria-labelledby="today-title" className={styles.section}>
             <div className={styles.sectionHead}>
@@ -155,13 +152,16 @@ export function GroupScreen({
             </section>
           )}
 
-          <details className={styles.manage}>
-            <summary>Управление группой</summary>
-            <div className={styles.manageBody}>
-              <GroupDecks board={board} onOpenDeck={onOpenDeck} />
-              <Housekeeping board={board} onRemoved={() => void load()} onLeft={onLeft} />
-            </div>
-          </details>
+          {showFold && (
+            <details className={styles.manage}>
+              <summary>Управление группой</summary>
+              <div className={styles.manageBody}>
+                <GroupDecks board={board} onOpenDeck={onOpenDeck} />
+                <DeleteGroup group={group} onDeleted={onLeft} />
+              </div>
+            </details>
+          )}
+          <LeaveGroup board={board} onLeft={onLeft} />
         </div>
       </main>
       <InviteDialog
@@ -169,6 +169,15 @@ export function GroupScreen({
         groupName={group.name}
         open={inviting}
         onClose={() => setInviting(false)}
+        reset={
+          group.can.includes('reset_invite')
+            ? {
+                groupId: group.id,
+                onReset: (code) =>
+                  setBoard((current) => current && { ...current, group: { ...current.group, invite_code: code } }),
+              }
+            : undefined
+        }
       />
       <Dialog open={rules} onClose={() => setRules(false)} title="Как это считается">
         <p className={styles.dialogText}>
@@ -180,7 +189,17 @@ export function GroupScreen({
           нет: важно только, держит ли каждый своё слово.
         </p>
       </Dialog>
-      {person && <MemberWindow row={person} onClose={() => setPerson(null)} />}
+      {person && (
+        <MemberWindow
+          row={person}
+          group={group}
+          onClose={() => setPerson(null)}
+          onChanged={() => {
+            setPerson(null);
+            void load();
+          }}
+        />
+      )}
       {promising && (
         <PromiseDialog
           onClose={() => {
@@ -351,7 +370,8 @@ function RowWords({ row }: { row: BoardRow }) {
  * promised days),
  * the promised days missed this month, and for each deck how many words they know.
  */
-function MemberWindow({ row, onClose }: { row: BoardRow; onClose: () => void }) {
+function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void; onChanged: () => void }) {
+  const { row, group, onClose, onChanged } = props;
   return (
     <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
       <section aria-labelledby="schedule-title" className={styles.block}>
@@ -383,6 +403,7 @@ function MemberWindow({ row, onClose }: { row: BoardRow; onClose: () => void }) 
           <p className={styles.legend}>Слов пока нет.</p>
         )}
       </section>
+      <ManageMember group={group} row={row} onDone={onChanged} />
     </Dialog>
   );
 }
@@ -408,110 +429,5 @@ function DeckBar(props: { title?: string; known: number; learning: number; total
       </div>
       <p className={styles.legend}>{legend}</p>
     </div>
-  );
-}
-
-/** The owner's list of members, to remove someone; asks once before removing. */
-function Members({ board, onRemoved, onDone }: { board: Board; onRemoved: () => void; onDone: () => void }) {
-  const [confirm, setConfirm] = useState<string | null>(null);
-  const { run, busy, error } = useAsyncAction();
-  const others = board.rows.filter((row) => !row.is_me);
-  return (
-    <section aria-labelledby="members-title" className={styles.section}>
-      <div className={styles.sectionHead}>
-        <h2 id="members-title" className={styles.sectionTitle}>
-          Участники
-        </h2>
-        <button type="button" className={shared.linkButton} onClick={onDone}>
-          Готово
-        </button>
-      </div>
-      <ul className={styles.members}>
-        {others.map((row) => (
-          <li key={row.member_id}>
-            <span>{row.nickname}</span>
-            {confirm === row.member_id ? (
-              <span className={shared.confirm}>
-                <button
-                  type="button"
-                  className={shared.dangerButton}
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      await api.removeMember(board.group.id, row.member_id);
-                      setConfirm(null);
-                      onRemoved();
-                    })
-                  }
-                >
-                  Удалить из группы
-                </button>
-                <button type="button" className={shared.linkButton} onClick={() => setConfirm(null)} data-autofocus>
-                  Отмена
-                </button>
-              </span>
-            ) : (
-              <button type="button" className={shared.linkButton} onClick={() => setConfirm(row.member_id)}>
-                Удалить
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {error && (
-        <p className={shared.problem} role="alert">
-          {error}
-        </p>
-      )}
-    </section>
-  );
-}
-
-function Housekeeping(props: { board: Board; onRemoved: () => void; onLeft: () => void }) {
-  const { group } = props.board;
-  const [managing, setManaging] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const { run, busy, error } = useAsyncAction();
-  return (
-    <>
-      {managing && <Members board={props.board} onRemoved={props.onRemoved} onDone={() => setManaging(false)} />}
-      <div className={shared.manage}>
-        {group.role === 'owner' && group.member_count > 1 && !managing && (
-          <button type="button" className={shared.linkButton} onClick={() => setManaging(true)}>
-            Участники ({group.member_count})
-          </button>
-        )}
-        {leaving ? (
-          <span className={shared.confirm}>
-            Выйти из группы?
-            <button
-              type="button"
-              className={shared.dangerButton}
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  await api.leaveGroup(group.id);
-                  props.onLeft();
-                })
-              }
-            >
-              Да, выйти
-            </button>
-            <SecondaryButton type="button" className={shared.smallSecondary} onClick={() => setLeaving(false)}>
-              Отмена
-            </SecondaryButton>
-          </span>
-        ) : (
-          <button type="button" className={shared.linkButton} onClick={() => setLeaving(true)}>
-            Выйти из группы
-          </button>
-        )}
-        {error && (
-          <p className={shared.problem} role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-    </>
   );
 }

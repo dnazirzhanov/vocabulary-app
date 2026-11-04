@@ -31,6 +31,7 @@ from app.schemas.groups import (
     TotalsOut,
 )
 from app.services.decks import board_assignments, member_deck_progress
+from app.services.group_rights import actions_for, require
 from app.services.progress import local_day_bounds
 from app.services.promise import (
     load_promises,
@@ -104,6 +105,7 @@ def _group_out(db: Session, group: Group, member: GroupMember) -> GroupOut:
         member_count=_member_count(db, group.id),
         role=member.role,
         nickname=member.nickname,
+        can=actions_for(member.role),
     )
 
 
@@ -243,22 +245,82 @@ def _leave(db: Session, group: Group, member: GroupMember) -> None:
         remaining[0].role = "owner"  # the longest-standing member takes over
 
 
-def leave(db: Session, user: User, group_id: UUID) -> None:
+def _member_of(db: Session, group: Group, member_id: UUID) -> GroupMember:
+    target = db.scalar(
+        select(GroupMember).where(GroupMember.id == member_id, GroupMember.group_id == group.id)
+    )
+    if target is None:
+        raise ApiError(404, "member_not_found", "Member not found")
+    return target
+
+
+def leave(db: Session, user: User, group_id: UUID, successor: UUID | None = None) -> None:
+    """Anyone may leave. An owner names who takes over; without a name the longest-standing member
+    does, which keeps deleting an account simple (ADR 0040)."""
     group, member = membership(db, user, group_id)
+    if successor is not None:
+        require(member.role, "transfer_ownership", "not_owner", "Only the owner hands a group over")
+        new_owner = _member_of(db, group, successor)
+        if new_owner.id == member.id:
+            raise ApiError(409, "already_owner", "Name someone else to take the group over")
+        new_owner.role, member.role = "owner", "member"
     _leave(db, group, member)
     db.commit()
 
 
 def remove_member(db: Session, user: User, group_id: UUID, member_id: UUID) -> None:
     group, me = membership(db, user, group_id)
-    if me.role != "owner":
-        raise ApiError(403, "not_owner", "Only the group's owner can remove members")
-    target = db.scalar(
-        select(GroupMember).where(GroupMember.id == member_id, GroupMember.group_id == group.id)
-    )
-    if target is None:
-        raise ApiError(404, "member_not_found", "Member not found")
+    require(me.role, "remove_member", "not_owner", "Only the group's owner can remove members")
+    target = _member_of(db, group, member_id)
+    if target.id == me.id:
+        raise ApiError(409, "cannot_remove_self", "Leave the group instead")
     _leave(db, group, target)
+    db.commit()
+
+
+def rename_group(db: Session, user: User, group_id: UUID, name: str) -> GroupOut:
+    group, me = membership(db, user, group_id)
+    require(me.role, "rename")
+    group.name = clean_group_name(name)
+    db.commit()
+    return _group_out(db, group, me)
+
+
+def reset_invite(db: Session, user: User, group_id: UUID) -> GroupOut:
+    """A new invite code; the old link stops working (ADR 0040)."""
+    group, me = membership(db, user, group_id)
+    require(me.role, "reset_invite")
+    for _ in range(5):
+        group.invite_code = new_invite_code()
+        try:
+            db.flush()
+            break
+        except IntegrityError:
+            db.rollback()
+    else:
+        raise ApiError(503, "code_unavailable", "Could not create an invite code; try again")
+    db.commit()
+    return _group_out(db, group, me)
+
+
+def transfer_ownership(db: Session, user: User, group_id: UUID, member_id: UUID) -> GroupOut:
+    """The owner hands the group to a member and becomes an ordinary member."""
+    group, me = membership(db, user, group_id)
+    require(me.role, "transfer_ownership", "not_owner", "Only the owner hands a group over")
+    target = _member_of(db, group, member_id)
+    if target.id == me.id:
+        raise ApiError(409, "already_owner", "You already own this group")
+    target.role, me.role = "owner", "member"
+    db.commit()
+    return _group_out(db, group, me)
+
+
+def delete_group(db: Session, user: User, group_id: UUID) -> None:
+    """The group, its memberships and its assignments go; the decks and what everyone learned
+    stay with their owners (ADR 0040)."""
+    group, me = membership(db, user, group_id)
+    require(me.role, "delete_group")
+    db.delete(group)
     db.commit()
 
 

@@ -9,6 +9,17 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.me import DayState, TodayState
 
+# What a role may do in a group (ADR 0040); the list a caller may do is `GroupOut.can`.
+Action = Literal[
+    "rename",
+    "give_decks",
+    "see_standings",
+    "reset_invite",
+    "remove_member",
+    "transfer_ownership",
+    "delete_group",
+]
+
 Nickname = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
 GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=40)]
 
@@ -18,6 +29,18 @@ class CreateGroupIn(BaseModel):
 
     name: GroupName
     nickname: Nickname
+
+
+class RenameGroupIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: GroupName
+
+
+class TransferIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    member_id: UUID
 
 
 class JoinGroupIn(BaseModel):
@@ -33,6 +56,8 @@ class GroupOut(BaseModel):
     member_count: int
     role: Literal["owner", "member"]
     nickname: str
+    # The actions my role allows here (ADR 0040).
+    can: list[Action]
 
 
 class TodayMemberOut(BaseModel):

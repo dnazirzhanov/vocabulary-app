@@ -14,7 +14,7 @@ interface GroupDecksProps {
  * and «Изменить» for its author. Readiness for the class is on the page itself, under «К уроку».
  */
 export function GroupDecks({ board, onOpenDeck }: GroupDecksProps) {
-  const owner = board.group.role === 'owner';
+  const owner = board.group.can.includes('give_decks');
   if (board.assignments.length === 0) {
     if (!owner) return null;
     return (
