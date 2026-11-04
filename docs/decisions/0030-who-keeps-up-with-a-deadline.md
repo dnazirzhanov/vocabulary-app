@@ -3,15 +3,13 @@
 **Status:** Accepted. Builds on ADR 0028 (a teacher's «Выучить к»).
 
 ## Context
-
 A teacher can give a deck a deadline, but the group page only showed how many words each student
 had met. It didn't say who would be ready for the class.
 
 ## Decision
-
 - **One rule for «on track».** The deck's words are due evenly from the day it was given to the day
   before the deadline (the deadline day is for review), as ADR 0028 spreads them. A member is behind
-  by what they lack of that schedule up to _yesterday_: today is still theirs. From the deadline
+  by what they lack of that schedule up to *yesterday*: today is still theirs. From the deadline
   day on, every word was due.
 - **Four statuses:** «все слова встречены», «успевает», «отстаёт на N слов», «ещё не начинал»
   (nothing met yet; on the first day that is not behind).
@@ -22,7 +20,6 @@ had met. It didn't say who would be ready for the class.
   (ADR 0017).
 
 ## Consequences
-
 - The status is computed when the board is read; nothing new is stored.
 - Days are the group's, in its time zone; a student far from it may see a day's difference at
   midnight.

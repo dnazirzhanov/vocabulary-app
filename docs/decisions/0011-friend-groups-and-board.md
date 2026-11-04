@@ -4,7 +4,6 @@
 ADR 0023.
 
 ## Context
-
 Pilot feedback, backed by Arnett (Oct 2026): motivation, not explanation, is the bottleneck in
 learning, and it comes largely from relationships and community. Learners asked for a friends'
 leaderboard. Research on leaderboards is mixed: relative boards (you and people near you) motivate
@@ -13,7 +12,6 @@ across levels, while absolute rankings can demotivate low performers
 Learners may be minors.
 
 ## Decision
-
 - **Groups, not a global ranking.** Anyone can create a group (at most 5 per learner, 50 members)
   and share an 8-character invite code (no 0/O/1/I), a link `/join/CODE` or a QR code made in the
   browser (`qrcode`, MIT) so codes never reach a third-party service. The link survives sign-in and
@@ -37,7 +35,6 @@ Learners may be minors.
   classmates for the local dev user, so the board can be tried without other people.
 
 ## Consequences
-
 - A 3-words-a-day learner who practises daily outranks a 100-words learner who practised twice.
 - Groups store one more piece of personal data: a nickname. It is deleted with the account.
 - The effect on motivation is a pilot hypothesis to measure: return rate of group members vs others.

@@ -4,7 +4,6 @@
 three rankings of ADR 0023.
 
 ## Context
-
 «План выполнен» bundled three things: a lesson finished, every due review cleared across every
 deck, and a daily pace of new words set once during onboarding. With several decks of one's own,
 nobody remembered that pace or which deck it applied to, so «план 3» on a friend's row meant
@@ -16,7 +15,6 @@ real goal (remembering words) and can't be farmed; a fresh start every week; and
 takes to pass the next person.
 
 ## Decision
-
 - **No «план».** The word and the measure are gone. **A day counts when a session of any kind was
   finished that day:** a lesson, spelling or hard words. A card or two answered and left doesn't
   count; how much was done doesn't matter. The weekly promise («6 дней в неделю»), the week's
@@ -33,7 +31,6 @@ takes to pass the next person.
   words, the tie-break («ещё 1 день занятий»).
 
 ## Consequences
-
 - The lesson summary no longer reports a day's plan; it carries only where spelling stands
   (its next-step button).
 - `learning_sessions.reviews_left` is no longer recorded or read; `day_target` stays (the pace in

@@ -3,13 +3,11 @@
 **Status:** Accepted
 
 ## Context
-
 The brief asks for a simple, explainable, deterministic and unit-tested scheduler that returns
 missed words sooner and spaces recalled words further apart, kept separate from UI and handlers.
 It warns against an elaborate memory model before the basic loop is validated.
 
 ## Decision
-
 - Five stages with fixed intervals: **1, 3, 7, 16, 35 days**. These are hypotheses for the pilot.
 - Meeting a word (its introduction) puts it at stage 1, due the next day.
 - In a **review session**, a word is asked twice — recall the meaning (options hidden until the
@@ -25,7 +23,6 @@ The logic lives in `backend/app/services/scheduling.py` (pure); `services/sessio
 in the same transaction as the attempt that completes a word.
 
 ## Consequences
-
 - The schedule can be explained to a learner and a teacher in one sentence per rule.
 - No per-word difficulty: a word that is always hard keeps cycling through stage 1. If the pilot
   shows that is common, a later decision can add difficulty or SM-2-style ease factors.

@@ -3,17 +3,14 @@
 **Status:** Accepted. Refines ADR 0022 (progress by deck) and applies ADR 0032's rule to «Прогресс».
 
 ## Context
-
 The owner asked for «Прогресс» to show only what conveys progress and sets goals, deck by deck,
 keeping the heatmap.
-
 - Each deck row had a source line, a percentage (0 % for every new deck), a three-tone bar with a
   legend, and two count lines. One read «сегодня 8 из 5 новых» when extra words were taken.
 - The top had three sub-lines, spelling included.
 - The calendar ended with a footnote.
 
 ## Decision
-
 - **The top:** words learned, and «из них надёжно — N». The «встречено» total moves into the
   decks; the spelling line goes (the spelling window on a deck page shows the hard words).
 - **Each deck, in two lines under its title and bar:**
@@ -32,6 +29,5 @@ keeping the heatmap.
 - **Kept as they are:** the week against the promise and the heatmap, as the owner asked.
 
 ## Consequences
-
 The rule for when a day counts is no longer printed on the page. The week's circles say «день
 засчитан» to screen readers, and the rule is in ADR 0027.

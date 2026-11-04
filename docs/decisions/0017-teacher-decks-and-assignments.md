@@ -5,7 +5,6 @@ Amended by ADR 0019: anyone writes decks (kind `group` renamed `user`); drafts l
 Amended by ADR 0020: a group's deck is studied by opening it; its words no longer come first in a daily lesson.
 
 ## Context
-
 A teacher told us how he prepares vocabulary homework today: he asks ChatGPT for the words in
 his lesson material, then builds cards by hand (meaning, example, pronunciation) and sends them
 to his students one by one. The product promise we want to test is "turn any English lesson into
@@ -14,7 +13,6 @@ writes and gives to a group. Generating the deck from the teacher's text comes n
 the same deck.
 
 ## Decision
-
 - **A group deck.** `decks.kind` is `course` (the levels, from `content/`) or `group` (a teacher's
   deck, written in the app). A group deck has an author (`owner_id`), starts as a draft and is
   published when it is first given to a group. Only its author sees or edits it; anyone else gets
@@ -51,7 +49,6 @@ the same deck.
 - **Limits.** At most 100 decks per author; words per deck: see ADR 0019 (500).
 
 ## Consequences
-
 - The card highlights the target word in its example only when the example uses the headword
   itself; a phrase or an inflected form ("carried out") is not highlighted.
 - Teachers' words have no recorded audio yet: the browser's own English voice reads them (the

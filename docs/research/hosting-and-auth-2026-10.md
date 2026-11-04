@@ -9,18 +9,18 @@ learners in Kyrgyzstan · FastAPI + PostgreSQL (ADR 0002) · nothing deployed or
 
 ## The three options
 
-|                                  | A. Supabase                                                                                                | B. Neon                                                                  | C. Self-host on a free VM                                                              |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Sign-in                          | Supabase Auth (mature; email + password, verification, reset); 50,000 monthly users free                   | Managed Better Auth (newer); up to 60,000 monthly users per project free | Our own, using a library (`fastapi-users` is in maintenance mode: security fixes only) |
-| Where users are stored           | Our own Postgres (`auth` schema)                                                                           | Our own Postgres (`neon_auth` schema)                                    | Our own Postgres                                                                       |
-| Token check in FastAPI           | Asymmetric signing keys + public JWKS endpoint (documented)                                                | EdDSA tokens + public JWKS endpoint, 15-minute expiry (documented)       | Our code                                                                               |
-| Database (free)                  | 500 MB per project, 2 projects                                                                             | 1 GB per project                                                         | Whatever the VM holds                                                                  |
-| Idle behaviour                   | **Project pauses after 1 week without activity**; restored by hand                                         | Compute sleeps after 5 minutes idle; wakes on the next query             | Always on                                                                              |
-| Backups (free)                   | **None** (no automatic backups, no point-in-time recovery)                                                 | 6 hours of restore history (1 GB), 1 manual snapshot                     | Ours to build                                                                          |
-| Emails (sign-up, password reset) | Built-in sender is capped at about 2 per hour → **must add an email provider**                             | Not documented on the overview page → verify with a test project         | Ours to build                                                                          |
-| Data export                      | Standard `pg_dump`                                                                                         | Standard `pg_dump`                                                       | Standard `pg_dump`                                                                     |
-| Operations work                  | Low                                                                                                        | Low                                                                      | **High**: OS updates, TLS, backups, monitoring, security                               |
-| Known risks                      | ISPs in some countries (India, UAE) have blocked `*.supabase.co` in the past; nothing found for Kyrgyzstan | Auth product is young                                                    | Free VM sign-up and capacity are unreliable; everything security-related is on us      |
+| | A. Supabase | B. Neon | C. Self-host on a free VM |
+|---|---|---|---|
+| Sign-in | Supabase Auth (mature; email + password, verification, reset); 50,000 monthly users free | Managed Better Auth (newer); up to 60,000 monthly users per project free | Our own, using a library (`fastapi-users` is in maintenance mode: security fixes only) |
+| Where users are stored | Our own Postgres (`auth` schema) | Our own Postgres (`neon_auth` schema) | Our own Postgres |
+| Token check in FastAPI | Asymmetric signing keys + public JWKS endpoint (documented) | EdDSA tokens + public JWKS endpoint, 15-minute expiry (documented) | Our code |
+| Database (free) | 500 MB per project, 2 projects | 1 GB per project | Whatever the VM holds |
+| Idle behaviour | **Project pauses after 1 week without activity**; restored by hand | Compute sleeps after 5 minutes idle; wakes on the next query | Always on |
+| Backups (free) | **None** (no automatic backups, no point-in-time recovery) | 6 hours of restore history (1 GB), 1 manual snapshot | Ours to build |
+| Emails (sign-up, password reset) | Built-in sender is capped at about 2 per hour → **must add an email provider** | Not documented on the overview page → verify with a test project | Ours to build |
+| Data export | Standard `pg_dump` | Standard `pg_dump` | Standard `pg_dump` |
+| Operations work | Low | Low | **High**: OS updates, TLS, backups, monitoring, security |
+| Known risks | ISPs in some countries (India, UAE) have blocked `*.supabase.co` in the past; nothing found for Kyrgyzstan | Auth product is young | Free VM sign-up and capacity are unreliable; everything security-related is on us |
 
 Both A and B keep all data in a standard PostgreSQL database we can dump and move, so switching
 later costs a migration, not a rewrite. Option C is the cheapest on paper and the most expensive in
@@ -31,11 +31,11 @@ time and risk; it is not recommended without someone to run it.
 The web app can be served by the API itself (one service, no CORS). Free hosts close to Kyrgyzstan
 (Frankfurt is roughly 70–100 ms away; US regions 200+ ms):
 
-| Host                                   | Free tier                                | The catch                                                                                                                                                                       |
-| -------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Render (third-party sources)           | Free web service, Frankfurt              | **Sleeps after 15 minutes idle; waking takes about a minute** — longer than the app's 15-second request timeout. Its free Postgres expires after 30 days (we would not use it). |
-| Koyeb (third-party sources)            | One 512 MB / 0.1 vCPU service, Frankfurt | Sleeps after 1 hour idle; wakes in 1–5 seconds. Reports since February 2026 of a card and a $29 hold at sign-up (conflicting).                                                  |
-| Google Cloud Run (third-party sources) | Generous request allowance               | Free allowance only in US regions; billing account (card) likely required.                                                                                                      |
+| Host | Free tier | The catch |
+|---|---|---|
+| Render (third-party sources) | Free web service, Frankfurt | **Sleeps after 15 minutes idle; waking takes about a minute** — longer than the app's 15-second request timeout. Its free Postgres expires after 30 days (we would not use it). |
+| Koyeb (third-party sources) | One 512 MB / 0.1 vCPU service, Frankfurt | Sleeps after 1 hour idle; wakes in 1–5 seconds. Reports since February 2026 of a card and a $29 hold at sign-up (conflicting). |
+| Google Cloud Run (third-party sources) | Generous request allowance | Free allowance only in US regions; billing account (card) likely required. |
 
 **Free hosting means the first visit after a quiet period is slow.** The client can show "Подключаемся…"
 and allow a longer first request, but the honest fix is an always-on instance (about $5–7 a month).

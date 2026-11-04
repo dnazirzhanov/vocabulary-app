@@ -4,7 +4,6 @@
 revises the point rules of ADR 0008.
 
 ## Context
-
 The owner asked for the study format to work "just like Anki": show the English word, let the
 learner try to recall it, reveal the answer (translation, example in context, audio), and let them
 rate how well they knew it. The ratings should drive a per-learner memory model, so the words each
@@ -12,13 +11,12 @@ person tends to forget come back more often. The quiz exercises (choose the tran
 word) right after introducing a word are removed for the demo.
 
 ## Decision
-
 - **Card flow, Anki order:** front (word, part of speech, audio) → «Показать ответ» → back
   (translation, picture if any, example with the word highlighted and audio, Russian translation)
   → rating «Снова / Трудно / Хорошо / Легко». Rating after the reveal is an honest self-check.
   Keyboard as in Anki: Space shows the answer, then Space means «Хорошо»; 1–4 rate.
 - **Scheduler: FSRS** via the maintained [`fsrs`](https://pypi.org/project/fsrs) library (MIT,
-  6.x), the model behind Anki's modern scheduler: per card _difficulty_, _stability_ and the last
+  6.x), the model behind Anki's modern scheduler: per card *difficulty*, *stability* and the last
   review; the next review is due when recall probability falls to 90%. Learning steps 1 and 10
   minutes, relearning 10 minutes, as in Anki. Fuzzing is off so schedules are reproducible.
   Default parameters; per-learner optimisation is a pilot follow-up once enough reviews exist.
@@ -38,7 +36,6 @@ word) right after introducing a word are removed for the demo.
 - **"Помню хорошо"** = in review with stability ≥ 21 days (word list, path, progress).
 
 ## Consequences
-
 - Existing Leitner progress was converted approximately (stability = the old interval, difficulty
   5); quiz sessions still open were closed. Old quiz attempts stay in history.
 - The schedule is only as good as the learner's honesty; points ignore ratings to avoid an

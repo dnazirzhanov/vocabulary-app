@@ -4,16 +4,13 @@
 sees, by name, only who isn't keeping up). The weekly league and «my place» are replaced by ADR 0039.
 
 ## Context
-
 A group's page had grown to about twenty pieces of information: a today strip, a period switch
 and a rule paragraph, a «your place» card, rows with words, days, cards, a streak and week dots,
 three «together» totals, the decks with group-wide counts and per-member bars, and housekeeping.
 The owner found users bombarded and asked for only what matters most.
 
 ## Decision
-
 The page answers what a member wants to know, in order:
-
 - **competence:** where am I, and the one concrete next step;
 - **the class:** am I ready;
 - **relatedness:** am I not alone;
@@ -39,7 +36,6 @@ Third-person statuses avoid the gendered past tense («ещё не начато�
 whether it is he or she.
 
 ## Consequences
-
 - Removed from the page:
   - the «Вместе» totals;
   - group-wide deck counts;

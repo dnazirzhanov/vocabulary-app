@@ -4,14 +4,12 @@
 only by the promise kept; extra work never on the board).
 
 ## Context
-
 With several groups and many decks, «Друзья» felt lost: with one group it jumped straight to a
 board, and the board ranked only by the share of one's own promise kept, so «3 из 3 дней» tied
 «5 из 5 дней» and nothing else was shown. The owner asked for groups listed first, each group
 opened on purpose, and a leaderboard that works as members' statistics.
 
 ## Decision
-
 - **«Друзья» is always the list of my groups.** Each row: name, members, my place this week, and
   faces of who has studied today. Creating a group and joining by code open a window each.
 - **A group answers, in order:** who has studied today (names, no numbers); the ranking with my
@@ -29,7 +27,6 @@ opened on purpose, and a leaderboard that works as members' statistics.
   group over the period — never compared.
 
 ## Consequences
-
 - Volume can now lead a board when a member chooses that ranking; steadiness stays the default.
 - `GET /api/groups/{id}/board?period=` returns all three places per row, so switching rankings
   needs no request; `GET /api/groups` carries each group's pulse.

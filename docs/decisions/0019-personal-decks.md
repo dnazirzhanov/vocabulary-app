@@ -3,13 +3,11 @@
 **Status:** Accepted. Amends ADR 0017 (who writes decks) and builds on ADR 0018.
 
 ## Context
-
 Decks could only be written by a group's owner, for the group. The owner wants Anki's basic
 freedom too: anyone keeps their own decks and cards. Writing a card should be fast: type an
 English word and the app writes the rest. Decks need a place of their own, not the course's list.
 
 ## Decision
-
 - **Anyone writes decks.** A deck someone wrote has kind `user` (renamed from `group`): personal
   until given to a group. The assignment, not the kind, makes it a group's deck. Every deck is
   created in «Мои колоды», as its author's own (100 per person); there is no other way to make one.
@@ -74,7 +72,6 @@ English word and the app writes the rest. Decks need a place of their own, not t
   the course word itself is untouched.
 
 ## Consequences
-
 - A group board no longer makes or lists drafts: every deck I wrote is in «Мои колоды».
 - The quality of filled cards is the model's; flags point at the obvious problems and the learner
   reviews the rest.

@@ -3,13 +3,11 @@
 **Status:** Accepted
 
 ## Context
-
 The brief asks for points for meaningful activity, a modest daily goal and encouragement for
 consistency — while rewards stay subordinate to learning and never pay for endless guessing,
 repeated trivial sessions or inflated metrics.
 
 ## Decision
-
 - **Points are written once, with the attempt that earns them** (`review_attempts.points`), by one
   pure rule (`services/progress.py`):
   - meeting a new word: **10**
@@ -28,7 +26,6 @@ repeated trivial sessions or inflated metrics.
   generic correct-answer rate, which would count answers given moments after seeing the word.
 
 ## Consequences
-
 - Changing point values later affects only new attempts; history keeps what was earned.
 - No leaderboard or social comparison exists; those are P1 and need their own decision.
 - If learners treat the goal as a ceiling or find it too easy or hard, the constant changes

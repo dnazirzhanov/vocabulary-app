@@ -3,14 +3,12 @@
 **Status:** Accepted. Refines ADR 0018 (drafting a deck from a teacher's text).
 
 ## Context
-
 Teachers have lesson material on paper: a textbook page, a worksheet. Typing it in is the slow
 part of making a deck. The owner asked for photos as in ChatGPT or Claude: several images at once,
 the text read from them, then the words drafted. DeepSeek, the drafting model (ADR 0018), cannot
 read images. The owner also wanted to choose how many words to draft, up to 50 (it was 5–20).
 
 ## Decision
-
 - **Photos are read in the browser** with Tesseract OCR (`tesseract.js`, English model): free,
   no new account, and the photos never leave the device. Only the text read from them is sent,
   exactly as typed text is. The engine and its model (about 7 MB) are served by this app under
@@ -28,7 +26,6 @@ read images. The owner also wanted to choose how many words to draft, up to 50 (
   drafting timeout is 180 s; 50 cards fit in the existing token limit.
 
 ## Consequences
-
 - Printed pages and screenshots read well (a slightly rotated textbook page read word-perfect in
   about 2 s on first try). Handwriting and blurred or skewed photos read poorly; the teacher sees
   and fixes the text first. A paid vision model would read those, at a cost and with photos sent

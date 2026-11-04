@@ -3,13 +3,11 @@
 **Status:** Accepted. Refines 0016 (which words a spelling session takes).
 
 ## Context
-
 A spelling session held a card for every word learned that day. A learner who took many bonus
 lessons faced hundreds of words in one sitting. Nothing remembered which words a learner spells
 easily and which not, so the hard ones were never practised more than the rest.
 
 ## Decision
-
 - **A ladder per word** (`spelling_progress`, `services/spelling_ladder.py`), apart from FSRS's
   memory of the meaning:
   - A miss, or a hinted answer, puts the word on the bottom rung, «трудное», due the next day.
@@ -34,7 +32,6 @@ easily and which not, so the hard ones were never practised more than the rest.
 - Existing spelling answers were replayed into the ladder by the migration (hinted ones as misses).
 
 ## Consequences
-
 - A big day is spelled in tens, and spelling time goes to the words that need it.
 - Spelling still never keeps a day or earns a place on the board (ADR 0022); the day's plan no
   longer counts spelled words at all.
