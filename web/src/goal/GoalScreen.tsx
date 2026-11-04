@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.ts';
+import { promiseText } from '../lib/promise.ts';
 import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
 import type { Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -71,7 +72,7 @@ function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }
       <p className={styles.summaryTime}>{formatMinutes(dailyMinutes(choice.words, seconds))}</p>
       <p className={styles.summaryLabel}>в день через месяц, вместе с повторениями</p>
       <p className={styles.summaryDays}>
-        {choice.days}&nbsp;дней в неделю
+        {promiseText(choice.weekdays)}
         {choice.ramp && choice.words >= RAMP_MIN_TARGET ? ' · с разогревом' : ''}
       </p>
     </div>
@@ -86,7 +87,7 @@ export function GoalScreen({ course, me, onDone }: GoalScreenProps) {
   const seconds = DEFAULT_SECONDS_PER_EXERCISE; // a new learner has no answering time to measure yet
   const [choice, setChoice] = useState<PaceChoice>({
     words: me.daily_target_words ?? 5,
-    days: me.study_days_per_week,
+    weekdays: me.promise.pending?.weekdays ?? me.promise.weekdays,
     ramp: me.ramp_enabled,
   });
   const { run, busy, error } = useAsyncAction();
@@ -99,15 +100,11 @@ export function GoalScreen({ course, me, onDone }: GoalScreenProps) {
   }, [step]);
 
   const save = () =>
-    run(async () =>
-      onDone(
-        await api.updateMe({
-          daily_target_words: choice.words,
-          study_days_per_week: choice.days,
-          ramp_enabled: choice.ramp,
-        }),
-      ),
-    );
+    run(async () => {
+      // Nothing is finished yet, so the promise applies at once; the pace's answer carries it back.
+      await api.setPromise(choice.weekdays);
+      onDone(await api.updateMe({ daily_target_words: choice.words, ramp_enabled: choice.ramp }));
+    });
   const back = step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : undefined;
 
   return (

@@ -81,6 +81,13 @@ def row(
         week=[False] * 7,
         streak_weeks=streak,
         studied_today=False,
+        week_states=["off"] * 7,
+        month_misses=0,
+        promise_today="off",
+        promise_weekdays=[0, 1, 2, 3, 4],
+        paused=False,
+        known=0,
+        learning=0,
     )
 
 

@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { plural, weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
-import { ranked, standingOf, visibleLines, type Measure, type Standing } from '../lib/board.ts';
 import { dueLabel, standingLabel } from '../lib/deadline.ts';
+import {
+  knownLine,
+  missesText,
+  promiseText,
+  todayLists,
+  wordsCaption,
+  wordsLabel,
+  wordsProgress,
+} from '../lib/promise.ts';
 import type { Assignment, Board, BoardRow } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import { DayDots, StateMark } from '../promise/DayDots.tsx';
+import { PromiseDialog } from '../promise/PromiseDialog.tsx';
 import { BackIcon, CheckIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -15,11 +24,6 @@ import shared from './Groups.module.css';
 import styles from './Group.module.css';
 
 const number = new Intl.NumberFormat('ru');
-const count = (n: number, one: string, few: string, many: string) =>
-  `${number.format(n)}\u00a0${plural(n, { one, few, many })}`;
-const daysOf = (n: number) => count(n, 'день', 'дня', 'дней');
-const wordsOf = (n: number) => count(n, 'слово', 'слова', 'слов');
-const membersOf = (n: number) => count(n, 'участник', 'участника', 'участников');
 
 interface GroupScreenProps {
   groupId: string;
@@ -29,22 +33,24 @@ interface GroupScreenProps {
   onOpenDeck: (deckId: string) => void;
   /** A member opens a deck with a deadline to study it. */
   onStudyDeck: (deckId: string) => void;
+  /** To the lesson on the home page. */
+  onStudy: () => void;
   onBack: () => void;
   onLeft: () => void;
 }
 
 /**
- * One group (ADR 0023, 0032), only what a member acts on: where I am this week and the one step
- * to the next place; whether I'm ready for the class (the teacher: who isn't); and the week's
- * league, one number a person, a ✓ for who studied today. Everything else is a tap away: a
- * person's figures in their window, the rule in «Как считаются места?», housekeeping folded at
- * the bottom.
+ * One group (ADR 0039): a promise and a report, not a ranking. Today's count by the promise and my
+ * own status; «К уроку» when a deadline is set; then each member's week against what they promised
+ * and the month's missed days. A person's window adds the words they know. Everything else is a tap
+ * away: the rule in «Как это считается?», housekeeping folded at the bottom.
  */
 export function GroupScreen({
   groupId,
   inviteOnOpen = false,
   onOpenDeck,
   onStudyDeck,
+  onStudy,
   onBack,
   onLeft,
 }: GroupScreenProps) {
@@ -53,6 +59,7 @@ export function GroupScreen({
   const [inviting, setInviting] = useState(inviteOnOpen);
   const [person, setPerson] = useState<BoardRow | null>(null);
   const [rules, setRules] = useState(false);
+  const [promising, setPromising] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
@@ -90,6 +97,7 @@ export function GroupScreen({
   const { group } = board;
   const owner = group.role === 'owner';
   const forClass = board.assignments.filter((assignment) => assignment.due_on);
+  const me = board.rows.find((row) => row.is_me);
 
   return (
     <div className={shared.screen}>
@@ -115,7 +123,18 @@ export function GroupScreen({
             </button>
           </div>
 
-          <YourWeek standing={standingOf(board.rows)} />
+          <section aria-labelledby="today-title" className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 id="today-title" className={styles.sectionTitle}>
+                Сегодня по обещанию
+              </h2>
+              <button type="button" className={shared.linkButton} onClick={() => setRules(true)}>
+                Как это считается?
+              </button>
+            </div>
+            <Today me={me} onStudy={onStudy} onPromise={() => setPromising(true)} />
+            <Report rows={board.rows} onOpen={setPerson} />
+          </section>
 
           {forClass.length > 0 && (
             <section aria-labelledby="class-title" className={styles.section}>
@@ -136,18 +155,6 @@ export function GroupScreen({
             </section>
           )}
 
-          <section aria-labelledby="league-title" className={styles.section}>
-            <div className={styles.sectionHead}>
-              <h2 id="league-title" className={styles.sectionTitle}>
-                Неделя
-              </h2>
-              <button type="button" className={shared.linkButton} onClick={() => setRules(true)}>
-                Как считаются места?
-              </button>
-            </div>
-            <League rows={board.rows} onOpen={setPerson} />
-          </section>
-
           <details className={styles.manage}>
             <summary>Управление группой</summary>
             <div className={styles.manageBody}>
@@ -163,54 +170,58 @@ export function GroupScreen({
         open={inviting}
         onClose={() => setInviting(false)}
       />
-      <Dialog open={rules} onClose={() => setRules(false)} title="Как считаются места">
+      <Dialog open={rules} onClose={() => setRules(false)} title="Как это считается">
         <p className={styles.dialogText}>
-          Каждую неделю, с понедельника, — заново. Место — по выученным словам: тем, что вы вспомнили на повторении
-          через день или позже. Сколько карточек пройдено, не важно. При равенстве выше тот, у кого больше дней занятий.
+          Каждый обещает заниматься в выбранные дни недели. День засчитан, если закончен хотя бы один урок. Пропуск —
+          день по обещанию, который кончился без урока. Изменение обещания начинается с завтра, на паузе пропусков нет.
+        </p>
+        <p className={styles.dialogText}>
+          Число пропусков начинается заново первого числа каждого месяца. Дни считаются по времени группы. Мест и очков
+          нет: важно только, держит ли каждый своё слово.
         </p>
       </Dialog>
-      {person && <MemberWindow row={person} groupId={group.id} onClose={() => setPerson(null)} />}
+      {person && <MemberWindow row={person} onClose={() => setPerson(null)} />}
+      {promising && (
+        <PromiseDialog
+          onClose={() => {
+            setPromising(false);
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-/** What passing the member ahead takes: words to learn, or, with as many words, a tie-break. */
-const MEASURE: Record<Measure, (n: number) => string> = {
-  learned: (n) => `ещё ${wordsOf(n)}`,
-  days: (n) => `ещё ${daysOf(n)} занятий`,
-  streak: (n) => `ещё ${n}\u00a0${weeksWord(n)} подряд с выполненным обещанием`,
-};
-
-/** Where I am this week, and the one step that would move me up. */
-function YourWeek({ standing }: { standing: Standing }) {
-  if (standing.kind === 'unranked') {
-    return (
-      <div className={styles.place}>
-        <p className={styles.placeTitle}>Вы ещё не занимались на этой неделе</p>
-        <p className={styles.placeNote}>Один урок — и вы в рейтинге.</p>
-      </div>
-    );
-  }
-  if (standing.kind === 'top') {
-    const note = standing.next
-      ? standing.next.behind > 0
-        ? `${standing.next.nickname} — в ${wordsOf(standing.next.behind)} позади.`
-        : `${standing.next.nickname} — совсем рядом.`
-      : null;
-    return (
-      <div className={styles.place} data-top="">
-        <p className={styles.placeTitle}>
-          Вы на 1-м месте{standing.shared.length > 0 && `, как и ${standing.shared.join(', ')}`}
-        </p>
-        {note && <p className={styles.placeNote}>{note}</p>}
-      </div>
-    );
-  }
+/** Today by the promise, for me: whether I did it, and the weekdays I promised. */
+function Today(props: { me: BoardRow | undefined; onStudy: () => void; onPromise: () => void }) {
+  const { me, onStudy, onPromise } = props;
+  if (!me) return null;
   return (
-    <div className={styles.place}>
-      <p className={styles.placeTitle}>Вы на {standing.rank}-м месте</p>
-      <p className={styles.placeNote}>
-        До {standing.aheadRank}-го — {MEASURE[standing.measure](standing.need)}.
+    <div className={styles.today}>
+      <div className={styles.mine}>
+        {me.promise_today === 'done' && (
+          <p className={styles.mineState} data-done="">
+            <CheckIcon aria-hidden="true" /> Вы: сделано
+          </p>
+        )}
+        {me.promise_today === 'pending' && (
+          <>
+            <p className={styles.mineState}>Вы: ещё нет</p>
+            <button type="button" className={shared.smallButton} onClick={onStudy}>
+              Заниматься
+            </button>
+          </>
+        )}
+        {me.promise_today === 'off' && (
+          <p className={styles.mineState}>{me.paused ? 'Вы на паузе' : 'Сегодня у вас выходной'}</p>
+        )}
+      </div>
+      <p className={styles.promiseLine}>
+        Моё обещание: <strong>{promiseText(me.promise_weekdays)}</strong>
+        <button type="button" className={shared.linkButton} onClick={onPromise}>
+          Изменить
+        </button>
       </p>
     </div>
   );
@@ -266,93 +277,137 @@ function ForClass(props: { assignment: Assignment; board: Board; owner: boolean;
   );
 }
 
-/** The week's league: one number a person, ✓ for who studied today; a row opens their window. */
-function League({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) => void }) {
-  const placed = ranked(rows);
-  const resting = rows.filter((row) => row.rank === null);
+/**
+ * Who kept today's promise, as plain lists of names: those who did it, those who haven't yet, and
+ * those with the day off. Each friend shows how much of the group's deck they have learned, as a
+ * bar in the language of «Прогресс» with its figure, and the promised days missed this month; a row
+ * opens their window. The deck is named once, in a legend above the lists, not on every row.
+ */
+function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) => void }) {
+  const caption = wordsCaption(rows);
   return (
     <>
-      {placed.length === 0 ? (
-        <p className={styles.empty}>На этой неделе ещё никто не занимался. Начните первым!</p>
-      ) : (
-        <ol className={styles.board}>
-          {visibleLines(placed).map((line, index) =>
-            line.kind === 'row' ? (
-              <li key={line.row.member_id} data-me={line.row.is_me || undefined}>
-                <button
-                  type="button"
-                  className={styles.row}
-                  onClick={() => onOpen(line.row)}
-                  aria-label={[
-                    `${line.row.rank}-е место: ${line.row.nickname}${line.row.is_me ? ' (вы)' : ''}`,
-                    line.row.studied_today && 'сегодня уже есть занятие',
-                    wordsOf(line.row.learned),
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-                >
-                  <span className={styles.rank} data-top={line.row.rank! <= 3 ? line.row.rank! : undefined}>
-                    {line.row.rank}
-                  </span>
-                  <span className={styles.nick}>
-                    {line.row.nickname}
-                    {line.row.is_me && <span className={styles.me}>вы</span>}
-                    {line.row.studied_today && <CheckIcon className={styles.todayMark} aria-hidden="true" />}
-                  </span>
-                  <strong className={styles.value}>{wordsOf(line.row.learned)}</strong>
-                </button>
-              </li>
-            ) : (
-              <li key={`gap-${index}`} className={styles.gap}>
-                … ещё {membersOf(line.hidden)}
-              </li>
-            ),
-          )}
-        </ol>
-      )}
-      {resting.length > 0 && (
-        <p className={styles.resting}>
-          Ещё не начинали: {resting.map((row) => `${row.nickname}${row.is_me ? ' (вы)' : ''}`).join(', ')}
+      {caption && (
+        <p className={styles.legendRow}>
+          <span>{caption}</span>
+          <span className={styles.swatch} data-tone="known" aria-hidden="true" />
+          <span>знаю</span>
+          <span className={styles.swatch} data-tone="learning" aria-hidden="true" />
+          <span>учу</span>
         </p>
       )}
+      {todayLists(rows).map((list) => (
+        <section key={list.state} aria-label={list.title} className={styles.names}>
+          <h3 className={styles.namesTitle} data-state={list.state}>
+            <StateMark state={list.state} />
+            {list.title}:<span className={styles.namesCount}>{list.rows.length}</span>
+          </h3>
+          <ul className={styles.report}>
+            {list.rows.map((row) => (
+              <li key={row.member_id} data-me={row.is_me || undefined}>
+                <button type="button" className={styles.row} onClick={() => onOpen(row)}>
+                  <span className={styles.nick}>
+                    {row.nickname}
+                    {row.is_me && <span className={styles.me}>вы</span>}
+                  </span>
+                  <span className={styles.misses} data-none={row.month_misses === 0 || undefined}>
+                    {missesText(row.month_misses)}
+                  </span>
+                  <RowWords row={row} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {rows.length === 1 && <p className={styles.empty}>Пока вы одни в группе. Пригласите друзей кнопкой вверху.</p>}
     </>
   );
 }
 
-/** A person's figures, out of the league's way: this week, weeks in a row, all time. */
-function MemberWindow({ row, groupId, onClose }: { row: BoardRow; groupId: string; onClose: () => void }) {
-  const [allTime, setAllTime] = useState<number | null>(null);
-  useEffect(() => {
-    api.board(groupId, 'all').then(
-      (board) => setAllTime(board.rows.find((other) => other.member_id === row.member_id)?.learned ?? 0),
-      () => setAllTime(null),
-    );
-  }, [groupId, row.member_id]);
+/** One friend's words in the group's deck: a bar with its figure; without a deck, a plain line. */
+function RowWords({ row }: { row: BoardRow }) {
+  const progress = wordsProgress(row);
+  if (!progress) {
+    const line = knownLine(row);
+    return line ? <span className={styles.words}>{line}</span> : null;
+  }
+  const share = (part: number) => `${(Math.min(part, progress.total) / progress.total) * 100}%`;
+  return (
+    <span className={styles.rowWords}>
+      <span className={styles.rowBar} role="img" aria-label={wordsLabel(progress)}>
+        <i className={styles.barLearning} style={{ width: share(progress.learned + progress.learning) }} />
+        <i className={styles.barKnown} style={{ width: share(progress.learned) }} />
+      </span>
+      <strong className={styles.rowFigure} aria-hidden="true">
+        {progress.learned} / {progress.total}
+      </strong>
+    </span>
+  );
+}
+
+/**
+ * A friend's window: «Обещанные дни», their week as the days-of-the-week dots (which show the
+ * promised days),
+ * the promised days missed this month, and for each deck how many words they know.
+ */
+function MemberWindow({ row, onClose }: { row: BoardRow; onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
-      <dl className={styles.figures}>
-        <div>
-          <dt>выучено на этой неделе</dt>
-          <dd>{wordsOf(row.learned)}</dd>
-        </div>
-        <div>
-          <dt>дней занятий на этой неделе</dt>
-          <dd>{number.format(row.days)}</dd>
-        </div>
-        <div>
-          <dt>карточек на этой неделе</dt>
-          <dd>{number.format(row.cards)}</dd>
-        </div>
-        <div>
-          <dt>{weeksWord(row.streak_weeks)} подряд с выполненным обещанием</dt>
-          <dd>{number.format(row.streak_weeks)}</dd>
-        </div>
-        <div>
-          <dt>выучено за всё время</dt>
-          <dd>{allTime === null ? '…' : wordsOf(allTime)}</dd>
-        </div>
-      </dl>
+      <section aria-labelledby="schedule-title" className={styles.block}>
+        <h3 id="schedule-title" className={styles.blockTitle}>
+          Обещанные дни
+        </h3>
+        <DayDots states={row.week_states} />
+      </section>
+      <p className={styles.missed}>
+        Пропущено дней в этом месяце: <strong>{number.format(row.month_misses)}</strong>
+      </p>
+      <section aria-labelledby="words-title" className={styles.wordsBlock}>
+        <h3 id="words-title" className={styles.blockTitle}>
+          Слова
+        </h3>
+        {row.decks.length > 0 ? (
+          row.decks.map((deck) => (
+            <DeckBar
+              key={deck.deck_id}
+              title={deck.title}
+              known={deck.learned}
+              learning={deck.met - deck.learned}
+              total={deck.word_count}
+            />
+          ))
+        ) : row.known + row.learning > 0 ? (
+          <DeckBar known={row.known} learning={row.learning} total={row.known + row.learning} />
+        ) : (
+          <p className={styles.legend}>Слов пока нет.</p>
+        )}
+      </section>
     </Dialog>
+  );
+}
+
+/** «знаю · учу · впереди» as a two-tone bar over the deck's words, as on «Прогресс». */
+function DeckBar(props: { title?: string; known: number; learning: number; total: number }) {
+  const { title, known, learning, total } = props;
+  const share = (part: number) => `${total ? Math.min(100, (part / total) * 100) : 0}%`;
+  const ahead = Math.max(0, total - known - learning);
+  const legend = [
+    `знаю ${number.format(known)}`,
+    `учу ${number.format(learning)}`,
+    ahead > 0 && `впереди ${number.format(ahead)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <div className={styles.deckBar}>
+      {title && <p className={styles.deckTitle}>{title}</p>}
+      <div className={styles.bar} role="img" aria-label={legend}>
+        <i className={styles.barLearning} style={{ width: share(known + learning) }} />
+        <i className={styles.barKnown} style={{ width: share(known) }} />
+      </div>
+      <p className={styles.legend}>{legend}</p>
+    </div>
   );
 }
 

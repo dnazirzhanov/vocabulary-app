@@ -3,7 +3,53 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# One day of a member's promise (ADR 0039): done; missed (promised, over, nothing finished); today,
+# still open; later (promised, to come); off (not promised, or paused).
+DayState = Literal["done", "missed", "today", "later", "off"]
+# Today for one member: done (a session finished), pending (promised, not yet), off.
+TodayState = Literal["done", "pending", "off"]
+
+
+class PendingPromiseOut(BaseModel):
+    """A change made earlier that starts on `effective_from` (tomorrow, at the soonest)."""
+
+    effective_from: date
+    weekdays: list[int]
+
+
+class PauseOut(BaseModel):
+    from_date: date
+    until_date: date
+
+
+class PromiseOut(BaseModel):
+    """The learner's promise (ADR 0039): the weekdays in force today (0 = Monday … 6 = Sunday), a
+    change waiting for tomorrow, and a pause."""
+
+    weekdays: list[int]
+    pending: PendingPromiseOut | None
+    pause: PauseOut | None
+
+
+class PromiseIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    weekdays: Annotated[list[Annotated[int, Field(ge=0, le=6)]], Field(min_length=1, max_length=7)]
+
+    @field_validator("weekdays")
+    @classmethod
+    def _distinct(cls, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("weekdays must be distinct")
+        return value
+
+
+class PauseIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    until: date
 
 
 class MeOut(BaseModel):
@@ -14,6 +60,7 @@ class MeOut(BaseModel):
     onboarded: bool
     # When the pace was first chosen: the ramp's weeks count from here.
     onboarded_at: datetime | None
+    promise: PromiseOut
 
 
 class MeUpdate(BaseModel):

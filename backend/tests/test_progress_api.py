@@ -35,7 +35,7 @@ def test_a_new_learner_starts_from_zero(client: TestClient) -> None:
     }
     assert report["streak_weeks"] == 0
     assert report["activity"] == []  # only days with answers are listed
-    assert report["promised_days"] == 6  # the default weekly promise
+    assert report["promised_week"] == [True] * 6 + [False]  # the default: Пн–Сб
     assert report["recall"] == {"recalled": 0, "reviewed": 0, "days": 30}
     assert "points" not in str(report)
 
@@ -82,7 +82,7 @@ def test_well_learned_once_stable_for_three_weeks(client: TestClient, play: Play
 
 
 def test_the_streak_counts_weeks_with_the_promise_kept(client: TestClient, play: Play) -> None:
-    client.patch("/api/me", json={"study_days_per_week": 2})
+    client.put("/api/me/promise", json={"weekdays": [0, 1]})
     for week in range(2):  # two weeks, the two days promised each: Monday and Tuesday
         for n in range(2):
             play(START, DAY0 + timedelta(days=7 * week + n))
@@ -143,4 +143,5 @@ def test_words_count_across_every_level(client: TestClient, db: Session) -> None
 
 def test_the_weekly_promise_follows_the_chosen_pace(client: TestClient) -> None:
     client.patch("/api/me", json={"study_days_per_week": 4})
-    assert progress(client, DAY0)["promised_days"] == 4
+    # The old number is spread over the week: Пн Вт Чт Пт.
+    assert progress(client, DAY0)["promised_week"] == [True, True, False, True, True, False, False]

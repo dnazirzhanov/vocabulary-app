@@ -743,6 +743,50 @@ def standing(met: int, total: int, given_on: date, due_on: date, today: date) ->
     return StandingOut(status="behind" if behind > 0 else "on_track", behind=behind)
 
 
+def member_deck_progress(
+    db: Session, deck_ids: Sequence[str], users: Sequence[UUID]
+) -> dict[tuple[str, UUID], tuple[int, int]]:
+    """For each (deck, learner): the deck's words met, and of those the ones learned — recalled in
+    a later review with any answer but «Снова», the «знаю» of the progress page (ADR 0022)."""
+    recalled = (
+        select(ReviewAttempt.user_id, ReviewAttempt.word_id)
+        .where(
+            ReviewAttempt.user_id.in_(users),
+            ReviewAttempt.was_review.is_(True),
+            ReviewAttempt.rating >= 2,
+        )
+        .distinct()
+        .subquery()
+    )
+    return {
+        (deck_id, user_id): (int(met), int(learned))
+        for deck_id, user_id, met, learned in db.execute(
+            select(
+                DeckWord.deck_id,
+                UserWordProgress.user_id,
+                func.count(),
+                func.count().filter(recalled.c.word_id.is_not(None)),
+            )
+            .join(
+                UserWordProgress,
+                and_(
+                    UserWordProgress.word_id == DeckWord.word_id,
+                    UserWordProgress.user_id.in_(users),
+                ),
+            )
+            .outerjoin(
+                recalled,
+                and_(
+                    recalled.c.user_id == UserWordProgress.user_id,
+                    recalled.c.word_id == UserWordProgress.word_id,
+                ),
+            )
+            .where(DeckWord.deck_id.in_(deck_ids))
+            .group_by(DeckWord.deck_id, UserWordProgress.user_id)
+        ).tuples()
+    }
+
+
 def board_assignments(
     db: Session,
     group_id: UUID,

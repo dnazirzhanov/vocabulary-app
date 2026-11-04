@@ -164,12 +164,12 @@ export interface StudyDay {
 export interface Progress {
   words: { introduced: number; reviewing: number; well_learned: number; due: number };
   today: StudyDay;
-  /** Weeks in a row with the promise kept. */
+  /** Weeks in a row with every promised day done (ADR 0039). */
   streak_weeks: number;
   /** Days with answers in the last year, oldest first; days without any are absent. */
   activity: StudyDay[];
-  /** This week's promise: days studied. */
-  promised_days: number;
+  /** This week's promise: Monday … Sunday, true on the days promised. */
+  promised_week: boolean[];
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
   /** Where my spelling stands (ADR 0026). */
@@ -186,7 +186,20 @@ export interface Me {
   onboarded: boolean;
   /** When the pace was first chosen: the ramp's weeks count from here. */
   onboarded_at: string | null;
+  promise: PromiseInfo;
 }
+
+/** The weekdays I promise (0 = Monday … 6 = Sunday), a change waiting for tomorrow, a pause (ADR 0039). */
+export interface PromiseInfo {
+  weekdays: number[];
+  pending: { effective_from: string; weekdays: number[] } | null;
+  pause: { from_date: string; until_date: string } | null;
+}
+
+/** One day of a member's promise: done, missed, today (still open), later, or off. */
+export type DayState = 'done' | 'missed' | 'today' | 'later' | 'off';
+/** Today for one member by the promise. */
+export type TodayState = 'done' | 'pending' | 'off';
 
 export type MeUpdate = Partial<Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled'>>;
 
@@ -266,17 +279,39 @@ export interface BoardRow {
   /** This week, whatever the period: days promised, and Monday … Sunday studied. */
   promised_days: number;
   week: boolean[];
-  /** Weeks in a row with the promise kept. */
+  /** Weeks in a row with every promised day done. */
   streak_weeks: number;
-  /** Finished a session today, in the member's own day. */
+  /** Finished a session today, in the group's day. */
   studied_today: boolean;
+  /** The report (ADR 0039): this week's seven days, promised days missed this month, today. */
+  week_states: DayState[];
+  month_misses: number;
+  promise_today: TodayState;
+  /** The weekdays promised, and whether the promise is paused today. */
+  promise_weekdays: number[];
+  paused: boolean;
+  /** Words known (recalled in a later review) and learning (met, not yet known), in all. */
+  known: number;
+  learning: number;
+  /** Each deck given to the group: how many of its words this member has met and learned. */
+  decks: MemberDeck[];
+}
+
+export interface MemberDeck {
+  deck_id: string;
+  title: string;
+  word_count: number;
+  met: number;
+  /** Recalled in a later review with any answer but «Снова»: «знаю» on «Прогресс». */
+  learned: number;
 }
 
 /** A group in the list (ADR 0023): its pulse before opening it. */
 export interface GroupSummary extends Group {
-  /** My place this week by words learned (null: nothing yet this week), among `ranked` members. */
-  my_rank: number | null;
-  ranked: number;
+  /** Today by the promise: members promised today, those who did it, and me (ADR 0039). */
+  today_promised: number;
+  today_done: number;
+  my_today: TodayState;
   members: { nickname: string; is_me: boolean; studied_today: boolean }[];
   /** The deadline deck I am furthest behind on, if any (ADR 0032). */
   behind_for_class?: { title: string; behind: number; status: 'behind' | 'not_started' } | null;
@@ -284,6 +319,10 @@ export interface GroupSummary extends Group {
 
 export interface Board {
   group: Group;
+  /** The group's today, and by the promise how many members were promised it and did it. */
+  today: string;
+  today_promised: number;
+  today_done: number;
   week_start: string;
   week_end: string;
   period: Period;

@@ -11,8 +11,7 @@
   gap: var(--space-3);
 }
 
-.preset,
-.segment {
+.preset {
   position: relative;
   --edge: var(--color-option-edge);
   border: var(--border-control) solid var(--edge);
@@ -33,27 +32,23 @@
   padding: var(--space-3) var(--space-4);
 }
 
-.preset[data-selected='true'],
-.segment[data-selected='true'] {
+.preset[data-selected='true'] {
   --edge: var(--color-primary-strong);
   background: var(--color-primary-tint);
 }
 
-.preset:active,
-.segment:active {
+.preset:active {
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--edge);
 }
 
-.preset:has(.input:focus-visible),
-.segment:has(.input:focus-visible) {
+.preset:has(.input:focus-visible) {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
 @media (hover: hover) {
-  .preset[data-selected='false']:hover,
-  .segment[data-selected='false']:hover {
+  .preset[data-selected='false']:hover {
     --edge: var(--color-option-edge-hover);
   }
 }
@@ -156,20 +151,6 @@
 
 .daysLegend {
   margin-bottom: var(--space-2);
-  font-weight: var(--weight-strong);
-}
-
-.segments {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.segment {
-  display: grid;
-  place-items: center;
-  min-height: var(--tap-min);
-  font-size: var(--text-option);
   font-weight: var(--weight-strong);
 }
 

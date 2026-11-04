@@ -1,0 +1,119 @@
+/* A week of seven dots, Monday first, sharing the width of the window. */
+.dots {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dots li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.dot svg {
+  width: 14px;
+  height: 14px;
+}
+
+.name {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* The week's dots are the window's centrepiece: large, up to 44px. */
+.dots .dot {
+  width: 100%;
+  max-width: 44px;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.dots .dot svg {
+  width: 55%;
+  height: 55%;
+}
+
+.dots [data-state='missed'] .dot::after {
+  width: 40%;
+  height: 3px;
+}
+
+.dots [data-state='off'] .dot::after {
+  width: 8px;
+  height: 8px;
+}
+
+/* Today's name is the one that is not muted, as on «Прогресс». */
+.dots [data-state='today'] .name {
+  color: var(--color-text);
+}
+
+/* done: filled, with a check */
+[data-state='done'] .dot {
+  background: var(--color-activity-goal);
+  color: var(--color-on-primary);
+}
+
+/* missed: an empty ring with a dash — neutral graphite, not an alarm */
+[data-state='missed'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-text-muted);
+}
+
+[data-state='missed'] .dot::after {
+  content: '';
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-text-muted);
+}
+
+/* today, still open: a ring set apart by an outline */
+[data-state='today'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-activity-none);
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+/* promised, still to come: a faint ring */
+[data-state='later'] .dot {
+  box-shadow: inset 0 0 0 2px var(--color-activity-none);
+}
+
+/* not promised: a small quiet dot */
+[data-state='off'] .dot::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-activity-none);
+}
+
+.mark {
+  display: inline-grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+}
+
+/* In a heading the day-off mark has to be seen: a firmer dot than the week's faint one. */
+.mark[data-state='off'] .dot::after {
+  width: 8px;
+  height: 8px;
+  background: var(--color-text-muted);
+}

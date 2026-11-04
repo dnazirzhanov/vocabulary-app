@@ -335,12 +335,12 @@ class ProgressOut(BaseModel):
 
     words: WordStages
     today: StudyDayOut
-    # Weeks in a row with the promise kept (ADR 0015, 0027).
+    # Weeks in a row with every promised day done (ADR 0039).
     streak_weeks: int
     # Days with answers in the last year, oldest first; the calendar fills the gaps.
     activity: list[StudyDayOut]
-    # This week's promise: days studied.
-    promised_days: int
+    # This week's promise: Monday … Sunday, true on the days promised (ADR 0039).
+    promised_week: list[bool]
     recall: RecallRate
     spelling_today: "SpellingTodayOut"
 

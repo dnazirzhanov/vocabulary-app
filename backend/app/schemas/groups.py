@@ -5,7 +5,9 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from app.schemas.me import DayState, TodayState
 
 Nickname = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
 GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=40)]
@@ -50,9 +52,11 @@ class BehindOut(BaseModel):
 class GroupSummaryOut(GroupOut):
     """A group in the list of my groups (ADR 0023): its pulse before opening it."""
 
-    # My place this week by words learned (null: nothing done yet this week), among the ranked.
-    my_rank: int | None
-    ranked: int
+    # Today by the promise (ADR 0039): members promised today and those of them who finished a
+    # session, and where I am.
+    today_promised: int
+    today_done: int
+    my_today: TodayState
     members: list[TodayMemberOut]
     # The deadline deck I am furthest behind on, if any (ADR 0032).
     behind_for_class: BehindOut | None = None
@@ -67,6 +71,17 @@ class GroupPreviewOut(BaseModel):
 
 
 Period = Literal["week", "month", "all"]
+
+
+class MemberDeckOut(BaseModel):
+    """One member on one deck given to the group (ADR 0039): the words they have met, and of those
+    the ones they have learned — recalled in a later review, as «знаю» on the progress page."""
+
+    deck_id: str
+    title: str
+    word_count: int
+    met: int
+    learned: int
 
 
 class BoardRow(BaseModel):
@@ -85,10 +100,22 @@ class BoardRow(BaseModel):
     # This week, whatever the period: days promised, and Monday … Sunday studied.
     promised_days: int
     week: list[bool]
-    # Weeks in a row with the promise kept.
+    # Weeks in a row with every promised day done.
     streak_weeks: int
-    # Finished a session today, in the member's own day.
+    # Finished a session today, in the group's day.
     studied_today: bool
+    # The report (ADR 0039): this week's seven days, promised days missed this calendar month, and
+    # today. Words known (recalled in a later review) and learning (met, not yet known) in all.
+    week_states: list[DayState]
+    month_misses: int
+    promise_today: TodayState
+    # The weekdays promised (0 = Monday) and whether the promise is paused today.
+    promise_weekdays: list[int]
+    paused: bool
+    known: int
+    learning: int
+    # Each deck given to the group, in the order it was given.
+    decks: list[MemberDeckOut] = Field(default_factory=list)
 
 
 class TotalsOut(BaseModel):
@@ -157,6 +184,10 @@ class AssignmentOut(BaseModel):
 
 class BoardOut(BaseModel):
     group: GroupOut
+    # The group's today, and by the promise how many members were promised it and did it.
+    today: date
+    today_promised: int
+    today_done: int
     week_start: date
     week_end: date
     period: Period

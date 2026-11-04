@@ -16,7 +16,14 @@ from app.models.learning import (
     SpellingProgress,
     UserWordProgress,
 )
-from app.models.user import DeckPace, PaceDismissal, PushSubscription, User
+from app.models.user import (
+    DeckPace,
+    PaceDismissal,
+    PromiseChange,
+    PromisePause,
+    PushSubscription,
+    User,
+)
 
 __all__ = [
     "Deck",
@@ -30,6 +37,8 @@ __all__ = [
     "GroupMember",
     "LearningSession",
     "PaceDismissal",
+    "PromiseChange",
+    "PromisePause",
     "PushSubscription",
     "ReviewAttempt",
     "SpellingProgress",

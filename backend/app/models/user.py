@@ -90,3 +90,31 @@ class PushSubscription(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # The learner's local day of the last reminder: at most one a day.
     last_sent_on: Mapped[date | None] = mapped_column(Date)
+
+
+class PromiseChange(Base):
+    """The weekdays a learner promises to study (ADR 0039), from a day on. The row in force for a
+    day is the latest one starting on or before it, so a change never rewrites the past. Monday is
+    bit 1, Sunday bit 64."""
+
+    __tablename__ = "promise_changes"
+    __table_args__ = (CheckConstraint("weekdays BETWEEN 1 AND 127", name="weekdays_range"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    effective_from: Mapped[date] = mapped_column(Date, primary_key=True)
+    weekdays: Mapped[int] = mapped_column(SmallInteger)
+
+
+class PromisePause(Base):
+    """A learner's pause (holiday, illness): days from `from_date` to `until_date` are not
+    promised, so they can't be missed. One at a time."""
+
+    __tablename__ = "promise_pauses"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    from_date: Mapped[date] = mapped_column(Date)
+    until_date: Mapped[date] = mapped_column(Date)

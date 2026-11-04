@@ -20,15 +20,9 @@ from app.schemas.learning import (
 )
 from app.services import decks, pace, spelling_ladder
 from app.services.progress import RECALL_RATE_DAYS, local_day_bounds, recall_counts
+from app.services.promise import promise_of, promised_week, week_streak
 from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
-from app.services.study_days import (
-    HISTORY_DAYS,
-    StudyDay,
-    days_by_user,
-    promises_by_user,
-    week_of,
-    week_streak,
-)
+from app.services.study_days import HISTORY_DAYS, StudyDay, days_by_user, week_of
 
 
 def word_stages(db: Session, user: User, now: datetime) -> WordStages:
@@ -71,8 +65,7 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
     today = local_date(now, time_zone)
     since, _ = local_day_bounds(today - timedelta(days=HISTORY_DAYS), time_zone)
     days = days_by_user(db, [user], since, time_zone)[user.id]
-    promises = promises_by_user(db, [user], since, time_zone)[user.id]
-    monday = week_of(today)[0]
+    promise = promise_of(db, user)
     recalled, reviewed = recall_counts(db, user, now)
     today_out = (
         _day_out(days[today])
@@ -82,9 +75,9 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
     return ProgressOut(
         words=word_stages(db, user, now),
         today=today_out,
-        streak_weeks=week_streak(days, promises, user.study_days_per_week, today),
+        streak_weeks=week_streak(promise, days, today),
         activity=[_day_out(day) for _, day in sorted(days.items())],
-        promised_days=promises.get(monday, user.study_days_per_week),
+        promised_week=promised_week(promise, today),
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
         spelling_today=spelling_today(db, user, now, time_zone),
     )
