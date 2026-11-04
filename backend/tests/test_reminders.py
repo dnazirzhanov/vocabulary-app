@@ -1,5 +1,5 @@
-"""Deadline reminders on the phone (ADR 0031): one in the evening, only with words due for a
-deadline; devices subscribe and unsubscribe; the scheduler needs the shared secret."""
+"""Devices subscribe and unsubscribe (ADR 0031), and the scheduler needs the shared secret. What
+is sent and when: tests/test_notification_schedule.py."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -14,8 +14,8 @@ from app.api.push import get_sender
 from app.core.config import Settings, get_settings
 from app.main import create_app
 from app.models import PushSubscription, User
-from app.services.reminders import reminder_for, send_reminders, vapid_keys
-from tests.support import at, cards, finish
+from app.services.reminders import send_reminders, vapid_keys
+from tests.support import at
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 EVENING = THURSDAY.replace(hour=18, minute=30)
@@ -134,22 +134,10 @@ def test_without_keys_there_are_no_reminders(db: Session) -> None:
         )
 
 
-def test_the_reminder_names_today_s_words_for_the_deadline(
+def test_a_gone_device_is_forgotten_and_nothing_is_sent_twice(
     push_client: TestClient, db: Session
 ) -> None:
     a_class_with_a_deadline(push_client)
-    reminder = reminder_for(db, pavel(db), EVENING)
-    assert reminder is not None
-    assert (reminder.title, reminder.body) == (
-        "Слова к уроку",
-        "Сегодня 3 слова по «Морское дело», чтобы успеть к 7 ноября.",
-    )
-
-
-def test_one_evening_reminder_a_day_and_none_when_today_is_done(
-    push_client: TestClient, db: Session
-) -> None:
-    deck = a_class_with_a_deadline(push_client)
     push_client.post("/api/push/subscriptions", json=DEVICE, headers=as_("pavel"))
     old_phone = "https://push.example.com/send/old-phone"
     push_client.post(
@@ -157,23 +145,13 @@ def test_one_evening_reminder_a_day_and_none_when_today_is_done(
     )
     sender = FakeSender(gone=frozenset({old_phone}))
 
-    assert send_reminders(db, THURSDAY.replace(hour=15), sender) == 0  # not evening yet
-    assert send_reminders(db, EVENING, sender) == 1
+    assert send_reminders(db, THURSDAY.replace(hour=15), sender).sent == 0  # not 17:00 yet
+    assert send_reminders(db, EVENING, sender).sent == 1
     assert [endpoint for endpoint, _ in sender.sent] == [DEVICE["endpoint"]]
-    assert '"title": "Слова к уроку"' in sender.sent[0][1]
+    assert "Сегодня 3\u00a0слова по «Морское дело», чтобы успеть к 7 ноября." in sender.sent[0][1]
     # The old phone is gone for good; the next hour sends nothing again.
     assert db.scalar(select(func.count()).select_from(PushSubscription)) == 1
-    assert send_reminders(db, EVENING + timedelta(hours=1), sender) == 0
-
-    # Friday: Pavel learns the day's words before the evening, so no reminder.
-    friday = THURSDAY + timedelta(days=1)
-    session = push_client.post(
-        "/api/sessions", json={"kind": "study", "deck_id": deck["id"]}, headers=as_("pavel", friday)
-    ).json()
-    assert len([card for card in cards(session) if card["new"]]) == 6  # all six: due tomorrow
-    finish(push_client, session, as_("pavel", friday))
-    push_client.post(f"/api/sessions/{session['id']}/complete", headers=as_("pavel", friday))
-    assert send_reminders(db, friday.replace(hour=19), sender) == 0
+    assert send_reminders(db, EVENING + timedelta(hours=1), sender).sent == 0
 
 
 def test_the_scheduler_needs_the_secret(push_client: TestClient) -> None:
@@ -185,7 +163,7 @@ def test_the_scheduler_needs_the_secret(push_client: TestClient) -> None:
     assert push_client.post(url).status_code == 404
     assert push_client.post(url, headers={"X-Reminders-Token": "guess"}).status_code == 404
     response = push_client.post(url, headers={"X-Reminders-Token": TOKEN} | at(EVENING))
-    assert response.json() == {"sent": 0}  # nobody subscribed
+    assert response.json() == {"sent": 0, "finished": True}  # nobody subscribed
 
 
 def test_deleting_the_account_forgets_its_devices(push_client: TestClient, db: Session) -> None:

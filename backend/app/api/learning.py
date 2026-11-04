@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Path, Response
 
 from app.core.auth import CurrentUser, DbSession, require_recent_sign_in
-from app.core.clock import Now, TimeZone
+from app.core.clock import Now, SentTimeZone, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.ratelimit import limit_attempts
 from app.schemas.learning import (
@@ -49,9 +49,10 @@ def start_session(
     db: DbSession,
     now: Now,
     time_zone: TimeZone,
+    sent_zone: SentTimeZone,
 ) -> SessionOut:
     # The plan recorded on the session is counted in this zone later, on boards too.
-    remember_time_zone(db, user, time_zone)
+    remember_time_zone(db, user, sent_zone)
     return sessions.start_session(db, user, request, now, time_zone)
 
 

@@ -57,6 +57,11 @@ class MeOut(BaseModel):
     daily_target_words: int | None
     study_days_per_week: int
     ramp_enabled: bool
+    # Which notifications the learner wants (ADR 0042).
+    notify_morning: bool
+    notify_afternoon: bool
+    notify_report: bool
+    notify_deadline: bool
     onboarded: bool
     # When the pace was first chosen: the ramp's weeks count from here.
     onboarded_at: datetime | None
@@ -71,6 +76,10 @@ class MeUpdate(BaseModel):
     daily_target_words: int | None = Field(default=None, ge=1, le=100)
     study_days_per_week: int | None = Field(default=None, ge=1, le=7)
     ramp_enabled: bool | None = None
+    notify_morning: bool | None = None
+    notify_afternoon: bool | None = None
+    notify_report: bool | None = None
+    notify_deadline: bool | None = None
 
 
 class SuggestionOut(BaseModel):

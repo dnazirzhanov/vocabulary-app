@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Response
 
 from app.core.auth import CurrentUser, DbSession
-from app.core.clock import Now, TimeZone
+from app.core.clock import Now, SentTimeZone, TimeZone
 from app.schemas.me import (
     DeckPaceIn,
     DismissIn,
@@ -26,7 +26,10 @@ router = APIRouter(tags=["me"])
 
 
 @router.get("/me")
-def get_me(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> MeOut:
+def get_me(
+    user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone, sent_zone: SentTimeZone
+) -> MeOut:
+    remember_time_zone(db, user, sent_zone)  # the app asks on every open (ADR 0042)
     return me_out(db, user, now, time_zone)
 
 
@@ -73,7 +76,6 @@ def get_pace(
     time_zone: TimeZone,
 ) -> PaceOut:
     decks.visible_deck(db, user, deck_id)
-    remember_time_zone(db, user, time_zone)  # home loads this on every visit
     return pace.pace_view(db, user, deck_id, now, time_zone)
 
 

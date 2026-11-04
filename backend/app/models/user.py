@@ -37,6 +37,11 @@ class User(Base):
     # The learner's IANA zone as last sent by the browser: group boards count each member's days
     # in the member's own zone.
     time_zone: Mapped[str | None] = mapped_column(String(64))
+    # Which notifications the learner wants (ADR 0042).
+    notify_morning: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    notify_afternoon: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    notify_report: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    notify_deadline: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
 
 class DeletedLogin(Base):
@@ -85,7 +90,7 @@ class DeckPace(Base):
 
 
 class PushSubscription(Base):
-    """A browser or phone that agreed to deadline reminders (ADR 0031): the push service's address
+    """A browser or phone that agreed to notifications (ADR 0031, 0042): the push service's address
     for it and the keys to encrypt to it. No name, no e-mail; deleted with the learner, or when
     the push service says it is gone."""
 
@@ -100,7 +105,9 @@ class PushSubscription(Base):
     auth: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # The learner's local day of the last reminder: at most one a day.
+    # The local date of its last 17:00 notification, and of its last morning one (ADR 0042).
     last_sent_on: Mapped[date | None] = mapped_column(Date)
+    last_morning_on: Mapped[date | None] = mapped_column(Date)
 
 
 class PromiseChange(Base):

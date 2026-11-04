@@ -157,9 +157,9 @@ test('the session survives a reload, and signing out returns to the form', async
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
 
-  await openSettings(page); // the account is behind ⚙ on «Прогресс»
+  await openSettings(page); // the account is behind ⚙
   await expect(page.getByText('right@example.com')).toBeVisible();
-  await page.getByRole('button', { name: 'Выйти' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 
   await page.reload();
@@ -309,7 +309,7 @@ const withReminders = (page: Page) =>
 const signInAndOpenSettings = async (page: Page) => {
   await page.goto('/');
   await signUp(page, 'right@example.com', 'long-enough-1');
-  await openSettings(page); // the account is behind ⚙ on «Прогресс»
+  await openSettings(page); // the account is behind ⚙
 };
 
 test('signing out stops reminders on this device and leaves other devices signed in', async ({ page }) => {
@@ -321,7 +321,7 @@ test('signing out stops reminders on this device and leaves other devices signed
     (request) => request.url().endsWith('/api/push/subscriptions') && request.method() === 'DELETE',
   );
   const logout = page.waitForRequest((request) => request.url().includes('/logout'));
-  await page.getByRole('button', { name: 'Выйти' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
   await forgotten;
   expect((await logout).url()).toContain('scope=local');
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
@@ -349,7 +349,7 @@ test('signing out without a connection still signs out and stops reminders', asy
 
   await page.route('**/api/push/subscriptions', (route) => route.abort());
   await page.route(`${SUPABASE}/**/logout*`, (route) => route.abort());
-  await page.getByRole('button', { name: 'Выйти' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
   await page.reload();

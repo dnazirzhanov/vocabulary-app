@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
         "vapid-keys",
         help="a new key pair for reminders: lines for .env (keep the private one secret)",
     )
-    commands.add_parser("send-reminders", help="send this hour's deadline reminders (ADR 0031)")
+    commands.add_parser("send-reminders", help="send this hour's notifications (ADR 0042)")
     commands.add_parser("clean-up", help="remove old answers, keeping what screens need (ADR 0044)")
     args = parser.parse_args(argv)
 
@@ -53,8 +53,8 @@ def main(argv: list[str] | None = None) -> int:
             print("send-reminders needs VAPID_PRIVATE_KEY (see vapid-keys)", file=sys.stderr)
             return 1
         with get_sessionmaker()() as db:
-            sent = send_reminders(db, datetime.now(UTC), WebPushSender(settings))
-        print(f"Reminders sent: {sent}")
+            result = send_reminders(db, datetime.now(UTC), WebPushSender(settings), float("inf"))
+        print(f"Reminders sent: {result.sent}")
         return 0
 
     if args.command == "clean-up":

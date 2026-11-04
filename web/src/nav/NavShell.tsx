@@ -1,5 +1,8 @@
-import type { ReactNode } from 'react';
-import { ChartIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
+import { useState, type ReactNode } from 'react';
+import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
+import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import { Dialog } from '../ui/Dialog.tsx';
+import { ChartIcon, GearIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
 import styles from './NavShell.module.css';
 
 export type NavTab = 'today' | 'friends' | 'progress';
@@ -7,14 +10,19 @@ export type NavTab = 'today' | 'friends' | 'progress';
 interface NavShellProps {
   tab: NavTab;
   onNavigate: (tab: NavTab) => void;
+  account: AccountProps;
+  /** «Выйти» beside the settings, on the opening page; absent in builds with no sign-in. */
+  onSignOut?: () => Promise<void>;
   children: ReactNode;
 }
 
 /**
  * The app's sections around the current screen: a sidebar on desktop and a bottom tab bar on
- * phones. Lessons are outside it.
+ * phones, and the settings in the top corner of every page. Lessons are outside it.
  */
-export function NavShell({ tab, onNavigate, children }: NavShellProps) {
+export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavShellProps) {
+  const [settings, setSettings] = useState(false);
+  const signOut = useAsyncAction();
   const items = [
     { tab: 'today', label: 'Сегодня', Icon: HomeIcon },
     { tab: 'friends', label: 'Друзья', Icon: PeopleIcon },
@@ -23,7 +31,31 @@ export function NavShell({ tab, onNavigate, children }: NavShellProps) {
 
   return (
     <div className={styles.shell}>
-      <div className={styles.content}>{children}</div>
+      <div className={styles.content}>
+        {children}
+        <div className={styles.corner}>
+          {onSignOut && (
+            <button
+              type="button"
+              className={styles.signOut}
+              disabled={signOut.busy}
+              aria-busy={signOut.busy}
+              onClick={() => void signOut.run(onSignOut)}
+            >
+              {signOut.busy ? 'Выходим…' : 'Выйти'}
+            </button>
+          )}
+          <button
+            type="button"
+            className={styles.settings}
+            onClick={() => setSettings(true)}
+            aria-label="Настройки"
+            title="Настройки"
+          >
+            <GearIcon aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <nav className={styles.nav} aria-label="Разделы">
         <p className={styles.brand} aria-hidden="true">
           Словарь
@@ -46,6 +78,9 @@ export function NavShell({ tab, onNavigate, children }: NavShellProps) {
           ))}
         </ul>
       </nav>
+      <Dialog open={settings} onClose={() => setSettings(false)} title="Настройки">
+        <AccountSection {...account} />
+      </Dialog>
     </div>
   );
 }

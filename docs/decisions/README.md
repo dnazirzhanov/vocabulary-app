@@ -34,7 +34,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
 | [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Accepted |
-| [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted |
+| [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted (schedule replaced by 0042) |
 | [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted (the league replaced by 0039) |
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |
 | [0034](0034-progress-at-a-glance.md) | «Прогресс» at a glance: «Вы знаете N слов, +M за неделю», the week, deck cards in plain stages (знаю · учу · впереди) with a goal; settings behind ⚙ | Accepted |
@@ -44,6 +44,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0038](0038-no-today-line-on-the-deck-page.md) | A quieter deck page: no «today» sentence (the button carries it), no «Ваша колода» | Accepted |
 | [0039](0039-promise-and-report.md) | «Друзья» as a promise and a report: chosen weekdays, who kept it today by name, words learned from the deck, missed days this month, pauses; the league goes | Accepted |
 | [0040](0040-group-rights.md) | Group rights in one table the API reports (`can`): rename in place, leave from a visible link (an owner names a successor), hand over, new invite link, delete | Accepted |
+| [0042](0042-notifications-by-each-learners-clock.md) | Notifications at 08:00 and 17:00 by each learner's clock, with the group's report and deck deadlines; four choices; a first-run question; ⚙ on every page | Accepted |
 | [0043](0043-accounts.md) | Accounts for a class: codes by email through a free Gmail sender, reset, per-device sign-out, deleting the login too with the password asked again | Accepted |
 | [0044](0044-capacity-and-cleanup.md) | Old answers give way nightly with what screens need kept apart; a full server refuses at once and the app retries; friends screens read only the days they show | Accepted |
 | [0045](0045-first-run-two-questions.md) | Login first; a new password typed twice; «Выйти» on the main screen; first run as two small questions with no pitch or pictures | Accepted |

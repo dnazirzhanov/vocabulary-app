@@ -82,6 +82,11 @@ start; those took 2.2 seconds at full CPU, so about 20 more at 0.1. That is **mo
 keeps it awake; the Koyeb figure of an hour idle comes from secondary sources, and Render sleeps after 15
 minutes.
 
+## Sending notifications
+Everyone in one zone is due within minutes (ADR 0042). Over this database, with real encryption but no network: 25 queries and about
+15 ms of CPU a phone. At 0.1 CPU, with database and push-service round trips, **an estimated 0.5–0.7 seconds a phone,** so 80–100 in
+a 50-second run, or about 200 in the morning window and 300 at 17:00 with hourly runs. Past that, the last in the order miss that window.
+
 ## Next, in order
 1. **Run this on the deployed free host,** before a class. It replaces the biggest assumption here.
 2. **Read less per screen** (`deck_stats`, `progress`, `pace`, `library`), for both traffic and CPU.

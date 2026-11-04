@@ -1,6 +1,6 @@
 # 0031 — Deadline reminders on the phone, by Web Push
 
-**Status:** Accepted.
+**Status:** Accepted. What is sent and when is replaced by ADR 0042; the channel stays.
 
 ## Context
 A teacher's deadline (ADR 0028) only works if students remember to open the app. The owner chose

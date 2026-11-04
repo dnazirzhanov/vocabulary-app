@@ -58,3 +58,18 @@ def get_time_zone(request: Request) -> ZoneInfo:
 
 
 TimeZone = Annotated[ZoneInfo, Depends(get_time_zone)]
+
+
+def get_sent_time_zone(request: Request) -> ZoneInfo | None:
+    """The zone only if the browser really sent one, for keeping (ADR 0042): `get_time_zone`'s UTC
+    fallback is fine for working out today, but saved it would send reminders at the wrong hour."""
+    name = request.headers.get(TIME_ZONE_HEADER)
+    if name is None or len(name) > 64:
+        return None
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+
+
+SentTimeZone = Annotated[ZoneInfo | None, Depends(get_sent_time_zone)]

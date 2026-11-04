@@ -183,6 +183,10 @@ export interface Me {
   daily_target_words: number | null;
   study_days_per_week: number;
   ramp_enabled: boolean;
+  notify_morning: boolean;
+  notify_afternoon: boolean;
+  notify_report: boolean;
+  notify_deadline: boolean;
   onboarded: boolean;
   /** When the pace was first chosen: the ramp's weeks count from here. */
   onboarded_at: string | null;
@@ -201,7 +205,12 @@ export type DayState = 'done' | 'missed' | 'today' | 'later' | 'off';
 /** Today for one member by the promise. */
 export type TodayState = 'done' | 'pending' | 'off';
 
-export type MeUpdate = Partial<Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled'>>;
+/** Which notifications a learner wants (ADR 0042). */
+export type NotificationChoice = 'notify_morning' | 'notify_afternoon' | 'notify_report' | 'notify_deadline';
+
+export type MeUpdate = Partial<
+  Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice>
+>;
 
 export interface PaceSuggestion {
   kind: 'lower' | 'raise';

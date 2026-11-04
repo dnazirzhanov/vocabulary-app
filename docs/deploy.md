@@ -59,7 +59,7 @@ jobs:
 ```
 The answer says `"finished": false` if it stopped early; the next night carries on.
 
-## 3a. Deadline reminders (optional; ADR 0031)
+## 3a. Notifications (optional; ADR 0031, 0042)
 1. Make a key pair once: `cd backend && uv run python -m app.cli vapid-keys`. Add both lines to the
    host's secrets, plus `VAPID_SUBJECT=mailto:<your address>` and `REMINDERS_TOKEN=<a long random
    string>` (the same one as the cleanup). Changing the keys later cuts off every phone that
@@ -69,7 +69,7 @@ The answer says `"finished": false` if it stopped early; the next night carries 
    ```yaml
    name: reminders
    on:
-     schedule: [{ cron: "5 * * * *" }]   # every hour; each learner gets one, 18:00–22:00 their time
+     schedule: [{ cron: "5 * * * *" }]   # every hour; each learner's own 08:00 and 17:00 (ADR 0042)
      workflow_dispatch:
    jobs:
      send:
@@ -80,6 +80,10 @@ The answer says `"finished": false` if it stopped early; the next night carries 
              -H "X-Reminders-Token: ${{ secrets.REMINDERS_TOKEN }}"
              "${{ secrets.APP_URL }}/api/internal/reminders"
    ```
+   **Every zone is served by the hourly run,** but at 0.1 CPU a run reaches an estimated 80–100 phones
+   (`docs/decisions/0042-…`). If the answer says `"finished": false` often in a class's morning, add
+   runs inside those hours: `*/15 2-3,11-13 * * *` is 08–10 and 17–20 in Bishkek. GitHub's free minutes
+   on a private repo are shared with CI.
 3. iPhones only receive them when the app is added to the home screen (Safari → Share → «На экран
    „Домой“»); the app says so where reminders are turned on.
 
