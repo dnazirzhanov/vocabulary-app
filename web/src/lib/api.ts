@@ -45,6 +45,7 @@ export class ApiError extends Error {
 }
 
 const TIMEOUT_MS = 15_000;
+const BUSY_RETRIES = 3;
 // The server counts days (daily goal, streaks) in the learner's own time zone.
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -53,6 +54,7 @@ async function request<T>(
   path: string,
   body?: unknown,
   timeoutMs = TIMEOUT_MS,
+  busyRetries = BUSY_RETRIES,
 ): Promise<T> {
   const token = await accessToken();
   let response: Response;
@@ -75,6 +77,12 @@ async function request<T>(
   if (response.status === 401) await dropSession();
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    // The server refused it before doing anything (ADR 0044), so any request is safe to send again.
+    // A random wait, so a whole class doesn't come back in the same moment.
+    if (error?.code === 'server_busy' && busyRetries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
+      return request<T>(method, path, body, timeoutMs, busyRetries - 1);
+    }
     throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
   }
   return data as T;
@@ -191,6 +199,7 @@ export const api = {
 
 // Errors the learner can act on, by the server's error code.
 const MESSAGES: Record<string, string> = {
+  server_busy: 'Сейчас занимается очень много учеников. Попробуйте ещё раз через минуту.',
   account_delete_failed: 'Не удалось удалить аккаунт, ничего не изменилось. Попробуйте ещё раз через минуту.',
   reauth_required: 'Введите пароль ещё раз, чтобы удалить аккаунт.',
   nickname_taken: 'Это имя уже занято в группе — выберите другое.',

@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, literal, select
 from sqlalchemy.orm import Session
 
-from app.models import LearningSession, ReviewAttempt, User
+from app.models import LearningSession, ReviewAttempt, StudyDayTotal, User
 
 # How far back days are read: a year, enough for any weekly streak shown.
 HISTORY_DAYS = 366
@@ -72,4 +72,20 @@ def days_by_user(
     result: dict[UUID, dict[date, StudyDay]] = {user.id: {} for user in users}
     for user_id, day, answers, finished in rows:
         result[user_id][day] = StudyDay(day=day, answers=int(answers), finished=bool(finished))
+    # Days whose answers are gone (ADR 0044), added to any that are left of the same day.
+    totals = db.execute(
+        select(
+            StudyDayTotal.user_id, StudyDayTotal.day, StudyDayTotal.answers, StudyDayTotal.finished
+        ).where(
+            StudyDayTotal.user_id.in_([user.id for user in users]),
+            StudyDayTotal.day >= since.date(),
+        )
+    )
+    for user_id, day, answers, finished in totals:
+        known = result[user_id].get(day)
+        result[user_id][day] = StudyDay(
+            day=day,
+            answers=answers + (known.answers if known else 0),
+            finished=finished or (known.finished if known else False),
+        )
     return result

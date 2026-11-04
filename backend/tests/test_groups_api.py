@@ -81,7 +81,6 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
         "rank",
         "promised_days",
         "week",
-        "streak_weeks",
         "studied_today",
         "week_states",
         "month_misses",
@@ -138,7 +137,7 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
     assert (pavel["learned"], pavel["days"], pavel["rank"]) == (5, 1, 1)
     assert (olga["learned"], olga["days"], olga["rank"]) == (3, 3, 2)
     assert olga["week"] == [True, True, True, False, False, False, False]
-    assert olga["is_me"] and olga["streak_weeks"] == 1
+    assert olga["is_me"]
     assert (pavel["studied_today"], olga["studied_today"]) == (True, False)
     assert rest["rank"] is None
     # The report lists me first and then the others alphabetically, never by place.

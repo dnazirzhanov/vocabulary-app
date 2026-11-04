@@ -65,9 +65,7 @@ def test_the_week_runs_monday_to_sunday() -> None:
     assert (days[0], days[-1]) == (date(2026, 11, 2), date(2026, 11, 8))
 
 
-def row(
-    nickname: str, learned: int = 0, days: int = 0, cards: int = 0, streak: int = 0
-) -> BoardRow:
+def row(nickname: str, learned: int = 0, days: int = 0, cards: int = 0) -> BoardRow:
     return BoardRow(
         member_id=uuid4(),
         nickname=nickname,
@@ -79,7 +77,6 @@ def row(
         rank=None,
         promised_days=5,
         week=[False] * 7,
-        streak_weeks=streak,
         studied_today=False,
         week_states=["off"] * 7,
         month_misses=0,
@@ -91,21 +88,21 @@ def row(
     )
 
 
-def test_places_go_by_words_learned_then_days_then_streak_and_equal_ones_share_a_place() -> None:
+def test_places_go_by_words_learned_then_days_and_equal_ones_share_a_place() -> None:
     rows = [
         row("Cards", learned=2, days=5, cards=900),  # many cards don't buy a place
         row("Learner", learned=30, days=2, cards=100),
         row("Steady", learned=12, days=5, cards=80),
         row("Also steady", learned=12, days=5, cards=60),
-        row("Longer streak", learned=12, days=5, cards=40, streak=3),
+        row("Fewer days", learned=12, days=4, cards=40),
         row("Started", cards=4),  # answered, nothing learned yet: last with a place
         row("Resting"),
     ]
     assert [(r.nickname, r.rank) for r in rank(rows)] == [
         ("Learner", 1),
-        ("Longer streak", 2),
-        ("Also steady", 3),
-        ("Steady", 3),
+        ("Also steady", 2),
+        ("Steady", 2),
+        ("Fewer days", 4),
         ("Cards", 5),
         ("Started", 6),
         ("Resting", None),

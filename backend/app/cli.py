@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.services.cleanup import clean_up
 from app.services.content import (
     ContentError,
     DeckContent,
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         help="a new key pair for reminders: lines for .env (keep the private one secret)",
     )
     commands.add_parser("send-reminders", help="send this hour's deadline reminders (ADR 0031)")
+    commands.add_parser("clean-up", help="remove old answers, keeping what screens need (ADR 0044)")
     args = parser.parse_args(argv)
 
     if args.command == "vapid-keys":
@@ -53,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
         with get_sessionmaker()() as db:
             sent = send_reminders(db, datetime.now(UTC), WebPushSender(settings))
         print(f"Reminders sent: {sent}")
+        return 0
+
+    if args.command == "clean-up":
+        with get_sessionmaker()() as db:
+            print(clean_up(db, datetime.now(UTC), max_seconds=float("inf")))
         return 0
 
     if args.command == "seed-classmates":

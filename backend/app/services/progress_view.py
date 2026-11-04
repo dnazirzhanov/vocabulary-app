@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
@@ -137,15 +137,7 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             .group_by(DeckWord.deck_id)
         ).all()
     )
-    recalled = (
-        select(ReviewAttempt.word_id)
-        .where(
-            ReviewAttempt.user_id == user.id,
-            ReviewAttempt.was_review.is_(True),
-            ReviewAttempt.rating >= 2,
-        )
-        .distinct()
-    )
+    recalled = UserWordProgress.first_recalled_at.is_not(None)
     well = (UserWordProgress.fsrs_state == REVIEW) & (
         UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS
     )
@@ -163,7 +155,7 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             select(
                 DeckWord.deck_id,
                 func.count(),
-                func.count().filter(UserWordProgress.word_id.in_(recalled)),
+                func.count().filter(recalled),
                 func.count().filter(well),
                 func.max(UserWordProgress.last_seen_at),
             )
@@ -191,11 +183,15 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
     studied = set(
         db.scalars(
             select(LearningSession.deck_id)
-            .join(ReviewAttempt, ReviewAttempt.session_id == LearningSession.id)
             .where(
                 LearningSession.user_id == user.id,
                 LearningSession.kind != "spelling",
                 LearningSession.deck_id.in_(ids),
+                # A finished lesson had answers, even once they have been removed (ADR 0044).
+                or_(
+                    LearningSession.completed_at.is_not(None),
+                    exists().where(ReviewAttempt.session_id == LearningSession.id),
+                ),
             )
             .distinct()
         )
@@ -238,11 +234,16 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
     )
     shown = [row.id for row in rows]
     words = mine.where(DeckWord.deck_id.in_(shown)).subquery()
-    met, learned, known = db.execute(
+    # Learned this week: the first recall of each word since Monday, in my own day.
+    monday, _ = local_day_bounds(week_of(local_date(now, time_zone))[0], time_zone)
+    met, learned, known, this_week = db.execute(
         select(
             func.count(func.distinct(words.c.word_id)),
-            func.count(func.distinct(words.c.word_id)).filter(words.c.word_id.in_(recalled)),
+            func.count(func.distinct(words.c.word_id)).filter(recalled),
             func.count(func.distinct(UserWordProgress.word_id)).filter(well),
+            func.count(func.distinct(words.c.word_id)).filter(
+                UserWordProgress.first_recalled_at >= monday
+            ),
         )
         .select_from(words)
         .join(
@@ -250,24 +251,6 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
             (UserWordProgress.word_id == words.c.word_id) & (UserWordProgress.user_id == user.id),
         )
     ).one()
-    # Learned this week: the first recall of each word since Monday, in my own day.
-    monday, _ = local_day_bounds(week_of(local_date(now, time_zone))[0], time_zone)
-    first_recall = (
-        select(ReviewAttempt.word_id, func.min(ReviewAttempt.answered_at).label("at"))
-        .where(
-            ReviewAttempt.user_id == user.id,
-            ReviewAttempt.was_review.is_(True),
-            ReviewAttempt.rating >= 2,
-        )
-        .group_by(ReviewAttempt.word_id)
-        .subquery()
-    )
-    this_week = db.scalar(
-        select(func.count(func.distinct(first_recall.c.word_id))).where(
-            first_recall.c.at >= monday,
-            first_recall.c.word_id.in_(select(words.c.word_id)),
-        )
-    )
     return KnowledgeOut(
         decks=rows,
         met=int(met),

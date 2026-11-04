@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import Group, GroupMember, ReviewAttempt, User, UserWordProgress
+from app.models import Group, GroupMember, User, UserWordProgress
 from app.schemas.groups import (
     BehindOut,
     BoardOut,
@@ -39,11 +39,10 @@ from app.services.promise import (
     promised_week,
     today_state,
     week_states,
-    week_streak,
     weekdays_of,
 )
 from app.services.scheduling import local_date
-from app.services.study_days import HISTORY_DAYS, StudyDay, days_by_user, week_of
+from app.services.study_days import StudyDay, days_by_user, week_of
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
 CODE_LENGTH = 8
@@ -351,10 +350,9 @@ def _most_behind(week: BoardOut) -> BehindOut | None:
 # --- the board ------------------------------------------------------------------------------
 
 
-def score(row: BoardRow) -> tuple[int, int, int]:
-    """What a place is decided by (ADR 0027): words learned, then days studied, then weeks in a
-    row with the promise kept."""
-    return (row.learned, row.days, row.streak_weeks)
+def score(row: BoardRow) -> tuple[int, int]:
+    """What a place is decided by (ADR 0027): words learned, then days studied."""
+    return (row.learned, row.days)
 
 
 def places(rows: list[BoardRow]) -> dict[UUID, int | None]:
@@ -362,7 +360,7 @@ def places(rows: list[BoardRow]) -> dict[UUID, int | None]:
     answered nothing in the period gets no place."""
     ordered = sorted((row for row in rows if row.cards > 0), key=score, reverse=True)
     result: dict[UUID, int | None] = {row.member_id: None for row in rows}
-    previous: tuple[tuple[int, int, int], int] | None = None
+    previous: tuple[tuple[int, int], int] | None = None
     for index, row in enumerate(ordered):
         value = score(row)
         place = previous[1] if previous and previous[0] == value else index + 1
@@ -397,24 +395,15 @@ def _learned(
 ) -> dict[UUID, int]:
     """Words each learner first recalled in a later review (`was_review`, any answer but
     «Снова»: the «Прогресс» definition, ADR 0022) within [since, until)."""
-    first = (
-        select(
-            ReviewAttempt.user_id,
-            ReviewAttempt.word_id,
-            func.min(ReviewAttempt.answered_at).label("at"),
-        )
-        .where(
-            ReviewAttempt.user_id.in_([user.id for user in users]),
-            ReviewAttempt.was_review.is_(True),
-            ReviewAttempt.rating >= 2,
-        )
-        .group_by(ReviewAttempt.user_id, ReviewAttempt.word_id)
-        .subquery()
+    query = select(UserWordProgress.user_id, func.count()).where(
+        UserWordProgress.user_id.in_([user.id for user in users]),
+        UserWordProgress.first_recalled_at < until,
     )
-    query = select(first.c.user_id, func.count()).where(first.c.at < until)
     if since is not None:
-        query = query.where(first.c.at >= since)
-    counts: dict[UUID, int] = dict(db.execute(query.group_by(first.c.user_id)).tuples().all())
+        query = query.where(UserWordProgress.first_recalled_at >= since)
+    counts: dict[UUID, int] = dict(
+        db.execute(query.group_by(UserWordProgress.user_id)).tuples().all()
+    )
     return {user.id: int(counts.get(user.id, 0)) for user in users}
 
 
@@ -450,9 +439,11 @@ def board(
     first, last = period_bounds(period, today)
 
     users = [member_user for _, member_user in members]
-    history = HISTORY_DAYS if period != "all" else 365 * 30
-    since = now - timedelta(days=history + 1)
-    studied = days_by_user(db, users, since, zone)
+    # Only the days this page shows: a year of them for a whole class was 240 KB from the database
+    # on every look (ADR 0044). The week can start in last month; the month's misses need its start.
+    oldest = first if first is not None else date(2000, 1, 1)
+    oldest = min(oldest, days[0], today.replace(day=1))
+    studied = days_by_user(db, users, local_day_bounds(oldest, zone)[0], zone)
     promises = load_promises(db, users)
     learned = _learned(
         db,
@@ -495,7 +486,6 @@ def board(
                 rank=None,
                 promised_days=sum(promised_week(promise, today)),
                 week=[day in mine and mine[day].studied for day in days],
-                streak_weeks=week_streak(promise, mine, today),
                 studied_today=state == "done",
                 week_states=week_states(promise, mine, today, first_counted),
                 month_misses=month_misses(promise, mine, today, first_counted),

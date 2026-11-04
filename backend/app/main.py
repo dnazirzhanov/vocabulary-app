@@ -9,6 +9,7 @@ from app.api import decks, groups, health, learning, me, push
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging, log_requests
+from app.core.overload import limit_in_flight
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -21,6 +22,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json" if public_docs else None,
     )
+    app.middleware("http")(limit_in_flight(settings.max_requests_in_flight))
     app.middleware("http")(log_requests)
     if settings.cors_origins:
         app.add_middleware(

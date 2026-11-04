@@ -39,14 +39,33 @@ Runtime variables (secrets in the host's secret store, never in git):
 goes anywhere else).
 Health check: `/api/health/ready`. The free host sleeps when idle; the first visit can take a minute.
 
-## 3. Deadline reminders (optional; ADR 0031)
+## 3. Nightly cleanup (required; ADR 0044)
+Without it the free database fills up within months. Make a secret once (`openssl rand -hex 32`) and put
+it in the host's secrets as `REMINDERS_TOKEN`. Add the repository secrets `APP_URL` and
+`REMINDERS_TOKEN`, and the file `.github/workflows/cleanup.yml`:
+```yaml
+name: cleanup
+on:
+  schedule: [{ cron: "30 22 * * *" }]   # 04:30 in Bishkek
+  workflow_dispatch:
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl --fail --silent --show-error --max-time 120 -X POST
+          -H "X-Reminders-Token: ${{ secrets.REMINDERS_TOKEN }}"
+          "${{ secrets.APP_URL }}/api/internal/cleanup"
+```
+The answer says `"finished": false` if it stopped early; the next night carries on.
+
+## 3a. Deadline reminders (optional; ADR 0031)
 1. Make a key pair once: `cd backend && uv run python -m app.cli vapid-keys`. Add both lines to the
    host's secrets, plus `VAPID_SUBJECT=mailto:<your address>` and `REMINDERS_TOKEN=<a long random
-   string>` (e.g. `openssl rand -hex 32`). Changing the keys later cuts off every phone that
+   string>` (the same one as the cleanup). Changing the keys later cuts off every phone that
    turned reminders on (they must turn them on again).
 2. Something must call the app once an hour; the free host sleeps, so an outside scheduler does it.
-   A free GitHub Actions schedule works: add the repository secrets `APP_URL` and `REMINDERS_TOKEN`,
-   and the file `.github/workflows/reminders.yml`:
+   A free GitHub Actions schedule works, with the same repository secrets as the cleanup, and the file `.github/workflows/reminders.yml`:
    ```yaml
    name: reminders
    on:
@@ -63,6 +82,11 @@ Health check: `/api/health/ready`. The free host sleeps when idle; the first vis
    ```
 3. iPhones only receive them when the app is added to the home screen (Safari → Share → «На экран
    „Домой“»); the app says so where reminders are turned on.
+
+## 3b. Before a class
+Capacity was measured on a laptop with the CPU limited, not on a real host
+(`docs/research/capacity-2026-11.md`). Run a class-sized trial first, and keep an eye on Supabase's
+usage page for database size and egress: the free plan includes 500 MB and 5 GB a month.
 
 ## 4. Backups (free Supabase has none)
 Nightly: `pg_dump "$DATABASE_URL" | gzip | gpg -c > backup.sql.gz.gpg`, stored outside Supabase.

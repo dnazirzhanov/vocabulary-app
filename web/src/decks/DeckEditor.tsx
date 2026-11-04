@@ -79,6 +79,12 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   const firstField = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLElement>(null);
+  const [cardsAdded, setCardsAdded] = useState(0);
+  // New cards go on top of the list: bring its heading up so the first of them shows whole. Measured
+  // only once they are on the screen: scheduled any earlier, a slow phone measured the old layout.
+  useEffect(() => {
+    if (cardsAdded > 0) revealFirstCard(listRef.current);
+  }, [cardsAdded]);
 
   const show = useCallback((loaded: TeacherDeck) => {
     setDeck(loaded);
@@ -183,8 +189,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   // New cards are listed first, under the composer: bring them into view if they're below it.
   const drafted = (result: GenerateResult) => {
     show(result.deck);
-    // New cards go on top of the list: bring its heading up so the first of them shows whole.
-    if (result.added > 0) requestAnimationFrame(() => revealFirstCard(listRef.current));
+    if (result.added > 0) setCardsAdded((times) => times + 1);
   };
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);

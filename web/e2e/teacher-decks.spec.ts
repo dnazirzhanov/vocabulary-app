@@ -120,6 +120,9 @@ test('a teacher gives words to a group and a student learns them first', async (
 test('a teacher drafts cards from a lesson text and reviews them', async ({ page }) => {
   // A laptop window: tall enough that the list's heading shows under the panel, its first card not.
   await page.setViewportSize({ width: 1280, height: 900 });
+  // A slow phone: the screen must move to the new cards once they are drawn, not to where they will be.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 12 });
   await page.goto('/');
   await newDeck(page, 'Unit 4');
   await page.getByRole('tab', { name: 'Текст' }).click();

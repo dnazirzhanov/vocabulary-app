@@ -14,6 +14,7 @@ from app.models.learning import (
     LearningSession,
     ReviewAttempt,
     SpellingProgress,
+    StudyDayTotal,
     UserWordProgress,
 )
 from app.models.user import (
@@ -44,6 +45,7 @@ __all__ = [
     "PushSubscription",
     "ReviewAttempt",
     "SpellingProgress",
+    "StudyDayTotal",
     "User",
     "UserWordProgress",
     "Word",

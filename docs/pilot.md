@@ -41,7 +41,10 @@ image's steps were reproduced by hand.
   «Мои колоды», open the course, finish one lesson. Then sign out, reset the password, and delete
   this test account; check that it is gone from Supabase.
 
-## 3. Reminders (about 20 minutes; `deploy.md` §3)
+- [ ] **Nightly cleanup** runs from GitHub Actions (`deploy.md` §3): run it once by hand and check
+  the answer.
+
+## 3. Reminders (about 20 minutes; `deploy.md` §3a)
 - [ ] **Keys:**
   - run `uv run python -m app.cli vapid-keys` once;
   - add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:<you>` and a random
