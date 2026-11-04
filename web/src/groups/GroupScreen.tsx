@@ -301,8 +301,7 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
         <section key={list.state} aria-label={list.title} className={styles.names}>
           <h3 className={styles.namesTitle} data-state={list.state}>
             <StateMark state={list.state} />
-            {list.title}
-            <span className={styles.namesCount}>{list.rows.length}</span>
+            {list.title}:<span className={styles.namesCount}>{list.rows.length}</span>
           </h3>
           <ul className={styles.report}>
             {list.rows.map((row) => (

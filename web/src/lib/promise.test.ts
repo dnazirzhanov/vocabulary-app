@@ -54,7 +54,7 @@ test("today's names are listed by who did it, who has not yet, and who has the d
     todayLists(rows).map((list) => [list.title, list.rows.map((row) => row.nickname)]),
     [
       ['Сделали сегодня', ['Али', 'Вика']],
-      ['Ещё нет', ['Я']],
+      ['Не сделали', ['Я']],
       ['Сегодня выходной', ['Бек']],
     ],
   );

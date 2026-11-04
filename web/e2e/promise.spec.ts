@@ -91,7 +91,7 @@ test('the group report shows a missed promise, and a paused one is not missed', 
   await page.getByRole('button', { name: /^7Б английский/ }).click();
   // Names by today's promise: nobody has studied yet, Борис is paused.
   await expect(page.getByRole('region', { name: 'Сделали сегодня' })).toHaveCount(0);
-  const open = page.getByRole('region', { name: 'Ещё нет' });
+  const open = page.getByRole('region', { name: 'Не сделали' });
   await expect(open.getByRole('button', { name: /^Ольга.*пропусков: 0/ })).toBeVisible();
   await expect(open.getByRole('button', { name: /^Анна.*пропусков: 1/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Сегодня выходной' })).toContainText('Борис');

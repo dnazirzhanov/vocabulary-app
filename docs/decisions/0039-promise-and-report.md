@@ -35,7 +35,7 @@ consistent.
 Kept simple, as plain lists of names:
 1. **«Сегодня по обещанию»:** my own status, with «Заниматься» when it is still open, and «Моё
    обещание: Пн–Пт · Изменить».
-2. **Who did it, by name,** in three lists: «Сделали сегодня», «Ещё нет», «Сегодня выходной»
+2. **Who did it, by name,** in three lists: «Сделали сегодня», «Не сделали», «Сегодня выходной»
    (a day off or a pause). Me first, then alphabetically, never by a score.
    - The headings are the report's structure, so they are set at body size in bold with a mark from
      the week's dots (✓ done, a ringed ring not yet, a firm dot a day off) and the count in the same

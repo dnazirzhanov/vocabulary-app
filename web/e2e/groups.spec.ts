@@ -45,7 +45,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   const done = page.getByRole('region', { name: 'Сделали сегодня' });
   const me = done.getByRole('button', { name: /^Ёжик.*пропусков: 0/ });
   await expect(me).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Ещё нет' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Не сделали' })).toHaveCount(0);
   await expect(page.getByRole('main')).not.toContainText(/мест[оае]|очк|рейтинг|карточ/i);
   for (const gone of ['Всё время', 'Месяц']) await expect(button(page, gone)).toHaveCount(0);
   // The rule is one tap away; a person's window shows their words apart from the promise.
@@ -77,7 +77,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
   await expect(friend.getByText('Вы: ещё нет')).toBeVisible();
   await expect(friend.getByRole('region', { name: 'Сделали сегодня' })).toContainText('Ёжик');
-  await expect(friend.getByRole('region', { name: 'Ещё нет' }).getByRole('button', { name: /^Лис/ })).toBeVisible();
+  await expect(friend.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис/ })).toBeVisible();
   await friendContext.close();
 
   // «Друзья» always opens the list, even with one group: each group with its pulse.
@@ -89,7 +89,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await expect(row).toContainText('сегодня по обещанию 1 из 2 · вы ✓');
   await row.click();
   await expect(
-    page.getByRole('region', { name: 'Ещё нет' }).getByRole('button', { name: /^Лис.*пропусков: 0/ }),
+    page.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис.*пропусков: 0/ }),
   ).toBeVisible();
   // Housekeeping is folded away at the bottom.
   await expect(button(page, 'Выйти из группы')).toBeHidden();

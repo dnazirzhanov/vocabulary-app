@@ -62,7 +62,7 @@ export interface TodayList {
 
 const TODAY_TITLES: Record<TodayState, string> = {
   done: 'Сделали сегодня',
-  pending: 'Ещё нет',
+  pending: 'Не сделали',
   off: 'Сегодня выходной',
 };
 
