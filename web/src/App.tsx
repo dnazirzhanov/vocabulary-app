@@ -17,7 +17,6 @@ import { authMode, supabase } from './lib/auth.ts';
 import { forgetDevice } from './lib/push.ts';
 import { currentDeck } from './lib/today.ts';
 import type { Deck, Me, Session, Summary } from './lib/types.ts';
-import { courseOf } from './lib/course.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
@@ -190,7 +189,6 @@ function Learning({ email }: { email: string | null }) {
   if (current && !me.onboarded) {
     return (
       <GoalScreen
-        course={courseOf(decks)}
         me={me}
         onDone={(updated) => {
           setProfile({ me: updated, decks });
@@ -332,6 +330,7 @@ function Learning({ email }: { email: string | null }) {
         onOpenPage={(deckId) => openPage(deckId, 'home')}
         onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         onOpenCourse={() => setScreen({ name: 'course' })}
+        onSignOut={supabase ? signOutHere : undefined}
       />
     );
   }

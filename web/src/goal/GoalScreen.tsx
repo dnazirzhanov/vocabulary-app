@@ -1,188 +1,95 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.ts';
-import { promiseText } from '../lib/promise.ts';
-import { dailyMinutes, DEFAULT_SECONDS_PER_EXERCISE, formatMinutes, RAMP_MIN_TARGET, wordsLabel } from '../lib/pace.ts';
+import { PRESETS, wordsLabel } from '../lib/pace.ts';
 import type { Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { BackIcon, CheckIcon } from '../ui/icons.tsx';
+import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
+import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import type { Course } from '../lib/course.ts';
-import { CoverageSentence } from './CoverageSentence.tsx';
-import { PacePicker, type PaceChoice } from './PacePicker.tsx';
 import styles from './GoalScreen.module.css';
 
-/** First run: the promise, then the pace. */
 interface GoalScreenProps {
-  course: Course;
   me: Me;
   onDone: (me: Me) => void;
 }
 
-const thousands = (n: number) => n.toLocaleString('ru-RU');
-
-function CoursePromise({ course }: { course: Course }) {
-  const goal = course.course_goal;
-  return (
-    <>
-      <p className={styles.eyebrow}>Ваша цель</p>
-      <h1 className={styles.title} tabIndex={-1} data-autofocus>
-        {goal ? `${thousands(goal.target_words)} слов` : 'Самые нужные слова'}
-      </h1>
-      <p className={styles.subtitle}>
-        {goal
-          ? `— это около ${goal.coverage_percent}% всех слов, которые встречаются в обычных английских текстах.`
-          : 'Слова, без которых не обойтись в обычных английских текстах.'}
-      </p>
-      <ul className={styles.points}>
-        <li>
-          <CheckIcon aria-hidden="true" />
-          <span>
-            <strong>Не нужно искать, что учить.</strong> Слова уже выбраны по частоте и стоят в правильном порядке.
-          </span>
-        </li>
-        <li>
-          <CheckIcon aria-hidden="true" />
-          <span>
-            <strong>Слова не забываются.</strong> Приложение само напоминает повторить каждое слово в нужный день.
-          </span>
-        </li>
-        <li>
-          <CheckIcon aria-hidden="true" />
-          <span>
-            <strong>Темп выбираете вы.</strong> Сколько слов в день — решать вам, и никакого чувства вины за пропущенный
-            день.
-          </span>
-        </li>
-      </ul>
-      {goal && (
-        <p className={styles.source}>
-          По частотному списку NGSL. Сейчас доступно {course.word_count} из {thousands(goal.target_words)} слов — новые
-          добавляются.
-        </p>
-      )}
-    </>
-  );
-}
-
-function DaySummary({ choice, seconds }: { choice: PaceChoice; seconds: number }) {
-  return (
-    <div className={styles.summary}>
-      <p className={styles.summaryWords}>{wordsLabel(choice.words)}</p>
-      <p className={styles.summaryLabel}>в день</p>
-      <p className={styles.summaryTime}>{formatMinutes(dailyMinutes(choice.words, seconds))}</p>
-      <p className={styles.summaryLabel}>в день через месяц, вместе с повторениями</p>
-      <p className={styles.summaryDays}>
-        {promiseText(choice.weekdays)}
-        {choice.ramp && choice.words >= RAMP_MIN_TARGET ? ' · с разогревом' : ''}
-      </p>
-    </div>
-  );
-}
-
-type Step = 'promise' | 'pace';
-const STEPS: Step[] = ['promise', 'pace'];
-
-export function GoalScreen({ course, me, onDone }: GoalScreenProps) {
-  const [step, setStep] = useState<Step>('promise');
-  const seconds = DEFAULT_SECONDS_PER_EXERCISE; // a new learner has no answering time to measure yet
-  const [choice, setChoice] = useState<PaceChoice>({
-    words: me.daily_target_words ?? 5,
-    weekdays: me.promise.pending?.weekdays ?? me.promise.weekdays,
-    ramp: me.ramp_enabled,
-  });
+/** First run: two small questions, one at a time, and nothing else (ADR 0045). */
+export function GoalScreen({ me, onDone }: GoalScreenProps) {
+  const [step, setStep] = useState<'words' | 'days'>('words');
+  const [words, setWords] = useState<number | null>(me.daily_target_words);
+  const [weekdays, setWeekdays] = useState(me.promise.pending?.weekdays ?? me.promise.weekdays);
   const { run, busy, error } = useAsyncAction();
-  const mainRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // Each step starts at the top with focus on its heading, like a new page.
-  useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 });
-    mainRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
-  }, [step]);
+  // Each question starts with focus on its heading, like a new page.
+  useEffect(() => headingRef.current?.focus(), [step]);
 
   const save = () =>
     run(async () => {
       // Nothing is finished yet, so the promise applies at once; the pace's answer carries it back.
-      await api.setPromise(choice.weekdays);
-      onDone(await api.updateMe({ daily_target_words: choice.words, ramp_enabled: choice.ramp }));
+      await api.setPromise(weekdays);
+      onDone(await api.updateMe({ daily_target_words: words ?? undefined }));
     });
-  const back = step !== 'promise' ? () => setStep(STEPS[STEPS.indexOf(step) - 1]) : undefined;
 
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        {back ? (
-          <button type="button" className={styles.back} onClick={back}>
+        {step === 'days' ? (
+          <button type="button" className={styles.back} onClick={() => setStep('words')}>
             <BackIcon aria-hidden="true" /> Назад
           </button>
         ) : (
           <span />
         )}
         <p className={styles.steps}>
-          <span className="visually-hidden">
-            Шаг {STEPS.indexOf(step) + 1} из {STEPS.length}
-          </span>
-          {STEPS.map((candidate, index) => (
-            <span
-              key={candidate}
-              aria-hidden="true"
-              className={styles.dot}
-              data-active={index <= STEPS.indexOf(step)}
-            />
-          ))}
+          <span className="visually-hidden">Вопрос {step === 'words' ? 1 : 2} из 2</span>
+          <span aria-hidden="true" className={styles.dot} data-active="true" />
+          <span aria-hidden="true" className={styles.dot} data-active={step === 'days'} />
         </p>
       </header>
 
-      <main ref={mainRef} className={styles.main}>
-        <div className={styles.layout} data-step={step}>
-          <div className={styles.stage} data-step={step}>
-            {step === 'promise' ? (
-              <CoverageSentence percent={course.course_goal?.coverage_percent ?? null} />
-            ) : (
-              <DaySummary choice={choice} seconds={seconds} />
-            )}
-          </div>
-          <div className={styles.content}>
-            {step === 'promise' && <CoursePromise course={course} />}
-            {step === 'pace' && (
-              <>
-                <h1 className={styles.heading} tabIndex={-1} data-autofocus>
-                  Сколько новых слов в день?
-                </h1>
-                <p className={styles.lead}>
-                  Это ориентир, а не предел: после цели всегда можно взять ещё слов. Если темп окажется слишком быстрым
-                  или медленным, приложение подскажет.
+      <main className={styles.main}>
+        <div className={styles.question}>
+          {step === 'words' ? (
+            <>
+              <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
+                Сколько новых слов в день?
+              </h1>
+              <div className={styles.options}>
+                {PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={styles.option}
+                    aria-pressed={words === preset.words}
+                    onClick={() => {
+                      setWords(preset.words);
+                      setStep('days');
+                    }}
+                  >
+                    {wordsLabel(preset.words)}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
+                В какие дни будете заниматься?
+              </h1>
+              <WeekdayPicker value={weekdays} onChange={setWeekdays} />
+              {error && (
+                <p className={styles.error} role="alert">
+                  {error}
                 </p>
-                <PacePicker value={choice} onChange={setChoice} secondsPerExercise={seconds} />
-              </>
-            )}
-          </div>
+              )}
+              <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={save}>
+                {busy ? 'Сохраняем…' : 'Начать'}
+              </PrimaryButton>
+            </>
+          )}
         </div>
       </main>
-
-      <footer className={styles.actions}>
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
-        <div className={styles.actionsInner}>
-          {step !== 'promise' && (
-            <p className={styles.footerSummary} aria-hidden="true">
-              {wordsLabel(choice.words)} в день · {formatMinutes(dailyMinutes(choice.words, seconds))}
-            </p>
-          )}
-          {step === 'promise' && (
-            <PrimaryButton type="button" className={styles.action} onClick={() => setStep('pace')}>
-              Выбрать темп
-            </PrimaryButton>
-          )}
-          {step === 'pace' && (
-            <PrimaryButton type="button" className={styles.action} disabled={busy} aria-busy={busy} onClick={save}>
-              {busy ? 'Сохраняем…' : 'Начать'}
-            </PrimaryButton>
-          )}
-        </div>
-      </footer>
     </div>
   );
 }

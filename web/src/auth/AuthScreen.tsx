@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Illustration } from '../illustrations/index.tsx';
 import { describeAuthError, supabase, type AuthFailure } from '../lib/auth.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { PasswordField } from './PasswordField.tsx';
+import { PasswordField, useRepeatedPassword } from './PasswordField.tsx';
 import styles from './AuthScreen.module.css';
 
 /** `confirm` and `recover` are the two steps that ask for the code from an email (ADR 0043). */
@@ -10,7 +10,7 @@ type Step = 'signUp' | 'signIn' | 'forgot' | 'confirm' | 'recover';
 
 const TITLES: Record<Step, string> = {
   signUp: 'Создайте аккаунт',
-  signIn: 'С возвращением',
+  signIn: 'Вход',
   forgot: 'Забыли пароль?',
   confirm: 'Введите код',
   recover: 'Введите код',
@@ -63,9 +63,9 @@ function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit: (ev
  * Safari, outside an installed app, and lose a pending group invite.
  */
 export function AuthScreen({ invited = false }: { invited?: boolean }) {
-  const [step, setStep] = useState<Step>('signUp');
+  const [step, setStep] = useState<Step>('signIn');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { password, setPassword, repeat, setRepeat, onLeave, matches, mismatch } = useRepeatedPassword();
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const { busy, error, setError, call } = useAuthCall();
@@ -82,6 +82,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
     setStep(next);
     setError(null);
     setCode('');
+    setRepeat('');
     if (next === 'confirm' || next === 'recover') setResendIn(RESEND_SECONDS);
   };
   const sendRecovery = () => supabase!.auth.resetPasswordForEmail(address);
@@ -213,11 +214,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
       {invited && (
         <p className={styles.invited}>Вас пригласили в группу. Войдите или создайте аккаунт, чтобы вступить.</p>
       )}
-      <p className={styles.lead}>
-        {step === 'signUp'
-          ? 'Чтобы прогресс сохранялся на любом устройстве.'
-          : 'Войдите, чтобы продолжить с того же места.'}
-      </p>
+      {step === 'signUp' && <p className={styles.lead}>Чтобы прогресс сохранялся на любом устройстве.</p>}
       {emailField}
       <PasswordField
         label="Пароль"
@@ -226,8 +223,22 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         autoComplete={step === 'signUp' ? 'new-password' : 'current-password'}
         hint={step === 'signUp' ? 'Не короче 8 символов.' : undefined}
       />
+      {step === 'signUp' && (
+        <PasswordField
+          label="Повторите пароль"
+          value={repeat}
+          onChange={setRepeat}
+          onBlur={onLeave}
+          autoComplete="new-password"
+          problem={mismatch}
+        />
+      )}
       {problem}
-      <PrimaryButton type="submit" disabled={busy || !address || password.length < MIN_PASSWORD} aria-busy={busy}>
+      <PrimaryButton
+        type="submit"
+        disabled={busy || !address || password.length < MIN_PASSWORD || (step === 'signUp' && !matches)}
+        aria-busy={busy}
+      >
         {busy ? 'Подождите…' : step === 'signUp' ? 'Создать аккаунт' : 'Войти'}
       </PrimaryButton>
       <p className={styles.switch}>
@@ -243,14 +254,14 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
           </button>
         </p>
       )}
-      <p className={styles.note}>Мы храним только ваш e-mail и прогресс обучения.</p>
+      {step === 'signUp' && <p className={styles.note}>Мы храним только ваш e-mail и прогресс обучения.</p>}
     </AuthLayout>
   );
 }
 
 /** After a recovery code: the session exists, but the app waits until the new password is saved. */
 export function NewPasswordScreen({ onDone }: { onDone: () => void }) {
-  const [password, setPassword] = useState('');
+  const { password, setPassword, repeat, setRepeat, onLeave, matches, mismatch } = useRepeatedPassword();
   const { busy, error, call } = useAuthCall();
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -278,12 +289,20 @@ export function NewPasswordScreen({ onDone }: { onDone: () => void }) {
         autoComplete="new-password"
         hint="Не короче 8 символов."
       />
+      <PasswordField
+        label="Повторите пароль"
+        value={repeat}
+        onChange={setRepeat}
+        onBlur={onLeave}
+        autoComplete="new-password"
+        problem={mismatch}
+      />
       {error && (
         <p className={styles.error} role="alert">
           {error}
         </p>
       )}
-      <PrimaryButton type="submit" disabled={busy || password.length < MIN_PASSWORD} aria-busy={busy}>
+      <PrimaryButton type="submit" disabled={busy || password.length < MIN_PASSWORD || !matches} aria-busy={busy}>
         {busy ? 'Подождите…' : 'Сохранить пароль'}
       </PrimaryButton>
     </AuthLayout>

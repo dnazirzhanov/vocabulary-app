@@ -76,28 +76,58 @@ async function mockSupabase(page: Page, { confirming = false } = {}) {
 
 const fillForm = async (page: Page, email: string, password: string) => {
   await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Пароль').fill(password);
+  await page.getByLabel('Пароль', { exact: true }).fill(password);
 };
 
-test('a signed-out visitor sees the sign-up form, not the lessons', async ({ page }) => {
+const signUp = async (page: Page, email: string, password: string) => {
+  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  await fillForm(page, email, password);
+  await page.getByLabel('Повторите пароль').fill(password);
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+};
+
+test('a signed-out visitor sees the login, not the lessons or sign-up', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeFocused();
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toHaveCount(0);
+  await expect(page.getByLabel('Повторите пароль')).toHaveCount(0);
 
-  const submit = page.getByRole('button', { name: 'Создать аккаунт' });
+  const submit = page.getByRole('button', { name: 'Войти', exact: true });
   await expect(submit).toBeDisabled();
   await fillForm(page, 'new@example.com', 'short');
   await expect(submit).toBeDisabled();
-  await page.getByLabel('Пароль').fill('long-enough-1');
+  await page.getByLabel('Пароль', { exact: true }).fill('long-enough-1');
+  await expect(submit).toBeEnabled();
+});
+
+test('a new password is typed twice, and only a match can be sent', async ({ page }) => {
+  await mockSupabase(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  const submit = page.getByRole('button', { name: 'Создать аккаунт' });
+  await fillForm(page, 'new@example.com', 'long-enough-1');
+  await expect(submit).toBeDisabled();
+
+  const repeat = page.getByLabel('Повторите пароль');
+  // Not while still typing: only once it is as long as the first, or the field is left.
+  await repeat.fill('long');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await repeat.blur();
+  await expect(page.getByRole('alert')).toHaveText('Пароли не совпадают.');
+  await repeat.fill('long-enough-2');
+  await expect(page.getByRole('alert')).toHaveText('Пароли не совпадают.');
+  await expect(submit).toBeDisabled();
+
+  await repeat.fill('long-enough-1');
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(submit).toBeEnabled();
 });
 
 test('signing up opens the lessons and sends the token to the API', async ({ page }) => {
   const apiRequests = await mockSupabase(page);
   await page.goto('/');
-  await fillForm(page, 'new@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'new@example.com', 'long-enough-1');
 
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   const withToken = apiRequests.filter((request) => request.headers()['authorization'] === `Bearer ${fakeToken}`);
@@ -109,9 +139,6 @@ test('signing up opens the lessons and sends the token to the API', async ({ pag
 test('a wrong password is explained in Russian and can be retried', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Войти', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'С возвращением' })).toBeFocused();
-
   await fillForm(page, 'wrong@example.com', 'whatever-123');
   await page.getByRole('button', { name: 'Войти', exact: true }).last().click();
   await expect(page.getByRole('alert')).toHaveText('Неверный e-mail или пароль.');
@@ -124,8 +151,7 @@ test('a wrong password is explained in Russian and can be retried', async ({ pag
 test('the session survives a reload, and signing out returns to the form', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  await fillForm(page, 'right@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'right@example.com', 'long-enough-1');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
 
   await page.reload();
@@ -134,17 +160,16 @@ test('the session survives a reload, and signing out returns to the form', async
   await openSettings(page); // the account is behind ⚙ on «Прогресс»
   await expect(page.getByText('right@example.com')).toBeVisible();
   await page.getByRole('button', { name: 'Выйти' }).click();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 });
 
 test('signing up asks for the code from the email before opening the lessons', async ({ page }) => {
   await mockSupabase(page, { confirming: true });
   await page.goto('/');
-  await fillForm(page, 'new@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'new@example.com', 'long-enough-1');
 
   await expect(page.getByRole('heading', { name: 'Введите код' })).toBeFocused();
   await expect(page.getByText('Мы отправили код на new@example.com.')).toBeVisible();
@@ -164,7 +189,6 @@ test('signing in before confirming sends a new code and asks for it', async ({ p
   await mockSupabase(page, { confirming: true });
   const resent = page.waitForRequest((request) => request.url().endsWith('/resend'));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Войти', exact: true }).click();
   await fillForm(page, 'unconfirmed@example.com', 'long-enough-1');
   await page.getByRole('button', { name: 'Войти', exact: true }).last().click();
   await resent;
@@ -181,8 +205,7 @@ test('too many emails is not explained as a typo', async ({ page }) => {
     }),
   );
   await page.goto('/');
-  await fillForm(page, 'new@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'new@example.com', 'long-enough-1');
   await expect(page.getByRole('alert')).toContainText('слишком много писем');
 });
 
@@ -192,15 +215,13 @@ test('the sign-in service failing is not explained as a typo', async ({ page }) 
     route.fulfill({ status: 504, headers: cors, body: 'upstream request timeout' }),
   );
   await page.goto('/');
-  await fillForm(page, 'new@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'new@example.com', 'long-enough-1');
   await expect(page.getByRole('alert')).toContainText('Сервис входа сейчас не отвечает');
 });
 
 test('a forgotten password: email, code, then a new password before the lessons', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Войти', exact: true }).click();
   await page.getByRole('button', { name: 'Забыли пароль?' }).click();
   await expect(page.getByRole('heading', { name: 'Забыли пароль?' })).toBeFocused();
   await page.getByLabel('E-mail').fill('right@example.com');
@@ -216,6 +237,10 @@ test('a forgotten password: email, code, then a new password before the lessons'
   const save = page.getByRole('button', { name: 'Сохранить пароль' });
   await expect(save).toBeDisabled();
   await page.getByLabel('Новый пароль').fill('a-brand-new-one');
+  await page.getByLabel('Повторите пароль').fill('a-brand-new-two');
+  await expect(page.getByRole('alert')).toHaveText('Пароли не совпадают.');
+  await expect(save).toBeDisabled();
+  await page.getByLabel('Повторите пароль').fill('a-brand-new-one');
   const others = page.waitForRequest((request) => request.url().includes('/logout?scope=others'));
   await save.click();
   await others;
@@ -236,8 +261,7 @@ test('a group invite survives signing up with a code', async ({ page, browser })
 
   await page.goto(`/join/${group.invite_code}`);
   await expect(page.getByText('Вас пригласили в группу')).toBeVisible();
-  await fillForm(page, 'new@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'new@example.com', 'long-enough-1');
   await page.getByLabel('Код из письма').fill(CODE);
   await page.getByRole('button', { name: 'Подтвердить' }).click();
   await expect(page.getByText('7Б английский')).toBeVisible();
@@ -246,7 +270,7 @@ test('a group invite survives signing up with a code', async ({ page, browser })
 test('the password can be shown, and hidden again', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  const field = page.getByLabel('Пароль');
+  const field = page.getByLabel('Пароль', { exact: true });
   await expect(field).toHaveAttribute('type', 'password');
   await page.getByRole('button', { name: 'Показать' }).click();
   await expect(field).toHaveAttribute('type', 'text');
@@ -257,15 +281,14 @@ test('the password can be shown, and hidden again', async ({ page }) => {
 test('a token the API refuses leads back to the sign-in form', async ({ page }) => {
   await mockSupabase(page);
   await page.goto('/');
-  await fillForm(page, 'right@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'right@example.com', 'long-enough-1');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
 
   await page.route('**/api/**', (route) =>
     route.fulfill({ status: 401, json: { error: { code: 'invalid_token', message: 'Please sign in again' } } }),
   );
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 });
 
 /** A phone with reminders on: real push needs a push service, so the browser's side is a stand-in. */
@@ -285,8 +308,7 @@ const withReminders = (page: Page) =>
 
 const signInAndOpenSettings = async (page: Page) => {
   await page.goto('/');
-  await fillForm(page, 'right@example.com', 'long-enough-1');
-  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await signUp(page, 'right@example.com', 'long-enough-1');
   await openSettings(page); // the account is behind ⚙ on «Прогресс»
 };
 
@@ -302,7 +324,21 @@ test('signing out stops reminders on this device and leaves other devices signed
   await page.getByRole('button', { name: 'Выйти' }).click();
   await forgotten;
   expect((await logout).url()).toContain('scope=local');
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
+});
+
+test('«Выйти» on the main screen signs out too, and stops reminders', async ({ page }) => {
+  await mockSupabase(page);
+  await withReminders(page);
+  await page.goto('/');
+  await signUp(page, 'right@example.com', 'long-enough-1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+
+  const logout = page.waitForRequest((request) => request.url().includes('/logout'));
+  await page.getByRole('button', { name: 'Выйти', exact: true }).click();
+  expect((await logout).url()).toContain('scope=local');
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
 });
 
@@ -314,10 +350,10 @@ test('signing out without a connection still signs out and stops reminders', asy
   await page.route('**/api/push/subscriptions', (route) => route.abort());
   await page.route(`${SUPABASE}/**/logout*`, (route) => route.abort());
   await page.getByRole('button', { name: 'Выйти' }).click();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 });
 
 test('deleting the account asks for the password, then signs the learner out', async ({ page }) => {
@@ -344,7 +380,7 @@ test('deleting the account asks for the password, then signs the learner out', a
 
   await page.getByLabel('Ваш пароль').fill('long-enough-1');
   await confirm.click();
-  await expect(page.getByRole('heading', { name: 'Создайте аккаунт' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(deleted).toBe(true);
 });
 
