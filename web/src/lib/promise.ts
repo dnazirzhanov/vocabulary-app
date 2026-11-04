@@ -72,15 +72,32 @@ export const todayLists = (rows: BoardRow[]): TodayList[] =>
     .map((state) => ({ state, title: TODAY_TITLES[state], rows: rows.filter((row) => row.promise_today === state) }))
     .filter((list) => list.rows.length > 0);
 
-/**
- * What a friend has learned from the deck given to the group: «Unit 4: выучено 12 из 30». With
- * several decks, the total; with none, the words they know in all (empty when there are none).
- */
-export function wordsLine(row: BoardRow): string {
-  const { decks } = row;
-  if (decks.length === 0) return row.known > 0 ? `выучено слов: ${row.known}` : '';
-  if (decks.length === 1) return `${decks[0].title}: выучено ${decks[0].learned} из ${decks[0].word_count}`;
-  const learned = decks.reduce((sum, deck) => sum + deck.learned, 0);
-  const total = decks.reduce((sum, deck) => sum + deck.word_count, 0);
-  return `Выучено ${learned} из ${total} слов в колодах группы`;
+/** A friend's words in the decks given to the group: learned («знаю»), met but not yet learned («учу»), all. */
+export interface WordsProgress {
+  learned: number;
+  learning: number;
+  total: number;
 }
+
+/** Null when the group has no deck with words: there is nothing to measure against. */
+export function wordsProgress(row: BoardRow): WordsProgress | null {
+  const total = row.decks.reduce((sum, deck) => sum + deck.word_count, 0);
+  if (total === 0) return null;
+  const learned = row.decks.reduce((sum, deck) => sum + deck.learned, 0);
+  const met = row.decks.reduce((sum, deck) => sum + deck.met, 0);
+  return { learned, learning: Math.max(0, met - learned), total };
+}
+
+/** What the bars measure, said once above the lists: the deck, or «колод группы» for several. */
+export function wordsCaption(rows: BoardRow[]): string | null {
+  const decks = rows[0]?.decks ?? [];
+  if (!rows.some((row) => wordsProgress(row))) return null;
+  return decks.length === 1 ? `Слова из «${decks[0].title}»` : 'Слова из колод группы';
+}
+
+/** For screen readers, since the bar is drawn: «выучено 12 из 30, в процессе 5». */
+export const wordsLabel = ({ learned, learning, total }: WordsProgress) =>
+  `выучено ${learned} из ${total}${learning > 0 ? `, в процессе ${learning}` : ''}`;
+
+/** Without a deck there is no total to measure against: just the words they know in all. */
+export const knownLine = (row: BoardRow): string => (row.known > 0 ? `выучено слов: ${row.known}` : '');

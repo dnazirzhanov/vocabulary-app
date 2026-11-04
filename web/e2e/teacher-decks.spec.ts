@@ -107,10 +107,13 @@ test('a teacher gives words to a group and a student learns them first', async (
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
   // The student finished a lesson today: named among those who kept the promise, with what she has
-  // learned from the deck (met, not yet recalled in a later review) (ADR 0039).
+  // learned from the deck, as a bar with its figure (met, not yet recalled in a later review) (ADR 0039).
   await openGroup(page);
   const kept = page.getByRole('region', { name: 'Сделали сегодня' });
-  await expect(kept.getByRole('button', { name: /^Анна/ })).toContainText('Unit 4: выучено 0 из 2');
+  await expect(page.getByText('Слова из «Unit 4»')).toBeVisible();
+  const anna = kept.getByRole('button', { name: /^Анна/ });
+  await expect(anna.getByRole('img', { name: 'выучено 0 из 2, в процессе 2' })).toBeVisible();
+  await expect(anna).toContainText('0 / 2');
 });
 
 // Drafting from the lesson's text (ADR 0018), in demo mode (no model key in development).

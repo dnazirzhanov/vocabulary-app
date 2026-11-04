@@ -37,11 +37,16 @@ Kept simple, as plain lists of names:
    обещание: Пн–Пт · Изменить».
 2. **Who did it, by name,** in three lists: «Сделали сегодня», «Ещё нет», «Сегодня выходной»
    (a day off or a pause). Me first, then alphabetically, never by a score.
-3. **Each friend's row** carries what they have learned from the deck given to the group
-   («Unit 4: выучено 12 из 30»: words recalled in a later review, the «знаю» of «Прогресс») and
+3. **Each friend's row** shows what they have learned from the deck given to the group, and
    «пропусков: N», the promised days missed since the 1st of the calendar month. That count
    restarts each month by construction, and counting starts the day after joining the group.
-   - With several decks, the row shows the total; with none, the words the friend knows in all.
+   - The words are a **bar and its figure** («12 / 30»), the two-tone bar of «Прогресс»: dark is
+     «знаю» (recalled in a later review), peach is «учу» (met, not yet recalled). Every bar spans
+     the same total, so lengths compare at a glance; the order of friends stays alphabetical.
+   - The deck is named **once**, in a legend above the lists («Слова из «Unit 4» ▮ знаю ▮ учу»),
+     not on every row.
+   - With several decks the bar is the total; with none there is nothing to measure against, so
+     the row says only how many words the friend knows in all.
 4. A row opens a **friend's window:** their week of dots (✓ done, an empty ring with a dash
    missed, a ringed ring today, a faint ring a day to come, a small dot a day off; nothing is red),
    promise, weeks in a row, and for each deck a «знаю · учу · впереди» bar.

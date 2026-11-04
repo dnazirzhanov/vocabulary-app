@@ -185,12 +185,68 @@
   color: var(--color-success);
 }
 
-/* What they have learned from the group's deck, under the name. */
+/* Without a deck to measure against: a plain line under the name. */
 .words {
   grid-column: 1 / -1;
   color: var(--color-text-muted);
   font-size: var(--text-meta);
   overflow-wrap: anywhere;
+}
+
+/*
+ * What a friend has learned from the group's deck: the two-tone bar of «Прогресс» (10px; dark =
+ * знаю, peach = учу) and its figure beside it. Every bar spans the same total, so the lengths read
+ * at a glance; the order of friends stays alphabetical.
+ */
+.rowWords {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.rowBar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--color-activity-none);
+}
+
+.rowFigure {
+  flex: none;
+  min-width: 4.25rem;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* What the bars measure, once, above the lists: «Слова из «Unit 4» ▮ знаю ▮ учу». */
+.legendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.swatch[data-tone='known'] {
+  background: var(--color-activity-goal);
+}
+
+.swatch[data-tone='learning'] {
+  background: var(--color-activity-some);
 }
 
 .empty {

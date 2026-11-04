@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { weeksWord } from '../i18n/plural.ts';
 import { api, describeError } from '../lib/api.ts';
 import { dueLabel, standingLabel } from '../lib/deadline.ts';
-import { missesText, promiseText, todayLists, wordsLine } from '../lib/promise.ts';
+import {
+  knownLine,
+  missesText,
+  promiseText,
+  todayLists,
+  wordsCaption,
+  wordsLabel,
+  wordsProgress,
+} from '../lib/promise.ts';
 import type { Assignment, Board, BoardRow } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { DayDots } from '../promise/DayDots.tsx';
@@ -272,12 +280,23 @@ function ForClass(props: { assignment: Assignment; board: Board; owner: boolean;
 
 /**
  * Who kept today's promise, as plain lists of names: those who did it, those who haven't yet, and
- * those with the day off. Each friend shows what they've learned from the group's deck and the
- * promised days missed this month; a row opens their window.
+ * those with the day off. Each friend shows how much of the group's deck they have learned, as a
+ * bar in the language of «Прогресс» with its figure, and the promised days missed this month; a row
+ * opens their window. The deck is named once, in a legend above the lists, not on every row.
  */
 function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) => void }) {
+  const caption = wordsCaption(rows);
   return (
     <>
+      {caption && (
+        <p className={styles.legendRow}>
+          <span>{caption}</span>
+          <span className={styles.swatch} data-tone="known" aria-hidden="true" />
+          <span>знаю</span>
+          <span className={styles.swatch} data-tone="learning" aria-hidden="true" />
+          <span>учу</span>
+        </p>
+      )}
       {todayLists(rows).map((list) => (
         <section key={list.state} aria-label={list.title} className={styles.names}>
           <h3 className={styles.namesTitle}>
@@ -294,7 +313,7 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
                   <span className={styles.misses} data-none={row.month_misses === 0 || undefined}>
                     {missesText(row.month_misses)}
                   </span>
-                  {wordsLine(row) && <span className={styles.words}>{wordsLine(row)}</span>}
+                  <RowWords row={row} />
                 </button>
               </li>
             ))}
@@ -303,6 +322,27 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
       ))}
       {rows.length === 1 && <p className={styles.empty}>Пока вы одни в группе. Пригласите друзей кнопкой вверху.</p>}
     </>
+  );
+}
+
+/** One friend's words in the group's deck: a bar with its figure; without a deck, a plain line. */
+function RowWords({ row }: { row: BoardRow }) {
+  const progress = wordsProgress(row);
+  if (!progress) {
+    const line = knownLine(row);
+    return line ? <span className={styles.words}>{line}</span> : null;
+  }
+  const share = (part: number) => `${(Math.min(part, progress.total) / progress.total) * 100}%`;
+  return (
+    <span className={styles.rowWords}>
+      <span className={styles.rowBar} role="img" aria-label={wordsLabel(progress)}>
+        <i className={styles.barLearning} style={{ width: share(progress.learned + progress.learning) }} />
+        <i className={styles.barKnown} style={{ width: share(progress.learned) }} />
+      </span>
+      <strong className={styles.rowFigure} aria-hidden="true">
+        {progress.learned} / {progress.total}
+      </strong>
+    </span>
   );
 }
 
