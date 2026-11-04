@@ -127,7 +127,7 @@
 /*
  * The three lists are the report's structure, so their headings read as headings: a mark from the
  * dots of a friend's week (✓ done, ringed ring not yet, small dot a day off), the label at body
- * size in bold, the count beside it. The day-off list is the same size but quieter.
+ * size in bold, the count beside it in the same colour. The day-off list is the same size but quieter.
  */
 .namesTitle {
   display: flex;
@@ -142,9 +142,8 @@
   color: var(--color-text-muted);
 }
 
+/* The count is part of the heading: the same colour and weight as the label beside it. */
 .namesCount {
-  color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
 }
 
