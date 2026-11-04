@@ -20,23 +20,26 @@ image's steps were reproduced by hand.
   - a nickname inside the group (no real names, no chat, ADR 0011);
   - progress, and optional reminder subscriptions (no e-mail used for them).
   
-  Ask whether parents need to be told. «Удалить мой прогресс» deletes a student's data at any
-  time. Removing the sign-in e-mail too is done by you in Supabase.
+  Ask whether parents need to be told. «Удалить аккаунт» deletes a student's data and sign-in
+  e-mail at any time, after asking for the password.
 - [ ] **Decide the support channel:** where students and the teacher report problems (e.g. a
   Telegram chat with you). Tell the teacher.
 
 ## 2. Accounts and deployment (about 2 hours; `deploy.md` §1–2)
-- [ ] **Supabase project** (Frankfurt), «Confirm email» off, an asymmetric JWT key.
+- [ ] **Supabase project** (Frankfurt), an asymmetric JWT key, and email through a dedicated Gmail
+  account: «Confirm email» on, code templates, raised rate limits (`deploy.md` §1).
 - [ ] **Host:**
   - Koyeb or Render, building the `Dockerfile` with `VITE_SUPABASE_URL` and
     `VITE_SUPABASE_PUBLISHABLE_KEY`;
-  - secrets `DATABASE_URL` and `AUTH_ISSUER`;
+  - secrets `DATABASE_URL`, `AUTH_ISSUER` and `SUPABASE_SECRET_KEY`;
   - health check `/api/health/ready`.
 - [ ] **Drafting decks from text and photos** needs `DEEPSEEK_API_KEY` in the host's secrets.
   - Top up DeepSeek credit first. Each draft is one model call (see DeepSeek's price page); the
     daily limit is 20 drafts per teacher.
   - Photos are read in the browser and cost nothing.
-- [ ] **Open the URL on a phone:** sign up, see «Мои колоды», open the course, finish one lesson.
+- [ ] **Open the URL on a phone:** sign up with a real address and type the code from the email, see
+  «Мои колоды», open the course, finish one lesson. Then sign out, reset the password, and delete
+  this test account; check that it is gone from Supabase.
 
 ## 3. Reminders (about 20 minutes; `deploy.md` §3)
 - [ ] **Keys:**
@@ -86,7 +89,7 @@ image's steps were reproduced by hand.
 - [ ] **A short talk** with the teacher and 3–5 students: what helped, what was confusing, what
   they skipped.
 - [ ] **Decide what to keep:** keep the data and continue, or delete the group and the accounts
-  (Supabase users, then the database rows by deleting each account).
+  (each «Удалить аккаунт» removes the database rows and the Supabase user).
 
 ## Rollback
 Redeploy the previous image. If a migration is at fault: `alembic downgrade -1`. Reminders stop

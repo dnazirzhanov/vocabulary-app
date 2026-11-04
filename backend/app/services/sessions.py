@@ -9,20 +9,23 @@ passed in, never read here.
 import random
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.auth_admin import delete_login
+from app.core.config import Settings
 from app.core.errors import ApiError
 from app.models import (
     Deck,
     DeckWord,
+    DeletedLogin,
     LearningSession,
     ReviewAttempt,
     User,
@@ -936,10 +939,26 @@ def _spelling_summary(
 
 # --- account ---------------------------------------------------------------------------------
 
+# Longer than any token lives (an hour by default), so a phone still signed in can't come back.
+DELETED_LOGIN_KEPT = timedelta(days=1)
 
-def delete_learner(db: Session, user: User) -> None:
-    """Foreign keys cascade from users to sessions, attempts, progress and group memberships (one
-    transaction); groups the learner owned pass to the next member first, empty ones go."""
+
+def delete_learner(db: Session, user: User, settings: Settings) -> None:
+    """Foreign keys cascade from users to sessions, attempts, progress and group memberships;
+    groups the learner owned pass to the next member first, empty ones go, and so do decks nobody
+    else has (ADR 0043). The login goes last, inside the transaction: if the provider refuses,
+    everything rolls back and the learner can retry; if the commit then fails, the still valid
+    token can too, since a login already gone counts as deleted."""
     groups.leave_all(db, user)
+    own_decks = decks.decks_of(db, user)
+    subject = user.auth_subject
     db.delete(user)
+    db.flush()
+    decks.delete_unshared(db, own_decks)
+    if settings.auth_mode == "jwt":
+        now = datetime.now(UTC)
+        db.execute(delete(DeletedLogin).where(DeletedLogin.deleted_at < now - DELETED_LOGIN_KEPT))
+        db.add(DeletedLogin(auth_subject=subject, deleted_at=now))
+        db.flush()
+        delete_login(settings, subject)
     db.commit()

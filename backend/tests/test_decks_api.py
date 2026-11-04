@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import UserWordProgress
+from app.models import Deck, UserWordProgress, Word
 from tests.support import at, cards, finish
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -337,3 +337,62 @@ def test_corrections_reach_learners_and_taking_back_stops_new_words(
     assert again.status_code == 404
     member = client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("pavel"))
     assert member.status_code == 403
+
+
+# --- when the author deletes their account (ADR 0043) ----------------------------------------
+
+
+def _deck_exists(db: Session, deck_id: str) -> bool:
+    db.expire_all()
+    return db.get(Deck, deck_id) is not None
+
+
+def test_an_authors_private_decks_go_with_their_account(client: TestClient, db: Session) -> None:
+    private = write_deck(client, "", [SETBACK, CARRY_OUT])
+    learn(client, "olga", private)
+    assert client.delete("/api/me", headers=as_("olga")).status_code == 204
+    assert not _deck_exists(db, private["id"])
+    assert db.scalars(select(Word.id).where(Word.owner_deck_id == private["id"])).all() == []
+
+
+def test_a_deck_given_to_a_group_stays_when_its_author_goes(
+    client: TestClient, db: Session
+) -> None:
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [SETBACK, CARRY_OUT])
+    give(client, deck, group["id"])
+    learn(client, "pavel", deck)
+    known = db.scalars(select(UserWordProgress.word_id)).all()
+
+    assert client.delete("/api/me", headers=as_("olga")).status_code == 204
+
+    assert _deck_exists(db, deck["id"])
+    assert db.scalars(select(UserWordProgress.word_id)).all() == known
+    assert client.get(f"/api/decks/{deck['id']}/words", headers=as_("pavel")).status_code == 200
+
+
+def test_a_deck_someone_learned_stays_even_after_its_group_is_gone(
+    client: TestClient, db: Session
+) -> None:
+    """Olga's group is gone with her, and with it the assignment, but Pavel learned those words:
+    deleting the deck would take his progress, or fail on it."""
+    group = client.post(
+        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+    ).json()
+    client.post(
+        f"/api/groups/join/{group['invite_code']}",
+        json={"nickname": "Павел"},
+        headers=as_("pavel"),
+    )
+    deck = write_deck(client, group["id"], [SETBACK, CARRY_OUT])
+    give(client, deck, group["id"])
+    learn(client, "pavel", deck)
+    assert (
+        client.delete(f"/api/groups/{group['id']}/members/me", headers=as_("pavel")).status_code
+        == 204
+    )
+
+    assert client.delete("/api/me", headers=as_("olga")).status_code == 204
+
+    assert _deck_exists(db, deck["id"])
+    assert len(db.scalars(select(UserWordProgress.word_id)).all()) == 2

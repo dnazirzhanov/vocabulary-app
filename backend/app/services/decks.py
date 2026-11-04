@@ -18,7 +18,7 @@ from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, and_, delete, func, or_, select
+from sqlalchemy import Select, and_, delete, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
@@ -33,6 +33,7 @@ from app.models import (
     GroupMember,
     LearningSession,
     ReviewAttempt,
+    SpellingProgress,
     User,
     UserWordProgress,
     Word,
@@ -647,6 +648,28 @@ def _check_due(group: Group, due_on: date | None, now: datetime) -> None:
     """A deadline is a day still to come in the group's time zone, today at the earliest."""
     if due_on is not None and due_on < local_date(now, ZoneInfo(group.time_zone)):
         raise ApiError(422, "due_in_past", "Pick today or a later day")
+
+
+def decks_of(db: Session, user: User) -> list[str]:
+    return list(db.scalars(select(Deck.id).where(Deck.owner_id == user.id)))
+
+
+def delete_unshared(db: Session, deck_ids: list[str]) -> None:
+    """A deleted author's decks that are theirs alone (ADR 0043). One given to a group stays with
+    it, and so does one somebody learned from, even if that group is gone: their progress points
+    at its words. Called once the author's own progress is gone."""
+    its_word = Word.owner_deck_id == Deck.id
+    db.execute(
+        delete(Deck)
+        .where(
+            Deck.id.in_(deck_ids),
+            ~exists().where(DeckAssignment.deck_id == Deck.id),
+            ~exists().where(UserWordProgress.word_id == Word.id, its_word),
+            ~exists().where(SpellingProgress.word_id == Word.id, its_word),
+            ~exists().where(ReviewAttempt.word_id == Word.id, its_word),
+        )
+        .execution_options(synchronize_session=False)
+    )
 
 
 def publish(

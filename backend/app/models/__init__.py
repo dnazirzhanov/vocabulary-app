@@ -18,6 +18,7 @@ from app.models.learning import (
 )
 from app.models.user import (
     DeckPace,
+    DeletedLogin,
     PaceDismissal,
     PromiseChange,
     PromisePause,
@@ -32,6 +33,7 @@ __all__ = [
     "DeckSeenWord",
     "DeckTopic",
     "DeckWord",
+    "DeletedLogin",
     "GlossaryForm",
     "Group",
     "GroupMember",
