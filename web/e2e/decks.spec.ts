@@ -3,8 +3,8 @@ import { button, expect, finishSession, openDeck, test } from './learner.ts';
 
 const DAY = 86_400_000;
 
-/** Today on a deck's page: one sentence (ADR 0035). */
-const today = (page: Page) => page.getByRole('region', { name: 'Сегодня в колоде' }).locator('p').first();
+/** A deck's page has no «Сегодня …» sentence (ADR 0038): what the day holds is on its button. */
+const noTodayLine = (page: Page) => expect(page.getByText(/^(Сегодня \d|На сегодня всё\.)/)).toHaveCount(0);
 const deckRow = (page: Page, title: string) => page.getByRole('button', { name: new RegExp(`^${title}`) });
 
 test('the course lists the levels; a deck’s page counts today like Anki and studies that deck', async ({
@@ -24,13 +24,15 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   await expect(page.getByRole('button', { name: /^(Начать урок|Учить|Продолжить урок)/ })).toHaveCount(0);
 
   await openDeck(page);
-  await expect(today(page)).toHaveText('Сегодня 5\u00a0новых слов.');
+  await expect(button(page, 'Начать урок · 5 слов')).toBeVisible();
+  await noTodayLine(page);
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
   await button(page, 'На главную').click();
   // Back on the deck's page: today's new words are done; what is left is a bonus.
   await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeVisible();
-  await expect(today(page)).toHaveText('На сегодня всё. Можно взять ещё слов.');
+  await expect(button(page, 'Ещё 5 слов')).toBeVisible();
+  await noTodayLine(page);
   await expect(page.getByText('учу 5 · впереди 95', { exact: true })).toBeVisible();
   await expect(button(page, 'Ещё 5 слов')).toBeVisible();
 
@@ -39,14 +41,15 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   await button(page, 'Открыть курс').click();
   await expect(deckRow(page, 'Основа')).toHaveAccessibleName(/5 новых 0 изучаемых 5 к повторению/);
   await openDeck(page);
-  await expect(today(page)).toHaveText('Сегодня 5\u00a0новых слов и 5 на повторение.');
+  await expect(page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ })).toBeVisible();
+  await noTodayLine(page);
   // Reviews first; leaving the lesson comes back to the deck, where it can be resumed.
   await page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('buy');
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Основа' })).toBeVisible();
   await expect(button(page, 'Продолжить урок')).toBeVisible();
-  await expect(today(page)).toHaveText('Урок начат — продолжите с того места, где остановились.');
+  await noTodayLine(page);
 });
 
 test('a locked level is not pressable and says what opens it', async ({ page }) => {
@@ -63,7 +66,8 @@ test("after today's target, a deck's page offers a bonus lesson", async ({ page 
   await button(page, 'Начать урок · 5 слов').click();
   await finishSession(page);
   await button(page, 'На главную').click();
-  await expect(today(page)).toHaveText('На сегодня всё. Можно взять ещё слов.');
+  await expect(button(page, 'Ещё 5 слов')).toBeVisible();
+  await noTodayLine(page);
   await button(page, 'Ещё 5 слов').click();
   await expect(page.getByRole('button', { name: 'Показать ответ' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('house'); // the next words
