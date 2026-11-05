@@ -215,6 +215,29 @@ def test_a_hinted_word_counts_as_hard(client: TestClient, play: Play) -> None:
     assert spelling_state(client)["hard"] == 1
 
 
+def test_a_word_heard_first_counts_as_hard_but_is_still_right(
+    client: TestClient, play: Play
+) -> None:
+    """The sound is a hint (ADR 0047): only spelling from memory moves a word up."""
+    play(STUDY, DAY0, spell=False)
+    session = start_spelling(client).json()
+    house, water = session["exercises"][0]["id"], session["exercises"][1]["id"]
+    heard = client.post(
+        f"/api/sessions/{session['id']}/attempts",
+        json={
+            "exercise_id": house,
+            "response": {"kind": "spelling", "answer": "house", "heard": True},
+        },
+        headers=at(DAY0),
+    ).json()
+    # The learner is told it was right; only the ladder takes it as not from memory.
+    assert heard["correct"] is True
+    assert spelling_state(client)["hard"] == 1
+    # A word spelled without listening isn't touched by that.
+    assert answer(client, session, water, "water").json()["correct"] is True
+    assert spelling_state(client)["hard"] == 1
+
+
 def test_random_draws_from_every_word_met(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0)
     play(STUDY, DAY0 + timedelta(days=1), spell=False)

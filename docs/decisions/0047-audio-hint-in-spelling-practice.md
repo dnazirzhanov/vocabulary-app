@@ -17,8 +17,10 @@ hints (ADR 0046).
   themselves have no recordings.
 - **As often as asked, and nothing plays by itself.** Like the letter hint, it goes once the word is checked.
 - **It isn't used up.** Each card still has its one letter, whether or not the word was heard.
-- **It doesn't count against the learner.** A letter hint makes a word a miss on the ladder (ADR 0026), because it gives part
-  of the spelling. Hearing a word gives none of its letters, so a right answer after listening counts as right.
+- **A word heard counts as a miss on the ladder, like a word hinted (ADR 0026).** The owner's decision: students should spell
+  without it, and a group's test has no sound, so «умеет писать» has to mean they managed alone. They are still told «Верно»;
+  the word just comes back the next day. The device says whether it was heard, kept across a reload. That is safe to trust
+  here, since only the student's own practice depends on it.
 - **Only in individual practice.** Cards of a group's test and its «Тренировка» don't carry the word at all, and a test covers that.
 
 **The card's data carries the word,** so ADR 0016's "the word stays on the server until answered" no longer holds for these
@@ -27,7 +29,6 @@ press would risk silence on iPhones. Nothing shows it on screen. Someone reading
 cheats their own private practice.
 
 ## Consequences
-- **«умеет писать» can now be reached with listening.** A student can climb the ladder hearing every word, then find a test
-  harder without it. If that shows in practice, the fix is one rule: count a word heard like a word hinted, which needs the server
-  told when it was heard.
+- A student who listens every time sees those words stay in «Трудные». That is accurate, and could feel discouraging; worth
+  watching with real students.
 - The word's recording isn't fetched until it is asked for.

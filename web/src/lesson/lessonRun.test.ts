@@ -90,8 +90,8 @@ test('a spelling answer is checked, then explained before moving on', () => {
   let state = startLesson(session([spelling('s1'), spelling('s2')]));
   state = run(state, { type: 'reveal' }, { type: 'rate', rating: 3 });
   assert.equal(state.phase, 'front', 'no reveal or rating for spelling');
-  state = run(state, { type: 'spell', answer: 'huose' });
-  assert.deepEqual(state.pending, { kind: 'spelling', answer: 'huose' });
+  state = run(state, { type: 'spell', answer: 'huose', heard: true });
+  assert.deepEqual(state.pending, { kind: 'spelling', answer: 'huose', heard: true });
   const missed = { ...result('s1'), rating: null, correct: false, answer: 'house' };
   state = run(state, { type: 'saved', result: missed });
   assert.deepEqual([state.phase, state.index, state.last?.answer], ['feedback', 0, 'house']);

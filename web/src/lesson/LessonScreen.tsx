@@ -160,7 +160,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       const request =
         pending.kind === 'rating'
           ? api.rateCard(session.id, current.id, pending.rating)
-          : api.spell(session.id, current.id, pending.answer);
+          : api.spell(session.id, current.id, pending.answer, pending.heard);
       request
         .then(
           (result) => dispatch({ type: 'saved', result }),
@@ -266,7 +266,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               storageKey={`spelling:${session.id}:${exercise.id}`}
               busy={state.phase === 'saving' || state.phase === 'finishing'}
               result={state.phase === 'feedback' ? state.last : null}
-              onSubmit={(answer) => dispatch({ type: 'spell', answer })}
+              onSubmit={(answer, heard) => dispatch({ type: 'spell', answer, heard })}
               onHint={(position) => api.hint(session.id, exercise.id, position)}
               onContinue={() => dispatch({ type: 'continue' })}
             />

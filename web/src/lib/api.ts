@@ -119,10 +119,10 @@ export const api = {
       response: { kind: 'rating', rating },
     }),
   /** A word built with letter tiles; the server checks it (the word stays there until then). */
-  spell: (sessionId: string, exerciseId: string, answer: string) =>
+  spell: (sessionId: string, exerciseId: string, answer: string, heard: boolean) =>
     request<AttemptResult>('POST', `/sessions/${sessionId}/attempts`, {
       exercise_id: exerciseId,
-      response: { kind: 'spelling', answer },
+      response: { kind: 'spelling', answer, heard },
     }),
   completeSession: (sessionId: string) => request<Summary>('POST', `/sessions/${sessionId}/complete`),
   progress: () => request<Progress>('GET', '/progress'),

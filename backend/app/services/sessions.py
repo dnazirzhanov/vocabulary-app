@@ -845,8 +845,9 @@ def _spell(
     db.add(stored)
     # Flush first: a second try at the same card fails here and leaves the ladder alone.
     db.flush()
-    # A hinted word was not spelled from memory: on the ladder it counts as a miss (ADR 0026).
-    right = bool(stored.correct) and step.hint is None
+    # A hinted or heard word was not spelled from memory: on the ladder it counts as a miss
+    # (ADR 0026, 0047).
+    right = bool(stored.correct) and step.hint is None and not response.heard
     spelling_ladder.record(db, user, step.word_id, right, now, zone_of(user))
     return stored
 

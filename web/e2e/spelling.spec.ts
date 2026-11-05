@@ -210,11 +210,19 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
   await expect(page.locator('main')).not.toContainText('house');
   await expect(page.getByRole('button', { name: 'Подсказка: буква' })).toBeEnabled();
 
-  // After the click, the keyboard still works: letters, then Enter checks rather than plays again.
+  // Listening is remembered across a reload, so the word can't pass as spelled from memory.
+  await page.reload();
+  await openDeck(page);
+  await button(page, 'Продолжить правописание').click();
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дом');
+
+  // The keyboard still works after a click: letters, then Enter checks rather than plays again.
+  await listen.click();
+  const sent = page.waitForRequest((request) => /\/attempts$/.test(request.url()));
   await page.keyboard.type('house');
   await page.keyboard.press('Enter');
+  expect((await sent).postDataJSON().response).toEqual({ kind: 'spelling', answer: 'house', heard: true });
   await expect(page.getByRole('status')).toContainText('Верно');
-  expect((await played()).slice(before)).toHaveLength(2);
   await expect(hints).toHaveCount(0); // a hint is for before answering
 
   // The next card says its own word.

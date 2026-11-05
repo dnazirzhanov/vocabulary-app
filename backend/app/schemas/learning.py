@@ -228,6 +228,8 @@ class SpellingResponse(_Input):
     kind: Literal["spelling"]
     # The letters of the tiles chosen, in order; checked and discarded, never stored.
     answer: Annotated[str, StringConstraints(max_length=64)]
+    # Whether the word was listened to first (ADR 0047). The device knows, and only practice has it.
+    heard: bool = False
 
 
 class AttemptIn(_Input):

@@ -11,7 +11,7 @@ import type { AttemptResult, Exercise, Rating, Session } from '../lib/types.ts';
  */
 export type LessonPhase = 'front' | 'back' | 'saving' | 'feedback' | 'error' | 'finishing';
 
-export type Answer = { kind: 'rating'; rating: Rating } | { kind: 'spelling'; answer: string };
+export type Answer = { kind: 'rating'; rating: Rating } | { kind: 'spelling'; answer: string; heard: boolean };
 
 export interface LessonState {
   exercises: Exercise[];
@@ -29,7 +29,7 @@ export interface LessonState {
 export type LessonAction =
   | { type: 'reveal' }
   | { type: 'rate'; rating: Rating }
-  | { type: 'spell'; answer: string }
+  | { type: 'spell'; answer: string; heard: boolean }
   | { type: 'saved'; result: AttemptResult }
   | { type: 'continue' }
   | { type: 'failed'; message: string }
@@ -76,7 +76,7 @@ export function reduceLesson(state: LessonState, action: LessonAction): LessonSt
         : state;
     case 'spell':
       return state.phase === 'front' && !isCard
-        ? { ...state, phase: 'saving', pending: { kind: 'spelling', answer: action.answer } }
+        ? { ...state, phase: 'saving', pending: { kind: 'spelling', answer: action.answer, heard: action.heard } }
         : state;
     case 'saved': {
       if (state.phase !== 'saving' || action.result.exercise_id !== current?.id) return state;
