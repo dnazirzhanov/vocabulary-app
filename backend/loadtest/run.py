@@ -268,19 +268,34 @@ async def class_test(students: int, stats: Stats, seconds_per_word: tuple[float,
             while attempt and attempt.get("question"):
                 await asyncio.sleep(rng.uniform(*seconds_per_word))
                 question = attempt["question"]
-                answered = await call(
-                    client,
-                    stats,
-                    "test_answer",
-                    "POST",
-                    f"/api/test-attempts/{attempt['id']}/answers",
-                    headers,
-                    {
-                        "question_id": question["id"],
-                        "answer": words[question["prompt"]["translation"]],
-                    },
-                    TEST_TIMEOUT,
-                )
+                attempts_url = f"/api/test-attempts/{attempt['id']}"
+                # Some words skipped and some misspelled, so finishing writes to «Трудные».
+                if rng.random() < 0.1:
+                    answered = await call(
+                        client,
+                        stats,
+                        "test_skip",
+                        "POST",
+                        f"{attempts_url}/skips",
+                        headers,
+                        {"question_id": question["id"], "again": attempt["returning"]},
+                        TEST_TIMEOUT,
+                    )
+                else:
+                    right = words[question["prompt"]["translation"]]
+                    answered = await call(
+                        client,
+                        stats,
+                        "test_answer",
+                        "POST",
+                        f"{attempts_url}/answers",
+                        headers,
+                        {
+                            "question_id": question["id"],
+                            "answer": "wrong" if rng.random() < 0.15 else right,
+                        },
+                        TEST_TIMEOUT,
+                    )
                 attempt = answered.json() if answered is not None else attempt
             if attempt and attempt.get("result"):
                 stats.lessons += 1

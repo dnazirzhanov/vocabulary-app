@@ -322,7 +322,9 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                   <small id="spelling-modes-note">
                     {spelling.ready > 0
                       ? 'Сегодняшние, трудные или вразброс'
-                      : 'На сегодня всё написано · сегодняшние, трудные или вразброс'}
+                      : spelling.hard > 0
+                        ? `Трудных слов: ${spelling.hard} · сегодняшние, трудные или вразброс`
+                        : 'На сегодня всё написано · сегодняшние, трудные или вразброс'}
                   </small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
