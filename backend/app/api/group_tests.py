@@ -58,7 +58,7 @@ def start_attempt(
     group_id: UUID, deck_id: str, body: StartAttemptIn, user: CurrentUser, db: DbSession, now: Now
 ) -> TestAttemptOut:
     """Starts, or returns the attempt already running, so it is safe to repeat."""
-    return group_tests.start_attempt(db, user, group_id, deck_id, body.kind, body.only_weak, now)
+    return group_tests.start_attempt(db, user, group_id, deck_id, body.kind, now)
 
 
 @router.get("/test-attempts/{attempt_id}")

@@ -61,12 +61,13 @@ function leadOf(attempt: TestAttempt, result: Result): string | null {
   const parts: string[] = [];
   if (result.timed_out) parts.push('Время вышло.');
   if (result.passed === false && result.pass_percent !== null) parts.push(`Нужно от ${result.pass_percent}%.`);
-  // The words the time ran out on say nothing about the student, so they don't go (ADR 0048).
+  // Only a test's misses go to «Трудные». The words the time ran out on say nothing about the
+  // student, so they don't go (ADR 0048).
   const wrong = result.mistakes.some((mistake) => mistake.answer !== null);
   const skipped = result.mistakes.some((mistake) => mistake.skipped);
   const what =
     wrong && skipped ? 'Ошибки и пропуски' : wrong ? 'Слова с ошибками' : skipped ? 'Пропущенные слова' : null;
-  if (what) parts.push(`${what} ждут вас в ${attempt.kind === 'test' ? '«Трудных»' : '«Словах для работы»'}.`);
+  if (what && attempt.kind === 'test') parts.push(`${what} ждут вас в «Трудных».`);
   return parts.length ? parts.join(' ') : null;
 }
 

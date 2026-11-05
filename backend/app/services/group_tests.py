@@ -2,8 +2,8 @@
 
 The owner chooses the words, the time and the pass mark, and opens the test; anyone in the group
 then starts alone, and their own timer runs from that tap. A `test` happens once and its score is
-public in the group. `practice` is unlimited, untimed and private. Both leave a record of every
-word, from which each student gets their own weak words.
+public in the group, and the words it found hard go to the student's own «Трудные». `practice` is
+unlimited, untimed and private. Both leave a record of every word.
 
 The server is the only clock and the only source of order: an attempt's deadline and its shuffled
 questions are saved when it starts, so nothing the device does can extend or reorder them. A student
@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, or_, select
-from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -49,7 +48,6 @@ from app.schemas.group_tests import (
     TestSettingsOut,
     TestSetupOut,
     TestsOut,
-    WeakWordOut,
 )
 from app.schemas.groups import LatestTestOut
 from app.schemas.learning import SeparatorOut, SpellingExercise, SpellingPrompt
@@ -275,50 +273,6 @@ def list_tests(db: Session, user: User, group_id: UUID, now: datetime) -> TestsO
     )
 
 
-def _latest_answers(
-    db: Session, test: GroupTest, member: GroupMember
-) -> list[tuple[str, bool | None, str, str]]:
-    """Each word's latest answer in my finished attempts of either kind; a word skipped for good
-    counts, as of when that attempt ended, and has no answer to be right."""
-    rows = db.execute(
-        select(
-            GroupTestQuestion.word_id,
-            GroupTestQuestion.correct,
-            GroupTestQuestion.headword,
-            GroupTestQuestion.translation,
-        )
-        .join(GroupTestAttempt, GroupTestAttempt.id == GroupTestQuestion.attempt_id)
-        .where(
-            GroupTestAttempt.test_id == test.id,
-            GroupTestAttempt.member_id == member.id,
-            GroupTestAttempt.finished_at.is_not(None),
-            or_(GroupTestQuestion.answered_at.is_not(None), GroupTestQuestion.skips > 0),
-        )
-        .ext(distinct_on(GroupTestQuestion.word_id))
-        .order_by(
-            GroupTestQuestion.word_id,
-            func.coalesce(GroupTestQuestion.answered_at, GroupTestAttempt.finished_at).desc(),
-        )
-    )
-    return [(row[0], row[1], row[2], row[3]) for row in rows]
-
-
-def _weak_words(db: Session, test: GroupTest, member: GroupMember) -> list[WeakWordOut]:
-    """Words whose latest answer was wrong, so getting one right takes it off; only words still on
-    the test."""
-    on_test = set(test.word_ids)
-    weak = [
-        WeakWordOut(word=headword, translation=translation)
-        for word_id, correct, headword, translation in _latest_answers(db, test, member)
-        if not correct and word_id in on_test
-    ]
-    return sorted(weak, key=lambda item: item.word.casefold())
-
-
-def _weak_word_ids(db: Session, test: GroupTest, member: GroupMember) -> set[str]:
-    return {word_id for word_id, correct, _, _ in _latest_answers(db, test, member) if not correct}
-
-
 def _finished_attempts(db: Session, test: GroupTest) -> dict[UUID, GroupTestAttempt]:
     """Each member's latest result of the timed test. Earlier ones stay as data, unshown."""
     return {
@@ -353,7 +307,6 @@ def test_detail(
         score=None,
         can_start=False,
         practice_attempt_id=None,
-        weak=[],
     )
     if test is None:
         return TestDetailOut(
@@ -419,8 +372,6 @@ def test_detail(
                 and (latest is None or latest.opening != test.opening)
             ),
             practice_attempt_id=practice.id if practice else None,
-            # While the clock runs, nothing may show how this student spells the test's words.
-            weak=[] if running else _weak_words(db, test, member),
         ),
     )
 
@@ -655,7 +606,6 @@ def start_attempt(
     group_id: UUID,
     deck_id: str,
     kind: AttemptKind,
-    only_weak: bool,
     now: datetime,
     rng: random.Random | None = None,
 ) -> TestAttemptOut:
@@ -682,19 +632,10 @@ def start_attempt(
         if test_running:
             raise ApiError(409, "test_running", "Finish the test first")
         existing = _open_attempt(db, test, member, "practice")
-        if existing is not None and only_weak:
-            # A narrower practice replaces a long one left open; what was answered still counts.
-            db.refresh(existing, with_for_update=True)
-            if existing.finished_at is None:
-                _finish(db, existing, now)
-            db.commit()
-            existing = None
     if existing is not None:
         return _attempt_out(db, existing, test, deck_id, title)
 
     wanted = set(test.word_ids)
-    if only_weak:
-        wanted &= _weak_word_ids(db, test, member)
     words = [word for word in _spellable_words(db, deck_id) if word.id in wanted]
     if not words:
         raise ApiError(409, "no_words", "There are no words to test")

@@ -23,10 +23,10 @@ Earlier attempts stay as data. A page left open notices within 30 seconds, so a 
 **The result is built from a lesson's finish screen (ADR 0024),** so it reads as the same product: the score in a ring on the stage, with the pass mark shown if it fell short, a title and a line beneath, then word rows, with the way on at the bottom.
 A pass gets the same celebration as a lesson; falling short stays calm, in grey and never red. The owner rejected a first, plainer page as ugly and foreign to the app.
 
-**The feedback tells three things apart:** «Ошибки», with what was written; «Пропущено»; and «Не успели», words the time ran out on. Skipped words join «Слова для работы» too.
+**The feedback tells three things apart:** «Ошибки», with what was written; «Пропущено»; and «Не успели», words the time ran out on.
 
 **Misspelled and skipped words go to «Трудные».** Each counts as a miss on the spelling ladder (ADR 0026) as the timed attempt finishes, however it finishes. Words the time ran out on
-don't count: not reaching a word says nothing about it. A word right in a test moves nothing, so only practice moves a word up. Practice attempts don't feed it. ADR 0046 kept tests apart from
+don't count: not reaching a word says nothing about it. A word right in a test moves nothing, so only practice moves a word up. Practice attempts don't feed it. **Hard words live there alone:** the group's page no longer lists a student's «Слова для работы» (ADR 0046), at the owner's request, since one place is enough. ADR 0046 kept tests apart from
 the ladder; a test still keeps no promise and moves no memory schedule.
 
 **The ladder no longer asks that a word was met in a lesson.** A test can put a word there first, and it would otherwise silently never appear. New words and «Вразброс» still draw only from words met.

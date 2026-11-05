@@ -304,7 +304,7 @@ test('someone who starts and never comes back still gets a result', async ({ pag
   await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 10']);
 });
 
-test('practice stays private, shows its mistakes, and clears weak words', async ({ page, context, browser }) => {
+test('practice stays private and shows its mistakes', async ({ page, context, browser }) => {
   const group = await ownerGroup(context, 3);
   await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
 
@@ -326,18 +326,6 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
   await expect(meaning(annaPage)).toBeVisible();
   await answerAll(annaPage, ['неудача']);
   await button(annaPage, 'Готово').click();
-
-  const weak = annaPage.getByRole('region', { name: /Слова для работы/ });
-  await expect(annaPage.getByRole('heading', { name: 'Слова для работы: 1' })).toBeVisible();
-  await expect(weak).toContainText('setback');
-  await button(annaPage, 'Потренировать').click();
-  await expect(annaPage.getByText('0 / 1')).toBeVisible();
-  await expect(meaning(annaPage)).toHaveText('неудача');
-  await build(annaPage, 'setback');
-  await button(annaPage, 'Дальше').click();
-  await expect(annaPage.getByRole('img', { name: '1 из 1' })).toBeVisible();
-  await button(annaPage, 'Готово').click();
-  await expect(annaPage.getByRole('heading', { name: /Слова для работы/ })).toHaveCount(0);
 
   // The group knows nothing of it.
   await openDeckTest(page);
@@ -506,6 +494,9 @@ test('words misspelled and skipped in a test wait in «Трудные» on the d
 
   // On the deck's page, in individual practice.
   await expect(annaPage.getByRole('heading', { level: 1, name: 'Unit 4' })).toBeVisible();
+  // Hard words live in «Трудные», in one place: none on the group's page.
+  await expect(annaPage.locator('main')).not.toContainText(WORDS[misspelled]);
+  await expect(annaPage.locator('main')).not.toContainText(WORDS[skipped]);
   await annaPage.getByRole('button', { name: 'Сегодня' }).click();
   await annaPage
     .getByRole('button', { name: /Unit 4/ })

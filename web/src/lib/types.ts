@@ -566,11 +566,6 @@ export interface TestResultRow {
   score: TestScore | null;
 }
 
-export interface WeakWord {
-  word: string;
-  translation: string;
-}
-
 export interface TestDetail {
   deck_id: string;
   title: string;
@@ -589,7 +584,6 @@ export interface TestDetail {
     can_start: boolean;
     /** An unfinished practice to go back to. */
     practice_attempt_id: string | null;
-    weak: WeakWord[];
   };
 }
 

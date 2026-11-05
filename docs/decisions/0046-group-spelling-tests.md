@@ -1,7 +1,7 @@
 # 0046 — A group's spelling tests: a timed class test, private practice, open results
 
 **Status:** Accepted (the owner's decisions, 4 November 2026). Amended by ADR 0048: words can be skipped, each opening gives a new
-attempt, and misses reach «Трудные».
+attempt, misses reach «Трудные», and the group's page no longer lists weak words.
 
 ## Context
 Students come back to class, the teacher asks them to take a spelling test of the deck, and each result
@@ -55,7 +55,7 @@ open. The group's page counts everyone still to take it («Сдали 2 из 4»
 While a test is open the page
 refreshes every 30 seconds, so a teacher sees results arrive.
 
-**Weak words** are the words whose latest answered try, in either kind, was wrong, so getting one right takes it off.
+**Weak words** (removed by ADR 0048, which sends a test's misses to «Трудные» instead) were the words whose latest answered try, in either kind, was wrong, so getting one right takes it off.
 They are the student's alone, and hidden while their timed test runs. «Потренировать» practises just those.
 
 **Analytics stay in our database,** as `docs/product-requirements.md` requires: every word of every attempt, its order,

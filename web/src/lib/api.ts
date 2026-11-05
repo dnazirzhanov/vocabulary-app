@@ -212,13 +212,8 @@ export const api = {
   openTest: (groupId: string, deckId: string, open: boolean) =>
     request<TestDetail>('PUT', `/groups/${groupId}/tests/${deckId}/open`, { open }),
   /** Starts, or returns the attempt already running with its saved order and deadline. */
-  startTestAttempt: (groupId: string, deckId: string, kind: TestAttemptKind, onlyWeak = false) =>
-    request<TestAttempt>(
-      'POST',
-      `/groups/${groupId}/tests/${deckId}/attempts`,
-      { kind, only_weak: onlyWeak },
-      TEST_TIMEOUT_MS,
-    ),
+  startTestAttempt: (groupId: string, deckId: string, kind: TestAttemptKind) =>
+    request<TestAttempt>('POST', `/groups/${groupId}/tests/${deckId}/attempts`, { kind }, TEST_TIMEOUT_MS),
   testAttempt: (attemptId: string) => request<TestAttempt>('GET', `/test-attempts/${attemptId}`),
   // Safe to retry: the first answer to a question stands.
   answerTest: (attemptId: string, questionId: string, answer: string) =>

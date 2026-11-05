@@ -27,7 +27,6 @@ interface DeckTestScreenProps {
 /**
  * One deck's test (ADR 0046): one main action for where things stand, and below it who passed, who
  * didn't and who hasn't taken it yet, by name in the report's own style. Never ranked, nothing red.
- * A student's weak words come last and are theirs alone.
  */
 export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScreenProps) {
   const [detail, setDetail] = useState<TestDetail | null>(null);
@@ -84,8 +83,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   }
 
   const { test, mine, can_manage: manager } = detail;
-  const start = (kind: TestAttemptKind, onlyWeak = false) =>
-    run(async () => onRun(await api.startTestAttempt(groupId, deckId, kind, onlyWeak)));
+  const start = (kind: TestAttemptKind) => run(async () => onRun(await api.startTestAttempt(groupId, deckId, kind)));
   const setOpen = (value: boolean) => run(async () => setDetail(await api.openTest(groupId, deckId, value)));
 
   const running = mine.state === 'running';
@@ -197,29 +195,6 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
           {/* Nobody is behind on a test that has never been open. */}
           {(test?.is_open || detail.passed.length + detail.failed.length > 0) && (
             <Results title="Ещё не проходили" state="off" rows={detail.not_taken} />
-          )}
-
-          {mine.weak.length > 0 && (
-            <section aria-labelledby="weak-title" className={styles.weak}>
-              <h2 id="weak-title" className={report.namesTitle}>
-                Слова для работы: {mine.weak.length}
-              </h2>
-              <ul className={styles.weakWords}>
-                {mine.weak.map((word) => (
-                  <li key={word.word}>
-                    <strong lang="en">{word.word}</strong> <span>{word.translation}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                className={shared.smallButton}
-                disabled={busy}
-                onClick={() => void start('practice', true)}
-              >
-                Потренировать
-              </button>
-            </section>
           )}
         </div>
       </main>

@@ -104,12 +104,10 @@ class Class:
         assert self.save(**settings).status_code == 200
         assert self.open().status_code == 200
 
-    def start(
-        self, user: str, kind: str = "test", moment: datetime = NOW, only_weak: bool = False
-    ) -> Any:
+    def start(self, user: str, kind: str = "test", moment: datetime = NOW) -> Any:
         return self.client.post(
             f"{self.url}/attempts",
-            json={"kind": kind, "only_weak": only_weak},
+            json={"kind": kind},
             headers=as_(user, moment),
         )
 
@@ -558,7 +556,7 @@ def test_two_tabs_starting_at_the_same_moment_make_one_attempt(
 
     monkeypatch.setattr(group_tests, "_open_attempt", stale)
     user = db.scalars(select(User).where(User.auth_subject == "dev|pavel")).one()
-    second = group_tests.start_attempt(db, user, room.group_id, room.deck_id, "test", False, NOW)
+    second = group_tests.start_attempt(db, user, room.group_id, room.deck_id, "test", NOW)
     assert str(second.id) == first["id"]
     assert (
         db.scalar(
@@ -667,7 +665,7 @@ def test_a_timed_out_attempt_cannot_be_started_again(client: TestClient) -> None
     assert again.json()["error"]["code"] == "already_taken"
 
 
-# --- results and weak words -----------------------------------------------------------------
+# --- results -------------------------------------------------------------------------------
 
 
 def test_results_are_open_to_the_group_without_ranking(client: TestClient) -> None:
@@ -718,7 +716,7 @@ def test_practice_is_private_and_unlimited(client: TestClient) -> None:
     )
 
 
-def test_an_unfinished_practice_resumes_and_a_weak_one_replaces_it(client: TestClient) -> None:
+def test_an_unfinished_practice_resumes(client: TestClient) -> None:
     room = Class(client, ["setback", "bargain", "harvest"])
     room.save()
     room.take("pavel", wrong=1, kind="practice")
@@ -726,10 +724,6 @@ def test_an_unfinished_practice_resumes_and_a_weak_one_replaces_it(client: TestC
     room.answer(left_open, "zzz", "pavel")
     assert room.detail("pavel")["mine"]["practice_attempt_id"] == left_open["id"]
     assert room.start("pavel", "practice").json()["id"] == left_open["id"]
-
-    weak = room.start("pavel", "practice", only_weak=True).json()
-    assert weak["id"] != left_open["id"]
-    assert weak["total"] == len(room.detail("pavel")["mine"]["weak"])
 
 
 def test_practice_waits_for_a_running_test(client: TestClient) -> None:
@@ -740,49 +734,6 @@ def test_practice_waits_for_a_running_test(client: TestClient) -> None:
     assert (refused.status_code, refused.json()["error"]["code"]) == (409, "test_running")
     # With the time over, it is available again.
     assert room.start("pavel", "practice", NOW + timedelta(minutes=5)).status_code == 200
-
-
-def test_weak_words_are_mine_and_leave_when_i_get_them_right(client: TestClient) -> None:
-    room = Class(client, ["setback", "bargain", "harvest"])
-    room.ready()
-    finished = room.take("pavel", wrong=2)
-    weak = room.detail("pavel")["mine"]["weak"]
-    assert len(weak) == 2 and weak[0]["translation"].startswith("перевод ")
-    assert {item["word"] for item in weak} == {
-        mistake["word"] for mistake in finished["result"]["mistakes"]
-    }
-    # Nobody else sees them, nor do words I never answered wrongly count.
-    assert room.detail("ivan")["mine"]["weak"] == []
-    assert "weak" not in json.dumps(room.detail("olga")["failed"])
-
-    tomorrow = NOW + timedelta(days=1)
-    practice = room.start("pavel", "practice", tomorrow, only_weak=True).json()
-    assert practice["total"] == 2
-    while practice["question"]:
-        right = right_word(practice["id"], practice["question"]["id"])
-        practice = room.answer(practice, right, "pavel", tomorrow)
-    assert room.detail("pavel")["mine"]["weak"] == []
-    # The score in the group stays what the test gave.
-    assert room.detail("pavel")["failed"][0]["score"]["correct"] == 1
-    refused = room.start("pavel", "practice", only_weak=True)
-    assert refused.json()["error"]["code"] == "no_words"
-
-
-def test_words_never_reached_are_not_weak_but_are_in_the_result(client: TestClient) -> None:
-    room = Class(client, ["setback", "bargain"])
-    room.ready(minutes=5)
-    room.start("pavel")
-    assert room.detail("pavel", NOW + timedelta(minutes=5))["mine"]["weak"] == []
-
-
-def test_a_running_test_hides_earlier_weak_words(client: TestClient) -> None:
-    room = Class(client, ["setback", "bargain"])
-    room.ready()
-    room.take("pavel", wrong=2, kind="practice")
-    assert len(room.detail("pavel")["mine"]["weak"]) == 2
-    room.start("pavel")
-    mine = room.detail("pavel")["mine"]
-    assert (mine["state"], mine["weak"]) == ("running", [])
 
 
 # --- skipping --------------------------------------------------------------------------------
@@ -948,23 +899,6 @@ def test_a_word_skipped_when_time_ran_out_counts_as_skipped(client: TestClient) 
     assert result["result"]["timed_out"] is False
 
 
-def test_skipped_words_are_weak_words_until_spelled_right(client: TestClient) -> None:
-    room = Class(client, ["setback", "bargain"])
-    room.ready()
-    attempt = room.start("pavel").json()
-    skipped = _right(attempt)
-    attempt = room.skip(attempt, "pavel")
-    attempt = room.answer(attempt, _right(attempt), "pavel")
-    room.skip(attempt, "pavel", again=True)
-    assert [item["word"] for item in room.detail("pavel")["mine"]["weak"]] == [skipped]
-
-    tomorrow = NOW + timedelta(days=1)
-    practice = room.start("pavel", "practice", tomorrow, only_weak=True).json()
-    assert practice["total"] == 1
-    room.answer(practice, skipped, "pavel", tomorrow)
-    assert room.detail("pavel", tomorrow)["mine"]["weak"] == []
-
-
 def test_practice_can_skip_too(client: TestClient) -> None:
     room = Class(client, ["setback", "bargain"])
     room.save()
@@ -1098,7 +1032,7 @@ def test_two_tabs_retaking_make_one_attempt(
 
     monkeypatch.setattr(group_tests, "_open_attempt", stale)
     user = db.scalars(select(User).where(User.auth_subject == "dev|pavel")).one()
-    second = group_tests.start_attempt(db, user, room.group_id, room.deck_id, "test", False, NOW)
+    second = group_tests.start_attempt(db, user, room.group_id, room.deck_id, "test", NOW)
     assert str(second.id) == first["id"]
 
 
@@ -1191,6 +1125,16 @@ def test_the_deck_page_counts_them_for_someone_who_met_no_word(client: TestClien
     assert stats["spelling_today"]["met"] == 0
 
 
+def test_the_groups_page_holds_no_list_of_hard_words(client: TestClient) -> None:
+    """They live in «Трудные», in one place (ADR 0048)."""
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    went = take_with(room, "pavel", wrong=1, skip=1)
+    page = json.dumps(room.detail("pavel"))
+    for word in went["wrong"] + went["skipped"]:
+        assert word not in page
+
+
 def test_a_word_from_a_test_can_be_practised_there(client: TestClient) -> None:
     room = Class(client, ["setback"])
     room.ready()
@@ -1242,7 +1186,6 @@ def test_practice_in_the_group_does_not_reach_hard_words(client: TestClient) -> 
     room.save()
     room.take("pavel", wrong=2, kind="practice")
     assert hard_words(client, "pavel") == []
-    assert len(room.detail("pavel")["mine"]["weak"]) == 2
 
 
 def test_a_retake_reaches_hard_words_again_and_a_right_one_moves_nothing(

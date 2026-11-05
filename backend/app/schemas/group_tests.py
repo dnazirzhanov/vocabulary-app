@@ -34,8 +34,6 @@ class OpenTestIn(_Input):
 
 class StartAttemptIn(_Input):
     kind: AttemptKind
-    # Practice only my weak words, rather than all the test's.
-    only_weak: bool = False
 
 
 class AnswerIn(_Input):
@@ -88,11 +86,6 @@ class ResultRowOut(BaseModel):
     score: ScoreOut | None
 
 
-class WeakWordOut(BaseModel):
-    word: str
-    translation: str
-
-
 class MyTestOut(BaseModel):
     state: Literal["none", "running", "done"]
     attempt_id: UUID | None
@@ -103,8 +96,6 @@ class MyTestOut(BaseModel):
     can_start: bool
     # An unfinished practice to go back to.
     practice_attempt_id: UUID | None
-    # Words whose latest answer was wrong: mine alone. Empty while my timed test runs.
-    weak: list[WeakWordOut]
 
 
 class TestDetailOut(BaseModel):
