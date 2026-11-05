@@ -1,6 +1,7 @@
 """Simulated students against a real server, limited like the free host. A throttled uvicorn (the
 CPU share enforced by pausing the process), a proxy before Postgres (network delay, bytes counted).
-Usage: uv run python -m loadtest.run --students 30 --seconds 120 --cpu 0.1"""
+Usage: uv run python -m loadtest.run --students 30 --seconds 120 --cpu 0.1
+A class taking a spelling test together (ADR 0046): add --class-test (--seconds is then ignored)."""
 
 from __future__ import annotations
 
@@ -22,12 +23,13 @@ from typing import Any
 
 import httpx2
 
-from loadtest.seed import load_url
+from loadtest.seed import ZONE, load_url
 
 PORT = 8123
 PROXY_PORT = 55433
 # The web app gives up on a request after this long (web/src/lib/api.ts).
 CLIENT_TIMEOUT = 15.0
+TEST_TIMEOUT = 30.0  # for starting a test and answering in it
 PERIOD = 0.1
 BUSY_RETRIES = 3
 
@@ -107,14 +109,17 @@ async def call(
     path: str,
     headers: dict[str, str],
     body: Any = None,
+    timeout: float = CLIENT_TIMEOUT,
 ) -> httpx2.Response | None:
     started = time.perf_counter()
     # As the web app does (web/src/lib/api.ts): a refused request is tried again after a moment.
     for attempt in range(BUSY_RETRIES + 1):
         try:
-            response = await client.request(method, path, headers=headers, json=body)
+            response = await client.request(
+                method, path, headers=headers, json=body, timeout=timeout
+            )
         except httpx2.HTTPError:
-            stats.times[name].append(CLIENT_TIMEOUT)
+            stats.times[name].append(timeout)
             stats.failures[name] += 1
             return None
         if response.status_code != 503 or attempt == BUSY_RETRIES:
@@ -195,6 +200,125 @@ async def journey(
         )
 
 
+async def class_test(students: int, stats: Stats, seconds_per_word: tuple[float, float]) -> None:
+    """A whole class on one timed test at once: the teacher says go, everyone opens it within 15
+    seconds and spells 30 words, while the teacher's page refreshes every 30 seconds. A slow answer
+    here is taken out of a student's time, which is why this has its own scenario."""
+    rng = random.Random(46)
+    run = f"{time.time_ns():x}"[-8:]
+    words = {f"перевод {index}": _spellable(index) for index in range(30)}
+    limits = httpx2.Limits(max_connections=None)
+    async with httpx2.AsyncClient(
+        base_url=f"http://localhost:{PORT}", timeout=CLIENT_TIMEOUT, limits=limits
+    ) as client:
+        teacher = {"X-Dev-User": f"teacher-{run}", "X-Time-Zone": ZONE}
+
+        async def setup(path: str, body: Any, method: str = "POST") -> Any:
+            response = await client.request(
+                method, f"/api{path}", headers=teacher, json=body, timeout=120
+            )
+            response.raise_for_status()
+            return response.json()
+
+        group = await setup("/groups", {"name": "Класс", "nickname": "Учитель"})
+        deck = await setup("/decks", {"title": "Unit 4"})
+        for translation, headword in words.items():
+            await setup(
+                f"/decks/{deck['id']}/words",
+                {
+                    "headword": headword,
+                    "pos": "noun",
+                    "translation": translation,
+                    "example": f"An example with {headword}.",
+                },
+            )
+        await setup(f"/decks/{deck['id']}/publish", {"group_id": group["id"]})
+        test = f"/api/groups/{group['id']}/tests/{deck['id']}"
+        await setup(f"/groups/{group['id']}/tests/{deck['id']}", {"minutes": 30}, "PUT")
+        await setup(f"/groups/{group['id']}/tests/{deck['id']}/open", {"open": True}, "PUT")
+
+        def pupil(number: int) -> dict[str, str]:
+            return {"X-Dev-User": f"pupil-{run}-{number}", "X-Time-Zone": ZONE}
+
+        # They joined the group long before the day of the test.
+        for number in range(students):
+            joined = await client.post(
+                f"/api/groups/join/{group['invite_code']}",
+                json={"nickname": f"Ученик {number}"},
+                headers=pupil(number),
+                timeout=120,
+            )
+            joined.raise_for_status()
+
+        async def student(number: int) -> None:
+            headers = pupil(number)
+            await asyncio.sleep(rng.uniform(0, 15))
+            await call(client, stats, "tests_page", "GET", test, headers)
+            started = await call(
+                client,
+                stats,
+                "test_start",
+                "POST",
+                f"{test}/attempts",
+                headers,
+                {"kind": "test"},
+                TEST_TIMEOUT,
+            )
+            attempt = started.json() if started is not None else None
+            while attempt and attempt.get("question"):
+                await asyncio.sleep(rng.uniform(*seconds_per_word))
+                question = attempt["question"]
+                answered = await call(
+                    client,
+                    stats,
+                    "test_answer",
+                    "POST",
+                    f"/api/test-attempts/{attempt['id']}/answers",
+                    headers,
+                    {
+                        "question_id": question["id"],
+                        "answer": words[question["prompt"]["translation"]],
+                    },
+                    TEST_TIMEOUT,
+                )
+                attempt = answered.json() if answered is not None else attempt
+            if attempt and attempt.get("result"):
+                stats.lessons += 1
+            await call(client, stats, "tests_page", "GET", test, headers)
+
+        async def teacher_page(finished: asyncio.Event) -> None:
+            while not finished.is_set():
+                await call(client, stats, "tests_page", "GET", test, teacher)
+                await asyncio.sleep(30)
+
+        finished = asyncio.Event()
+        watching = asyncio.create_task(teacher_page(finished))
+        await asyncio.gather(*(student(number) for number in range(students)))
+        finished.set()
+        await watching
+
+
+def _spellable(index: int) -> str:
+    """A made-up word of letters only, different for each index."""
+    return "".join("abcdefghij"[int(digit)] for digit in f"{index:02d}") + "word"
+
+
+def _test_table_sizes(database: str) -> dict[str, float]:
+    sql = (
+        "SELECT (SELECT count(*) FROM test_attempts), (SELECT count(*) FROM test_questions),"
+        " pg_total_relation_size('test_attempts'), pg_total_relation_size('test_questions')"
+    )
+    output = subprocess.run(
+        ["psql", "-At", "-F", " ", database, "-c", sql], capture_output=True, text=True, check=True
+    ).stdout.split()
+    attempts, questions, attempt_bytes, question_bytes = map(int, output)
+    return {
+        "attempts": attempts,
+        "questions": questions,
+        "bytes_per_question": round((attempt_bytes + question_bytes) / max(questions, 1)),
+    }
+
+
 def process_usage(pid: int) -> tuple[float, float]:
     """(CPU seconds, resident MB)."""
     output = subprocess.run(
@@ -250,6 +374,7 @@ def main() -> None:
     parser.add_argument("--db-delay-ms", type=float, default=2, help="API to database, each way")
     parser.add_argument("--population", type=int, default=1000)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--class-test", action="store_true", help="a class on one timed test")
     args = parser.parse_args()
 
     url = load_url()
@@ -301,7 +426,10 @@ def main() -> None:
         from_db.value = to_db.value = 0
         stats = Stats()
         started = time.monotonic()
-        asyncio.run(drive(args.students, args.seconds, args.population, stats))
+        if args.class_test:
+            asyncio.run(class_test(args.students, stats, (6.0, 14.0)))
+        else:
+            asyncio.run(drive(args.students, args.seconds, args.population, stats))
         elapsed = time.monotonic() - started
         cpu_after, rss = process_usage(server.pid)
         requests = sum(len(values) for values in stats.times.values())
@@ -327,6 +455,9 @@ def main() -> None:
             "api_response_mb": round(stats.bytes / 1e6, 1),
             "endpoints": stats.report(),
         }
+        if args.class_test:
+            result["tests_finished"] = result.pop("lessons_finished")
+            result["test_tables"] = _test_table_sizes(database)
         print(json.dumps(result, indent=1, ensure_ascii=False))
         if args.out:
             with open(args.out, "a") as file:

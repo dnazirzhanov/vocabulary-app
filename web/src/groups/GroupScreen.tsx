@@ -13,7 +13,7 @@ import {
 import type { Assignment, Board, BoardRow, Group } from '../lib/types.ts';
 import { DayDots, StateMark } from '../promise/DayDots.tsx';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
-import { BackIcon, CheckIcon } from '../ui/icons.tsx';
+import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
@@ -37,6 +37,8 @@ interface GroupScreenProps {
   onStudyDeck: (deckId: string) => void;
   /** To the lesson on the home page. */
   onStudy: () => void;
+  /** The group's spelling tests (ADR 0046). */
+  onTests: () => void;
   onBack: () => void;
   onLeft: () => void;
 }
@@ -53,6 +55,7 @@ export function GroupScreen({
   onOpenDeck,
   onStudyDeck,
   onStudy,
+  onTests,
   onBack,
   onLeft,
 }: GroupScreenProps) {
@@ -119,6 +122,20 @@ export function GroupScreen({
             onInvite={() => setInviting(true)}
             onRenamed={(renamed) => setBoard((current) => current && { ...current, group: renamed })}
           />
+
+          {(board.has_tests || (board.assignments.length > 0 && group.can.includes('manage_tests'))) && (
+            <button type="button" className={styles.testsRow} onClick={onTests}>
+              <span>
+                <strong>Тесты</strong>
+                {board.latest_test && (
+                  <small>
+                    Сдали {board.latest_test.passed} из {board.latest_test.students} · {board.latest_test.title}
+                  </small>
+                )}
+              </span>
+              <ForwardIcon aria-hidden="true" />
+            </button>
+          )}
 
           <section aria-labelledby="today-title" className={styles.section}>
             <div className={styles.sectionHead}>

@@ -48,3 +48,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0043](0043-accounts.md) | Accounts for a class: codes by email through a free Gmail sender, reset, per-device sign-out, deleting the login too with the password asked again | Accepted |
 | [0044](0044-capacity-and-cleanup.md) | Old answers give way nightly with what screens need kept apart; a full server refuses at once and the app retries; friends screens read only the days they show | Accepted |
 | [0045](0045-first-run-two-questions.md) | Login first; a new password typed twice; «Выйти» on the main screen; first run as two small questions with no pitch or pictures | Accepted |
+| [0046](0046-group-spelling-tests.md) | A group's spelling tests: the owner sets words, time and pass mark and opens it; one timed attempt with results open to the group; private unlimited practice; each attempt's order saved; the server's clock; weak words for each student | Accepted |

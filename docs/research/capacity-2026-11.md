@@ -87,6 +87,26 @@ Everyone in one zone is due within minutes (ADR 0042). Over this database, with 
 15 ms of CPU a phone. At 0.1 CPU, with database and push-service round trips, **an estimated 0.5–0.7 seconds a phone,** so 80–100 in
 a 50-second run, or about 200 in the morning window and 300 at 17:00 with hourly runs. Past that, the last in the order miss that window.
 
+## A class taking a spelling test together
+A test is the hardest moment for the server, since a slow answer comes out of a student's time (ADR 0046). Measured 5 November 2026 with
+`--class-test`: 30 students open the test within 15 seconds, spell 30 words at 6–14 seconds each, and the teacher's page refreshes every 30
+seconds. Same setup and same limits as above, including the Apple M1.
+
+| Server | Finished | Start, typical | Answer, typical | Answer, slow (p95) | Failed requests | Server's share used |
+|---|---|---|---|---|---|---|
+| 0.1 CPU | 30 of 30 | 1.3 s | 0.64 s | 0.82 s | 0 | 0.038 of 0.1 |
+| 0.05 CPU | 30 of 30 | 9.7 s | 2.4 s | 4.9 s | 1 answer, sent again | 0.045 of 0.05 |
+
+- **What it costs a student:** the waiting is about 20 seconds over 30 words at 0.1 CPU, and about 70 seconds at 0.05, plus the start. A 10-minute test
+  is then about 3% or about 12% shorter in practice. The timer does not stop for it.
+- **0.05 CPU is at its limit.** Before test requests were given 30 seconds rather than 15, 9 of 30 students failed to start in that run. It
+  works, without room to spare, so a real host at that speed should get more time on the test or more CPU.
+- **Unmeasured here:** the same run with other classes on the server at once, and any real host. Neither ran in this measurement.
+
+**Size:** 281 bytes a question, attempts included, measured over 2,130 questions. Five 30-word tests for 1,000 students is about 42 MB, and twenty about
+170 MB, against about 245 MB in use and a 500 MB free limit. Test results stay as long as the test, so this one grows; many tests per student will
+eventually need old results thinned.
+
 ## Next, in order
 1. **Run this on the deployed free host,** before a class. It replaces the biggest assumption here.
 2. **Read less per screen** (`deck_stats`, `progress`, `pace`, `library`), for both traffic and CPU.
@@ -102,5 +122,6 @@ uv run python -m app.cli load-content ../content/a1-a2 ../content/b1-b2 ../conte
 uv run python -m loadtest.seed --students 1000 --days 180
 uv run python -m app.cli clean-up   # to measure with the cleanup
 uv run python -m loadtest.run --students 15 --cpu 0.1 --seconds 240
+uv run python -m loadtest.run --class-test --students 30 --cpu 0.1   # about 8 minutes
 ```
 The tools refuse any database whose name doesn't end in `_load`, since the seed empties it.

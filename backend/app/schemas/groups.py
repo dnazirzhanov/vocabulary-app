@@ -18,6 +18,7 @@ Action = Literal[
     "remove_member",
     "transfer_ownership",
     "delete_group",
+    "manage_tests",
 ]
 
 Nickname = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
@@ -206,6 +207,15 @@ class AssignmentOut(BaseModel):
     members: list[AssignmentMemberOut] | None
 
 
+class LatestTestOut(BaseModel):
+    """The group page's line about tests (ADR 0046): the test last taken, and how it went."""
+
+    title: str
+    passed: int
+    # Everyone the test's results list: all but whoever set it, unless they took it too.
+    students: int
+
+
 class BoardOut(BaseModel):
     group: GroupOut
     # The group's today, and by the promise how many members were promised it and did it.
@@ -220,3 +230,6 @@ class BoardOut(BaseModel):
     rows: list[BoardRow]
     totals: TotalsOut
     assignments: list[AssignmentOut]
+    # Whether any of the group's decks has a test yet (ADR 0046).
+    has_tests: bool = False
+    latest_test: LatestTestOut | None = None

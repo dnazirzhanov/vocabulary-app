@@ -19,6 +19,7 @@ RIGHTS: Final[dict[Action, frozenset[str]]] = {
     "remove_member": frozenset({"owner"}),
     "transfer_ownership": frozenset({"owner"}),
     "delete_group": frozenset({"owner"}),
+    "manage_tests": frozenset({"owner"}),
 }
 
 

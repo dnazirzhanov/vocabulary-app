@@ -11,7 +11,7 @@ from sqlalchemy import delete, func, literal, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import LearningSession, ReviewAttempt, StudyDayTotal, User
+from app.models import GroupTestAttempt, LearningSession, ReviewAttempt, StudyDayTotal, User
 from app.services.progress import RECALL_RATE_DAYS
 from app.services.study_days import HISTORY_DAYS
 
@@ -88,5 +88,11 @@ def clean_up(db: Session, now: datetime, max_seconds: float = MAX_SECONDS) -> Cl
         if time.monotonic() - started > max_seconds:
             return Cleaned(lessons, answers, finished=False)
     db.execute(delete(StudyDayTotal).where(StudyDayTotal.day < (now - KEEP_DAY_TOTALS).date()))
+    # Practice is unlimited, so it can't stay for ever as a test's results do (ADR 0046).
+    db.execute(
+        delete(GroupTestAttempt).where(
+            GroupTestAttempt.kind == "practice", GroupTestAttempt.started_at < cutoff
+        )
+    )
     db.commit()
     return Cleaned(lessons, answers, finished=True)

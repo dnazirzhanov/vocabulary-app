@@ -18,7 +18,7 @@ from app.schemas.groups import (
     RenameGroupIn,
     TransferIn,
 )
-from app.services import groups
+from app.services import group_tests, groups
 from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["groups"])
@@ -66,7 +66,9 @@ def group_board(
     group_id: UUID, user: CurrentUser, db: DbSession, now: Now, period: Period = "week"
 ) -> BoardOut:
     """The members' statistics over a week, a month or all time, ranked three ways (ADR 0023)."""
-    return groups.board(db, user, group_id, now, period)
+    out = groups.board(db, user, group_id, now, period)
+    out.has_tests, out.latest_test = group_tests.board_line(db, group_id, now)
+    return out
 
 
 @router.patch("/groups/{group_id}")

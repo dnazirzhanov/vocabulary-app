@@ -9,7 +9,13 @@ from app.models.content import (
     GlossaryForm,
     Word,
 )
-from app.models.groups import Group, GroupMember
+from app.models.groups import (
+    Group,
+    GroupMember,
+    GroupTest,
+    GroupTestAttempt,
+    GroupTestQuestion,
+)
 from app.models.learning import (
     LearningSession,
     ReviewAttempt,
@@ -38,6 +44,9 @@ __all__ = [
     "GlossaryForm",
     "Group",
     "GroupMember",
+    "GroupTest",
+    "GroupTestAttempt",
+    "GroupTestQuestion",
     "LearningSession",
     "PaceDismissal",
     "PromiseChange",
