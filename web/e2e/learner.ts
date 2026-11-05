@@ -38,9 +38,8 @@ export { expect };
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
-/** «Прогресс» → ⚙: sounds, reminders and the account live in a window there (ADR 0034). */
+/** ⚙ on any page: sounds, notifications and the account live in a window there (ADR 0042). */
 export async function openSettings(page: Page) {
-  await page.getByRole('button', { name: 'Прогресс' }).first().click();
   await page.getByRole('button', { name: 'Настройки' }).click();
   await expect(page.getByRole('dialog', { name: 'Настройки' })).toBeVisible();
 }
@@ -134,4 +133,36 @@ export async function finishSession(
     await study(page, seen.has(headword) ? 'Хорошо' : (ratings[headword] ?? 'Хорошо'));
     seen.add(headword);
   }
+}
+
+export const PUSH_KEY = 'BKt2ZcGWyL1nHxVrBWc05nQd1LgcNTZ8aEZNAWJ3aKAlXU_nO7YWV2HNQo9IRbbmLg4R0KF95W6nLsQqEGa2RWE';
+
+/**
+ * Real delivery needs a push service and the server's keys. Here the browser's push is a stand-in
+ * and the server's key is given. `answer`: what the learner tells the browser's popup.
+ */
+export async function fakePush(page: Page, answer: NotificationPermission = 'granted') {
+  await page.addInitScript((given) => {
+    let current: { endpoint: string; toJSON: () => object; unsubscribe: () => Promise<boolean> } | null = null;
+    const subscription = () => ({
+      endpoint: 'https://push.example.com/send/e2e',
+      toJSON: () => ({ endpoint: 'https://push.example.com/send/e2e', keys: { p256dh: 'BKey', auth: 'auth' } }),
+      unsubscribe: async () => ((current = null), true),
+    });
+    let permission: NotificationPermission = 'default';
+    Object.defineProperty(Notification, 'permission', { get: () => permission, configurable: true });
+    Notification.requestPermission = async () => {
+      (window as unknown as { asked: number }).asked = ((window as unknown as { asked?: number }).asked ?? 0) + 1;
+      permission = given;
+      return given;
+    };
+    PushManager.prototype.subscribe = async function () {
+      current = subscription();
+      return current as unknown as PushSubscription;
+    };
+    PushManager.prototype.getSubscription = async function () {
+      return current as unknown as PushSubscription;
+    };
+  }, answer);
+  await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: PUSH_KEY } }));
 }

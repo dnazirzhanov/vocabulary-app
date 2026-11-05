@@ -55,7 +55,7 @@ image's steps were reproduced by hand.
     `REMINDERS_TOKEN`;
   - run it once by hand («Run workflow»). It should answer `{"sent": 0}`.
 - [ ] **Try it on one Android phone and one iPhone** (iPhone: Share → «На экран „Домой“» first):
-  - turn on «Напоминания о сроках»;
+  - turn on «Уведомления»;
   - give yourself a deck with a deadline tomorrow and leave today's words unlearned;
   - wait for the evening run.
 
@@ -76,7 +76,7 @@ image's steps were reproduced by hand.
 - [ ] **Students join and turn on reminders:**
   - sign up on their phones and join by the QR code (nickname only);
   - iPhones: add the app to the home screen first;
-  - turn on «Напоминания о сроках».
+  - turn on «Уведомления».
 - [ ] **Everyone finishes one lesson in class,** so problems show up while you are there.
 
 ## 7. During the pilot: what to watch, weekly

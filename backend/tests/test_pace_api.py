@@ -24,6 +24,10 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "daily_target_words": None,
         "study_days_per_week": 6,
         "ramp_enabled": True,
+        "notify_morning": True,
+        "notify_afternoon": True,
+        "notify_report": True,
+        "notify_deadline": True,
         "onboarded": False,
         "onboarded_at": None,
         # Пн–Сб until the learner chooses (ADR 0039).
@@ -36,6 +40,10 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "daily_target_words": 3,
         "study_days_per_week": 5,
         "ramp_enabled": True,
+        "notify_morning": True,
+        "notify_afternoon": True,
+        "notify_report": True,
+        "notify_deadline": True,
         "onboarded": True,
         "onboarded_at": DAY_1.isoformat().replace("+00:00", "Z"),
         # «5 days a week» is Пн–Пт; nothing was finished before, so it applies at once.

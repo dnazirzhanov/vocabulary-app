@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { BLOCKED, INSTALL, usePushState } from '../account/Reminders.tsx';
 import { api } from '../lib/api.ts';
 import { PRESETS, wordsLabel } from '../lib/pace.ts';
+import { enablePush } from '../lib/push.ts';
 import type { Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
@@ -13,48 +15,81 @@ interface GoalScreenProps {
   onDone: (me: Me) => void;
 }
 
-/** First run: two small questions, one at a time, and nothing else (ADR 0045). */
+type Step = 'words' | 'days' | 'notify' | 'how';
+
+/** First run: small questions, one at a time, and nothing else (ADR 0042, 0045). */
 export function GoalScreen({ me, onDone }: GoalScreenProps) {
-  const [step, setStep] = useState<'words' | 'days'>('words');
+  const [step, setStep] = useState<Step>('words');
   const [words, setWords] = useState<number | null>(me.daily_target_words);
   const [weekdays, setWeekdays] = useState(me.promise.pending?.weekdays ?? me.promise.weekdays);
+  const [push] = usePushState();
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Each question starts with focus on its heading, like a new page.
   useEffect(() => headingRef.current?.focus(), [step]);
 
-  const save = () =>
-    run(async () => {
-      // Nothing is finished yet, so the promise applies at once; the pace's answer carries it back.
-      await api.setPromise(weekdays);
-      onDone(await api.updateMe({ daily_target_words: words ?? undefined }));
+  // Asked only where saying yes can lead somewhere.
+  const asks = push === 'off' || push === 'denied' || push === 'needs_install';
+
+  const finish = async () => {
+    // Nothing is finished yet, so the promise applies at once; the pace's answer carries it back.
+    await api.setPromise(weekdays);
+    onDone(await api.updateMe({ daily_target_words: words ?? undefined }));
+  };
+
+  /** A web app can't open a phone's settings: the browser's own question is the way in. */
+  const sayYes = () => {
+    if (push !== 'off') {
+      setStep('how');
+      return;
+    }
+    void run(async () => {
+      // Whatever comes of it, the learner goes on: notifications can wait, the app can't.
+      await enablePush().catch(() => null);
+      await finish();
     });
+  };
+
+  const heading = (text: string) => (
+    <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
+      {text}
+    </h1>
+  );
+  const problem = error && (
+    <p className={styles.error} role="alert">
+      {error}
+    </p>
+  );
+  const back: Step | null = step === 'days' ? 'words' : step === 'notify' ? 'days' : step === 'how' ? 'notify' : null;
+  const position = step === 'words' ? 0 : step === 'days' ? 1 : 2;
+  const total = asks ? 3 : 2;
 
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        {step === 'days' ? (
-          <button type="button" className={styles.back} onClick={() => setStep('words')}>
+        {back ? (
+          <button type="button" className={styles.back} onClick={() => setStep(back)}>
             <BackIcon aria-hidden="true" /> Назад
           </button>
         ) : (
           <span />
         )}
         <p className={styles.steps}>
-          <span className="visually-hidden">Вопрос {step === 'words' ? 1 : 2} из 2</span>
-          <span aria-hidden="true" className={styles.dot} data-active="true" />
-          <span aria-hidden="true" className={styles.dot} data-active={step === 'days'} />
+          <span className="visually-hidden">
+            Вопрос {position + 1} из {total}
+          </span>
+          {Array.from({ length: total }, (_, index) => (
+            <span key={index} aria-hidden="true" className={styles.dot} data-active={index <= position} />
+          ))}
         </p>
       </header>
 
       <main className={styles.main}>
         <div className={styles.question}>
-          {step === 'words' ? (
+          {step === 'words' && (
             <>
-              <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
-                Сколько новых слов в день?
-              </h1>
+              {heading('Сколько новых слов в день?')}
               <div className={styles.options}>
                 {PRESETS.map((preset) => (
                   <button
@@ -72,19 +107,43 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
                 ))}
               </div>
             </>
-          ) : (
+          )}
+          {step === 'days' && (
             <>
-              <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
-                В какие дни будете заниматься?
-              </h1>
+              {heading('В какие дни будете заниматься?')}
               <WeekdayPicker value={weekdays} onChange={setWeekdays} />
-              {error && (
-                <p className={styles.error} role="alert">
-                  {error}
-                </p>
-              )}
-              <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={save}>
-                {busy ? 'Сохраняем…' : 'Начать'}
+              {problem}
+              <PrimaryButton
+                type="button"
+                disabled={busy}
+                aria-busy={busy}
+                onClick={() => (asks ? setStep('notify') : void run(finish))}
+              >
+                {asks ? 'Дальше' : busy ? 'Сохраняем…' : 'Начать'}
+              </PrimaryButton>
+            </>
+          )}
+          {step === 'notify' && (
+            <>
+              {heading('Присылать напоминания?')}
+              {problem}
+              <div className={styles.options}>
+                <button type="button" className={styles.option} disabled={busy} aria-busy={busy} onClick={sayYes}>
+                  Да
+                </button>
+                <button type="button" className={styles.option} disabled={busy} onClick={() => void run(finish)}>
+                  Не сейчас
+                </button>
+              </div>
+            </>
+          )}
+          {step === 'how' && (
+            <>
+              {heading('Присылать напоминания?')}
+              <p className={styles.how}>{push === 'denied' ? BLOCKED : INSTALL}</p>
+              {problem}
+              <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => void run(finish)}>
+                Понятно
               </PrimaryButton>
             </>
           )}

@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Response
 
 from app.core.auth import CurrentUser, DbSession
-from app.core.clock import Now, TimeZone
+from app.core.clock import Now, SentTimeZone, TimeZone
 from app.core.ratelimit import limit_joins
 from app.schemas.groups import (
     BoardOut,
@@ -32,9 +32,14 @@ def list_groups(user: CurrentUser, db: DbSession, now: Now) -> list[GroupSummary
 
 @router.post("/groups", status_code=201)
 def create_group(
-    body: CreateGroupIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+    body: CreateGroupIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
+    sent_zone: SentTimeZone,
 ) -> GroupOut:
-    remember_time_zone(db, user, time_zone)
+    remember_time_zone(db, user, sent_zone)
     return groups.create_group(db, user, body.name, body.nickname, time_zone, now)
 
 
@@ -49,10 +54,10 @@ def join_group(
     user: CurrentUser,
     db: DbSession,
     now: Now,
-    time_zone: TimeZone,
+    sent_zone: SentTimeZone,
     code: str = Code,
 ) -> GroupOut:
-    remember_time_zone(db, user, time_zone)
+    remember_time_zone(db, user, sent_zone)
     return groups.join(db, user, code, body.nickname, now)
 
 

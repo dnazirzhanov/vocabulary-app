@@ -244,7 +244,19 @@ function Learning({ email }: { email: string | null }) {
     else setScreen({ name: 'groups' });
   };
   return (
-    <NavShell tab={tabOf(screen)} onNavigate={navigate}>
+    <NavShell
+      tab={tabOf(screen)}
+      onNavigate={navigate}
+      account={{
+        email,
+        onSignOut: supabase ? signOutHere : undefined,
+        onAccountDeleted: () => {
+          if (supabase) void signOutHere();
+          else goHome();
+        },
+      }}
+      onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
+    >
       {tabScreen()}
     </NavShell>
   );
@@ -290,19 +302,7 @@ function Learning({ email }: { email: string | null }) {
       );
     }
     if (screen.name === 'progress') {
-      return (
-        <ProgressScreen
-          onOpenDeck={(deckId) => openPage(deckId, 'progress')}
-          account={{
-            email,
-            onSignOut: supabase ? signOutHere : undefined,
-            onAccountDeleted: () => {
-              if (supabase) void signOutHere();
-              else goHome();
-            },
-          }}
-        />
-      );
+      return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
     if (screen.name === 'course') {
       return <CourseScreen onOpenDeck={(deckId) => openPage(deckId, 'course')} onBack={goHome} />;
@@ -330,7 +330,6 @@ function Learning({ email }: { email: string | null }) {
         onOpenPage={(deckId) => openPage(deckId, 'home')}
         onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
         onOpenCourse={() => setScreen({ name: 'course' })}
-        onSignOut={supabase ? signOutHere : undefined}
       />
     );
   }

@@ -1,9 +1,12 @@
-import { button, expect, openDeck, test } from './learner.ts';
+import type { Page } from '@playwright/test';
+import { button, expect, fakePush, openDeck, test } from './learner.ts';
 
 test.describe('a learner who has not chosen a pace', () => {
   test.use({ onboarded: false });
 
   test('answers two small questions, one at a time, and starts', async ({ page, learner }) => {
+    // A server with no keys for notifications: that question has no answer here, so it isn't asked.
+    await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: null } }));
     await learner.travelTo(new Date('2026-11-02T09:00:00Z')); // a Monday
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Сколько новых слов в день?' })).toBeFocused();
@@ -37,5 +40,80 @@ test.describe('a learner who has not chosen a pace', () => {
     // The promise reads on «Прогресс»; nothing is finished yet, so it applies from today.
     await button(page, 'Прогресс').click();
     await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
+  });
+
+  const toTheQuestion = async (page: Page) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /^5\sслов$/ }).click();
+    await button(page, 'Дальше').click();
+    await expect(page.getByRole('heading', { name: 'Присылать напоминания?' })).toBeFocused();
+  };
+  const arrived = (page: Page) => expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+  const timesAsked = (page: Page) => page.evaluate(() => (window as unknown as { asked?: number }).asked);
+
+  test('yes asks the browser straight away, and tells the server', async ({ page }) => {
+    await fakePush(page);
+    const told: string[] = [];
+    await page.route('**/api/push/subscriptions', (route) => {
+      told.push(route.request().postDataJSON().endpoint);
+      return route.fulfill({ status: 204 });
+    });
+    await toTheQuestion(page);
+    await button(page, 'Да').click();
+    await arrived(page);
+    expect(await timesAsked(page)).toBe(1);
+    expect(told).toEqual(['https://push.example.com/send/e2e']);
+  });
+
+  test('saying no to the browser still goes on, and is not asked again', async ({ page }) => {
+    await fakePush(page, 'denied');
+    await toTheQuestion(page);
+    await button(page, 'Да').click();
+    await arrived(page);
+    expect(await timesAsked(page)).toBe(1);
+  });
+
+  test('not now asks nothing', async ({ page }) => {
+    await fakePush(page);
+    await toTheQuestion(page);
+    await button(page, 'Не сейчас').click();
+    await arrived(page);
+    expect(await timesAsked(page)).toBeUndefined();
+  });
+
+  test('when subscribing fails the app still opens', async ({ page }) => {
+    await fakePush(page);
+    await page.route('**/api/push/subscriptions', (route) => route.fulfill({ status: 500, json: {} }));
+    await toTheQuestion(page);
+    await button(page, 'Да').click();
+    await arrived(page);
+  });
+
+  test('already blocked in the browser: one line on where to allow it, then on', async ({ page }) => {
+    await fakePush(page);
+    await page.addInitScript(() => {
+      Object.defineProperty(Notification, 'permission', { get: () => 'denied', configurable: true });
+    });
+    await toTheQuestion(page);
+    await button(page, 'Да').click();
+    await expect(page.getByText('Уведомления запрещены в настройках браузера')).toBeVisible();
+    await button(page, 'Понятно').click();
+    await arrived(page);
+  });
+
+  test.describe('on an iPhone, in Safari', () => {
+    test.use({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1' });
+
+    test('one line on adding it to the home screen, then on', async ({ page }) => {
+      await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: 'a-key' } }));
+      await page.addInitScript(() => {
+        delete (window as unknown as { PushManager?: unknown }).PushManager;
+      });
+      await toTheQuestion(page);
+      await button(page, 'Да').click();
+      await expect(page.getByText(/На экран „Домой“/)).toBeVisible();
+      await button(page, 'Понятно').click();
+      await arrived(page);
+    });
   });
 });

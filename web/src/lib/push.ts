@@ -2,8 +2,8 @@ import { api } from './api.ts';
 import { isAppleMobile, keyBytes } from './device.ts';
 
 /**
- * Deadline reminders on the phone by Web Push (ADR 0031). The browser asks once for permission;
- * the push service then delivers the evening's reminder even with the app closed. iPhones and
+ * Notifications on the phone by Web Push (ADR 0031, 0042). The browser asks once for permission;
+ * the push service then delivers them even with the app closed. iPhones and
  * iPads only allow it once the app is on the home screen.
  */
 export type PushState =
@@ -37,18 +37,21 @@ async function subscription(): Promise<PushSubscription | null> {
 
 export async function pushState(): Promise<PushState> {
   if (!supported()) return isAppleMobile() && !installed() ? 'needs_install' : 'unsupported';
-  if (Notification.permission === 'denied') return 'denied';
   const { public_key: key } = await api.pushKey();
   if (!key) return 'unavailable';
+  if (Notification.permission === 'denied') return 'denied';
   return (await subscription()) ? 'on' : 'off';
 }
 
-/** Asks for permission (the browser's own prompt), subscribes this device and tells the server. */
+/**
+ * Asks for permission (the browser's own prompt), subscribes this device and tells the server. The
+ * prompt comes first, before any waiting: browsers only allow it right after a tap.
+ */
 export async function enablePush(): Promise<PushState> {
-  const { public_key: key } = await api.pushKey();
-  if (!key) return 'unavailable';
   if ((await Notification.requestPermission()) !== 'granted')
     return Notification.permission === 'denied' ? 'denied' : 'off';
+  const { public_key: key } = await api.pushKey();
+  if (!key) return 'unavailable';
   const registration = await navigator.serviceWorker.register(WORKER);
   await navigator.serviceWorker.ready;
   const existing = await registration.pushManager.getSubscription();

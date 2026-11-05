@@ -17,6 +17,10 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,
+        notify_morning=user.notify_morning,
+        notify_afternoon=user.notify_afternoon,
+        notify_report=user.notify_report,
+        notify_deadline=user.notify_deadline,
         onboarded=user.onboarded_at is not None,
         onboarded_at=user.onboarded_at,
         promise=promise_out(db, user, local_date(now, time_zone)),
@@ -42,10 +46,11 @@ def update_me(
     return me_out(db, user, now, time_zone)
 
 
-def remember_time_zone(db: Session, user: User, time_zone: ZoneInfo) -> None:
-    """Keep the browser's zone for group boards, which count each member's days in their own
-    zone. Only zones PostgreSQL knows are stored, so the board query can never fail on one."""
-    if user.time_zone == time_zone.key:
+def remember_time_zone(db: Session, user: User, time_zone: ZoneInfo | None) -> None:
+    """Keep the browser's zone: group boards count each member's days in it, and notifications
+    come by its clock (ADR 0042). Only zones PostgreSQL knows are stored, so the board query can
+    never fail on one. None (the browser sent none it could read) leaves what is there."""
+    if time_zone is None or user.time_zone == time_zone.key:
         return
     known = db.scalar(
         text("SELECT count(*) FROM pg_timezone_names WHERE name = :zone"), {"zone": time_zone.key}

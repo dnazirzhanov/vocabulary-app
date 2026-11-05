@@ -1,4 +1,4 @@
-// The app's service worker: deadline reminders only (ADR 0031). It caches nothing, so the app
+// The app's service worker: notifications only (ADR 0031, 0042). It caches nothing, so the app
 // always loads fresh; it just shows a pushed notification and opens the app when it is tapped.
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -17,8 +17,8 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       lang: 'ru',
-      // One reminder at a time: a new one replaces yesterday's if it is still there.
-      tag: 'deadline',
+      // One at a time: a new one replaces the last if it is still there.
+      tag: 'reminder',
       data: { url: message.url },
     }),
   );

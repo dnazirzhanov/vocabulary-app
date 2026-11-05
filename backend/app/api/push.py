@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.auth import CurrentUser, DbSession
-from app.core.clock import Now
+from app.core.clock import Now, SentTimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.services import reminders
 from app.services.cleanup import clean_up
+from app.services.me import remember_time_zone
 
 router = APIRouter(tags=["push"])
 
@@ -46,6 +47,8 @@ class PushKeyOut(BaseModel):
 
 class SentOut(BaseModel):
     sent: int
+    # False: it stopped in time for the host's request limit, and the next run carries on.
+    finished: bool
 
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -58,11 +61,17 @@ def push_key(settings: SettingsDep) -> PushKeyOut:
 
 @router.post("/push/subscriptions", status_code=204)
 def subscribe(
-    body: SubscriptionIn, user: CurrentUser, db: DbSession, now: Now, settings: SettingsDep
+    body: SubscriptionIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    sent_zone: SentTimeZone,
+    settings: SettingsDep,
 ) -> Response:
-    """This device gets deadline reminders (ADR 0031)."""
+    """This device gets notifications (ADR 0031, 0042), which go by the learner's own clock."""
     if not settings.vapid_public_key:
         raise ApiError(503, "reminders_unavailable", "Reminders are not set up on this server")
+    remember_time_zone(db, user, sent_zone)
     reminders.subscribe(db, user, body.endpoint, body.keys.p256dh, body.keys.auth, now)
     return Response(status_code=204)
 
@@ -107,5 +116,6 @@ def clean_up_old_answers(db: DbSession, now: Now) -> CleanedOut:
 def send_reminders(
     db: DbSession, now: Now, sender: Annotated[reminders.Sender, Depends(get_sender)]
 ) -> SentOut:
-    """Called every hour by a scheduler with the shared secret: sends the evening's reminders."""
-    return SentOut(sent=reminders.send_reminders(db, now, sender))
+    """Called every hour by a scheduler with the shared secret; each learner's own clock decides
+    who gets what (ADR 0042)."""
+    return SentOut(**asdict(reminders.send_reminders(db, now, sender)))

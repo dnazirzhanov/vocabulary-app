@@ -15,7 +15,7 @@ export interface AccountProps {
 }
 
 /**
- * Sounds, reminders, sign-out and deleting the account, in «Прогресс» → ⚙ (ADR 0034). Deleting asks
+ * Sounds, notifications, sign-out and deleting the account, behind ⚙ on every page (ADR 0042). Deleting asks
  * once more in place, with the password where there is one (ADR 0043): it can't be undone, and a
  * phone can be picked up by anyone.
  */

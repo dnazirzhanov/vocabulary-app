@@ -16,8 +16,6 @@ interface HomeScreenProps {
   onOpenDeck: (deckId: string) => void;
   /** The course: English words level by level. */
   onOpenCourse: () => void;
-  /** Absent in development builds, which have no sign-in. */
-  onSignOut?: () => Promise<void>;
 }
 
 /**
@@ -25,7 +23,7 @@ interface HomeScreenProps {
  * groups were given; each opens its page (ADR 0020). The course, level by level, is offered
  * below it, one tap away.
  */
-export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onSignOut }: HomeScreenProps) {
+export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenProps) {
   const [library, setLibrary] = useState<Library | null>(null);
   // Weeks with the promise kept (ADR 0015); secondary, so home works without it.
   const [streak, setStreak] = useState<number | null>(null);
@@ -33,7 +31,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onSignOut }: 
   const [naming, setNaming] = useState(false);
   const [title, setTitle] = useState('');
   const { run, busy, error } = useAsyncAction();
-  const signOut = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nameField = useRef<HTMLInputElement>(null);
 
@@ -98,17 +95,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onSignOut }: 
             </>
           )}
         </span>
-        {onSignOut && (
-          <button
-            type="button"
-            className={styles.signOut}
-            disabled={signOut.busy}
-            aria-busy={signOut.busy}
-            onClick={() => void signOut.run(onSignOut)}
-          >
-            {signOut.busy ? 'Выходим…' : 'Выйти'}
-          </button>
-        )}
       </header>
       <main className={styles.main}>
         <div className={styles.column}>
