@@ -100,10 +100,18 @@ class CardExercise(BaseModel):
 
 
 class SpellingPrompt(BaseModel):
-    """What a spelling card shows: the meaning, never the English word (no id, example or audio)."""
+    """What a spelling card shows: the meaning, never the English word (no id or example)."""
 
     translation: str
     pos: str
+
+
+class PronunciationOut(BaseModel):
+    """The word to hear on a spelling card (ADR 0047): its recording's key, and the text for the
+    device's voice where there is no recording."""
+
+    key: str
+    text: str
 
 
 class SpellingExercise(BaseModel):
@@ -120,6 +128,8 @@ class SpellingExercise(BaseModel):
     tiles: list[str]
     # The one hint of this card, once given: a slot and its letter.
     hint: "HintOut | None" = None
+    # For individual practice only (ADR 0047). A group's test never has it (ADR 0046).
+    pronunciation: PronunciationOut | None = None
 
 
 class HintIn(_Input):

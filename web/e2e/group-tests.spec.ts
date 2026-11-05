@@ -165,8 +165,9 @@ test('two students get their own order, and the results are open by name', async
   expect(before.mine.state).toBe('none');
   await startTest(annaPage);
   await expect(annaPage.locator('[data-spelling]').getByText('Тест', { exact: true })).toBeVisible();
-  // No hint, and nothing said between words.
+  // No hint of either kind, and nothing said between words.
   await expect(annaPage.getByRole('button', { name: /Подсказка/ })).toHaveCount(0);
+  await expect(annaPage.getByRole('button', { name: 'Послушать слово' })).toHaveCount(0);
   await expect(annaPage.getByRole('timer')).toHaveText(/^(10:00|9:\d\d)$/);
   const annaOrder = await answerAll(annaPage);
   await expect(annaPage.getByRole('heading', { level: 1, name: '9 из 9' })).toBeVisible();
@@ -315,6 +316,7 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
   await button(annaPage, 'Тренировка').click();
   await expect(annaPage.getByRole('timer')).toHaveCount(0);
   await expect(annaPage.locator('[data-spelling]').getByText('Тренировка', { exact: true })).toBeVisible();
+  await expect(annaPage.getByRole('button', { name: 'Послушать слово' })).toHaveCount(0);
   await answerAll(annaPage, ['неудача']);
   await expect(annaPage.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
   await expect(annaPage.getByText('Сдано', { exact: true })).toHaveCount(0);

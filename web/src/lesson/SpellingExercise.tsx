@@ -12,10 +12,12 @@ import {
   withSeparators,
 } from '../lib/spelling.ts';
 import { describeError } from '../lib/api.ts';
+import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
 import { BulbIcon, CheckIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { ListenButton } from './ListenButton.tsx';
 import styles from './SpellingExercise.module.css';
 
 interface SpellingExerciseProps {
@@ -56,6 +58,7 @@ export function SpellingExercise({
   submitLabel,
   onDraft,
 }: SpellingExerciseProps) {
+  const { pronunciation } = exercise;
   const [picked, setPicked] = useState(() => savedPicks(storageKey));
   // After a mistake: building the word again, checked on the device against the shown word.
   const [again, setAgain] = useState(false);
@@ -141,9 +144,21 @@ export function SpellingExercise({
     <article className={styles.exercise} data-spelling={exercise.id}>
       <p className={styles.eyebrow}>{eyebrow}</p>
       <div className={styles.prompt}>
-        <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
-          {exercise.prompt.translation}
-        </h1>
+        <div className={styles.meaningRow}>
+          <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
+            {exercise.prompt.translation}
+          </h1>
+          {pronunciation && (
+            <ListenButton
+              label="Послушать слово"
+              onPlay={(event) => {
+                void playAudio('words', pronunciation.key, pronunciation.text);
+                // After a click, Enter should check the word, not play it again; Tab keeps its place.
+                if (event.detail > 0) event.currentTarget.blur();
+              }}
+            />
+          )}
+        </div>
         {again && word && (
           <p className={styles.word} lang="en">
             {word}

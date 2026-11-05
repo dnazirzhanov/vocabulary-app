@@ -18,6 +18,7 @@ const spelling = (id: string): SpellingExercise => ({
   separators: [],
   tiles: [],
   hint: null,
+  pronunciation: null,
 });
 const session = (cards: Exercise[], results: AttemptResult[] = []): Session => ({
   id: 's',

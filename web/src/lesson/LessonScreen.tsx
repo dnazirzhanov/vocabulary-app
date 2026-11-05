@@ -5,6 +5,7 @@ import { autoplayEnabled, playAudio, preloadAudio, setAutoplay } from '../lib/au
 import { tokenize } from '../lib/tokens.ts';
 import type { CardExercise, GlossaryEntry, Rating, Session, Summary } from '../lib/types.ts';
 import { AlertIcon, CloseIcon, MuteIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { ListenButton } from './ListenButton.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { formatInterval, reduceLesson, remaining, startLesson } from './lessonRun.ts';
 import { LessonProgress } from './LessonProgress.tsx';
@@ -25,19 +26,6 @@ const RATINGS: { rating: Rating; label: string; tone: string }[] = [
   { rating: 3, label: 'Хорошо', tone: 'good' },
   { rating: 4, label: 'Легко', tone: 'easy' },
 ];
-
-function ListenButton({ onPlay, label, small }: { onPlay: () => void; label: string; small?: boolean }) {
-  return (
-    <button
-      type="button"
-      className={small ? `${styles.listen} ${styles.listenSmall}` : styles.listen}
-      onClick={onPlay}
-      aria-label={label}
-    >
-      <SpeakerIcon />
-    </button>
-  );
-}
 
 type Tapped = { text: string; form: string; anchor: HTMLElement };
 
@@ -218,19 +206,22 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
             <CloseIcon />
           </button>
           <LessonProgress answered={state.results.length} total={state.exercises.length} />
-          <button
-            type="button"
-            className={styles.autoplay}
-            aria-pressed={autoplay}
-            aria-label="Произносить слово автоматически"
-            title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
-            onClick={() => {
-              setAutoplay(!autoplay);
-              setAutoplayState(!autoplay);
-            }}
-          >
-            {autoplay ? <SpeakerIcon /> : <MuteIcon />}
-          </button>
+          {/* Flashcards say their word by themselves; a spelling card only when asked (ADR 0047). */}
+          {card && (
+            <button
+              type="button"
+              className={styles.autoplay}
+              aria-pressed={autoplay}
+              aria-label="Произносить слово автоматически"
+              title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
+              onClick={() => {
+                setAutoplay(!autoplay);
+                setAutoplayState(!autoplay);
+              }}
+            >
+              {autoplay ? <SpeakerIcon /> : <MuteIcon />}
+            </button>
+          )}
           <p
             className={styles.counters}
             aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}, правописание ${left.spelling}`}

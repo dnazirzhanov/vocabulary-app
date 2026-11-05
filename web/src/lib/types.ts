@@ -66,6 +66,8 @@ export interface SpellingExercise {
   tiles: string[];
   /** The card's one hint, once given: a slot and its letter. */
   hint: Hint | null;
+  /** The word to hear, in individual practice only (ADR 0047): never put on screen. */
+  pronunciation: { key: string; text: string } | null;
 }
 
 export interface Separator {

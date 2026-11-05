@@ -44,7 +44,8 @@ def test_the_lesson_is_cards_only_and_spelling_is_a_session_of_its_own(
     assert session["kind"] == "spelling"
     assert [e["type"] for e in session["exercises"]] == ["spelling"] * 5
     first = session["exercises"][0]
-    # The meaning only: no headword, word id, example or audio.
+    # The word comes only to be heard (ADR 0047); everything else is the meaning, no word.
+    assert first.pop("pronunciation") == {"key": "house", "text": "house"}
     assert set(first) == {"id", "type", "prompt", "slots", "separators", "tiles", "hint"}
     assert first["hint"] is None
     assert (first["prompt"]["translation"], first["slots"]) == ("дом", 5)
@@ -246,6 +247,7 @@ def test_one_hint_per_card_gives_one_letter_and_never_more(client: TestClient, p
     resumed = start_spelling(client).json()  # resumes the open one
     card = resumed["exercises"][0]
     assert card["hint"] == {"position": 2, "letter": "u"}
+    card.pop("pronunciation")
     assert "house" not in str(card)
     # Another card has its own hint; past the end of a word there is no letter.
     water = session["exercises"][1]["id"]

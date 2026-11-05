@@ -169,3 +169,82 @@ async function spellOne(page: Page, built: string) {
   await button(page, 'Проверить').click();
   await button(page, 'Дальше').click();
 }
+
+test('the audio hint says the word on a tap, as often as asked, without showing it or using the hint', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const played: string[] = [];
+    (window as unknown as { played: string[] }).played = played;
+    HTMLMediaElement.prototype.play = function () {
+      played.push(decodeURIComponent(new URL(this.currentSrc || this.src).pathname));
+      return Promise.resolve();
+    };
+  });
+  const played = () => page.evaluate(() => (window as unknown as { played: string[] }).played);
+  await lesson(page);
+  await button(page, 'Правописание · 5 слов').click();
+  const card = page.locator('[data-spelling]');
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дом');
+
+  // Nothing plays until asked: not the lesson's last card's word, and not this one.
+  const before = (await played()).length;
+  await page.waitForTimeout(300);
+  expect(await played()).toHaveLength(before);
+  expect((await played()).slice(before)).not.toContain('/audio/words/house.mp3');
+
+  // Only one speaker here: the auto-play switch belongs to flashcards.
+  await expect(page.getByRole('button', { name: 'Произносить слово автоматически' })).toHaveCount(0);
+  const listen = button(page, 'Послушать слово');
+  await listen.click();
+  await listen.click();
+  await expect
+    .poll(async () => (await played()).slice(before))
+    .toEqual(['/audio/words/house.mp3', '/audio/words/house.mp3']);
+  // Heard, never shown, and the letter hint is still there to use.
+  await expect(page.locator('main')).not.toContainText('house');
+  await expect(page.getByRole('button', { name: 'Подсказка', exact: true })).toBeEnabled();
+
+  // After the click, the keyboard still works: letters, then Enter checks rather than plays again.
+  await page.keyboard.type('house');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Верно');
+  expect((await played()).slice(before)).toHaveLength(2);
+  await expect(listen).toBeVisible(); // to hear it once more with the word in front of you
+
+  // The next card says its own word.
+  await button(page, 'Дальше').click();
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('вода');
+  await listen.click();
+  await expect.poll(async () => (await played()).at(-1)).toBe('/audio/words/water.mp3');
+});
+
+test('a word with no recording is said by the device', async ({ page, context }) => {
+  await page.addInitScript(() => {
+    const spoken: string[] = [];
+    (window as unknown as { spoken: string[] }).spoken = spoken;
+    speechSynthesis.speak = (utterance) => void spoken.push(utterance.text);
+  });
+  const deck = await (await context.request.post('/api/decks', { data: { title: 'Свои слова' } })).json();
+  await context.request.post(`/api/decks/${deck.id}/words`, {
+    data: { headword: 'setback', pos: 'noun', translation: 'неудача', example: 'A setback.' },
+  });
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: /Свои слова/ })
+    .first()
+    .click();
+  await button(page, 'Начать урок · 1 слово').click();
+  await finishSession(page);
+  await button(page, 'Правописание · 1 слово').click();
+  await expect(page.locator('[data-spelling]').getByRole('heading', { level: 1 })).toHaveText('неудача');
+
+  // The lesson's flashcard said it by itself; from here on, only when asked.
+  const spoken = () => page.evaluate(() => (window as unknown as { spoken: string[] }).spoken);
+  const before = (await spoken()).length;
+  await page.waitForTimeout(300);
+  expect(await spoken()).toHaveLength(before);
+  await button(page, 'Послушать слово').click();
+  await expect.poll(async () => (await spoken()).slice(before)).toEqual(['setback']);
+  await expect(page.locator('main')).not.toContainText('setback');
+});
