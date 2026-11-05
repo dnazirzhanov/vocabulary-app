@@ -218,6 +218,8 @@ def test_a_phrase_is_spelled_with_its_gaps(client: TestClient) -> None:
     assert card["prompt"]["translation"] == "проводить, выполнять"
     assert card["slots"] == 8
     assert card["separators"] == [{"after": 5, "char": " "}]
+    # The phrase comes only to be heard (ADR 0047).
+    assert card.pop("pronunciation")["text"] == "carry out"
     assert " " not in card["tiles"] and "carry out" not in str(card)
     hint = client.post(
         f"/api/sessions/{session['id']}/exercises/{card['id']}/hint",

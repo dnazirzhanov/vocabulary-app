@@ -44,7 +44,8 @@ def test_the_lesson_is_cards_only_and_spelling_is_a_session_of_its_own(
     assert session["kind"] == "spelling"
     assert [e["type"] for e in session["exercises"]] == ["spelling"] * 5
     first = session["exercises"][0]
-    # The meaning only: no headword, word id, example or audio.
+    # The word comes only to be heard (ADR 0047); everything else is the meaning, no word.
+    assert first.pop("pronunciation") == {"key": "house", "text": "house"}
     assert set(first) == {"id", "type", "prompt", "slots", "separators", "tiles", "hint"}
     assert first["hint"] is None
     assert (first["prompt"]["translation"], first["slots"]) == ("дом", 5)
@@ -214,6 +215,29 @@ def test_a_hinted_word_counts_as_hard(client: TestClient, play: Play) -> None:
     assert spelling_state(client)["hard"] == 1
 
 
+def test_a_word_heard_first_counts_as_hard_but_is_still_right(
+    client: TestClient, play: Play
+) -> None:
+    """The sound is a hint (ADR 0047): only spelling from memory moves a word up."""
+    play(STUDY, DAY0, spell=False)
+    session = start_spelling(client).json()
+    house, water = session["exercises"][0]["id"], session["exercises"][1]["id"]
+    heard = client.post(
+        f"/api/sessions/{session['id']}/attempts",
+        json={
+            "exercise_id": house,
+            "response": {"kind": "spelling", "answer": "house", "heard": True},
+        },
+        headers=at(DAY0),
+    ).json()
+    # The learner is told it was right; only the ladder takes it as not from memory.
+    assert heard["correct"] is True
+    assert spelling_state(client)["hard"] == 1
+    # A word spelled without listening isn't touched by that.
+    assert answer(client, session, water, "water").json()["correct"] is True
+    assert spelling_state(client)["hard"] == 1
+
+
 def test_random_draws_from_every_word_met(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0)
     play(STUDY, DAY0 + timedelta(days=1), spell=False)
@@ -246,6 +270,7 @@ def test_one_hint_per_card_gives_one_letter_and_never_more(client: TestClient, p
     resumed = start_spelling(client).json()  # resumes the open one
     card = resumed["exercises"][0]
     assert card["hint"] == {"position": 2, "letter": "u"}
+    card.pop("pronunciation")
     assert "house" not in str(card)
     # Another card has its own hint; past the end of a word there is no letter.
     water = session["exercises"][1]["id"]

@@ -448,6 +448,9 @@ def test_a_running_attempt_shows_neither_the_word_nor_its_id(client: TestClient)
         words = db.scalars(select(Word).where(Word.id.in_(order_of(attempt["id"])))).all()
     assert "money" in {item.id for item in words}
     secrets = {item.id for item in words} | {item.headword for item in words}
+    # A test has no hints at all, the pronunciation of individual practice included (ADR 0047).
+    assert attempt["question"]["pronunciation"] is None
+    assert room.start("olga", "practice").json()["question"]["pronunciation"] is None
 
     # Every response along the way, up to the last word.
     while attempt["total"] - attempt["answered"] > 1:

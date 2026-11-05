@@ -160,7 +160,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       const request =
         pending.kind === 'rating'
           ? api.rateCard(session.id, current.id, pending.rating)
-          : api.spell(session.id, current.id, pending.answer);
+          : api.spell(session.id, current.id, pending.answer, pending.heard);
       request
         .then(
           (result) => dispatch({ type: 'saved', result }),
@@ -218,19 +218,22 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
             <CloseIcon />
           </button>
           <LessonProgress answered={state.results.length} total={state.exercises.length} />
-          <button
-            type="button"
-            className={styles.autoplay}
-            aria-pressed={autoplay}
-            aria-label="Произносить слово автоматически"
-            title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
-            onClick={() => {
-              setAutoplay(!autoplay);
-              setAutoplayState(!autoplay);
-            }}
-          >
-            {autoplay ? <SpeakerIcon /> : <MuteIcon />}
-          </button>
+          {/* Flashcards say their word by themselves; on a spelling card that is a hint (ADR 0047). */}
+          {card && (
+            <button
+              type="button"
+              className={styles.autoplay}
+              aria-pressed={autoplay}
+              aria-label="Произносить слово автоматически"
+              title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
+              onClick={() => {
+                setAutoplay(!autoplay);
+                setAutoplayState(!autoplay);
+              }}
+            >
+              {autoplay ? <SpeakerIcon /> : <MuteIcon />}
+            </button>
+          )}
           <p
             className={styles.counters}
             aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}, правописание ${left.spelling}`}
@@ -263,7 +266,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               storageKey={`spelling:${session.id}:${exercise.id}`}
               busy={state.phase === 'saving' || state.phase === 'finishing'}
               result={state.phase === 'feedback' ? state.last : null}
-              onSubmit={(answer) => dispatch({ type: 'spell', answer })}
+              onSubmit={(answer, heard) => dispatch({ type: 'spell', answer, heard })}
               onHint={(position) => api.hint(session.id, exercise.id, position)}
               onContinue={() => dispatch({ type: 'continue' })}
             />

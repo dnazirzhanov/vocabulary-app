@@ -65,6 +65,23 @@ export function savedPicks(key: string): Picked {
   }
 }
 
+/** Whether this card's word was listened to, so a reload doesn't make it look spelled from memory. */
+export function savedHeard(key: string): boolean {
+  try {
+    return sessionStorage.getItem(`${key}:heard`) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function saveHeard(key: string): void {
+  try {
+    sessionStorage.setItem(`${key}:heard`, '1');
+  } catch {
+    // storage unavailable: it is still known until a reload
+  }
+}
+
 export function savePicks(key: string, picked: Picked): void {
   try {
     if (picked.length) sessionStorage.setItem(key, JSON.stringify(picked));

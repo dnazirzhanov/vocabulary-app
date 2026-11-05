@@ -5,16 +5,19 @@ import {
   differences,
   pick,
   removeAt,
+  saveHeard,
   savePicks,
+  savedHeard,
   slotWords,
   savedPicks,
   tileForKey,
   withSeparators,
 } from '../lib/spelling.ts';
 import { describeError } from '../lib/api.ts';
+import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
-import { BulbIcon, CheckIcon } from '../ui/icons.tsx';
+import { BulbIcon, CheckIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
 
@@ -26,7 +29,8 @@ interface SpellingExerciseProps {
   busy: boolean;
   /** The checked first try, once the server has it: the card explains it. */
   result: AttemptResult | null;
-  onSubmit: (answer: string) => void;
+  /** `heard`: the word was listened to first, so it wasn't spelled from memory (ADR 0047). */
+  onSubmit: (answer: string, heard: boolean) => void;
   onContinue: () => void;
   /** The letter of one slot, from the server (the word stays there): one per card. A test has none. */
   onHint?: (position: number) => Promise<Hint>;
@@ -56,7 +60,9 @@ export function SpellingExercise({
   submitLabel,
   onDraft,
 }: SpellingExerciseProps) {
+  const { pronunciation } = exercise;
   const [picked, setPicked] = useState(() => savedPicks(storageKey));
+  const [heard, setHeard] = useState(() => savedHeard(storageKey));
   // After a mistake: building the word again, checked on the device against the shown word.
   const [again, setAgain] = useState(false);
   // One hint per card: the letter of the next empty slot (kept by the server across a reload).
@@ -81,7 +87,7 @@ export function SpellingExercise({
   useEffect(() => onDraft?.(full ? answer : null), [onDraft, full, answer]);
 
   const check = () => {
-    if (full && !busy && result === null) onSubmit(answer);
+    if (full && !busy && result === null) onSubmit(answer, heard);
   };
   const buildAgain = () => {
     setAgain(true);
@@ -229,19 +235,46 @@ export function SpellingExercise({
             >
               Очистить
             </button>
-            {!again && onHint && (
-              <button
-                type="button"
-                className={styles.hintButton}
-                disabled={!editable || hint !== null || hinting || full}
-                aria-busy={hinting}
-                onClick={() => void askHint()}
-              >
-                <BulbIcon aria-hidden="true" />
-                {hint ? 'Подсказка использована' : 'Подсказка'}
-              </button>
-            )}
           </div>
+          {/* Below the letters and asked for: the card itself asks for the word from memory (ADR 0047). */}
+          {!again && (onHint || pronunciation) && (
+            <div className={styles.hints} role="group" aria-label="Подсказки">
+              <span className={styles.hintsLabel} aria-hidden="true">
+                Подсказки:
+              </span>
+              {onHint && (
+                <button
+                  type="button"
+                  className={styles.hintButton}
+                  disabled={!editable || hint !== null || hinting || full}
+                  aria-busy={hinting}
+                  aria-label={hint ? 'Подсказка использована' : 'Подсказка: буква'}
+                  onClick={() => void askHint()}
+                >
+                  <BulbIcon aria-hidden="true" />
+                  Буква
+                </button>
+              )}
+              {pronunciation && (
+                <button
+                  type="button"
+                  className={styles.hintButton}
+                  disabled={!editable}
+                  aria-label="Подсказка: звук"
+                  onClick={(event) => {
+                    void playAudio('words', pronunciation.key, pronunciation.text);
+                    setHeard(true);
+                    saveHeard(storageKey);
+                    // After a click, Enter should check the word, not play it again; Tab keeps its place.
+                    if (event.detail > 0) event.currentTarget.blur();
+                  }}
+                >
+                  <SpeakerIcon aria-hidden="true" />
+                  Звук
+                </button>
+              )}
+            </div>
+          )}
           {hintNote && (
             <p className={styles.fixHint} role="status">
               {hintNote}

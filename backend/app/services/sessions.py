@@ -46,6 +46,7 @@ from app.schemas.learning import (
     HintOut,
     InsertedExercise,
     IntervalPreview,
+    PronunciationOut,
     RatingCounts,
     RatingResponse,
     SeparatorOut,
@@ -202,7 +203,8 @@ def _exercise_out(
     time_zone: ZoneInfo,
 ) -> ExerciseOut:
     if step.spelling:
-        # The meaning only: no headword, id, example or audio can give the answer away.
+        # The meaning on screen: no headword, id or example. The word comes along only to be heard
+        # when asked for, right on the tap, as phones require (ADR 0047).
         return SpellingExercise(
             id=step.id,
             prompt=SpellingPrompt(translation=word.translation, pos=word.pos),
@@ -213,6 +215,7 @@ def _exercise_out(
             ],
             tiles=list(step.tiles),
             hint=_hint_out(step, word),
+            pronunciation=PronunciationOut(key=word.id, text=word.headword),
         )
     return _card_out(step, word, progress, now, time_zone)
 
@@ -842,8 +845,9 @@ def _spell(
     db.add(stored)
     # Flush first: a second try at the same card fails here and leaves the ladder alone.
     db.flush()
-    # A hinted word was not spelled from memory: on the ladder it counts as a miss (ADR 0026).
-    right = bool(stored.correct) and step.hint is None
+    # A hinted or heard word was not spelled from memory: on the ladder it counts as a miss
+    # (ADR 0026, 0047).
+    right = bool(stored.correct) and step.hint is None and not response.heard
     spelling_ladder.record(db, user, step.word_id, right, now, zone_of(user))
     return stored
 
