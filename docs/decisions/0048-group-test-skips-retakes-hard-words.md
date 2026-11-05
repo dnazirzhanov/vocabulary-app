@@ -8,7 +8,8 @@ move on to ones they do; that the teacher can open the test again and everyone c
 went wrong becomes individual practice.
 
 ## Decision
-**Skipping.** «Пропустить» sits beside «Дальше», in the test and in the group's «Тренировка». A skipped word comes back once, after the others, half-built
+**Skipping.** «Пропустить» sits on the question's own line, above its card, in the test and in the group's «Тренировка»: it is about the question, and beside «Дальше» it
+looked out of place and invited a slip. A skipped word comes back once, after the others, half-built
 as it was, marked «Пропущенное слово». Skipping it then is final. A word still skipped at the end is wrong; the total doesn't change. Which skip it is goes with
 the request, so repeating one changes nothing.
 
@@ -19,7 +20,10 @@ one attempt ever.
 **The group sees each student's latest result.** A retake can turn «Сдали» into «Не сдали», or the reverse. Someone mid-retake, or who doesn't retake, keeps their last score.
 Earlier attempts stay as data. A page left open notices within 30 seconds, so a class needn't reload.
 
-**The feedback tells three things apart:** «Ошибки», with the comparison; «Пропущено»; and «Не успели», words the time ran out on. Skipped words join «Слова для работы» too.
+**The result is built from a lesson's finish screen (ADR 0024),** so it reads as the same product: the score in a ring on the stage, with the pass mark shown if it fell short, a title and a line beneath, then word rows, with the way on at the bottom.
+A pass gets the same celebration as a lesson; falling short stays calm, in grey and never red. The owner rejected a first, plainer page as ugly and foreign to the app.
+
+**The feedback tells three things apart:** «Ошибки», with what was written; «Пропущено»; and «Не успели», words the time ran out on. Skipped words join «Слова для работы» too.
 
 **Misspelled and skipped words go to «Трудные».** Each counts as a miss on the spelling ladder (ADR 0026) as the timed attempt finishes, however it finishes. Words the time ran out on
 don't count: not reaching a word says nothing about it. A word right in a test moves nothing, so only practice moves a word up. Practice attempts don't feed it. ADR 0046 kept tests apart from

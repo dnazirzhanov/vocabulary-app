@@ -765,6 +765,7 @@ def _attempt_out(
             correct=correct,
             total=total,
             passed=is_pass(correct, total, test.pass_percent) if attempt.kind == "test" else None,
+            pass_percent=test.pass_percent if attempt.kind == "test" else None,
             timed_out=any(item.answered_at is None and item.skips == 0 for item in questions),
             mistakes=[
                 MistakeOut(

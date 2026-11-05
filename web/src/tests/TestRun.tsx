@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnswerCompared, SpellingExercise } from '../lesson/SpellingExercise.tsx';
+import { SpellingExercise } from '../lesson/SpellingExercise.tsx';
 import { LessonProgress } from '../lesson/LessonProgress.tsx';
 import lesson from '../lesson/LessonScreen.module.css';
 import { api, ApiError, describeError } from '../lib/api.ts';
-import { clockText, rememberRunningTest, scoreText, verdictText } from '../lib/groupTests.ts';
+import { clockText, rememberRunningTest } from '../lib/groupTests.ts';
 import type { TestAttempt } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { CloseIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
+import { TestResult } from './TestResult.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
 
@@ -122,6 +123,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
     return (
       <TestResult
         attempt={attempt}
+        result={attempt.result}
         busy={busy}
         error={error}
         onAgain={() => void call(() => api.startTestAttempt(groupId, deckId, 'practice'))}
@@ -193,85 +195,5 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
         </div>
       </Dialog>
     </div>
-  );
-}
-
-function TestResult(props: {
-  attempt: TestAttempt;
-  busy: boolean;
-  error: string | null;
-  onAgain: () => void;
-  onDone: () => void;
-}) {
-  const { attempt, busy, error, onAgain, onDone } = props;
-  const result = attempt.result!;
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => headingRef.current?.focus(), []);
-  const wrong = result.mistakes.filter((mistake) => mistake.answer !== null);
-  const skipped = result.mistakes.filter((mistake) => mistake.skipped);
-  const missed = result.mistakes.filter((mistake) => mistake.answer === null && !mistake.skipped);
-  return (
-    <div className={shared.screen}>
-      <main className={`${shared.main} ${styles.resultMain}`}>
-        <div className={`${shared.column} ${styles.page}`}>
-          <div className={styles.head}>
-            {result.timed_out && <p className={shared.note}>Время вышло</p>}
-            <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
-              {scoreText(result)}
-            </h1>
-            {result.passed !== null && <p className={styles.state}>{verdictText(result.passed)}</p>}
-          </div>
-
-          {wrong.length > 0 && (
-            <section aria-label="Ошибки" className={styles.mistakes}>
-              <h2 className={styles.mistakesTitle}>Ошибки</h2>
-              <ul>
-                {wrong.map((mistake) => (
-                  <li key={mistake.word}>
-                    <p className={styles.meaning}>{mistake.translation}</p>
-                    <AnswerCompared built={mistake.answer!} word={mistake.word} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          <WordList title="Пропущено" words={skipped} />
-          <WordList title="Не успели" words={missed} />
-
-          {error && (
-            <p className={shared.problem} role="alert">
-              {error}
-            </p>
-          )}
-          <div className={styles.actions}>
-            <PrimaryButton type="button" onClick={onDone}>
-              Готово
-            </PrimaryButton>
-            {attempt.kind === 'practice' && (
-              <button type="button" className={shared.linkButton} disabled={busy} onClick={onAgain}>
-                Ещё раз
-              </button>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-/** Words never answered: each with its meaning, for going over them. */
-function WordList({ title, words }: { title: string; words: { word: string; translation: string }[] }) {
-  if (words.length === 0) return null;
-  return (
-    <section aria-label={title} className={styles.mistakes}>
-      <h2 className={styles.mistakesTitle}>{title}</h2>
-      <ul className={styles.weakWords}>
-        {words.map((item) => (
-          <li key={item.word}>
-            <strong lang="en">{item.word}</strong> <span>{item.translation}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

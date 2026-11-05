@@ -17,6 +17,43 @@
   text-align: center;
 }
 
+/* The question's own line, above its card. The tap target overhangs so the line stays as low as the eyebrow alone. */
+.questionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block: calc(-1 * var(--space-2));
+}
+
+.skip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin-right: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.skip:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.06);
+  color: var(--color-text);
+}
+
+.skip svg {
+  width: 16px;
+  height: 16px;
+}
+
 .prompt {
   display: flex;
   flex-direction: column;
@@ -326,21 +363,6 @@
 .primary {
   width: 100%;
   max-width: var(--width-prompt);
-}
-
-/* «Пропустить» beside «Дальше»: on the same line, so a small phone never has to scroll to it. */
-.actions[data-can-skip] {
-  flex-direction: row-reverse;
-  justify-content: center;
-}
-
-.actions[data-can-skip] .primary {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.actions[data-can-skip] .showWord {
-  flex: none;
 }
 
 .showWord {

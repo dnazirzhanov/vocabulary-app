@@ -17,7 +17,7 @@ import { describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
-import { BulbIcon, CheckIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { BulbIcon, CheckIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
 
@@ -148,7 +148,19 @@ export function SpellingExercise({
 
   return (
     <article className={styles.exercise} data-spelling={exercise.id}>
-      <p className={styles.eyebrow}>{eyebrow}</p>
+      {/* Skipping is about the question, so it sits on the question's own line: away from the answer's
+          buttons, where it would invite a slip, and in sight on any phone. */}
+      {onSkip ? (
+        <div className={styles.questionHead}>
+          <p className={styles.eyebrow}>{eyebrow}</p>
+          <button type="button" className={styles.skip} disabled={busy} onClick={onSkip}>
+            Пропустить
+            <ForwardIcon aria-hidden="true" />
+          </button>
+        </div>
+      ) : (
+        <p className={styles.eyebrow}>{eyebrow}</p>
+      )}
       <div className={styles.prompt}>
         <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
           {exercise.prompt.translation}
@@ -291,7 +303,7 @@ export function SpellingExercise({
         </>
       )}
 
-      <div className={styles.actions} data-can-skip={onSkip ? '' : undefined}>
+      <div className={styles.actions}>
         {result === null ? (
           <PrimaryButton
             type="button"
@@ -310,11 +322,6 @@ export function SpellingExercise({
         {result && !result.correct && !again && (
           <button type="button" className={styles.showWord} onClick={buildAgain}>
             Собрать ещё раз
-          </button>
-        )}
-        {onSkip && (
-          <button type="button" className={styles.showWord} disabled={busy} onClick={onSkip}>
-            Пропустить
           </button>
         )}
       </div>
@@ -339,33 +346,26 @@ function Feedback({ right, built, word }: { right: boolean; built: string; word:
   return (
     <div className={styles.feedback} data-tone="wrong" role="status">
       <p className={styles.verdict}>Почти</p>
-      <AnswerCompared built={built} word={word} />
+      <dl className={styles.compare}>
+        <div>
+          <dt>Ваш ответ</dt>
+          <dd lang="en">
+            {differences(built, word).map(({ letter, differs }, index) =>
+              differs ? (
+                <mark key={index} className={styles.differs}>
+                  {letter}
+                </mark>
+              ) : (
+                <span key={index}>{letter}</span>
+              ),
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Правильно</dt>
+          <dd lang="en">{word}</dd>
+        </div>
+      </dl>
     </div>
-  );
-}
-
-/** What was built above the word, with the letters that differ marked. */
-export function AnswerCompared({ built, word }: { built: string; word: string }) {
-  return (
-    <dl className={styles.compare}>
-      <div>
-        <dt>Ваш ответ</dt>
-        <dd lang="en">
-          {differences(built, word).map(({ letter, differs }, index) =>
-            differs ? (
-              <mark key={index} className={styles.differs}>
-                {letter}
-              </mark>
-            ) : (
-              <span key={index}>{letter}</span>
-            ),
-          )}
-        </dd>
-      </div>
-      <div>
-        <dt>Правильно</dt>
-        <dd lang="en">{word}</dd>
-      </div>
-    </dl>
   );
 }

@@ -151,6 +151,7 @@ class AttemptResultOut(BaseModel):
     total: int
     # Practice has no pass mark.
     passed: bool | None
+    pass_percent: int | None
     timed_out: bool
     mistakes: list[MistakeOut]
 

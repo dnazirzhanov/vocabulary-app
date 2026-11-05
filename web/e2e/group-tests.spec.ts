@@ -169,8 +169,8 @@ test('two students get their own order, and the results are open by name', async
   await expect(annaPage.getByRole('group', { name: 'Подсказки' })).toHaveCount(0);
   await expect(annaPage.getByRole('timer')).toHaveText(/^(10:00|9:\d\d)$/);
   const annaOrder = await answerAll(annaPage);
-  await expect(annaPage.getByRole('heading', { level: 1, name: '9 из 9' })).toBeVisible();
-  await expect(annaPage.getByText('Сдано', { exact: true })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '9 из 9' })).toBeVisible();
+  await expect(annaPage.getByRole('heading', { level: 1, name: 'Без единой ошибки!' })).toBeVisible();
 
   await openDeckTest(ivanPage);
   await startTest(ivanPage);
@@ -178,8 +178,8 @@ test('two students get their own order, and the results are open by name', async
     .filter((meaningText) => meaningText !== 'галька')
     .slice(0, 5);
   const ivanOrder = await answerAll(ivanPage, wrong);
-  await expect(ivanPage.getByRole('heading', { level: 1, name: '4 из 9' })).toBeVisible();
-  await expect(ivanPage.getByText('Не сдано', { exact: true })).toBeVisible();
+  await expect(ivanPage.getByRole('img', { name: '4 из 9' })).toBeVisible();
+  await expect(ivanPage.getByRole('heading', { level: 1, name: 'Пока не сдан' })).toBeVisible();
   await expect(ivanPage.getByRole('region', { name: 'Ошибки' }).getByRole('listitem')).toHaveCount(5);
 
   expect(annaOrder).toHaveLength(9);
@@ -272,9 +272,9 @@ test('when the time is up the tiles lock, the built word counts, and the group s
   });
   await annaPage.clock.fastForward(61_000);
 
-  await expect(annaPage.getByRole('heading', { level: 1, name: '2 из 10' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '2 из 10' })).toBeVisible();
   await expect(annaPage.getByText('Время вышло')).toBeVisible();
-  await expect(annaPage.getByText('Не сдано', { exact: true })).toBeVisible();
+  await expect(annaPage.getByRole('heading', { level: 1, name: 'Пока не сдан' })).toBeVisible();
   await expect(annaPage.getByRole('region', { name: 'Не успели' }).getByRole('listitem')).toHaveCount(8);
 
   await learner.travelTo(new Date(Date.now() + 61_000));
@@ -317,7 +317,7 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
   await expect(annaPage.locator('[data-spelling]').getByText('Тренировка', { exact: true })).toBeVisible();
   await expect(annaPage.getByRole('button', { name: /Подсказка/ })).toHaveCount(0);
   await answerAll(annaPage, ['неудача']);
-  await expect(annaPage.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '2 из 3' })).toBeVisible();
   await expect(annaPage.getByText('Сдано', { exact: true })).toHaveCount(0);
   await expect(annaPage.getByRole('region', { name: 'Ошибки' })).toContainText('setback');
 
@@ -335,7 +335,7 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
   await expect(meaning(annaPage)).toHaveText('неудача');
   await build(annaPage, 'setback');
   await button(annaPage, 'Дальше').click();
-  await expect(annaPage.getByRole('heading', { level: 1, name: '1 из 1' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '1 из 1' })).toBeVisible();
   await button(annaPage, 'Готово').click();
   await expect(annaPage.getByRole('heading', { name: /Слова для работы/ })).toHaveCount(0);
 
@@ -417,7 +417,7 @@ test('a skipped word comes back after the others, half-built as it was, and a se
   await expect(page.getByRole('group', { name: `Ответ: 2 из ${WORDS[first].length} букв` })).toBeVisible();
 
   await button(page, 'Пропустить').click();
-  await expect(page.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '2 из 3' })).toBeVisible();
   // The feedback: what was skipped, with its answer now shown, and no mistakes to compare.
   const skipped = page.getByRole('region', { name: 'Пропущено' });
   await expect(skipped).toContainText(WORDS[first]);
@@ -499,7 +499,7 @@ test('words misspelled and skipped in a test wait in «Трудные» on the d
   await button(annaPage, 'Пропустить').click();
 
   // The feedback, in its groups.
-  await expect(annaPage.getByRole('heading', { level: 1, name: '1 из 3' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '1 из 3' })).toBeVisible();
   await expect(annaPage.getByRole('region', { name: 'Ошибки' })).toContainText(WORDS[misspelled]);
   await expect(annaPage.getByRole('region', { name: 'Пропущено' })).toContainText(WORDS[skipped]);
   await button(annaPage, 'Готово').click();

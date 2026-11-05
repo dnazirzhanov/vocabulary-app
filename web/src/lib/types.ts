@@ -630,6 +630,7 @@ export interface TestAttempt {
     total: number;
     /** Practice has no pass mark. */
     passed: boolean | null;
+    pass_percent: number | null;
     timed_out: boolean;
     /** `answer` is null for a word never answered: skipped, or the time ran out first. */
     mistakes: { translation: string; word: string; answer: string | null; skipped: boolean }[];
