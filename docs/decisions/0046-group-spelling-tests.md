@@ -65,6 +65,9 @@ same 35 days as lesson answers.
   no ranking and no red. Worth watching in a real class.
 - **It isn't cheat-proof.** A student can open the deck in another tab; only the teacher in the room prevents that.
   Locking phones would be the complexity the owner ruled out.
+- **A slow server takes from a student's time,** because the timer doesn't stop while an answer is saved. Measured for a class of 30: about 20
+  seconds over 30 words at 0.1 CPU, about 70 at 0.05 (`docs/research/capacity-2026-11.md`). Starting and answering wait 30 seconds rather than the
+  usual 15, because an error mid-test is worse than a wait, and both are safe to repeat.
 - A student who leaves a group loses their results with their membership, as with the rest of the report.
 - A test can't be taken twice, even by someone who was absent and made a mistake starting it. Only a change of words starts
   a new round, and that restarts it for everyone.
