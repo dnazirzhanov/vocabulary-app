@@ -110,42 +110,24 @@
   height: 14px;
 }
 
-.give,
-.takeBack {
+.toggle {
   flex: none;
   min-height: 44px;
   padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge-hover);
   border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
   font-weight: var(--weight-strong);
   cursor: pointer;
 }
 
-.give {
-  border: var(--border-control) solid var(--color-option-edge-hover);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.give:hover:not(:disabled) {
+.toggle:hover:not(:disabled) {
   background: var(--color-primary-tint);
 }
 
-.takeBack {
-  margin-right: calc(-1 * var(--space-3));
-  padding: 0 var(--space-3);
-  border: 0;
-  background: transparent;
-  color: var(--color-text-muted);
-}
-
-.takeBack:hover:not(:disabled) {
-  background: rgb(38 38 38 / 0.06);
-  color: var(--color-text);
-}
-
-.give:disabled,
-.takeBack:disabled,
+.toggle:disabled,
 .clearDue:disabled {
   opacity: 0.6;
   cursor: default;

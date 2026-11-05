@@ -9,7 +9,8 @@ import styles from './GiveDialog.module.css';
 
 /**
  * «Дать группе» in a window (ADR 0036, 0049): one list of my groups, each saying whether it has the
- * deck and by when, with one thing to do beside it. It loads the deck and my groups itself, so the
+ * deck and by when, with one thing to do beside it, in the same place: «Дать», then «Отменить».
+ * Undoing and giving again leaves everything as it was, so neither needs asking about. It loads the deck and my groups itself, so the
  * deck editor and a deck's own page open it the same way, and tells its opener when the deck changes.
  */
 export function GiveDialog({
@@ -85,9 +86,9 @@ export function GiveDialog({
                 {given ? (
                   <button
                     type="button"
-                    className={styles.takeBack}
+                    className={styles.toggle}
                     disabled={busy}
-                    aria-label={`Забрать у группы «${group.name}»`}
+                    aria-label={`Отменить для группы «${group.name}»`}
                     onClick={() =>
                       run(async () => {
                         await api.takeBackDeck(group.id, deckId);
@@ -95,12 +96,12 @@ export function GiveDialog({
                       })
                     }
                   >
-                    Забрать
+                    Отменить
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className={styles.give}
+                    className={styles.toggle}
                     disabled={busy}
                     aria-label={`Дать группе «${group.name}»`}
                     onClick={() => run(async () => show(await api.giveDeck(deckId, group.id, null)))}

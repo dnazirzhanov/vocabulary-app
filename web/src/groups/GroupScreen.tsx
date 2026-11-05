@@ -173,7 +173,7 @@ export function GroupScreen({
             <details className={styles.manage}>
               <summary>Управление группой</summary>
               <div className={styles.manageBody}>
-                <GroupDecks board={board} onOpenDeck={onOpenDeck} />
+                <GroupDecks board={board} onOpenDeck={onOpenDeck} onChanged={() => void load()} />
                 <DeleteGroup group={group} onDeleted={onLeft} />
               </div>
             </details>

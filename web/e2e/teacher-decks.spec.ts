@@ -70,14 +70,19 @@ test('a teacher gives words to a group and a student learns them first', async (
   const give = page.getByRole('dialog', { name: 'Дать группе' });
   // One list of my groups, with one thing to do on each (ADR 0049): nothing to fill in to give it.
   const giveTo = give.getByRole('button', { name: 'Дать группе «7Б английский»' });
-  const takeBack = give.getByRole('button', { name: 'Забрать у группы «7Б английский»' });
+  const takeBack = give.getByRole('button', { name: 'Отменить для группы «7Б английский»' });
   await giveTo.click();
   await expect(takeBack).toBeVisible();
   await expect(give.getByText('Указать срок')).toBeVisible();
-  // Taken back from the same window, the group is offered again.
+  // Undone from the same place, and given again: the deadline comes back with it.
+  const due = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  await give.getByLabel('Срок для группы «7Б английский»').fill(due);
+  await expect(give.getByText(/^К \d+ /)).toBeVisible();
   await takeBack.click();
+  await expect(give.getByText(/^К \d+ /)).toHaveCount(0);
   await giveTo.click();
   await expect(takeBack).toBeVisible();
+  await expect(give.getByText(/^К \d+ /)).toBeVisible();
   await page.keyboard.press('Escape');
   // The button now says where it is.
   await expect(button(page, 'В группе «7Б английский»')).toBeVisible();

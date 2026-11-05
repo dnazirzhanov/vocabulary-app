@@ -421,3 +421,55 @@ def test_a_deck_someone_learned_stays_even_after_its_group_is_gone(
 
     assert _deck_exists(db, deck["id"])
     assert len(db.scalars(select(UserWordProgress.word_id)).all()) == 2
+
+
+def test_undoing_and_giving_again_restores_the_deadline(client: TestClient) -> None:
+    """A real undo (ADR 0049): give, set a date, take back, give again, and nothing is lost."""
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [SETBACK])
+    give(client, deck, group["id"])
+    due = (THURSDAY + timedelta(days=7)).date().isoformat()
+    url = f"/api/groups/{group['id']}/decks/{deck['id']}"
+    assert client.delete(url, headers=as_("olga")).status_code == 204
+    set_date = client.post(
+        f"/api/decks/{deck['id']}/publish",
+        json={"group_id": group["id"], "due_on": due},
+        headers=as_("olga"),
+    )
+    assert set_date.json()["groups"][0]["due_on"] == due
+
+    assert client.delete(url, headers=as_("olga")).status_code == 204
+    again = give(client, deck, group["id"])
+    assert again["groups"][0]["due_on"] == due
+
+
+def test_giving_again_drops_a_deadline_that_has_passed(client: TestClient) -> None:
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [SETBACK])
+    due = (THURSDAY + timedelta(days=2)).date().isoformat()
+    client.post(
+        f"/api/decks/{deck['id']}/publish",
+        json={"group_id": group["id"], "due_on": due},
+        headers=as_("olga"),
+    )
+    client.delete(f"/api/groups/{group['id']}/decks/{deck['id']}", headers=as_("olga"))
+    later = {"X-Dev-User": "olga"} | at(THURSDAY + timedelta(days=3))
+    again = client.post(
+        f"/api/decks/{deck['id']}/publish", json={"group_id": group["id"]}, headers=later
+    ).json()
+    assert again["groups"][0]["due_on"] is None
+
+
+def test_a_group_owner_who_did_not_write_the_deck_can_remove_it(client: TestClient) -> None:
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [SETBACK])
+    give(client, deck, group["id"])
+    board = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
+    pavel = next(row["member_id"] for row in board["rows"] if row["is_me"])
+    handed = client.put(
+        f"/api/groups/{group['id']}/owner", json={"member_id": pavel}, headers=as_("olga")
+    )
+    assert handed.status_code == 200
+    url = f"/api/groups/{group['id']}/decks/{deck['id']}"
+    assert client.delete(url, headers=as_("olga")).status_code == 403  # no longer the owner
+    assert client.delete(url, headers=as_("pavel")).status_code == 204

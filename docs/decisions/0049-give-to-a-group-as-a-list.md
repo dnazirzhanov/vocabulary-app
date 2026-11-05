@@ -12,9 +12,11 @@ field and a button, and a sentence once no group was left. The owner found it ug
 | The group | The row | Beside it |
 |---|---|---|
 | Hasn't got it | Its name | «Дать», one tap with nothing to fill in |
-| Has it | ✓ and its name, then «Указать срок» or «К 13 ноября ×» | «Забрать», quiet |
+| Has it | ✓ and its name, then «Указать срок» or «К 13 ноября ×» | «Отменить» |
 
 - **The deadline reads as text and opens the date picker,** rather than being a form field that is mostly only read. A real date input lies invisibly over the words, so the phone's own picker opens.
+- **«Отменить» is a real undo, in the very place «Дать» was.** The owner asked for a way to undo a gift; «Забрать» didn't read as one. Giving again brings back the deadline, if its date is still to come, so neither step needs asking about.
+- **It can also be undone from the group's page,** under «Управление группой», by whoever owns the group, even if they didn't write the deck. That asks first: the deck leaves the list, and only its author can give it again.
 - **No explanation.** Someone with no group gets one line saying to create one. What a deadline does to the words is said where it matters, on the deck's page for those studying it.
 
 ## Consequences
