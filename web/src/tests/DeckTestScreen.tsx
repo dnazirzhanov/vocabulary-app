@@ -5,6 +5,7 @@ import { wordsLabel } from '../lib/pace.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import type { TestAttempt, TestAttemptKind, TestDetail, TestResultRow } from '../lib/types.ts';
 import { StateMark } from '../promise/DayDots.tsx';
+import { Dialog } from '../ui/Dialog.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
@@ -32,6 +33,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   const [detail, setDetail] = useState<TestDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [setting, setSetting] = useState(false);
+  const [starting, setStarting] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -111,7 +113,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
     );
   } else if (test.is_open) {
     main = (
-      <PrimaryButton type="button" disabled={busy} onClick={() => void start('test')}>
+      <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
         Начать тест
       </PrimaryButton>
     );
@@ -160,7 +162,8 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
                     {test.is_open ? 'Закрыть тест' : 'Открыть тест'}
                   </button>
                 )}
-                {manager && (
+                {/* Closed first: other words erase results, which is no thing to do mid-test. */}
+                {manager && !test.is_open && (
                   <button type="button" className={shared.linkButton} onClick={() => setSetting(true)}>
                     Настроить тест
                   </button>
@@ -184,7 +187,10 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
 
           <Results title="Сдали" state="done" rows={detail.passed} />
           <Results title="Не сдали" state="pending" rows={detail.failed} />
-          <Results title="Ещё не проходили" state="off" rows={detail.not_taken} />
+          {/* Nobody is behind on a test that has never been open. */}
+          {(test?.is_open || detail.passed.length + detail.failed.length > 0) && (
+            <Results title="Ещё не проходили" state="off" rows={detail.not_taken} />
+          )}
 
           {mine.weak.length > 0 && (
             <section aria-labelledby="weak-title" className={styles.weak}>
@@ -210,6 +216,23 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
           )}
         </div>
       </main>
+      <Dialog open={starting} onClose={() => setStarting(false)} title="Начать тест?">
+        <div className={styles.setup}>
+          <p>Время пойдёт сразу. Попытка одна.</p>
+          <PrimaryButton
+            type="button"
+            onClick={() => {
+              setStarting(false);
+              void start('test');
+            }}
+          >
+            Начать
+          </PrimaryButton>
+          <button type="button" className={shared.linkButton} data-autofocus onClick={() => setStarting(false)}>
+            Отмена
+          </button>
+        </div>
+      </Dialog>
       {setting && (
         <TestSetup
           groupId={groupId}

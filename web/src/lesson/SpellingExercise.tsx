@@ -30,6 +30,8 @@ interface SpellingExerciseProps {
   onContinue: () => void;
   /** The letter of one slot, from the server (the word stays there): one per card. A test has none. */
   onHint?: (position: number) => Promise<Hint>;
+  /** Instead of «Правописание», where the screen is one kind of spelling (a test, ADR 0046). */
+  eyebrow?: string;
   /** Instead of «Проверить», where nothing is checked in front of the learner (a test, ADR 0046). */
   submitLabel?: string;
   /** The word as built so far, once every slot is filled, for when the time runs out. */
@@ -50,6 +52,7 @@ export function SpellingExercise({
   onSubmit,
   onContinue,
   onHint,
+  eyebrow = 'Правописание',
   submitLabel,
   onDraft,
 }: SpellingExerciseProps) {
@@ -136,7 +139,7 @@ export function SpellingExercise({
 
   return (
     <article className={styles.exercise} data-spelling={exercise.id}>
-      <p className={styles.eyebrow}>Правописание</p>
+      <p className={styles.eyebrow}>{eyebrow}</p>
       <div className={styles.prompt}>
         <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
           {exercise.prompt.translation}

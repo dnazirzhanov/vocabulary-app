@@ -212,7 +212,8 @@ class LatestTestOut(BaseModel):
 
     title: str
     passed: int
-    taken: int
+    # Everyone the test's results list: all but whoever set it, unless they took it too.
+    students: int
 
 
 class BoardOut(BaseModel):
@@ -229,4 +230,6 @@ class BoardOut(BaseModel):
     rows: list[BoardRow]
     totals: TotalsOut
     assignments: list[AssignmentOut]
+    # Whether any of the group's decks has a test yet (ADR 0046).
+    has_tests: bool = False
     latest_test: LatestTestOut | None = None

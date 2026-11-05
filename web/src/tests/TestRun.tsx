@@ -159,6 +159,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
               storageKey={`test:${attempt.id}:${question.id}`}
               busy={busy || timeUp}
               result={null}
+              eyebrow={timed ? 'Тест' : 'Тренировка'}
               submitLabel="Дальше"
               onDraft={setDraft}
               onSubmit={(answer) => void call(() => api.answerTest(attempt.id, question.id, answer))}

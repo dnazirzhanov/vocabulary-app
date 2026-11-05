@@ -67,7 +67,7 @@ def group_board(
 ) -> BoardOut:
     """The members' statistics over a week, a month or all time, ranked three ways (ADR 0023)."""
     out = groups.board(db, user, group_id, now, period)
-    out.latest_test = group_tests.latest_test(db, group_id, now)
+    out.has_tests, out.latest_test = group_tests.board_line(db, group_id, now)
     return out
 
 

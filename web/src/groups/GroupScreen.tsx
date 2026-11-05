@@ -123,13 +123,13 @@ export function GroupScreen({
             onRenamed={(renamed) => setBoard((current) => current && { ...current, group: renamed })}
           />
 
-          {board.assignments.length > 0 && (
+          {(board.has_tests || (board.assignments.length > 0 && group.can.includes('manage_tests'))) && (
             <button type="button" className={styles.testsRow} onClick={onTests}>
               <span>
                 <strong>Тесты</strong>
                 {board.latest_test && (
                   <small>
-                    Сдали {board.latest_test.passed} из {board.latest_test.taken} · {board.latest_test.title}
+                    Сдали {board.latest_test.passed} из {board.latest_test.students} · {board.latest_test.title}
                   </small>
                 )}
               </span>

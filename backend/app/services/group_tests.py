@@ -269,6 +269,25 @@ def _weak_word_ids(db: Session, test: GroupTest, member: GroupMember) -> set[str
     return {word_id for word_id, correct, _, _ in _latest_answers(db, test, member) if not correct}
 
 
+def _finished_attempts(db: Session, test: GroupTest) -> dict[UUID, GroupTestAttempt]:
+    """The results of the timed test, by member."""
+    return {
+        attempt.member_id: attempt
+        for attempt in db.scalars(
+            select(GroupTestAttempt).where(
+                GroupTestAttempt.test_id == test.id,
+                GroupTestAttempt.kind == "test",
+                GroupTestAttempt.finished_at.is_not(None),
+            )
+        )
+    }
+
+
+def _is_listed(member: GroupMember, finished: dict[UUID, GroupTestAttempt]) -> bool:
+    """Whoever sets the test isn't short of a result by not taking it."""
+    return member.id in finished or not can(member.role, "manage_tests")
+
+
 def test_detail(
     db: Session, user: User, group_id: UUID, deck_id: str, now: datetime
 ) -> TestDetailOut:
@@ -306,31 +325,22 @@ def test_detail(
         _settle(db, mine, now)
     _close_expired(db, [test.id], now)
 
-    finished = {
-        attempt.member_id: attempt
-        for attempt in db.scalars(
-            select(GroupTestAttempt).where(
-                GroupTestAttempt.test_id == test.id,
-                GroupTestAttempt.kind == "test",
-                GroupTestAttempt.finished_at.is_not(None),
-            )
-        )
-    }
+    finished = _finished_attempts(db, test)
     members = db.scalars(select(GroupMember).where(GroupMember.group_id == group_id)).all()
     passed: list[ResultRowOut] = []
     failed: list[ResultRowOut] = []
     not_taken: list[ResultRowOut] = []
     # Me first, then alphabetical: a list of friends, never an order of merit (ADR 0039).
     for other in sorted(members, key=lambda m: (m.id != member.id, m.nickname.casefold())):
+        if not _is_listed(other, finished):
+            continue
         attempt = finished.get(other.id)
         score = _score(attempt, test) if attempt else None
         row = ResultRowOut(
             member_id=other.id, nickname=other.nickname, is_me=other.id == member.id, score=score
         )
         if score is None:
-            # Whoever sets the test isn't short of a result by not taking it.
-            if not can(other.role, "manage_tests"):
-                not_taken.append(row)
+            not_taken.append(row)
         else:
             (passed if score.passed else failed).append(row)
 
@@ -368,8 +378,8 @@ def test_detail(
     )
 
 
-def latest_test(db: Session, group_id: UUID, now: datetime) -> LatestTestOut | None:
-    """The test last taken in the group, for the group page's line."""
+def board_line(db: Session, group_id: UUID, now: datetime) -> tuple[bool, LatestTestOut | None]:
+    """For the group's page: whether it has any test, and how the one last taken went."""
     test_ids = list(
         db.scalars(
             select(GroupTest.id)
@@ -378,7 +388,7 @@ def latest_test(db: Session, group_id: UUID, now: datetime) -> LatestTestOut | N
         )
     )
     if not test_ids:
-        return None
+        return False, None
     _close_expired(db, test_ids, now)
     newest = db.scalar(
         select(GroupTestAttempt.test_id)
@@ -391,24 +401,19 @@ def latest_test(db: Session, group_id: UUID, now: datetime) -> LatestTestOut | N
         .limit(1)
     )
     if newest is None:
-        return None
+        return True, None
     test = db.get_one(GroupTest, newest)
     title = db.scalar(
         select(Deck.title)
         .join(DeckAssignment, DeckAssignment.deck_id == Deck.id)
         .where(DeckAssignment.id == test.assignment_id)
     )
-    attempts = db.scalars(
-        select(GroupTestAttempt).where(
-            GroupTestAttempt.test_id == test.id,
-            GroupTestAttempt.kind == "test",
-            GroupTestAttempt.finished_at.is_not(None),
-        )
-    ).all()
-    return LatestTestOut(
+    finished = _finished_attempts(db, test)
+    members = db.scalars(select(GroupMember).where(GroupMember.group_id == group_id)).all()
+    return True, LatestTestOut(
         title=title or "",
-        passed=sum(_score(attempt, test).passed for attempt in attempts),
-        taken=len(attempts),
+        passed=sum(_score(attempt, test).passed for attempt in finished.values()),
+        students=sum(_is_listed(member, finished) for member in members),
     )
 
 

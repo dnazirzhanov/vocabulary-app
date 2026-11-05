@@ -64,6 +64,12 @@ async function openDeckTest(page: Page) {
   await expect(page.getByRole('heading', { level: 1, name: 'Unit 4' })).toBeVisible();
 }
 
+/** The one attempt, past the question that guards it. */
+async function startTest(page: Page) {
+  await button(page, 'Начать тест').click();
+  await page.getByRole('dialog', { name: 'Начать тест?' }).getByRole('button', { name: 'Начать', exact: true }).click();
+}
+
 const meaning = (page: Page) => page.locator('[data-spelling]').getByRole('heading', { level: 1 });
 
 async function build(page: Page, word: string) {
@@ -94,10 +100,6 @@ test('the owner sets a test up in one window, and a member cannot', async ({ pag
   const anna = await member(browser, group.code, 'Анна');
   const annaPage = await anna.newPage();
 
-  // A member sees nothing until a test is saved.
-  await openTests(annaPage);
-  await expect(annaPage.getByText('Тестов пока нет.')).toBeVisible();
-
   await openDeckTest(page);
   await button(page, 'Настроить тест').click();
   const setup = page.getByRole('dialog', { name: 'Настройка теста' });
@@ -118,14 +120,17 @@ test('the owner sets a test up in one window, and a member cannot', async ({ pag
 
   await expect(page.getByText('9 слов · 10 мин · сдать от 70%')).toBeVisible();
   // Saved is not yet open.
-  await annaPage.reload();
   await openDeckTest(annaPage);
   await expect(annaPage.getByText('Тест ещё не открыт')).toBeVisible();
+  // Nobody is behind on a test that has never been open.
+  await expect(annaPage.getByRole('region', { name: 'Ещё не проходили' })).toHaveCount(0);
   await expect(annaPage.getByRole('button', { name: 'Настроить тест' })).toHaveCount(0);
   await expect(annaPage.getByRole('button', { name: 'Открыть тест' })).toHaveCount(0);
 
   await button(page, 'Открыть тест').click();
   await expect(button(page, 'Закрыть тест')).toBeVisible();
+  // Settings wait until it is closed again.
+  await expect(page.getByRole('button', { name: 'Настроить тест' })).toHaveCount(0);
   await annaPage.reload();
   await openDeckTest(annaPage);
   await expect(button(annaPage, 'Начать тест')).toBeVisible();
@@ -149,7 +154,17 @@ test('two students get their own order, and the results are open by name', async
 
   await openDeckTest(annaPage);
   await expect(annaPage.getByText('9 слов · 10 мин · сдать от 80%')).toBeVisible();
+  // The one attempt is guarded: «Отмена» has the focus, and cancelling starts nothing.
   await button(annaPage, 'Начать тест').click();
+  const question = annaPage.getByRole('dialog', { name: 'Начать тест?' });
+  await expect(question.getByText('Время пойдёт сразу. Попытка одна.')).toBeVisible();
+  await expect(question.getByRole('button', { name: 'Отмена' })).toBeFocused();
+  await question.getByRole('button', { name: 'Отмена' }).click();
+  await expect(annaPage.locator('[data-spelling]')).toHaveCount(0);
+  const before = await (await anna.request.get(`/api/groups/${group.id}/tests/${group.deckId}`)).json();
+  expect(before.mine.state).toBe('none');
+  await startTest(annaPage);
+  await expect(annaPage.locator('[data-spelling]').getByText('Тест', { exact: true })).toBeVisible();
   // No hint, and nothing said between words.
   await expect(annaPage.getByRole('button', { name: /Подсказка/ })).toHaveCount(0);
   await expect(annaPage.getByRole('timer')).toHaveText(/^(10:00|9:\d\d)$/);
@@ -158,7 +173,7 @@ test('two students get their own order, and the results are open by name', async
   await expect(annaPage.getByText('Сдано', { exact: true })).toBeVisible();
 
   await openDeckTest(ivanPage);
-  await button(ivanPage, 'Начать тест').click();
+  await startTest(ivanPage);
   const wrong = Object.keys(WORDS)
     .filter((meaningText) => meaningText !== 'галька')
     .slice(0, 5);
@@ -184,7 +199,7 @@ test('two students get their own order, and the results are open by name', async
   // The group's page says how it went, and once taken the test can't start again.
   await page.getByRole('button', { name: 'Тесты', exact: true }).click();
   await page.getByRole('button', { name: 'К группе', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^Тесты/ })).toContainText('Сдали 1 из 2 · Unit 4');
+  await expect(page.getByRole('button', { name: /^Тесты/ })).toContainText('Сдали 1 из 3 · Unit 4');
   await annaPage.getByRole('button', { name: 'Готово', exact: true }).click();
   await expect(annaPage.getByText('9 из 9 · Сдано')).toBeVisible();
   await expect(annaPage.getByRole('button', { name: /Начать тест/ })).toHaveCount(0);
@@ -201,7 +216,7 @@ test('a reload in the middle of a test finds the same word, half-built, and the 
   await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
   await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
   await openDeckTest(page);
-  await button(page, 'Начать тест').click();
+  await startTest(page);
 
   const first = (await meaning(page).textContent())!;
   await build(page, WORDS[first]);
@@ -240,7 +255,7 @@ test('when the time is up the tiles lock, the built word counts, and the group s
   const annaPage = await anna.newPage();
   await annaPage.clock.install();
   await openDeckTest(annaPage);
-  await button(annaPage, 'Начать тест').click();
+  await startTest(annaPage);
   const first = (await meaning(annaPage).textContent())!;
   await build(annaPage, WORDS[first]);
   await button(annaPage, 'Дальше').click();
@@ -299,6 +314,7 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
   // Practice needs only a saved test; the timed one is still closed.
   await button(annaPage, 'Тренировка').click();
   await expect(annaPage.getByRole('timer')).toHaveCount(0);
+  await expect(annaPage.locator('[data-spelling]').getByText('Тренировка', { exact: true })).toBeVisible();
   await answerAll(annaPage, ['неудача']);
   await expect(annaPage.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
   await expect(annaPage.getByText('Сдано', { exact: true })).toHaveCount(0);
@@ -324,6 +340,7 @@ test('practice stays private, shows its mistakes, and clears weak words', async 
 
   // The group knows nothing of it.
   await openDeckTest(page);
+  await button(page, 'Открыть тест').click();
   await expect(page.getByRole('region', { name: 'Ещё не проходили' }).getByRole('listitem')).toHaveText(['Анна']);
   await expect(page.getByRole('region', { name: 'Сдали', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Не сдали' })).toHaveCount(0);
@@ -342,10 +359,11 @@ test('changing the words asks before erasing results, and a student mid-test is 
   const anna = await member(browser, group.code, 'Анна');
   const annaPage = await anna.newPage();
   await openDeckTest(annaPage);
-  await button(annaPage, 'Начать тест').click();
+  await startTest(annaPage);
   await expect(meaning(annaPage)).toBeVisible();
 
   await openDeckTest(page);
+  await button(page, 'Закрыть тест').click();
   await button(page, 'Настроить тест').click();
   const setup = page.getByRole('dialog');
   await setup.getByRole('radio', { name: 'Случайные' }).check();
@@ -363,7 +381,38 @@ test('changing the words asks before erasing results, and a student mid-test is 
   await expect(annaPage.getByText('Тест изменился. Начните заново.')).toBeVisible();
   await button(annaPage, 'Назад').click();
   await expect(annaPage.getByText('4 слова · 10 мин · сдать от 80%')).toBeVisible();
+  await button(page, 'Открыть тест').click();
+  await expect(button(page, 'Закрыть тест')).toBeVisible();
+  await openDeckTest(annaPage);
   await expect(button(annaPage, 'Начать тест')).toBeVisible();
+  await anna.close();
+});
+
+test('a member sees the way to tests only once a test exists', async ({ page, context, browser }) => {
+  const group = await ownerGroup(context);
+  const anna = await member(browser, group.code, 'Анна');
+  const annaPage = await anna.newPage();
+  await annaPage.goto('/');
+  await annaPage
+    .getByRole('button', { name: /Друзья/ })
+    .first()
+    .click();
+  await annaPage.getByRole('button', { name: /^7Б/ }).click();
+  await expect(annaPage.getByRole('heading', { level: 1, name: '7Б' })).toBeVisible();
+  await expect(annaPage.getByRole('button', { name: /^Тесты/ })).toHaveCount(0);
+
+  // The owner gets it as soon as there is a deck, to set one up.
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: /Друзья/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: /^7Б/ }).click();
+  await expect(page.getByRole('button', { name: /^Тесты/ })).toBeVisible();
+
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await openTests(annaPage);
+  await expect(annaPage.getByRole('button', { name: /^Unit 4/ })).toBeVisible();
   await anna.close();
 });
 

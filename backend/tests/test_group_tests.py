@@ -335,6 +335,18 @@ def test_changing_the_words_asks_before_erasing_results(client: TestClient) -> N
     assert room.start("pavel").status_code == 200
 
 
+def test_the_group_page_counts_everyone_still_to_take_it(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    board = client.get(f"/api/groups/{room.group_id}/board", headers=as_("olga")).json()
+    assert board["latest_test"] == {"title": "Unit 4", "passed": 1, "students": 2}
+    # Once the owner takes it, they count as well.
+    room.take("olga", wrong=2)
+    board = client.get(f"/api/groups/{room.group_id}/board", headers=as_("olga")).json()
+    assert board["latest_test"] == {"title": "Unit 4", "passed": 1, "students": 3}
+
+
 def test_a_change_of_pass_mark_applies_to_results_already_in(client: TestClient) -> None:
     room = Class(client, ["setback", "bargain", "harvest", "meadow", "ribbon"])
     room.ready()
@@ -616,7 +628,8 @@ def test_a_student_who_never_comes_back_still_gets_a_result(client: TestClient) 
     board = client.get(
         f"/api/groups/{room.group_id}/board", headers=as_("olga", NOW + timedelta(minutes=6))
     ).json()
-    assert board["latest_test"] == {"title": "Unit 4", "passed": 0, "taken": 1}
+    # Of the two students, with Ivan still to take it; the owner set it and isn't counted.
+    assert board["latest_test"] == {"title": "Unit 4", "passed": 0, "students": 2}
 
 
 def test_a_timed_out_attempt_cannot_be_started_again(client: TestClient) -> None:
@@ -657,7 +670,7 @@ def test_results_are_open_to_the_group_without_ranking(client: TestClient) -> No
     assert "Ольга" in names(room.detail("pavel")["passed"])
 
     board = client.get(f"/api/groups/{room.group_id}/board", headers=as_("ivan")).json()
-    assert board["latest_test"] == {"title": "Unit 4", "passed": 3, "taken": 4}
+    assert board["latest_test"] == {"title": "Unit 4", "passed": 3, "students": 4}
     listed = client.get(f"/api/groups/{room.group_id}/tests", headers=as_("ivan")).json()
     assert listed["decks"][0]["mine"] == {"correct": 1, "total": 5, "passed": False}
 
@@ -797,8 +810,14 @@ def test_members_see_only_decks_with_a_test(client: TestClient) -> None:
     assert client.get(tests, headers=as_("pavel")).json() == {"can_manage": False, "decks": []}
     olga = client.get(tests, headers=as_("olga")).json()
     assert olga["can_manage"] is True and olga["decks"][0]["has_test"] is False
+    board = f"/api/groups/{room.group_id}/board"
+    assert client.get(board, headers=as_("pavel")).json()["has_tests"] is False
     room.save()
     assert client.get(tests, headers=as_("pavel")).json()["decks"][0]["has_test"] is True
+    assert client.get(board, headers=as_("pavel")).json()["has_tests"] is True
+    # A deck taken back takes its test off the group's page too.
+    client.delete(f"/api/groups/{room.group_id}/decks/{room.deck_id}", headers=as_("olga"))
+    assert client.get(board, headers=as_("pavel")).json()["has_tests"] is False
 
 
 @pytest.mark.parametrize("how", ["leaves", "removed", "account", "deck", "group"])

@@ -12,7 +12,7 @@ room, no synchronised start. Attempts should also become data each student can u
 
 **What the owner sets, in one window:** all the words or N at random, words to leave out, the time, and the pass
 mark (80% by default). Everything is filled in, so it can be one tap. Saving doesn't open it: «Открыть тест» and
-«Закрыть тест» are separate. The right is `manage_tests` in the one table (ADR 0040), so the Administrator gets it
+«Закрыть тест» are separate, and the settings wait while a test is open, since other words erase results. The right is `manage_tests` in the one table (ADR 0040), so the Administrator gets it
 by a line when that role comes.
 
 **N at random is drawn once,** so everyone is judged on the same words, because the results are public. Saving the
@@ -28,7 +28,8 @@ refuses unless told `reset: true`, after the window has asked.
 | When | While open | Once a test is saved |
 | Who sees the score | The group | The student |
 
-Both use the same letter tiles with no hints. Nothing is said about a word until the end, then the score and each
+«Начать тест» asks first («Время пойдёт сразу. Попытка одна.»), with «Отмена» focused: it is the one tap that can't be undone.
+Both use the same letter tiles with no hints, and the screen says which kind it is. Nothing is said about a word until the end, then the score and each
 mistake. Each timer starts on that student's own tap; closing stops new starts and spares anyone mid-test.
 
 **Order.** Each attempt is shuffled once by the server with `random.SystemRandom().shuffle` (Fisher–Yates) and saved
@@ -48,7 +49,9 @@ or retried request; it could otherwise cost a student a word on a busy server. O
 out those 20 seconds, so they can't cut off an answer on its way.
 
 **Results** use the report's style (ADR 0039): «Сдали», «Не сдали» with «9 из 10», «Ещё не проходили». Alphabetical with me
-first, never ranked, nothing red. Whoever sets the test isn't listed as not having taken it. While a test is open the page
+first, never ranked, nothing red. Whoever sets the test isn't listed as not having taken it, and nobody is listed as not having taken one that has never been
+open. The group's page counts everyone still to take it («Сдали 2 из 4»), and shows members the way to tests only once one exists.
+While a test is open the page
 refreshes every 30 seconds, so a teacher sees results arrive.
 
 **Weak words** are the words whose latest answered try, in either kind, was wrong, so getting one right takes it off.

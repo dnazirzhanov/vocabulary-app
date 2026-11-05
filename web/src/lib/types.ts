@@ -356,7 +356,9 @@ export interface Board {
   totals: { days: number; learned: number; cards: number };
   assignments: Assignment[];
   /** The test last taken in the group, for the line on its page (ADR 0046). */
-  latest_test: { title: string; passed: number; taken: number } | null;
+  /** Whether any of the group's decks has a test yet. */
+  has_tests: boolean;
+  latest_test: { title: string; passed: number; students: number } | null;
 }
 
 /** A deck given to the group (ADR 0017); its words never change a place on the board. */
