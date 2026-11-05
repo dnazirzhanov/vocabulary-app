@@ -15,9 +15,8 @@ import { describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
-import { BulbIcon, CheckIcon } from '../ui/icons.tsx';
+import { BulbIcon, CheckIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { ListenButton } from './ListenButton.tsx';
 import styles from './SpellingExercise.module.css';
 
 interface SpellingExerciseProps {
@@ -144,21 +143,9 @@ export function SpellingExercise({
     <article className={styles.exercise} data-spelling={exercise.id}>
       <p className={styles.eyebrow}>{eyebrow}</p>
       <div className={styles.prompt}>
-        <div className={styles.meaningRow}>
-          <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
-            {exercise.prompt.translation}
-          </h1>
-          {pronunciation && (
-            <ListenButton
-              label="Послушать слово"
-              onPlay={(event) => {
-                void playAudio('words', pronunciation.key, pronunciation.text);
-                // After a click, Enter should check the word, not play it again; Tab keeps its place.
-                if (event.detail > 0) event.currentTarget.blur();
-              }}
-            />
-          )}
-        </div>
+        <h1 className={styles.meaning} tabIndex={-1} data-autofocus data-translation>
+          {exercise.prompt.translation}
+        </h1>
         {again && word && (
           <p className={styles.word} lang="en">
             {word}
@@ -244,19 +231,44 @@ export function SpellingExercise({
             >
               Очистить
             </button>
-            {!again && onHint && (
-              <button
-                type="button"
-                className={styles.hintButton}
-                disabled={!editable || hint !== null || hinting || full}
-                aria-busy={hinting}
-                onClick={() => void askHint()}
-              >
-                <BulbIcon aria-hidden="true" />
-                {hint ? 'Подсказка использована' : 'Подсказка'}
-              </button>
-            )}
           </div>
+          {/* Below the letters and asked for: the card itself asks for the word from memory (ADR 0047). */}
+          {!again && (onHint || pronunciation) && (
+            <div className={styles.hints} role="group" aria-label="Подсказки">
+              <span className={styles.hintsLabel} aria-hidden="true">
+                Подсказки:
+              </span>
+              {onHint && (
+                <button
+                  type="button"
+                  className={styles.hintButton}
+                  disabled={!editable || hint !== null || hinting || full}
+                  aria-busy={hinting}
+                  aria-label={hint ? 'Подсказка использована' : 'Подсказка: буква'}
+                  onClick={() => void askHint()}
+                >
+                  <BulbIcon aria-hidden="true" />
+                  Буква
+                </button>
+              )}
+              {pronunciation && (
+                <button
+                  type="button"
+                  className={styles.hintButton}
+                  disabled={!editable}
+                  aria-label="Подсказка: звук"
+                  onClick={(event) => {
+                    void playAudio('words', pronunciation.key, pronunciation.text);
+                    // After a click, Enter should check the word, not play it again; Tab keeps its place.
+                    if (event.detail > 0) event.currentTarget.blur();
+                  }}
+                >
+                  <SpeakerIcon aria-hidden="true" />
+                  Звук
+                </button>
+              )}
+            </div>
+          )}
           {hintNote && (
             <p className={styles.fixHint} role="status">
               {hintNote}

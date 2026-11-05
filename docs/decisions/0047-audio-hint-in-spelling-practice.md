@@ -10,10 +10,13 @@ still hard, and it lets students practise for a group's test at home in another 
 hints (ADR 0046).
 
 ## Decision
-- **«Послушать слово»: the flashcard's speaker button, beside the meaning.** It plays the word's recording, or the device's
-  voice where there is none, as flashcards do. Decks people write themselves have no recordings.
-- **As often as asked, and nothing plays by itself.** It also works after answering, when hearing the word costs nothing.
-- **It isn't the one letter hint.** Each card still has its letter hint, whether or not the word was heard.
+- **It reads as a hint, because the point is to spell without it.** The owner tried a speaker beside the meaning, like a
+  flashcard's, and moved it: there it looks like part of the question and invites a tap first. It now sits below the letters in
+  one quiet row with the letter hint: «Подсказки: Буква · Звук».
+- **«Звук» plays the word's recording,** or the device's voice where there is none, as flashcards do. Decks people write
+  themselves have no recordings.
+- **As often as asked, and nothing plays by itself.** Like the letter hint, it goes once the word is checked.
+- **It isn't used up.** Each card still has its one letter, whether or not the word was heard.
 - **It doesn't count against the learner.** A letter hint makes a word a miss on the ladder (ADR 0026), because it gives part
   of the spelling. Hearing a word gives none of its letters, so a right answer after listening counts as right.
 - **Only in individual practice.** Cards of a group's test and its «Тренировка» don't carry the word at all, and a test covers that.

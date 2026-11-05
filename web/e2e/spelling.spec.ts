@@ -119,7 +119,7 @@ test('one hint per card fills the next letter, and only that one', async ({ page
   await expect(page.locator('[data-spelling] h1')).toHaveText('дом');
   await tile(page, 'h').click();
   await tile(page, 'o').click();
-  const hint = page.getByRole('button', { name: 'Подсказка' });
+  const hint = page.getByRole('button', { name: 'Подсказка: буква' });
   await hint.click();
   // The third slot gets its letter; the word's other letters stay hidden.
   await expect(page.getByRole('button', { name: 'Буква 3: u (подсказка), убрать' })).toBeVisible();
@@ -170,7 +170,7 @@ async function spellOne(page: Page, built: string) {
   await button(page, 'Дальше').click();
 }
 
-test('the audio hint says the word on a tap, as often as asked, without showing it or using the hint', async ({
+test('the sound is a hint: said on a tap, as often as asked, without showing the word or using the letter', async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -195,7 +195,12 @@ test('the audio hint says the word on a tap, as often as asked, without showing 
 
   // Only one speaker here: the auto-play switch belongs to flashcards.
   await expect(page.getByRole('button', { name: 'Произносить слово автоматически' })).toHaveCount(0);
-  const listen = button(page, 'Послушать слово');
+  // Offered with the letter, below the tiles, not as part of the question.
+  const hints = page.getByRole('group', { name: 'Подсказки' });
+  await expect(hints).toContainText('Подсказки:');
+  await expect(hints.getByRole('button')).toHaveCount(2);
+  await expect(card.locator('[class*="prompt"]').getByRole('button')).toHaveCount(0);
+  const listen = hints.getByRole('button', { name: 'Подсказка: звук' });
   await listen.click();
   await listen.click();
   await expect
@@ -203,14 +208,14 @@ test('the audio hint says the word on a tap, as often as asked, without showing 
     .toEqual(['/audio/words/house.mp3', '/audio/words/house.mp3']);
   // Heard, never shown, and the letter hint is still there to use.
   await expect(page.locator('main')).not.toContainText('house');
-  await expect(page.getByRole('button', { name: 'Подсказка', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Подсказка: буква' })).toBeEnabled();
 
   // After the click, the keyboard still works: letters, then Enter checks rather than plays again.
   await page.keyboard.type('house');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Верно');
   expect((await played()).slice(before)).toHaveLength(2);
-  await expect(listen).toBeVisible(); // to hear it once more with the word in front of you
+  await expect(hints).toHaveCount(0); // a hint is for before answering
 
   // The next card says its own word.
   await button(page, 'Дальше').click();
@@ -244,7 +249,7 @@ test('a word with no recording is said by the device', async ({ page, context })
   const before = (await spoken()).length;
   await page.waitForTimeout(300);
   expect(await spoken()).toHaveLength(before);
-  await button(page, 'Послушать слово').click();
+  await button(page, 'Подсказка: звук').click();
   await expect.poll(async () => (await spoken()).slice(before)).toEqual(['setback']);
   await expect(page.locator('main')).not.toContainText('setback');
 });
