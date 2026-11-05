@@ -732,9 +732,15 @@ def _my_attempt(
 
 
 def _attempt_out(
-    db: Session, attempt: GroupTestAttempt, test: GroupTest, deck_id: str, title: str
+    db: Session,
+    attempt: GroupTestAttempt,
+    test: GroupTest,
+    deck_id: str,
+    title: str,
+    questions: list[GroupTestQuestion] | None = None,
 ) -> TestAttemptOut:
-    questions = _questions(db, attempt.id)
+    """How the attempt stands; `questions` if the caller has just read them, as every answer has."""
+    questions = _questions(db, attempt.id) if questions is None else questions
     question: SpellingExercise | None = None
     returning = False
     result: AttemptResultOut | None = None
@@ -823,8 +829,11 @@ def _change_question(
                 change(question)
                 db.flush()
         over = attempt.deadline_at is not None and now >= attempt.deadline_at
-        if over or _next_question(_questions(db, attempt.id)) is None:
+        questions = _questions(db, attempt.id)
+        if over or _next_question(questions) is None:
             _finish(db, attempt, now)
+        db.commit()
+        return _attempt_out(db, attempt, test, deck_id, title, questions)
     db.commit()
     return _attempt_out(db, attempt, test, deck_id, title)
 
