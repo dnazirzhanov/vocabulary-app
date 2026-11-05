@@ -8,15 +8,19 @@ import { GoalScreen } from './goal/GoalScreen.tsx';
 import { GroupScreen } from './groups/GroupScreen.tsx';
 import { GroupsScreen } from './groups/GroupsScreen.tsx';
 import { JoinScreen } from './groups/JoinScreen.tsx';
+import { DeckTestScreen } from './tests/DeckTestScreen.tsx';
+import { TestRun } from './tests/TestRun.tsx';
+import { TestsScreen } from './tests/TestsScreen.tsx';
 import { CourseScreen } from './home/CourseScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
+import { forgetRunningTest, runningTest } from './lib/groupTests.ts';
 import { forgetDevice } from './lib/push.ts';
 import { currentDeck } from './lib/today.ts';
-import type { Deck, Me, Session, Summary } from './lib/types.ts';
+import type { Deck, Me, Session, Summary, TestAttempt } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
@@ -28,6 +32,10 @@ type Screen =
   | { name: 'progress' }
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
+  // A group's tests (ADR 0046); `initial`: the attempt just started, absent after a reload.
+  | { name: 'tests'; groupId: string }
+  | { name: 'deck-test'; groupId: string; deckId: string }
+  | { name: 'test-run'; groupId: string; deckId: string; attemptId: string; initial?: TestAttempt }
   | { name: 'course' }
   // A deck's page (ADR 0020); `from`: where «Назад» leads.
   | { name: 'deck-page'; deckId: string; from: 'home' | 'course' | 'progress' }
@@ -69,7 +77,10 @@ function forgetInvite() {
 rememberInviteFromUrl();
 const startScreen = (): Screen => {
   const code = pendingInvite();
-  return code ? { name: 'join', code } : { name: 'home' };
+  if (code) return { name: 'join', code };
+  // A reload in the middle of a test goes straight back to it: its clock keeps running.
+  const running = runningTest();
+  return running ? { name: 'test-run', ...running } : { name: 'home' };
 };
 
 type Account =
@@ -110,6 +121,7 @@ function useAccount() {
 
 /** This device only: a phone stays signed in when the laptop signs out, its reminders stop here. */
 async function signOutHere() {
+  forgetRunningTest();
   await forgetDevice().catch(() => undefined);
   await supabase?.auth.signOut({ scope: 'local' });
 }
@@ -220,6 +232,22 @@ function Learning({ email }: { email: string | null }) {
       />
     );
   }
+  if (screen.name === 'test-run') {
+    const { groupId, deckId } = screen;
+    return (
+      <TestRun
+        key={screen.attemptId}
+        groupId={groupId}
+        deckId={deckId}
+        attemptId={screen.attemptId}
+        initial={screen.initial}
+        onDone={() => {
+          forgetRunningTest();
+          setScreen({ name: 'deck-test', groupId, deckId });
+        }}
+      />
+    );
+  }
   if (screen.name === 'join') {
     return (
       <JoinScreen
@@ -281,10 +309,34 @@ function Learning({ email }: { email: string | null }) {
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onStudyDeck={(deckId) => openPage(deckId, 'home')}
           onStudy={goHome}
+          onTests={() => setScreen({ name: 'tests', groupId: screen.groupId })}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
             setScreen({ name: 'groups' });
           }}
+        />
+      );
+    }
+    if (screen.name === 'tests') {
+      const { groupId } = screen;
+      return (
+        <TestsScreen
+          key={groupId}
+          groupId={groupId}
+          onOpen={(deckId) => setScreen({ name: 'deck-test', groupId, deckId })}
+          onBack={() => setScreen({ name: 'board', groupId })}
+        />
+      );
+    }
+    if (screen.name === 'deck-test') {
+      const { groupId, deckId } = screen;
+      return (
+        <DeckTestScreen
+          key={deckId}
+          groupId={groupId}
+          deckId={deckId}
+          onRun={(attempt) => setScreen({ name: 'test-run', groupId, deckId, attemptId: attempt.id, initial: attempt })}
+          onBack={() => setScreen({ name: 'tests', groupId })}
         />
       );
     }
@@ -345,7 +397,7 @@ function backTo(from: 'home' | 'course' | 'progress'): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (screen.name === 'groups' || screen.name === 'board') return 'friends';
+  if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';
   if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';
 }

@@ -32,13 +32,21 @@ export function PromiseDialog({
   const { run, busy, error } = useAsyncAction();
 
   useEffect(() => {
+    // Only the latest load may fill the form: a later answer must not wipe what was just tapped.
+    let current = true;
     api.me().then(
       (me) => {
+        if (!current) return;
         setInfo(me.promise);
         setChosen(me.promise.pending?.weekdays ?? me.promise.weekdays);
       },
-      (caught: unknown) => setLoadError(describeError(caught)),
+      (caught: unknown) => {
+        if (current) setLoadError(describeError(caught));
+      },
     );
+    return () => {
+      current = false;
+    };
   }, []);
 
   const show = (next: PromiseInfo) => {

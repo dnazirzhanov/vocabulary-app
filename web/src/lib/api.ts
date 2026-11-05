@@ -11,6 +11,7 @@ import type {
   Group,
   GroupPreview,
   GroupSummary,
+  GroupTests,
   Period,
   Knowledge,
   Me,
@@ -24,6 +25,11 @@ import type {
   SpellingSize,
   Summary,
   TeacherDeck,
+  TestAttempt,
+  TestAttemptKind,
+  TestDetail,
+  TestSettings,
+  TestSetupInfo,
   DeckWordInput,
   GenerateResult,
   Library,
@@ -47,6 +53,9 @@ export class ApiError extends Error {
 const TIMEOUT_MS = 15_000;
 const BUSY_RETRIES = 3;
 // The server counts days (daily goal, streaks) in the learner's own time zone.
+// A whole class starts a test within seconds (ADR 0046). Both requests are safe to repeat, and on a
+// busy server a longer wait is kinder than an error in the middle of a timed test.
+const TEST_TIMEOUT_MS = 30_000;
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 async function request<T>(
@@ -193,6 +202,32 @@ export const api = {
   pushKey: () => request<{ public_key: string | null }>('GET', '/push/key'),
   subscribePush: (subscription: PushSubscriptionJSON) => request<null>('POST', '/push/subscriptions', subscription),
   unsubscribePush: (endpoint: string) => request<null>('DELETE', '/push/subscriptions', { endpoint }),
+  /** A group's spelling tests (ADR 0046). */
+  groupTests: (groupId: string) => request<GroupTests>('GET', `/groups/${groupId}/tests`),
+  testDetail: (groupId: string, deckId: string) => request<TestDetail>('GET', `/groups/${groupId}/tests/${deckId}`),
+  testSetup: (groupId: string, deckId: string) =>
+    request<TestSetupInfo>('GET', `/groups/${groupId}/tests/${deckId}/setup`),
+  saveTest: (groupId: string, deckId: string, settings: TestSettings) =>
+    request<TestSetupInfo>('PUT', `/groups/${groupId}/tests/${deckId}`, settings),
+  openTest: (groupId: string, deckId: string, open: boolean) =>
+    request<TestDetail>('PUT', `/groups/${groupId}/tests/${deckId}/open`, { open }),
+  /** Starts, or returns the attempt already running with its saved order and deadline. */
+  startTestAttempt: (groupId: string, deckId: string, kind: TestAttemptKind, onlyWeak = false) =>
+    request<TestAttempt>(
+      'POST',
+      `/groups/${groupId}/tests/${deckId}/attempts`,
+      { kind, only_weak: onlyWeak },
+      TEST_TIMEOUT_MS,
+    ),
+  testAttempt: (attemptId: string) => request<TestAttempt>('GET', `/test-attempts/${attemptId}`),
+  // Safe to retry: the first answer to a question stands.
+  answerTest: (attemptId: string, questionId: string, answer: string) =>
+    request<TestAttempt>(
+      'POST',
+      `/test-attempts/${attemptId}/answers`,
+      { question_id: questionId, answer },
+      TEST_TIMEOUT_MS,
+    ),
   /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };
@@ -208,6 +243,11 @@ const MESSAGES: Record<string, string> = {
   too_many_groups: 'Можно состоять не больше чем в 5 группах.',
   group_full: 'В этой группе уже 50 участников.',
   rate_limited: 'Слишком много попыток. Подождите минуту.',
+  no_words: 'В этом тесте пока нет слов.',
+  too_many_words: 'В колоде меньше слов, чем выбрано.',
+  test_closed: 'Тест сейчас закрыт.',
+  already_taken: 'Этот тест вы уже прошли.',
+  test_running: 'Сначала закончите тест.',
   nothing_to_study: 'В этой колоде сейчас нечего учить: новые слова уже встречены, а повторений пока нет.',
   reviews_first: 'Сначала повторите слова, которые ждут, — новые вернутся сразу после этого.',
   word_in_deck: 'Это слово уже есть в наборе.',

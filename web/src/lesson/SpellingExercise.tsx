@@ -28,8 +28,12 @@ interface SpellingExerciseProps {
   result: AttemptResult | null;
   onSubmit: (answer: string) => void;
   onContinue: () => void;
-  /** The letter of one slot, from the server (the word stays there): one per card. */
-  onHint: (position: number) => Promise<Hint>;
+  /** The letter of one slot, from the server (the word stays there): one per card. A test has none. */
+  onHint?: (position: number) => Promise<Hint>;
+  /** Instead of «Проверить», where nothing is checked in front of the learner (a test, ADR 0046). */
+  submitLabel?: string;
+  /** The word as built so far, once every slot is filled, for when the time runs out. */
+  onDraft?: (answer: string | null) => void;
 }
 
 /**
@@ -46,6 +50,8 @@ export function SpellingExercise({
   onSubmit,
   onContinue,
   onHint,
+  submitLabel,
+  onDraft,
 }: SpellingExerciseProps) {
   const [picked, setPicked] = useState(() => savedPicks(storageKey));
   // After a mistake: building the word again, checked on the device against the shown word.
@@ -69,6 +75,8 @@ export function SpellingExercise({
     if (firstTryRight) playCorrect();
   }, [firstTryRight]);
 
+  useEffect(() => onDraft?.(full ? answer : null), [onDraft, full, answer]);
+
   const check = () => {
     if (full && !busy && result === null) onSubmit(answer);
   };
@@ -77,6 +85,7 @@ export function SpellingExercise({
     setPicked([]);
   };
   const askHint = async () => {
+    if (!onHint) return;
     const position = picked.length;
     setHinting(true);
     setHintNote(null);
@@ -217,7 +226,7 @@ export function SpellingExercise({
             >
               Очистить
             </button>
-            {!again && (
+            {!again && onHint && (
               <button
                 type="button"
                 className={styles.hintButton}
@@ -252,7 +261,7 @@ export function SpellingExercise({
             aria-busy={busy}
             onClick={check}
           >
-            {busy ? 'Проверяем…' : 'Проверить'}
+            {submitLabel ?? (busy ? 'Проверяем…' : 'Проверить')}
           </PrimaryButton>
         ) : (
           <PrimaryButton type="button" className={styles.primary} onClick={onContinue}>
@@ -286,26 +295,33 @@ function Feedback({ right, built, word }: { right: boolean; built: string; word:
   return (
     <div className={styles.feedback} data-tone="wrong" role="status">
       <p className={styles.verdict}>Почти</p>
-      <dl className={styles.compare}>
-        <div>
-          <dt>Ваш ответ</dt>
-          <dd lang="en">
-            {differences(built, word).map(({ letter, differs }, index) =>
-              differs ? (
-                <mark key={index} className={styles.differs}>
-                  {letter}
-                </mark>
-              ) : (
-                <span key={index}>{letter}</span>
-              ),
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Правильно</dt>
-          <dd lang="en">{word}</dd>
-        </div>
-      </dl>
+      <AnswerCompared built={built} word={word} />
     </div>
+  );
+}
+
+/** What was built above the word, with the letters that differ marked. */
+export function AnswerCompared({ built, word }: { built: string; word: string }) {
+  return (
+    <dl className={styles.compare}>
+      <div>
+        <dt>Ваш ответ</dt>
+        <dd lang="en">
+          {differences(built, word).map(({ letter, differs }, index) =>
+            differs ? (
+              <mark key={index} className={styles.differs}>
+                {letter}
+              </mark>
+            ) : (
+              <span key={index}>{letter}</span>
+            ),
+          )}
+        </dd>
+      </div>
+      <div>
+        <dt>Правильно</dt>
+        <dd lang="en">{word}</dd>
+      </div>
+    </dl>
   );
 }

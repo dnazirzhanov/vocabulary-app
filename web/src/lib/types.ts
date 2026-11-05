@@ -257,7 +257,14 @@ export interface DeckWord {
 
 /** What a role may do in a group (ADR 0040); the server says which ones I may. */
 export type GroupAction =
-  'rename' | 'give_decks' | 'see_standings' | 'reset_invite' | 'remove_member' | 'transfer_ownership' | 'delete_group';
+  | 'rename'
+  | 'give_decks'
+  | 'see_standings'
+  | 'reset_invite'
+  | 'remove_member'
+  | 'transfer_ownership'
+  | 'delete_group'
+  | 'manage_tests';
 
 export interface Group {
   id: string;
@@ -348,6 +355,8 @@ export interface Board {
   /** The whole group over the period. */
   totals: { days: number; learned: number; cards: number };
   assignments: Assignment[];
+  /** The test last taken in the group, for the line on its page (ADR 0046). */
+  latest_test: { title: string; passed: number; taken: number } | null;
 }
 
 /** A deck given to the group (ADR 0017); its words never change a place on the board. */
@@ -519,4 +528,98 @@ export interface Knowledge {
   met: number;
   learned: number;
   known: number;
+}
+
+// Mirrors backend/app/schemas/group_tests.py: a running attempt never carries a word or its id.
+
+export type TestAttemptKind = 'test' | 'practice';
+
+export interface TestScore {
+  correct: number;
+  total: number;
+  passed: boolean;
+}
+
+export interface TestDeck {
+  deck_id: string;
+  title: string;
+  has_test: boolean;
+  is_open: boolean;
+  mine: TestScore | null;
+}
+
+export interface GroupTests {
+  can_manage: boolean;
+  decks: TestDeck[];
+}
+
+export interface TestResultRow {
+  member_id: string;
+  nickname: string;
+  is_me: boolean;
+  score: TestScore | null;
+}
+
+export interface WeakWord {
+  word: string;
+  translation: string;
+}
+
+export interface TestDetail {
+  deck_id: string;
+  title: string;
+  can_manage: boolean;
+  test: { words: number; minutes: number; pass_percent: number; is_open: boolean } | null;
+  passed: TestResultRow[];
+  failed: TestResultRow[];
+  not_taken: TestResultRow[];
+  mine: {
+    state: 'none' | 'running' | 'done';
+    attempt_id: string | null;
+    deadline_at: string | null;
+    score: TestScore | null;
+    /** An unfinished practice to go back to. */
+    practice_attempt_id: string | null;
+    weak: WeakWord[];
+  };
+}
+
+export interface TestSetupInfo {
+  title: string;
+  words: { id: string; headword: string; translation: string }[];
+  saved: boolean;
+  question_count: number | null;
+  excluded_word_ids: string[];
+  pass_percent: number;
+  minutes: number;
+  /** Timed attempts that a change of words would erase. */
+  results: number;
+}
+
+export interface TestSettings {
+  question_count: number | null;
+  excluded_word_ids: string[];
+  pass_percent: number;
+  minutes: number;
+  reset?: boolean;
+}
+
+export interface TestAttempt {
+  id: string;
+  kind: TestAttemptKind;
+  deck_id: string;
+  title: string;
+  answered: number;
+  total: number;
+  deadline_at: string | null;
+  question: SpellingExercise | null;
+  result: {
+    correct: number;
+    total: number;
+    /** Practice has no pass mark. */
+    passed: boolean | null;
+    timed_out: boolean;
+    /** `answer` is null for a word the time ran out on. */
+    mistakes: { translation: string; word: string; answer: string | null }[];
+  } | null;
 }

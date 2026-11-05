@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import decks, groups, health, learning, me, push
+from app.api import decks, group_tests, groups, health, learning, me, push
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging, log_requests
@@ -37,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(learning.router, prefix="/api")
     app.include_router(me.router, prefix="/api")
     app.include_router(groups.router, prefix="/api")
+    app.include_router(group_tests.router, prefix="/api")
     app.include_router(decks.router, prefix="/api")
     app.include_router(push.router, prefix="/api")
     if settings.web_dist:
