@@ -141,8 +141,9 @@ class TestSetupOut(BaseModel):
 class MistakeOut(BaseModel):
     translation: str
     word: str
-    # None: the time ran out before this word.
+    # None: never answered, because it was skipped or the time ran out first.
     answer: str | None
+    skipped: bool
 
 
 class AttemptResultOut(BaseModel):

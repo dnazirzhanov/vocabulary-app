@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -214,7 +214,7 @@ def list_tests(db: Session, user: User, group_id: UUID, now: datetime) -> TestsO
                 GroupTestAttempt.kind == "test",
                 GroupTestAttempt.finished_at.is_not(None),
             )
-            .order_by(GroupTestAttempt.started_at)
+            .order_by(GroupTestAttempt.opening)
         )
     }
     return TestsOut(
@@ -241,7 +241,8 @@ def list_tests(db: Session, user: User, group_id: UUID, now: datetime) -> TestsO
 def _latest_answers(
     db: Session, test: GroupTest, member: GroupMember
 ) -> list[tuple[str, bool | None, str, str]]:
-    """Each word's latest answer in my finished attempts of either kind."""
+    """Each word's latest answer in my finished attempts of either kind; a word skipped for good
+    counts, as of when that attempt ended, and has no answer to be right."""
     rows = db.execute(
         select(
             GroupTestQuestion.word_id,
@@ -254,10 +255,13 @@ def _latest_answers(
             GroupTestAttempt.test_id == test.id,
             GroupTestAttempt.member_id == member.id,
             GroupTestAttempt.finished_at.is_not(None),
-            GroupTestQuestion.answered_at.is_not(None),
+            or_(GroupTestQuestion.answered_at.is_not(None), GroupTestQuestion.skips > 0),
         )
         .ext(distinct_on(GroupTestQuestion.word_id))
-        .order_by(GroupTestQuestion.word_id, GroupTestQuestion.answered_at.desc())
+        .order_by(
+            GroupTestQuestion.word_id,
+            func.coalesce(GroupTestQuestion.answered_at, GroupTestAttempt.finished_at).desc(),
+        )
     )
     return [(row[0], row[1], row[2], row[3]) for row in rows]
 
@@ -289,7 +293,7 @@ def _finished_attempts(db: Session, test: GroupTest) -> dict[UUID, GroupTestAtte
                 GroupTestAttempt.kind == "test",
                 GroupTestAttempt.finished_at.is_not(None),
             )
-            .order_by(GroupTestAttempt.started_at)
+            .order_by(GroupTestAttempt.opening)
         )
     }
 
@@ -720,7 +724,12 @@ def _attempt_out(
             passed=is_pass(correct, total, test.pass_percent) if attempt.kind == "test" else None,
             timed_out=any(item.answered_at is None and item.skips == 0 for item in questions),
             mistakes=[
-                MistakeOut(translation=item.translation, word=item.headword, answer=item.answer)
+                MistakeOut(
+                    translation=item.translation,
+                    word=item.headword,
+                    answer=item.answer,
+                    skipped=item.answered_at is None and item.skips > 0,
+                )
                 for item in questions
                 if not item.correct
             ],

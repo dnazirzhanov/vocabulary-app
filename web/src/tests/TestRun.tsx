@@ -208,7 +208,8 @@ function TestResult(props: {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
   const wrong = result.mistakes.filter((mistake) => mistake.answer !== null);
-  const missed = result.mistakes.filter((mistake) => mistake.answer === null);
+  const skipped = result.mistakes.filter((mistake) => mistake.skipped);
+  const missed = result.mistakes.filter((mistake) => mistake.answer === null && !mistake.skipped);
   return (
     <div className={shared.screen}>
       <main className={`${shared.main} ${styles.resultMain}`}>
@@ -234,18 +235,8 @@ function TestResult(props: {
               </ul>
             </section>
           )}
-          {missed.length > 0 && (
-            <section aria-label="Не успели" className={styles.mistakes}>
-              <h2 className={styles.mistakesTitle}>Не успели</h2>
-              <ul className={styles.weakWords}>
-                {missed.map((mistake) => (
-                  <li key={mistake.word}>
-                    <strong lang="en">{mistake.word}</strong> <span>{mistake.translation}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <WordList title="Пропущено" words={skipped} />
+          <WordList title="Не успели" words={missed} />
 
           {error && (
             <p className={shared.problem} role="alert">
@@ -265,5 +256,22 @@ function TestResult(props: {
         </div>
       </main>
     </div>
+  );
+}
+
+/** Words never answered: each with its meaning, for going over them. */
+function WordList({ title, words }: { title: string; words: { word: string; translation: string }[] }) {
+  if (words.length === 0) return null;
+  return (
+    <section aria-label={title} className={styles.mistakes}>
+      <h2 className={styles.mistakesTitle}>{title}</h2>
+      <ul className={styles.weakWords}>
+        {words.map((item) => (
+          <li key={item.word}>
+            <strong lang="en">{item.word}</strong> <span>{item.translation}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

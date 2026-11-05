@@ -418,6 +418,12 @@ test('a skipped word comes back after the others, half-built as it was, and a se
 
   await button(page, 'Пропустить').click();
   await expect(page.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
+  // The feedback: what was skipped, with its answer now shown, and no mistakes to compare.
+  const skipped = page.getByRole('region', { name: 'Пропущено' });
+  await expect(skipped).toContainText(WORDS[first]);
+  await expect(skipped).toContainText(first);
+  await expect(page.getByRole('region', { name: 'Ошибки' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Не успели' })).toHaveCount(0);
 });
 
 test('the owner opens the test again: a student who passed takes it again, and the list follows', async ({

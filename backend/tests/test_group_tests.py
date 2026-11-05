@@ -910,6 +910,60 @@ def test_nobody_else_skips_my_word(client: TestClient) -> None:
     assert client.post(url, json=theirs, headers=as_("pavel")).status_code == 404
 
 
+def test_the_result_tells_wrong_skipped_and_unreached_apart(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest", "meadow", "ribbon"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    keys = {key: right_word(attempt["id"], key) for key in _keys(attempt["id"])}
+    wrong = keys[attempt["question"]["id"]]
+    attempt = room.answer(attempt, "zzz", "pavel")
+    skipped = keys[attempt["question"]["id"]]
+    attempt = room.skip(attempt, "pavel")
+    right = keys[attempt["question"]["id"]]
+    attempt = room.answer(attempt, right, "pavel")
+
+    # The other two are never reached before the time runs out.
+    up = NOW + timedelta(minutes=5)
+    result = client.get(f"/api/test-attempts/{attempt['id']}", headers=as_("pavel", up)).json()
+    assert (result["result"]["correct"], result["result"]["total"]) == (1, 5)
+    by_word = {item["word"]: item for item in result["result"]["mistakes"]}
+    assert (by_word[wrong]["answer"], by_word[wrong]["skipped"]) == ("zzz", False)
+    assert (by_word[skipped]["answer"], by_word[skipped]["skipped"]) == (None, True)
+    unreached = set(keys.values()) - {wrong, skipped, right}
+    assert len(unreached) == 2
+    assert all(by_word[word]["answer"] is None for word in unreached)
+    assert not any(by_word[word]["skipped"] for word in unreached)
+    assert result["result"]["timed_out"] is True
+
+
+def test_a_word_skipped_when_time_ran_out_counts_as_skipped(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    attempt = room.skip(attempt, "pavel")  # it has come back, and then the time is up
+    up = NOW + timedelta(minutes=5)
+    result = client.get(f"/api/test-attempts/{attempt['id']}", headers=as_("pavel", up)).json()
+    assert result["result"]["mistakes"][0]["skipped"] is True
+    assert result["result"]["timed_out"] is False
+
+
+def test_skipped_words_are_weak_words_until_spelled_right(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    skipped = _right(attempt)
+    attempt = room.skip(attempt, "pavel")
+    attempt = room.answer(attempt, _right(attempt), "pavel")
+    room.skip(attempt, "pavel", again=True)
+    assert [item["word"] for item in room.detail("pavel")["mine"]["weak"]] == [skipped]
+
+    tomorrow = NOW + timedelta(days=1)
+    practice = room.start("pavel", "practice", tomorrow, only_weak=True).json()
+    assert practice["total"] == 1
+    room.answer(practice, skipped, "pavel", tomorrow)
+    assert room.detail("pavel", tomorrow)["mine"]["weak"] == []
+
+
 def test_practice_can_skip_too(client: TestClient) -> None:
     room = Class(client, ["setback", "bargain"])
     room.save()
