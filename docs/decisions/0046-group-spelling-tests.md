@@ -1,6 +1,7 @@
 # 0046 — A group's spelling tests: a timed class test, private practice, open results
 
-**Status:** Accepted (the owner's decisions, 4 November 2026).
+**Status:** Accepted (the owner's decisions, 4 November 2026). Amended by ADR 0048: words can be skipped, each opening gives a new
+attempt, and misses reach «Трудные».
 
 ## Context
 Students come back to class, the teacher asks them to take a spelling test of the deck, and each result

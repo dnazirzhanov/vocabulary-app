@@ -63,7 +63,9 @@ class TestDeckOut(BaseModel):
     # Whether a test has been saved for it, and if so whether it can be started.
     has_test: bool
     is_open: bool
+    # My latest result, and whether this opening still has an attempt for me.
     mine: ScoreOut | None
+    can_start: bool
 
 
 class TestsOut(BaseModel):
@@ -95,7 +97,10 @@ class MyTestOut(BaseModel):
     state: Literal["none", "running", "done"]
     attempt_id: UUID | None
     deadline_at: datetime | None
+    # My latest result, whichever opening it came from.
     score: ScoreOut | None
+    # The test is open and I have an attempt left in this opening.
+    can_start: bool
     # An unfinished practice to go back to.
     practice_attempt_id: UUID | None
     # Words whose latest answer was wrong: mine alone. Empty while my timed test runs.

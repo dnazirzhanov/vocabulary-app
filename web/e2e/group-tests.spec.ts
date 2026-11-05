@@ -420,6 +420,52 @@ test('a skipped word comes back after the others, half-built as it was, and a se
   await expect(page.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
 });
 
+test('the owner opens the test again: a student who passed takes it again, and the list follows', async ({
+  page,
+  context,
+  browser,
+}) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+
+  const anna = await member(browser, group.code, 'Анна');
+  const annaPage = await anna.newPage();
+  await annaPage.clock.install();
+  await openDeckTest(annaPage);
+  await startTest(annaPage);
+  await answerAll(annaPage);
+  await button(annaPage, 'Готово').click();
+  await expect(annaPage.getByText('3 из 3 · Сдано')).toBeVisible();
+  await expect(annaPage.getByRole('button', { name: 'Начать тест' })).toHaveCount(0);
+
+  await openDeckTest(page);
+  await expect(page.getByRole('region', { name: 'Сдали', exact: true }).getByRole('listitem')).toHaveText([
+    'Анна3 из 3',
+  ]);
+  await button(page, 'Закрыть тест').click();
+  await button(page, 'Открыть тест').click();
+  await expect(button(page, 'Закрыть тест')).toBeVisible();
+  // The old result stands until there is a new one.
+  await expect(page.getByRole('region', { name: 'Сдали', exact: true }).getByRole('listitem')).toHaveText([
+    'Анна3 из 3',
+  ]);
+
+  // A student already on the page sees it open, without reloading.
+  await annaPage.clock.fastForward(31_000);
+  await expect(annaPage.getByText('Прошлый раз: 3 из 3 · Сдано')).toBeVisible();
+  await startTest(annaPage);
+  await answerAll(annaPage, Object.keys(WORDS).slice(0, 3));
+  await button(annaPage, 'Готово').click();
+  await expect(annaPage.getByText('0 из 3 · Не сдано')).toBeVisible();
+
+  await page.reload();
+  await openDeckTest(page);
+  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 3']);
+  await expect(page.getByRole('region', { name: 'Сдали', exact: true })).toHaveCount(0);
+  await anna.close();
+});
+
 test('a member sees the way to tests only once a test exists', async ({ page, context, browser }) => {
   const group = await ownerGroup(context);
   const anna = await member(browser, group.code, 'Анна');

@@ -207,12 +207,14 @@ def list_tests(db: Session, user: User, group_id: UUID, now: datetime) -> TestsO
     mine = {
         attempt.test_id: attempt
         for attempt in db.scalars(
-            select(GroupTestAttempt).where(
+            select(GroupTestAttempt)
+            .where(
                 GroupTestAttempt.test_id.in_([test.id for test in tests]),
                 GroupTestAttempt.member_id == member.id,
                 GroupTestAttempt.kind == "test",
                 GroupTestAttempt.finished_at.is_not(None),
             )
+            .order_by(GroupTestAttempt.started_at)
         )
     }
     return TestsOut(
@@ -224,6 +226,11 @@ def list_tests(db: Session, user: User, group_id: UUID, now: datetime) -> TestsO
                 has_test=test is not None,
                 is_open=bool(test and test.is_open),
                 mine=_score(mine[test.id], test) if test and test.id in mine else None,
+                can_start=bool(
+                    test
+                    and test.is_open
+                    and (test.id not in mine or mine[test.id].opening != test.opening)
+                ),
             )
             for deck_id, title, test in rows
             if manager or test is not None
@@ -272,15 +279,17 @@ def _weak_word_ids(db: Session, test: GroupTest, member: GroupMember) -> set[str
 
 
 def _finished_attempts(db: Session, test: GroupTest) -> dict[UUID, GroupTestAttempt]:
-    """The results of the timed test, by member."""
+    """Each member's latest result of the timed test. Earlier ones stay as data, unshown."""
     return {
         attempt.member_id: attempt
         for attempt in db.scalars(
-            select(GroupTestAttempt).where(
+            select(GroupTestAttempt)
+            .where(
                 GroupTestAttempt.test_id == test.id,
                 GroupTestAttempt.kind == "test",
                 GroupTestAttempt.finished_at.is_not(None),
             )
+            .order_by(GroupTestAttempt.started_at)
         )
     }
 
@@ -301,6 +310,7 @@ def test_detail(
         attempt_id=None,
         deadline_at=None,
         score=None,
+        can_start=False,
         practice_attempt_id=None,
         weak=[],
     )
@@ -316,15 +326,11 @@ def test_detail(
             mine=nothing,
         )
 
-    mine = db.scalar(
-        select(GroupTestAttempt).where(
-            GroupTestAttempt.test_id == test.id,
-            GroupTestAttempt.member_id == member.id,
-            GroupTestAttempt.kind == "test",
-        )
-    )
-    if mine is not None:
-        _settle(db, mine, now)
+    running = _open_attempt(db, test, member, "test")
+    if running is not None:
+        _settle(db, running, now)
+        if running.finished_at is not None:
+            running = None
     _close_expired(db, [test.id], now)
 
     finished = _finished_attempts(db, test)
@@ -346,15 +352,8 @@ def test_detail(
         else:
             (passed if score.passed else failed).append(row)
 
-    practice = db.scalar(
-        select(GroupTestAttempt.id).where(
-            GroupTestAttempt.test_id == test.id,
-            GroupTestAttempt.member_id == member.id,
-            GroupTestAttempt.kind == "practice",
-            GroupTestAttempt.finished_at.is_(None),
-        )
-    )
-    running = mine is not None and mine.finished_at is None
+    practice = _open_attempt(db, test, member, "practice")
+    latest = finished.get(member.id)
     return TestDetailOut(
         deck_id=deck_id,
         title=title,
@@ -369,11 +368,16 @@ def test_detail(
         failed=failed,
         not_taken=not_taken,
         mine=MyTestOut(
-            state="none" if mine is None else "running" if running else "done",
-            attempt_id=mine.id if mine else None,
-            deadline_at=mine.deadline_at if running and mine else None,
-            score=_score(mine, test) if mine and not running else None,
-            practice_attempt_id=practice,
+            state="running" if running else "done" if latest else "none",
+            attempt_id=running.id if running else latest.id if latest else None,
+            deadline_at=running.deadline_at if running else None,
+            score=_score(latest, test) if latest and not running else None,
+            can_start=(
+                test.is_open
+                and running is None
+                and (latest is None or latest.opening != test.opening)
+            ),
+            practice_attempt_id=practice.id if practice else None,
             # While the clock runs, nothing may show how this student spells the test's words.
             weak=[] if running else _weak_words(db, test, member),
         ),
@@ -518,12 +522,15 @@ def save_test(
 def set_open(
     db: Session, user: User, group_id: UUID, deck_id: str, is_open: bool, now: datetime
 ) -> TestDetailOut:
-    """Closing only stops new starts: anyone mid-test keeps the time they were given."""
+    """Closing only stops new starts: anyone mid-test keeps the time they were given. Opening a
+    closed test gives everyone a new attempt, those who passed included."""
     member, assignment, _ = _given_deck(db, user, group_id, deck_id)
     require(member.role, "manage_tests")
     test = _test_of(db, assignment)
     if test is None:
         raise ApiError(404, "test_not_found", "Set the test up first")
+    if is_open and not test.is_open:
+        test.opening += 1  # a new opening: everyone has an attempt again (ADR 0048)
     test.is_open = is_open
     db.commit()
     return test_detail(db, user, group_id, deck_id, now)
@@ -546,6 +553,7 @@ def _create_attempt(
         test_id=test.id,
         member_id=member.id,
         kind=kind,
+        opening=test.opening if kind == "test" else 0,
         started_at=now,
         deadline_at=now + timedelta(minutes=test.minutes) if kind == "test" else None,
     )
@@ -574,14 +582,30 @@ def _create_attempt(
 def _open_attempt(
     db: Session, test: GroupTest, member: GroupMember, kind: AttemptKind
 ) -> GroupTestAttempt | None:
-    query = select(GroupTestAttempt).where(
-        GroupTestAttempt.test_id == test.id,
-        GroupTestAttempt.member_id == member.id,
-        GroupTestAttempt.kind == kind,
+    """My unfinished attempt of a kind, from whichever opening."""
+    return db.scalar(
+        select(GroupTestAttempt).where(
+            GroupTestAttempt.test_id == test.id,
+            GroupTestAttempt.member_id == member.id,
+            GroupTestAttempt.kind == kind,
+            GroupTestAttempt.finished_at.is_(None),
+        )
     )
-    if kind == "practice":
-        query = query.where(GroupTestAttempt.finished_at.is_(None))
-    return db.scalar(query)
+
+
+def _taken_in_this_opening(db: Session, test: GroupTest, member: GroupMember) -> bool:
+    return (
+        db.scalar(
+            select(GroupTestAttempt.id).where(
+                GroupTestAttempt.test_id == test.id,
+                GroupTestAttempt.member_id == member.id,
+                GroupTestAttempt.kind == "test",
+                GroupTestAttempt.opening == test.opening,
+                GroupTestAttempt.finished_at.is_not(None),
+            )
+        )
+        is not None
+    )
 
 
 def start_attempt(
@@ -605,12 +629,13 @@ def start_attempt(
         _settle(db, my_test, now)
     test_running = my_test is not None and my_test.finished_at is None
 
-    existing = my_test if kind == "test" else None
+    existing = my_test if test_running and kind == "test" else None
     if kind == "test":
-        if my_test is not None and my_test.finished_at is not None:
-            raise ApiError(409, "already_taken", "The test can be taken once")
-        if my_test is None and not test.is_open:
+        # Anything running resumes above, even from an earlier opening: its clock is still going.
+        if existing is None and not test.is_open:
             raise ApiError(409, "test_closed", "The test is not open")
+        if existing is None and _taken_in_this_opening(db, test, member):
+            raise ApiError(409, "already_taken", "The test can be taken once each time it opens")
     else:
         # Practice shows the right words at its end, so it waits for the timed test to finish.
         if test_running:

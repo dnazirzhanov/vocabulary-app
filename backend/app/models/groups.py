@@ -75,28 +75,33 @@ class GroupTest(Base):
     minutes: Mapped[int] = mapped_column(SmallInteger)
     # Whether a timed attempt may start now. Practice needs only a saved test.
     is_open: Mapped[bool] = mapped_column(server_default=text("false"))
+    # How many times it has been opened: each opening gives everyone one attempt (ADR 0048).
+    opening: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
 
 
 class GroupTestAttempt(Base):
-    """One go at a test. A `test` is timed and happens once per member, which the database enforces
-    however many tabs are open; `practice` is private and unlimited, one unfinished at a time."""
+    """One go at a test. A `test` is timed and happens once per member per opening; `practice` is
+    private and unlimited. Nobody has two of a kind unfinished. The database enforces both, however
+    many tabs are open."""
 
     __tablename__ = "test_attempts"
     __table_args__ = (
         CheckConstraint("kind IN ('test', 'practice')", name="kind_values"),
         Index(
-            "uq_test_attempts_one_test",
+            "uq_test_attempts_one_per_opening",
             "test_id",
             "member_id",
+            "opening",
             unique=True,
             postgresql_where=text("kind = 'test'"),
         ),
         Index(
-            "uq_test_attempts_one_open_practice",
+            "uq_test_attempts_one_running",
             "test_id",
             "member_id",
+            "kind",
             unique=True,
-            postgresql_where=text("kind = 'practice' AND finished_at IS NULL"),
+            postgresql_where=text("finished_at IS NULL"),
         ),
         Index("ix_test_attempts_member_id", "member_id"),
         Index("ix_test_attempts_started_at", "started_at"),
@@ -106,6 +111,8 @@ class GroupTestAttempt(Base):
     test_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("group_tests.id", ondelete="CASCADE"))
     member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("group_members.id", ondelete="CASCADE"))
     kind: Mapped[str] = mapped_column(String(8))
+    # Which opening of the test this attempt belongs to; practice: 0.
+    opening: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # When a timed attempt ends, whatever the device does. Practice has none.
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

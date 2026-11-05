@@ -14,7 +14,7 @@ import { TestSetup } from './TestSetup.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
 
-// While a test is open, results arrive as students finish: a teacher in the room sees them come in.
+// Results arrive as students finish, and a closed test opens: everyone in the room sees it soon.
 const REFRESH_MS = 30_000;
 
 interface DeckTestScreenProps {
@@ -45,14 +45,14 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
     void load();
   }, [load]);
 
-  const open = Boolean(detail?.test?.is_open);
+  const hasTest = Boolean(detail?.test);
   useEffect(() => {
-    if (!open) return;
+    if (!hasTest) return;
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') void load();
     }, REFRESH_MS);
     return () => clearInterval(timer);
-  }, [open, load]);
+  }, [hasTest, load]);
 
   const ready = detail !== null;
   useEffect(() => {
@@ -105,17 +105,24 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
         Продолжить тест{left !== null && ` · ${clockText(left)}`}
       </PrimaryButton>
     );
+  } else if (mine.can_start) {
+    main = (
+      <>
+        {mine.score && (
+          <p className={shared.note}>
+            Прошлый раз: {scoreText(mine.score)} · {verdictText(mine.score.passed)}
+          </p>
+        )}
+        <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
+          Начать тест
+        </PrimaryButton>
+      </>
+    );
   } else if (mine.score) {
     main = (
       <p className={styles.state}>
         {scoreText(mine.score)} · {verdictText(mine.score.passed)}
       </p>
-    );
-  } else if (test.is_open) {
-    main = (
-      <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
-        Начать тест
-      </PrimaryButton>
     );
   } else if (manager) {
     main = (

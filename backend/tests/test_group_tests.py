@@ -917,6 +917,166 @@ def test_practice_can_skip_too(client: TestClient) -> None:
     assert room.skip(attempt, "pavel")["answered"] == 1
 
 
+# --- retakes: one attempt each time the test opens --------------------------------------------
+
+
+def score_of(rows: list[dict[str, Any]], nickname: str) -> dict[str, Any]:
+    score: dict[str, Any] = next(row for row in rows if row["nickname"] == nickname)["score"]
+    return score
+
+
+def test_opening_again_gives_a_new_attempt_even_after_passing(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    assert room.detail("pavel")["mine"]["can_start"] is False
+
+    room.open(False)
+    closed = room.start("pavel")
+    assert closed.json()["error"]["code"] == "test_closed"
+    assert room.detail("pavel")["mine"]["can_start"] is False
+
+    room.open()
+    mine = room.detail("pavel")["mine"]
+    assert (mine["can_start"], mine["state"]) == (True, "done")
+    assert mine["score"]["passed"] is True  # the last result stays until there is a new one
+    assert room.start("pavel").status_code == 200
+
+
+def test_one_attempt_per_opening(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    room.open(False)
+    room.open()
+    room.take("pavel")
+    again = room.start("pavel")
+    assert (again.status_code, again.json()["error"]["code"]) == (409, "already_taken")
+
+
+def test_opening_an_open_test_gives_nothing_new(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    assert room.open().status_code == 200  # a second tab, or a double tap
+    assert room.start("pavel").json()["error"]["code"] == "already_taken"
+
+
+def test_the_group_sees_the_latest_attempt_in_both_directions(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    assert names(room.detail("ivan")["passed"]) == ["Павел"]
+
+    def retake(wrong: int) -> None:
+        room.open(False)
+        room.open()
+        room.take("pavel", wrong=wrong)
+
+    # Better results come first in the data, then worse: the list follows the latest.
+    retake(wrong=2)
+    detail = room.detail("ivan")
+    assert names(detail["failed"]) == ["Павел"] and detail["passed"] == []
+    assert score_of(detail["failed"], "Павел")["correct"] == 0
+    retake(wrong=0)
+    assert names(room.detail("ivan")["passed"]) == ["Павел"]
+    # Every attempt stays as data.
+    with get_sessionmaker()() as db:
+        assert db.scalar(select(func.count()).select_from(GroupTestAttempt)) == 3
+
+
+def test_someone_mid_retake_keeps_their_old_score_in_the_list(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    room.open(False)
+    room.open()
+    room.start("pavel")
+    assert names(room.detail("ivan")["passed"]) == ["Павел"]
+    # They themselves see the test they are in, not the old result.
+    mine = room.detail("pavel")["mine"]
+    assert (mine["state"], mine["score"], mine["can_start"]) == ("running", None, False)
+
+
+def test_a_student_who_does_not_retake_keeps_their_score(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    room.open(False)
+    room.open()
+    room.take("ivan", wrong=2)
+    detail = room.detail("olga")
+    assert names(detail["passed"]) == ["Павел"] and names(detail["failed"]) == ["Иван"]
+
+
+def test_a_running_attempt_from_an_earlier_opening_resumes_on_its_own_clock(
+    client: TestClient,
+) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready(minutes=5)
+    began = room.start("pavel").json()
+    room.open(False)
+    room.open()
+    resumed = room.start("pavel", moment=NOW + timedelta(minutes=1)).json()
+    assert resumed["id"] == began["id"] and resumed["deadline_at"] == began["deadline_at"]
+    # When that clock ends, this opening still has an attempt for them.
+    later = NOW + timedelta(minutes=6)
+    assert room.detail("pavel", later)["mine"]["can_start"] is True
+    assert room.start("pavel", moment=later).json()["id"] != began["id"]
+
+
+def test_two_tabs_retaking_make_one_attempt(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel")
+    room.open(False)
+    room.open()
+    first = room.start("pavel").json()
+    real = group_tests._open_attempt
+    calls = {"n": 0}
+
+    def stale(*args: Any) -> Any:
+        calls["n"] += 1
+        return None if calls["n"] == 1 else real(*args)
+
+    monkeypatch.setattr(group_tests, "_open_attempt", stale)
+    user = db.scalars(select(User).where(User.auth_subject == "dev|pavel")).one()
+    second = group_tests.start_attempt(db, user, room.group_id, room.deck_id, "test", False, NOW)
+    assert str(second.id) == first["id"]
+
+
+def test_changing_the_words_erases_every_opening(client: TestClient) -> None:
+    room = Class(client)
+    room.ready()
+    room.take("pavel")
+    room.open(False)
+    room.open()
+    room.take("pavel")
+    room.open(False)
+    setup = client.get(f"{room.url}/setup", headers=as_("olga")).json()
+    assert setup["results"] == 2
+    gone = [setup["words"][0]["id"]]
+    assert room.save(excluded_word_ids=gone, reset=True).status_code == 200
+    with get_sessionmaker()() as db:
+        kinds = db.scalars(select(GroupTestAttempt.kind)).all()
+    assert "test" not in kinds
+
+
+def test_the_list_of_tests_says_when_an_attempt_is_waiting(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    listed = f"/api/groups/{room.group_id}/tests"
+    assert client.get(listed, headers=as_("pavel")).json()["decks"][0]["can_start"] is True
+    room.take("pavel")
+    assert client.get(listed, headers=as_("pavel")).json()["decks"][0]["can_start"] is False
+    room.open(False)
+    room.open()
+    deck = client.get(listed, headers=as_("pavel")).json()["decks"][0]
+    assert deck["can_start"] is True and deck["mine"]["passed"] is True
+
+
 # --- the deck and the group changing --------------------------------------------------------
 
 

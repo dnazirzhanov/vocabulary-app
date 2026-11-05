@@ -549,7 +549,9 @@ export interface TestDeck {
   title: string;
   has_test: boolean;
   is_open: boolean;
+  /** My latest result, and whether this opening still has an attempt for me. */
   mine: TestScore | null;
+  can_start: boolean;
 }
 
 export interface GroupTests {
@@ -581,7 +583,10 @@ export interface TestDetail {
     state: 'none' | 'running' | 'done';
     attempt_id: string | null;
     deadline_at: string | null;
+    /** My latest result, whichever opening it came from. */
     score: TestScore | null;
+    /** The test is open and I have an attempt left in this opening. */
+    can_start: boolean;
     /** An unfinished practice to go back to. */
     practice_attempt_id: string | null;
     weak: WeakWord[];
