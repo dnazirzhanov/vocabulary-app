@@ -68,14 +68,16 @@ test('a teacher gives words to a group and a student learns them first', async (
   await expect(page.getByRole('heading', { name: 'Группы', exact: true })).toHaveCount(0);
   await button(page, 'Дать группе').click();
   const give = page.getByRole('dialog', { name: 'Дать группе' });
-  await give.getByLabel('Группа').selectOption({ label: '7Б английский' });
-  await give.getByRole('button', { name: 'Задать' }).click();
-  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  // One list of my groups, with one thing to do on each (ADR 0049): nothing to fill in to give it.
+  const giveTo = give.getByRole('button', { name: 'Дать группе «7Б английский»' });
+  const takeBack = give.getByRole('button', { name: 'Забрать у группы «7Б английский»' });
+  await giveTo.click();
+  await expect(takeBack).toBeVisible();
+  await expect(give.getByText('Указать срок')).toBeVisible();
   // Taken back from the same window, the group is offered again.
-  await give.getByRole('button', { name: 'Забрать' }).click();
-  await expect(give.getByRole('list', { name: 'Задано группам' })).toHaveCount(0);
-  await give.getByRole('button', { name: 'Задать' }).click();
-  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText('Задано группе «7Б английский»');
+  await takeBack.click();
+  await giveTo.click();
+  await expect(takeBack).toBeVisible();
   await page.keyboard.press('Escape');
   // The button now says where it is.
   await expect(button(page, 'В группе «7Б английский»')).toBeVisible();

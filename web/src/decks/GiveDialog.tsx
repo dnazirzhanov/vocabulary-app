@@ -1,17 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { dueLabel, localToday } from '../lib/deadline.ts';
 import type { Group, TeacherDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CheckIcon } from '../ui/icons.tsx';
-import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { CheckIcon, CloseIcon } from '../ui/icons.tsx';
 import styles from './GiveDialog.module.css';
 
 /**
- * «Дать группе» in a window (ADR 0036): which of my groups get this deck, and by when it should be
- * learned (ADR 0028). It loads the deck and my groups itself, so the deck editor and a deck's own
- * page open it the same way, and tells its opener whenever the deck changes.
+ * «Дать группе» in a window (ADR 0036, 0049): one list of my groups, each saying whether it has the
+ * deck and by when, with one thing to do beside it. It loads the deck and my groups itself, so the
+ * deck editor and a deck's own page open it the same way, and tells its opener when the deck changes.
  */
 export function GiveDialog({
   deckId,
@@ -25,37 +24,31 @@ export function GiveDialog({
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [owned, setOwned] = useState<Group[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [giveTo, setGiveTo] = useState('');
-  const [due, setDue] = useState('');
   const { run, busy, error } = useAsyncAction();
 
   useEffect(() => {
+    let current = true;
     Promise.all([api.teacherDeck(deckId), api.groups()]).then(
       ([loaded, groups]) => {
+        if (!current) return;
         setDeck(loaded);
         setOwned(groups.filter((group) => group.can.includes('give_decks')));
       },
-      (caught: unknown) => setLoadError(describeError(caught)),
+      (caught: unknown) => {
+        if (current) setLoadError(describeError(caught));
+      },
     );
+    return () => {
+      current = false;
+    };
   }, [deckId]);
 
   const show = (next: TeacherDeck) => {
     setDeck(next);
     onChanged?.(next);
   };
-  const given = new Set(deck?.groups.map((group) => group.id));
-  // Groups that haven't got it (a deck taken back is offered again).
-  const free = (owned ?? []).filter((group) => !given.has(group.id));
-  const chosen = free.some((group) => group.id === giveTo) ? giveTo : (free[0]?.id ?? '');
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!chosen) return;
-    void run(async () => {
-      show(await api.giveDeck(deckId, chosen, due || null));
-      setDue('');
-    });
-  };
+  const setDue = (groupId: string, due: string | null) =>
+    run(async () => show(await api.setDeckDue(groupId, deckId, due)));
 
   return (
     <Dialog open onClose={onClose} title="Дать группе">
@@ -67,102 +60,112 @@ export function GiveDialog({
         <p className={styles.note} aria-busy="true">
           Загружаем…
         </p>
+      ) : owned.length === 0 ? (
+        <p className={styles.note}>Сначала создайте группу во вкладке «Друзья».</p>
       ) : (
-        <>
-          <p className={styles.note}>
-            Участники найдут колоду у себя в «Мои колоды». С датой «Выучить к» слова разойдутся поровну по дням до неё,
-            а последний день останется для повторения.
-          </p>
-
-          {deck.groups.length > 0 && (
-            <ul className={styles.given} aria-label="Задано группам">
-              {deck.groups.map((group) => (
-                <li key={group.id}>
-                  <p className={styles.givenName}>
-                    <CheckIcon aria-hidden="true" />
-                    <span>
-                      Задано группе «{group.name}»
-                      {group.due_on && <span className={styles.due}> · выучить к {dueLabel(group.due_on)}</span>}
-                    </span>
+        <ul className={styles.groups}>
+          {owned.map((group) => {
+            const given = deck.groups.find((item) => item.id === group.id);
+            return (
+              <li key={group.id} className={styles.group} data-given={given ? '' : undefined}>
+                <div className={styles.about}>
+                  <p className={styles.name}>
+                    {given && <CheckIcon aria-hidden="true" />}
+                    {group.name}
                   </p>
-                  <div className={styles.givenControls}>
-                    <label className={styles.dueEdit}>
-                      <span>Срок</span>
-                      <input
-                        type="date"
-                        min={localToday()}
-                        value={group.due_on ?? ''}
-                        disabled={busy}
-                        onChange={(event) =>
-                          run(async () => show(await api.setDeckDue(group.id, deckId, event.target.value || null)))
-                        }
-                      />
-                    </label>
-                    {group.due_on && (
-                      <button
-                        type="button"
-                        className={styles.linkButton}
-                        disabled={busy}
-                        onClick={() => run(async () => show(await api.setDeckDue(group.id, deckId, null)))}
-                      >
-                        Без срока
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.linkButton}
+                  {given && (
+                    <DueDate
+                      groupName={group.name}
+                      due={given.due_on ?? null}
                       disabled={busy}
-                      onClick={() =>
-                        run(async () => {
-                          await api.takeBackDeck(group.id, deckId);
-                          show(await api.teacherDeck(deckId));
-                        })
-                      }
-                    >
-                      Забрать
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {free.length > 0 ? (
-            <form className={styles.form} onSubmit={submit}>
-              {deck.groups.length > 0 && <h3 className={styles.more}>Ещё группе</h3>}
-              <label className={styles.field}>
-                <span>Группа</span>
-                <select value={chosen} onChange={(event) => setGiveTo(event.target.value)}>
-                  {free.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Выучить к (необязательно)</span>
-                <input type="date" min={localToday()} value={due} onChange={(event) => setDue(event.target.value)} />
-              </label>
-              <PrimaryButton type="submit" disabled={busy} aria-busy={busy}>
-                Задать
-              </PrimaryButton>
-            </form>
-          ) : owned.length > 0 ? (
-            <p className={styles.note}>Колода задана всем вашим группам.</p>
-          ) : (
-            <p className={styles.note}>
-              Колоду можно дать группе, которую вы создали. Создайте её во вкладке «Друзья».
-            </p>
-          )}
-
-          {error && (
-            <p className={styles.problem} role="alert">
-              {error}
-            </p>
-          )}
-        </>
+                      onChange={(due) => void setDue(group.id, due)}
+                    />
+                  )}
+                </div>
+                {given ? (
+                  <button
+                    type="button"
+                    className={styles.takeBack}
+                    disabled={busy}
+                    aria-label={`Забрать у группы «${group.name}»`}
+                    onClick={() =>
+                      run(async () => {
+                        await api.takeBackDeck(group.id, deckId);
+                        show(await api.teacherDeck(deckId));
+                      })
+                    }
+                  >
+                    Забрать
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.give}
+                    disabled={busy}
+                    aria-label={`Дать группе «${group.name}»`}
+                    onClick={() => run(async () => show(await api.giveDeck(deckId, group.id, null)))}
+                  >
+                    Дать
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {error && (
+        <p className={styles.problem} role="alert">
+          {error}
+        </p>
       )}
     </Dialog>
+  );
+}
+
+/**
+ * The deadline as a line of text that opens the date picker, rather than a form field: most of the
+ * time it is only read. The real date input lies over the words, so the phone's own picker opens.
+ */
+function DueDate(props: {
+  groupName: string;
+  due: string | null;
+  disabled: boolean;
+  onChange: (due: string | null) => void;
+}) {
+  const { groupName, due, disabled, onChange } = props;
+  // Desktop browsers open the picker only from their own small icon; this makes the whole line do it.
+  const openPicker = (event: MouseEvent<HTMLInputElement>) => {
+    try {
+      event.currentTarget.showPicker();
+    } catch {
+      // not supported, or already open: the input still takes the date
+    }
+  };
+  return (
+    <div className={styles.due}>
+      <label className={styles.dueLine} data-set={due ? '' : undefined}>
+        {due ? `К ${dueLabel(due)}` : 'Указать срок'}
+        <input
+          type="date"
+          aria-label={`Срок для группы «${groupName}»`}
+          min={localToday()}
+          value={due ?? ''}
+          disabled={disabled}
+          onClick={openPicker}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value || null)}
+        />
+      </label>
+      {due && (
+        <button
+          type="button"
+          className={styles.clearDue}
+          disabled={disabled}
+          aria-label={`Убрать срок для группы «${groupName}»`}
+          onClick={() => onChange(null)}
+        >
+          <CloseIcon aria-hidden="true" />
+        </button>
+      )}
+    </div>
   );
 }

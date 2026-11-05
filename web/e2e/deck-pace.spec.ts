@@ -57,12 +57,18 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
   // From the deck's own page, the quiet icon beside the title opens the window (ADR 0036).
   await button(page, 'Дать группе').click();
   const give = page.getByRole('dialog', { name: 'Дать группе' });
-  await give.getByLabel('Группа').selectOption({ label: '7Б английский' });
-  await give.getByLabel('Выучить к (необязательно)').fill(dueOn);
-  await give.getByRole('button', { name: 'Задать' }).click();
-  await expect(give.getByRole('list', { name: 'Задано группам' })).toContainText(`выучить к ${dueText}`);
-  // Given to its only group: nothing more to offer.
-  await expect(give).toContainText('Колода задана всем вашим группам.');
+  // Given in one tap, then a deadline on its own line (ADR 0049).
+  await give.getByRole('button', { name: 'Дать группе «7Б английский»' }).click();
+  const deadline = give.getByLabel('Срок для группы «7Б английский»');
+  await deadline.fill(dueOn);
+  await expect(give.getByText(`К ${dueText}`)).toBeVisible();
+  // It can be taken off again, and put back.
+  await give.getByRole('button', { name: 'Убрать срок для группы «7Б английский»' }).click();
+  await expect(give.getByText('Указать срок')).toBeVisible();
+  await deadline.fill(dueOn);
+  await expect(give.getByText(`К ${dueText}`)).toBeVisible();
+  // Given to its only group: no more «Дать» to offer.
+  await expect(give.getByRole('button', { name: /^Дать группе/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
   // The deck's page says where it is, on the same labelled button as the editor's card.
   await expect(button(page, 'В группе «7Б английский»')).toBeVisible();
