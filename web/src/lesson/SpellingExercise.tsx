@@ -38,6 +38,8 @@ interface SpellingExerciseProps {
   eyebrow?: string;
   /** Instead of «Проверить», where nothing is checked in front of the learner (a test, ADR 0046). */
   submitLabel?: string;
+  /** Moves on without answering; only a test can (ADR 0048). */
+  onSkip?: () => void;
   /** The word as built so far, once every slot is filled, for when the time runs out. */
   onDraft?: (answer: string | null) => void;
 }
@@ -58,6 +60,7 @@ export function SpellingExercise({
   onHint,
   eyebrow = 'Правописание',
   submitLabel,
+  onSkip,
   onDraft,
 }: SpellingExerciseProps) {
   const { pronunciation } = exercise;
@@ -288,7 +291,7 @@ export function SpellingExercise({
         </>
       )}
 
-      <div className={styles.actions}>
+      <div className={styles.actions} data-can-skip={onSkip ? '' : undefined}>
         {result === null ? (
           <PrimaryButton
             type="button"
@@ -307,6 +310,11 @@ export function SpellingExercise({
         {result && !result.correct && !again && (
           <button type="button" className={styles.showWord} onClick={buildAgain}>
             Собрать ещё раз
+          </button>
+        )}
+        {onSkip && (
+          <button type="button" className={styles.showWord} disabled={busy} onClick={onSkip}>
+            Пропустить
           </button>
         )}
       </div>

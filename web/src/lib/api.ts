@@ -228,6 +228,14 @@ export const api = {
       { question_id: questionId, answer },
       TEST_TIMEOUT_MS,
     ),
+  // Safe to retry too: the same skip twice is one skip.
+  skipTest: (attemptId: string, questionId: string, again: boolean) =>
+    request<TestAttempt>(
+      'POST',
+      `/test-attempts/${attemptId}/skips`,
+      { question_id: questionId, again },
+      TEST_TIMEOUT_MS,
+    ),
   /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
 };

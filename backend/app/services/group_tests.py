@@ -12,7 +12,7 @@ who never comes back still gets a result, because any read of the test finishes 
 
 import random
 import secrets
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -61,6 +61,8 @@ DEFAULT_MINUTES = 10
 # How late an answer may arrive: the screen locked at the deadline, so this only saves one stuck in
 # a slow or retried request on a busy server, which would otherwise cost a student a word.
 GRACE = timedelta(seconds=20)
+# A word skipped this many times doesn't come back.
+FINAL_SKIP = 2
 
 
 # --- pure rules -----------------------------------------------------------------------------
@@ -667,11 +669,13 @@ def _attempt_out(
     db: Session, attempt: GroupTestAttempt, test: GroupTest, deck_id: str, title: str
 ) -> TestAttemptOut:
     questions = _questions(db, attempt.id)
-    answered = sum(question.answered_at is not None for question in questions)
     question: SpellingExercise | None = None
+    returning = False
     result: AttemptResultOut | None = None
     if attempt.finished_at is None:
-        current = next(item for item in questions if item.answered_at is None)
+        current = _next_question(questions)
+        assert current is not None, "an attempt with nothing left to answer has finished"
+        returning = current.skips > 0
         # The meaning only: no word, no word id.
         question = SpellingExercise(
             id=current.key,
@@ -689,7 +693,7 @@ def _attempt_out(
             correct=correct,
             total=total,
             passed=is_pass(correct, total, test.pass_percent) if attempt.kind == "test" else None,
-            timed_out=answered < total,
+            timed_out=any(item.answered_at is None and item.skips == 0 for item in questions),
             mistakes=[
                 MistakeOut(translation=item.translation, word=item.headword, answer=item.answer)
                 for item in questions
@@ -701,9 +705,10 @@ def _attempt_out(
         kind="test" if attempt.kind == "test" else "practice",
         deck_id=deck_id,
         title=title,
-        answered=answered,
+        answered=sum(item.answered_at is not None or item.skips > 0 for item in questions),
         total=len(questions),
         deadline_at=attempt.deadline_at if attempt.finished_at is None else None,
+        returning=returning,
         question=question,
         result=result,
     )
@@ -715,12 +720,22 @@ def get_attempt(db: Session, user: User, attempt_id: UUID, now: datetime) -> Tes
     return _attempt_out(db, attempt, test, deck_id, title)
 
 
-def answer_question(
-    db: Session, user: User, attempt_id: UUID, question_id: str, answer: str, now: datetime
+def _next_question(questions: list[GroupTestQuestion]) -> GroupTestQuestion | None:
+    """The next word in the attempt's order; skipped words come back once the others are done."""
+    waiting = [item for item in questions if item.answered_at is None and item.skips < FINAL_SKIP]
+    return min(waiting, key=lambda item: (item.skips, item.position), default=None)
+
+
+def _change_question(
+    db: Session,
+    user: User,
+    attempt_id: UUID,
+    question_id: str,
+    now: datetime,
+    change: Callable[[GroupTestQuestion], None],
 ) -> TestAttemptOut:
-    """Graded by the question's own word, wherever it stood in the order. The first answer stands,
-    so a retried request changes nothing. The lock keeps the last answer and the clock from both
-    finishing the attempt."""
+    """Applies an answer or a skip, unless the word has its answer already or the time is up. The
+    lock keeps the last word and the clock from both finishing the attempt."""
     attempt, test, deck_id, title = _my_attempt(db, user, attempt_id, lock=True)
     if attempt.finished_at is None:
         late = attempt.deadline_at is not None and now > attempt.deadline_at + GRACE
@@ -734,20 +749,36 @@ def answer_question(
             if question is None:
                 raise ApiError(404, "question_not_found", "No such question in this attempt")
             if question.answered_at is None:
-                question.answer = answer
-                question.correct = spelling.is_correct(answer, question.headword)
-                question.answered_at = now
+                change(question)
                 db.flush()
-        remaining = db.scalar(
-            select(func.count())
-            .select_from(GroupTestQuestion)
-            .where(
-                GroupTestQuestion.attempt_id == attempt.id,
-                GroupTestQuestion.answered_at.is_(None),
-            )
-        )
         over = attempt.deadline_at is not None and now >= attempt.deadline_at
-        if not remaining or over:
+        if over or _next_question(_questions(db, attempt.id)) is None:
             _finish(db, attempt, now)
     db.commit()
     return _attempt_out(db, attempt, test, deck_id, title)
+
+
+def answer_question(
+    db: Session, user: User, attempt_id: UUID, question_id: str, answer: str, now: datetime
+) -> TestAttemptOut:
+    """Graded by the question's own word, wherever it stood in the order. The first answer stands,
+    so a retried request changes nothing."""
+
+    def give_answer(question: GroupTestQuestion) -> None:
+        question.answer = answer
+        question.correct = spelling.is_correct(answer, question.headword)
+        question.answered_at = now
+
+    return _change_question(db, user, attempt_id, question_id, now, give_answer)
+
+
+def skip_question(
+    db: Session, user: User, attempt_id: UUID, question_id: str, again: bool, now: datetime
+) -> TestAttemptOut:
+    """Moves on from a word (ADR 0048): it comes back after the others, and skipping it then is
+    final. Saying which skip this is makes a retried request change nothing."""
+
+    def skip(question: GroupTestQuestion) -> None:
+        question.skips = max(question.skips, FINAL_SKIP if again else 1)
+
+    return _change_question(db, user, attempt_id, question_id, now, skip)

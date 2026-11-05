@@ -43,6 +43,12 @@ class AnswerIn(_Input):
     answer: Annotated[str, StringConstraints(min_length=1, max_length=80)]
 
 
+class SkipIn(_Input):
+    question_id: Annotated[str, StringConstraints(min_length=1, max_length=12)]
+    # The word has come back: skipping it now is final.
+    again: bool = False
+
+
 class ScoreOut(BaseModel):
     correct: int
     total: int
@@ -148,9 +154,12 @@ class TestAttemptOut(BaseModel):
     kind: AttemptKind
     deck_id: str
     title: str
+    # Words answered or skipped at least once, for the progress bar.
     answered: int
     total: int
     deadline_at: datetime | None
+    # The word has been skipped once and has come back.
+    returning: bool
     # Exactly one of these: the next word, or how it went.
     question: SpellingExercise | None
     result: AttemptResultOut | None

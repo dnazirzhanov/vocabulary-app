@@ -613,9 +613,12 @@ export interface TestAttempt {
   kind: TestAttemptKind;
   deck_id: string;
   title: string;
+  /** Words answered or skipped at least once. */
   answered: number;
   total: number;
   deadline_at: string | null;
+  /** The word has been skipped once and has come back. */
+  returning: boolean;
   question: SpellingExercise | null;
   result: {
     correct: number;

@@ -130,6 +130,18 @@ class Class:
         result: dict[str, Any] = response.json()
         return result
 
+    def skip(
+        self, attempt: dict[str, Any], user: str, moment: datetime = NOW, again: bool = False
+    ) -> dict[str, Any]:
+        response = self.client.post(
+            f"/api/test-attempts/{attempt['id']}/skips",
+            json={"question_id": attempt["question"]["id"], "again": again},
+            headers=as_(user, moment),
+        )
+        assert response.status_code == 200, response.text
+        result: dict[str, Any] = response.json()
+        return result
+
     def take(self, user: str, wrong: int = 0, kind: str = "test") -> dict[str, Any]:
         """Answers every word, the first `wrong` of them wrongly."""
         attempt: dict[str, Any] = self.start(user, kind).json()
@@ -166,6 +178,17 @@ def question_at(db: Session, attempt_id: str, key: str) -> GroupTestQuestion:
 def right_word(attempt_id: str, key: str) -> str:
     with get_sessionmaker()() as db:
         return question_at(db, attempt_id, key).headword
+
+
+def _keys(attempt_id: str) -> list[str]:
+    with get_sessionmaker()() as db:
+        return list(
+            db.scalars(
+                select(GroupTestQuestion.key)
+                .where(GroupTestQuestion.attempt_id == attempt_id)
+                .order_by(GroupTestQuestion.position)
+            )
+        )
 
 
 def names(rows: list[dict[str, Any]]) -> list[str]:
@@ -759,6 +782,139 @@ def test_a_running_test_hides_earlier_weak_words(client: TestClient) -> None:
     room.start("pavel")
     mine = room.detail("pavel")["mine"]
     assert (mine["state"], mine["weak"]) == ("running", [])
+
+
+# --- skipping --------------------------------------------------------------------------------
+
+
+def _right(attempt: dict[str, Any]) -> str:
+    return right_word(attempt["id"], attempt["question"]["id"])
+
+
+def test_a_skipped_word_comes_back_after_the_others(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    first = _right(attempt)
+    assert attempt["returning"] is False
+
+    attempt = room.skip(attempt, "pavel")
+    assert _right(attempt) != first and attempt["returning"] is False
+    assert attempt["answered"] == 1  # the bar moves on
+    attempt = room.answer(attempt, _right(attempt), "pavel")
+    attempt = room.answer(attempt, _right(attempt), "pavel")
+
+    # Everything else done: the skipped word returns, marked so, and can still be answered right.
+    assert _right(attempt) == first and attempt["returning"] is True
+    assert attempt["answered"] == attempt["total"] == 3
+    finished = room.answer(attempt, first, "pavel")
+    assert finished["result"]["correct"] == 3 and finished["result"]["timed_out"] is False
+
+
+def test_several_skipped_words_come_back_in_their_order(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    order = [right_word(attempt["id"], key) for key in _keys(attempt["id"])]
+    for _ in order:
+        attempt = room.skip(attempt, "pavel")
+    assert _right(attempt) == order[0] and attempt["returning"] is True
+    attempt = room.answer(attempt, order[0], "pavel")
+    assert _right(attempt) == order[1]
+
+
+def test_skipping_a_word_again_is_final_and_counts_as_wrong(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    first = _right(attempt)
+    attempt = room.skip(attempt, "pavel")
+    attempt = room.answer(attempt, _right(attempt), "pavel")
+    assert _right(attempt) == first
+    finished = room.skip(attempt, "pavel", again=True)
+    # Nothing left: the test ends there, with the skipped word wrong.
+    assert (finished["result"]["correct"], finished["result"]["total"]) == (1, 2)
+    assert finished["result"]["timed_out"] is False
+    assert names(room.detail("pavel")["failed"]) == ["Павел"]
+
+
+def test_skipping_every_word_twice_ends_the_test(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    attempt = room.skip(attempt, "pavel")
+    assert attempt["returning"] is True  # the only word, back at once
+    finished = room.skip(attempt, "pavel", again=True)
+    assert (finished["result"]["correct"], finished["result"]["total"]) == (0, 1)
+
+
+def test_repeating_a_skip_changes_nothing(client: TestClient) -> None:
+    """A request retried after a slow answer must not make a first skip final."""
+    room = Class(client, ["setback"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    first = room.skip(attempt, "pavel")
+    second = room.skip(attempt, "pavel")
+    assert first == second and second["result"] is None and second["returning"] is True
+
+
+def test_a_skip_never_undoes_an_answer(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    right = _right(attempt)
+    after = room.answer(attempt, right, "pavel")
+    room.skip(attempt, "pavel")  # the old screen, retried: that word is answered already
+    assert room.answer(after, _right(after), "pavel")["result"]["correct"] == 2
+
+
+def test_a_skip_after_the_time_is_up_changes_nothing(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    late = NOW + timedelta(minutes=5) + GRACE + timedelta(seconds=1)
+    finished = room.skip(attempt, "pavel", late)
+    assert finished["result"]["timed_out"] is True
+    with get_sessionmaker()() as db:
+        assert question_at(db, attempt["id"], attempt["question"]["id"]).skips == 0
+
+
+def test_the_clock_keeps_running_past_a_skip(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    deadline = attempt["deadline_at"]
+    assert room.skip(attempt, "pavel", NOW + timedelta(minutes=1))["deadline_at"] == deadline
+    finished = room.skip(attempt, "pavel", NOW + timedelta(minutes=5))
+    assert finished["result"] is not None
+
+
+def test_a_reload_finds_the_same_word_after_skips(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    attempt = room.skip(attempt, "pavel")
+    fetched = client.get(f"/api/test-attempts/{attempt['id']}", headers=as_("pavel")).json()
+    assert fetched == attempt
+
+
+def test_nobody_else_skips_my_word(client: TestClient) -> None:
+    room = Class(client)
+    room.ready()
+    attempt = room.start("pavel").json()
+    body = {"question_id": attempt["question"]["id"]}
+    url = f"/api/test-attempts/{attempt['id']}/skips"
+    assert client.post(url, json=body, headers=as_("ivan")).status_code == 404
+    other = room.start("ivan").json()
+    theirs = {"question_id": other["question"]["id"]}
+    assert client.post(url, json=theirs, headers=as_("pavel")).status_code == 404
+
+
+def test_practice_can_skip_too(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.save()
+    attempt = room.start("pavel", "practice").json()
+    assert room.skip(attempt, "pavel")["answered"] == 1
 
 
 # --- the deck and the group changing --------------------------------------------------------

@@ -10,6 +10,7 @@ from app.schemas.group_tests import (
     AnswerIn,
     OpenTestIn,
     SaveTestIn,
+    SkipIn,
     StartAttemptIn,
     TestAttemptOut,
     TestDetailOut,
@@ -71,3 +72,11 @@ def answer_question(
 ) -> TestAttemptOut:
     """Safe to retry: the first answer to a question stands."""
     return group_tests.answer_question(db, user, attempt_id, body.question_id, body.answer, now)
+
+
+@router.post("/test-attempts/{attempt_id}/skips")
+def skip_question(
+    attempt_id: UUID, body: SkipIn, user: CurrentUser, db: DbSession, now: Now
+) -> TestAttemptOut:
+    """Safe to retry: the same skip twice is one skip."""
+    return group_tests.skip_question(db, user, attempt_id, body.question_id, body.again, now)

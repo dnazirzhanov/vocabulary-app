@@ -131,7 +131,9 @@ class GroupTestQuestion(Base):
     headword: Mapped[str] = mapped_column(String(64))
     translation: Mapped[str] = mapped_column(String(120))
     pos: Mapped[str] = mapped_column(String(16))
-    # All three stay null for a word the time ran out on.
+    # 1: skipped, and comes back after the other words. 2: skipped again, and that is final.
+    skips: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    # All three stay null for a word skipped for good, or the time ran out on.
     answer: Mapped[str | None] = mapped_column(String(80))
     correct: Mapped[bool | None]
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

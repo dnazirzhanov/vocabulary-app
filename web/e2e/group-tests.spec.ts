@@ -389,6 +389,37 @@ test('changing the words asks before erasing results, and a student mid-test is 
   await anna.close();
 });
 
+test('a skipped word comes back after the others, half-built as it was, and a second skip is final', async ({
+  page,
+  context,
+}) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+  await openDeckTest(page);
+  await startTest(page);
+
+  const first = (await meaning(page).textContent())!;
+  await build(page, WORDS[first].slice(0, 2));
+  await button(page, 'Пропустить').click();
+  await expect(page.getByText('1 / 3')).toBeVisible();
+  await expect(meaning(page)).not.toHaveText(first);
+
+  for (let done = 2; done <= 3; done += 1) {
+    await build(page, WORDS[(await meaning(page).textContent())!]);
+    await button(page, 'Дальше').click();
+    await expect(page.getByText(`${done} / 3`)).toBeVisible();
+  }
+
+  // Back, said to be, with what was built so far.
+  await expect(meaning(page)).toHaveText(first);
+  await expect(page.locator('[data-spelling]').getByText('Пропущенное слово')).toBeVisible();
+  await expect(page.getByRole('group', { name: `Ответ: 2 из ${WORDS[first].length} букв` })).toBeVisible();
+
+  await button(page, 'Пропустить').click();
+  await expect(page.getByRole('heading', { level: 1, name: '2 из 3' })).toBeVisible();
+});
+
 test('a member sees the way to tests only once a test exists', async ({ page, context, browser }) => {
   const group = await ownerGroup(context);
   const anna = await member(browser, group.code, 'Анна');

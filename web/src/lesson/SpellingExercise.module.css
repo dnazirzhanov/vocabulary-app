@@ -328,6 +328,21 @@
   max-width: var(--width-prompt);
 }
 
+/* «Пропустить» beside «Дальше»: on the same line, so a small phone never has to scroll to it. */
+.actions[data-can-skip] {
+  flex-direction: row-reverse;
+  justify-content: center;
+}
+
+.actions[data-can-skip] .primary {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.actions[data-can-skip] .showWord {
+  flex: none;
+}
+
 .showWord {
   min-height: 44px;
   padding: 0 var(--space-3);

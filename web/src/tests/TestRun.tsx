@@ -159,10 +159,11 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
               storageKey={`test:${attempt.id}:${question.id}`}
               busy={busy || timeUp}
               result={null}
-              eyebrow={timed ? 'Тест' : 'Тренировка'}
+              eyebrow={attempt.returning ? 'Пропущенное слово' : timed ? 'Тест' : 'Тренировка'}
               submitLabel="Дальше"
               onDraft={setDraft}
               onSubmit={(answer) => void call(() => api.answerTest(attempt.id, question.id, answer))}
+              onSkip={() => void call(() => api.skipTest(attempt.id, question.id, attempt.returning))}
               onContinue={() => undefined}
             />
             {error && (
