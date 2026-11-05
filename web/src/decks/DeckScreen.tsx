@@ -305,7 +305,8 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
             )}
-            {spelling.met > 0 && !spelling.paused && (
+            {/* A group's test can make words hard before any lesson meets one (ADR 0048). */}
+            {(spelling.met > 0 || spelling.hard > 0) && !spelling.paused && (
               <button
                 type="button"
                 className={styles.link}

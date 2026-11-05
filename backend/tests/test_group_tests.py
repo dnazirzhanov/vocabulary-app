@@ -26,6 +26,7 @@ from app.models import (
 from app.services import group_tests
 from app.services.cleanup import KEEP_ANSWERS, clean_up
 from app.services.group_tests import GRACE, is_pass, shuffled
+from app.services.spelling_ladder import HARD, KNOWN
 from tests.support import at
 
 NOW = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -1131,6 +1132,220 @@ def test_the_list_of_tests_says_when_an_attempt_is_waiting(client: TestClient) -
     assert deck["can_start"] is True and deck["mine"]["passed"] is True
 
 
+# --- into «Трудные» ---------------------------------------------------------------------------
+
+
+def hard_words(client: TestClient, user: str, moment: datetime = NOW) -> list[str]:
+    """What «Трудные» holds for a student: the session they would start."""
+    session = client.post(
+        "/api/sessions",
+        json={"kind": "spelling", "mode": "hard", "size": 30},
+        headers=as_(user, moment),
+    )
+    if session.status_code == 409:
+        return []
+    assert session.status_code == 200, session.text
+    return sorted(card["pronunciation"]["text"] for card in session.json()["exercises"])
+
+
+def take_with(
+    room: Class, user: str, wrong: int = 0, skip: int = 0, moment: datetime = NOW
+) -> dict[str, list[str]]:
+    """Answers wrongly, then skips for good, then the rest right. Returns which word went how."""
+    attempt = room.start(user, moment=moment).json()
+    went: dict[str, list[str]] = {"wrong": [], "skipped": [], "right": []}
+    while attempt["question"]:
+        word = _right(attempt)
+        if len(went["wrong"]) < wrong:
+            went["wrong"].append(word)
+            attempt = room.answer(attempt, "zzz", user, moment)
+        elif len(went["skipped"]) < skip or word in went["skipped"]:
+            if word not in went["skipped"]:
+                went["skipped"].append(word)
+            attempt = room.skip(attempt, user, moment, again=attempt["returning"])
+        else:
+            went["right"].append(word)
+            attempt = room.answer(attempt, word, user, moment)
+    return went
+
+
+def test_misspelled_and_skipped_words_reach_hard_words_and_right_ones_do_not(
+    client: TestClient,
+) -> None:
+    room = Class(client, ["setback", "bargain", "harvest", "meadow"])
+    room.ready()
+    went = take_with(room, "pavel", wrong=1, skip=1)
+    # Nothing in any lesson yet: words never met count all the same.
+    assert hard_words(client, "pavel") == sorted(went["wrong"] + went["skipped"])
+    assert not set(went["right"]) & set(hard_words(client, "pavel"))
+    # And only for this student.
+    assert hard_words(client, "ivan") == []
+
+
+def test_the_deck_page_counts_them_for_someone_who_met_no_word(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    take_with(room, "pavel", wrong=2)
+    stats = client.get(f"/api/decks/{room.deck_id}/stats", headers=as_("pavel")).json()
+    assert stats["spelling_today"]["hard"] == 2
+    assert stats["spelling_today"]["met"] == 0
+
+
+def test_a_word_from_a_test_can_be_practised_there(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    session = client.post(
+        "/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=as_("pavel")
+    ).json()
+    card = session["exercises"][0]
+    assert "setback" not in str({k: v for k, v in card.items() if k != "pronunciation"})
+    answered = client.post(
+        f"/api/sessions/{session['id']}/attempts",
+        json={"exercise_id": card["id"], "response": {"kind": "spelling", "answer": "setback"}},
+        headers=as_("pavel"),
+    )
+    assert answered.json()["correct"] is True
+    done = client.post(f"/api/sessions/{session['id']}/complete", headers=as_("pavel"))
+    assert done.status_code == 200, done.text
+
+
+def test_words_the_time_ran_out_on_do_not_reach_hard_words(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    wrong = _right(attempt)
+    attempt = room.answer(attempt, "zzz", "pavel")
+    skipped = _right(attempt)
+    attempt = room.skip(attempt, "pavel")
+    up = NOW + timedelta(minutes=5)
+    client.get(f"/api/test-attempts/{attempt['id']}", headers=as_("pavel", up))
+    assert hard_words(client, "pavel", up) == sorted([wrong, skipped])
+
+
+def test_an_attempt_closed_by_someone_elses_look_reaches_the_right_student(
+    client: TestClient,
+) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    wrong = _right(attempt)
+    room.answer(attempt, "zzz", "pavel")
+    later = NOW + timedelta(minutes=6)
+    assert names(room.detail("olga", later)["failed"]) == ["Павел"]
+    assert hard_words(client, "pavel", later) == [wrong]
+    assert hard_words(client, "olga", later) == []
+
+
+def test_practice_in_the_group_does_not_reach_hard_words(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.save()
+    room.take("pavel", wrong=2, kind="practice")
+    assert hard_words(client, "pavel") == []
+    assert len(room.detail("pavel")["mine"]["weak"]) == 2
+
+
+def test_a_retake_reaches_hard_words_again_and_a_right_one_moves_nothing(
+    client: TestClient, db: Session
+) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    room.open(False)
+    room.open()
+    take_with(room, "pavel")  # right this time
+    assert hard_words(client, "pavel") == ["setback"]
+    row = db.scalars(select(SpellingProgress)).one()
+    assert (row.rung, row.misses) == (HARD, 1)
+
+
+def test_a_word_the_student_could_spell_falls_back_to_hard(client: TestClient, db: Session) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    db.execute(update(SpellingProgress).values(rung=KNOWN))
+    db.commit()
+    room.open(False)
+    room.open()
+    take_with(room, "pavel", wrong=1)
+    db.expire_all()
+    row = db.scalars(select(SpellingProgress)).one()
+    assert (row.rung, row.misses) == (HARD, 2)
+
+
+def test_a_word_deleted_mid_test_is_simply_left_out(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    words = client.get(f"/api/decks/{room.deck_id}/edit", headers=as_("olga")).json()["words"]
+    attempt = room.start("pavel").json()
+    for item in words:
+        removed = client.delete(
+            f"/api/decks/{room.deck_id}/words/{item['word']['id']}", headers=as_("olga")
+        )
+        assert removed.status_code == 200
+    while attempt["question"]:
+        attempt = room.answer(attempt, "zzz", "pavel")
+    assert attempt["result"]["correct"] == 0
+    assert hard_words(client, "pavel") == []
+
+
+def test_a_word_on_someones_hard_list_can_be_removed_from_its_deck(client: TestClient) -> None:
+    """It leaves the deck and stays with the student, as a word someone met does."""
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    words = client.get(f"/api/decks/{room.deck_id}/edit", headers=as_("olga")).json()["words"]
+    removed = client.delete(
+        f"/api/decks/{room.deck_id}/words/{words[0]['word']['id']}", headers=as_("olga")
+    )
+    assert removed.status_code == 200, removed.text
+    assert hard_words(client, "pavel") == ["setback"]
+
+
+def test_a_deck_with_words_on_someones_hard_list_can_be_deleted(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    assert client.delete(f"/api/decks/{room.deck_id}", headers=as_("olga")).status_code == 204
+    assert hard_words(client, "pavel") == []
+
+
+def test_a_deck_someone_spelled_from_can_be_deleted(client: TestClient) -> None:
+    """Failed before ADR 0048: spelling progress blocked deleting the deck's words."""
+    deck = client.post("/api/decks", json={"title": "Свои"}, headers=as_("olga")).json()["id"]
+    client.post(f"/api/decks/{deck}/words", json=word("setback"), headers=as_("olga"))
+    lesson = client.post(
+        "/api/sessions", json={"kind": "study", "deck_id": deck}, headers=as_("olga")
+    ).json()
+    for card in lesson["exercises"]:
+        client.post(
+            f"/api/sessions/{lesson['id']}/attempts",
+            json={"exercise_id": card["id"], "response": {"kind": "rating", "rating": 3}},
+            headers=as_("olga"),
+        )
+    client.post(f"/api/sessions/{lesson['id']}/complete", headers=as_("olga"))
+    session = client.post(
+        "/api/sessions", json={"kind": "spelling", "mode": "today"}, headers=as_("olga")
+    ).json()
+    client.post(
+        f"/api/sessions/{session['id']}/attempts",
+        json={
+            "exercise_id": session["exercises"][0]["id"],
+            "response": {"kind": "spelling", "answer": "setback"},
+        },
+        headers=as_("olga"),
+    )
+    client.post(f"/api/sessions/{session['id']}/complete", headers=as_("olga"))
+    assert client.delete(f"/api/decks/{deck}", headers=as_("olga")).status_code == 204
+
+
+def test_deleting_the_account_of_someone_with_hard_words(client: TestClient) -> None:
+    room = Class(client, ["setback"])
+    room.ready()
+    take_with(room, "pavel", wrong=1)
+    assert client.delete("/api/me", headers=as_("pavel")).status_code == 204
+
+
 # --- the deck and the group changing --------------------------------------------------------
 
 
@@ -1223,13 +1438,14 @@ def test_results_go_with_who_or_what_they_belong_to(
 
 
 def test_a_test_is_not_a_lesson(client: TestClient) -> None:
-    """It keeps no promise and moves no word's schedule."""
+    """It keeps no promise and moves no word's schedule. A miss reaches the spelling ladder (above),
+    which is apart from a word's memory schedule."""
     room = Class(client, ["setback", "bargain"])
     room.ready()
     room.take("pavel", wrong=1)
     room.take("pavel", kind="practice")
     with get_sessionmaker()() as db:
-        for model in (LearningSession, ReviewAttempt, SpellingProgress, UserWordProgress):
+        for model in (LearningSession, ReviewAttempt, UserWordProgress):
             assert db.scalar(select(func.count()).select_from(model)) == 0
     me = client.get(f"/api/groups/{room.group_id}/board", headers=as_("pavel")).json()
     assert next(row for row in me["rows"] if row["is_me"])["studied_today"] is False

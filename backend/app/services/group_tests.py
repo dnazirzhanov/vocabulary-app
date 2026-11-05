@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -30,6 +30,7 @@ from app.models import (
     GroupTest,
     GroupTestAttempt,
     GroupTestQuestion,
+    SpellingProgress,
     User,
     Word,
 )
@@ -52,9 +53,10 @@ from app.schemas.group_tests import (
 )
 from app.schemas.groups import LatestTestOut
 from app.schemas.learning import SeparatorOut, SpellingExercise, SpellingPrompt
-from app.services import spelling
+from app.services import spelling, spelling_ladder
 from app.services.group_rights import can, require
 from app.services.groups import membership
+from app.services.study_days import zone_of
 
 DEFAULT_PASS_PERCENT = 80
 DEFAULT_MINUTES = 10
@@ -150,6 +152,41 @@ def _finish(db: Session, attempt: GroupTestAttempt, now: datetime) -> None:
     ).one()
     attempt.correct, attempt.total = correct, total
     attempt.finished_at = min(now, attempt.deadline_at) if attempt.deadline_at else now
+    if attempt.kind == "test":
+        _send_misses_to_practice(db, attempt, attempt.finished_at)
+
+
+def _send_misses_to_practice(db: Session, attempt: GroupTestAttempt, when: datetime) -> None:
+    """Words misspelled or skipped in a test go to the student's «Трудные» (ADR 0048), whoever's
+    look closed the attempt. Words the time ran out on say nothing either way, and a word right in a
+    test moves nothing: only practice moves a word up."""
+    user = db.scalars(
+        select(User)
+        .join(GroupMember, GroupMember.user_id == User.id)
+        .where(GroupMember.id == attempt.member_id)
+    ).one()
+    missed = db.scalars(
+        select(GroupTestQuestion.word_id)
+        .join(Word, Word.id == GroupTestQuestion.word_id)  # a word deleted meanwhile is gone
+        .where(
+            GroupTestQuestion.attempt_id == attempt.id,
+            or_(
+                GroupTestQuestion.correct.is_(False),
+                and_(GroupTestQuestion.answered_at.is_(None), GroupTestQuestion.skips > 0),
+            ),
+        )
+    ).all()
+    if not missed:
+        return
+    # Loaded together, so a whole class finishing doesn't ask for each word's row in turn.
+    db.scalars(
+        select(SpellingProgress).where(
+            SpellingProgress.user_id == user.id, SpellingProgress.word_id.in_(missed)
+        )
+    ).all()
+    zone = zone_of(user)
+    for word_id in missed:
+        spelling_ladder.record(db, user, word_id, False, when, zone)
 
 
 def _settle(db: Session, attempt: GroupTestAttempt, now: datetime) -> None:
