@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { dueLabel, standingLabel } from '../lib/deadline.ts';
-import {
-  knownLine,
-  missesText,
-  promiseText,
-  todayLists,
-  wordsCaption,
-  wordsLabel,
-  wordsProgress,
-} from '../lib/promise.ts';
+import { knownLine, missesText, promiseText, todayLists, wordsCaption, wordsProgress } from '../lib/promise.ts';
+import { WordCount, WordStages } from '../progress/WordStages.tsx';
 import type { Assignment, Board, BoardRow, Group } from '../lib/types.ts';
 import { DayDots, StateMark } from '../promise/DayDots.tsx';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
@@ -315,23 +308,15 @@ function ForClass(props: { assignment: Assignment; board: Board; owner: boolean;
 
 /**
  * Who kept today's promise, as plain lists of names: those who did it, those who haven't yet, and
- * those with the day off. Each friend shows how much of the group's deck they have learned, as a
- * bar in the language of «Прогресс» with its figure, and the promised days missed this month; a row
- * opens their window. The deck is named once, in a legend above the lists, not on every row.
+ * those with the day off. Each friend is a card like a deck's on «Прогресс» (ADR 0052): words met of
+ * the group's deck, the bar and its stages, and the promised days missed this month; it opens their
+ * window. The deck is named once, above the lists, not on every card.
  */
 function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) => void }) {
   const caption = wordsCaption(rows);
   return (
     <>
-      {caption && (
-        <p className={styles.legendRow}>
-          <span>{caption}</span>
-          <span className={styles.swatch} data-tone="known" aria-hidden="true" />
-          <span>знаю</span>
-          <span className={styles.swatch} data-tone="learning" aria-hidden="true" />
-          <span>учу</span>
-        </p>
-      )}
+      {caption && <p className={styles.caption}>{caption}</p>}
       {todayLists(rows).map((list) => (
         <section key={list.state} aria-label={list.title} className={styles.names}>
           <h3 className={styles.namesTitle} data-state={list.state}>
@@ -340,18 +325,7 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
           </h3>
           <ul className={styles.report}>
             {list.rows.map((row) => (
-              <li key={row.member_id} data-me={row.is_me || undefined}>
-                <button type="button" className={styles.row} onClick={() => onOpen(row)}>
-                  <span className={styles.nick}>
-                    {row.nickname}
-                    {row.is_me && <span className={styles.me}>вы</span>}
-                  </span>
-                  <span className={styles.misses} data-none={row.month_misses === 0 || undefined}>
-                    {missesText(row.month_misses)}
-                  </span>
-                  <RowWords row={row} />
-                </button>
-              </li>
+              <FriendCard key={row.member_id} row={row} onOpen={() => onOpen(row)} />
             ))}
           </ul>
         </section>
@@ -361,24 +335,28 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
   );
 }
 
-/** One friend's words in the group's deck: a bar with its figure; without a deck, a plain line. */
-function RowWords({ row }: { row: BoardRow }) {
+/** One friend, as a deck's card on «Прогресс»; without a deck to measure against, a plain line. */
+function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
   const progress = wordsProgress(row);
-  if (!progress) {
-    const line = knownLine(row);
-    return line ? <span className={styles.words}>{line}</span> : null;
-  }
-  const share = (part: number) => `${(Math.min(part, progress.total) / progress.total) * 100}%`;
+  const line = progress ? null : knownLine(row);
   return (
-    <span className={styles.rowWords}>
-      <span className={styles.rowBar} role="img" aria-label={wordsLabel(progress)}>
-        <i className={styles.barLearning} style={{ width: share(progress.learned + progress.learning) }} />
-        <i className={styles.barKnown} style={{ width: share(progress.learned) }} />
-      </span>
-      <strong className={styles.rowFigure} aria-hidden="true">
-        {progress.learned} / {progress.total}
-      </strong>
-    </span>
+    <li>
+      <button type="button" className={styles.friend} data-me={row.is_me || undefined} onClick={onOpen}>
+        <span className={styles.friendHead}>
+          <span className={styles.nick}>
+            {row.nickname}
+            {row.is_me && <span className={styles.me}>вы</span>}
+          </span>
+          {progress && <WordCount met={progress.met} total={progress.total} />}
+        </span>
+        {progress && <WordStages {...progress} />}
+        {line && <span className={styles.words}>{line}</span>}
+        <span className={styles.misses} data-none={row.month_misses === 0 || undefined}>
+          {missesText(row.month_misses)}
+        </span>
+        <ForwardIcon className={styles.chevron} aria-hidden="true" />
+      </button>
+    </li>
   );
 }
 
@@ -409,13 +387,13 @@ function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void;
             <DeckBar
               key={deck.deck_id}
               title={deck.title}
-              known={deck.learned}
-              learning={deck.met - deck.learned}
+              met={deck.met}
+              learned={deck.learned}
               total={deck.word_count}
             />
           ))
         ) : row.known + row.learning > 0 ? (
-          <DeckBar known={row.known} learning={row.learning} total={row.known + row.learning} />
+          <DeckBar met={row.known + row.learning} learned={row.known} total={row.known + row.learning} />
         ) : (
           <p className={styles.legend}>Слов пока нет.</p>
         )}
@@ -425,26 +403,18 @@ function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void;
   );
 }
 
-/** «знаю · учу · впереди» as a two-tone bar over the deck's words, as on «Прогресс». */
-function DeckBar(props: { title?: string; known: number; learning: number; total: number }) {
-  const { title, known, learning, total } = props;
-  const share = (part: number) => `${total ? Math.min(100, (part / total) * 100) : 0}%`;
-  const ahead = Math.max(0, total - known - learning);
-  const legend = [
-    `знаю ${number.format(known)}`,
-    `учу ${number.format(learning)}`,
-    ahead > 0 && `впереди ${number.format(ahead)}`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+/** A deck's words as on «Прогресс»; without a title, their words in all, with no total to show. */
+function DeckBar(props: { title?: string; met: number; learned: number; total: number }) {
+  const { title, met, learned, total } = props;
   return (
     <div className={styles.deckBar}>
-      {title && <p className={styles.deckTitle}>{title}</p>}
-      <div className={styles.bar} role="img" aria-label={legend}>
-        <i className={styles.barLearning} style={{ width: share(known + learning) }} />
-        <i className={styles.barKnown} style={{ width: share(known) }} />
-      </div>
-      <p className={styles.legend}>{legend}</p>
+      {title && (
+        <p className={styles.deckHead}>
+          <span className={styles.deckTitle}>{title}</span>
+          <WordCount met={met} total={total} />
+        </p>
+      )}
+      <WordStages met={met} learned={learned} total={total} />
     </div>
   );
 }

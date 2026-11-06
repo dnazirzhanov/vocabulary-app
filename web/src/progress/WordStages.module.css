@@ -1,0 +1,42 @@
+/* A deck's words: «met / total», one two-tone bar, its stages in plain words (ADR 0034). */
+.count {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--color-activity-none);
+}
+
+.bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width var(--duration-progress) var(--ease-out);
+}
+
+.bar [data-tone='met'] {
+  background: var(--color-activity-some);
+}
+
+.bar [data-tone='learned'] {
+  background: var(--color-activity-goal);
+}
+
+.stages {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}

@@ -1,15 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  dotsLabel,
-  knownLine,
-  promiseText,
-  todayLists,
-  weekdaysOf,
-  wordsCaption,
-  wordsLabel,
-  wordsProgress,
-} from './promise.ts';
+import { dotsLabel, knownLine, promiseText, todayLists, weekdaysOf, wordsCaption, wordsProgress } from './promise.ts';
 import type { BoardRow, MemberDeck } from './types.ts';
 
 test('the promise in words: runs of three days collapse, others are listed', () => {
@@ -67,12 +58,10 @@ test("today's names are listed by who did it, who has not yet, and who has the d
 
 test("a friend's words are measured against the deck given to the group", () => {
   const one = friend('А', { decks: [{ ...deck('Unit 4', 12, 30), met: 17 }] });
-  assert.deepEqual(wordsProgress(one), { learned: 12, learning: 5, total: 30 });
-  assert.equal(wordsLabel(wordsProgress(one)!), 'выучено 12 из 30, в процессе 5');
+  assert.deepEqual(wordsProgress(one), { met: 17, learned: 12, total: 30 });
   // With several decks the bar is the total.
   const two = friend('А', { decks: [deck('Unit 4', 12, 30), deck('Unit 5', 3, 20)] });
-  assert.deepEqual(wordsProgress(two), { learned: 15, learning: 0, total: 50 });
-  assert.equal(wordsLabel(wordsProgress(two)!), 'выучено 15 из 50');
+  assert.deepEqual(wordsProgress(two), { met: 15, learned: 15, total: 50 });
   // No deck, or a deck with no words: nothing to measure against.
   assert.equal(wordsProgress(friend('А')), null);
   assert.equal(wordsProgress(friend('А', { decks: [deck('Пустая', 0, 0)] })), null);
