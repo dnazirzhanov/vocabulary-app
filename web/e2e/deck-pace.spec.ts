@@ -84,29 +84,20 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
   await expect(button(learner, 'Начать урок · 2 слова')).toBeVisible();
   await expect(learner.locator('main')).not.toContainText('Выучить к');
 
-  // Who keeps up (ADR 0030): the student sees only their own standing on the group page…
-  await learner.goto('/');
-  await learner
-    .getByRole('button', { name: /Друзья/ })
-    .first()
-    .click();
-  await learner.getByRole('button', { name: /^7Б английский/ }).click();
-  const forClass = learner.getByRole('region', { name: 'К уроку' });
-  await expect(forClass).toContainText(`Unit 5 к ${dueText} · ещё не начинали`);
-  await expect(learner.getByText(/успевают/)).toHaveCount(0);
-  // «Учить» opens the deck to study it.
-  await forClass.getByRole('button', { name: 'Учить' }).click();
-  await expect(learner.getByRole('heading', { level: 1, name: 'Unit 5' })).toBeVisible();
-  // …the teacher sees everyone's, and how many are on track.
-  await page.goto('/');
-  await page
-    .getByRole('button', { name: /Друзья/ })
-    .first()
-    .click();
-  await page.getByRole('button', { name: /^7Б английский/ }).click();
-  // …the teacher, how many students keep up, and by name only those who don't: on the first
-  // day nobody is behind yet.
-  await expect(page.getByRole('region', { name: 'К уроку' })).toContainText(`Unit 5 к ${dueText}: успевают 1 из 1`);
-  await expect(page.getByRole('list', { name: 'Не успевают: «Unit 5»' })).toHaveCount(0);
+  // Nobody is told who keeps up with it (ADR 0054): neither the student nor the teacher.
+  for (const someone of [learner, page]) {
+    await someone.goto('/');
+    await someone
+      .getByRole('button', { name: /Друзья/ })
+      .first()
+      .click();
+    const group = someone.getByRole('button', { name: /^7Б английский/ });
+    await expect(group).toBeVisible();
+    await expect(someone.locator('main')).not.toContainText(/отста|успева/);
+    await group.click();
+    await expect(someone.getByRole('heading', { level: 1, name: '7Б английский' })).toBeVisible();
+    await expect(someone.getByRole('region', { name: 'К уроку' })).toHaveCount(0);
+    await expect(someone.locator('main')).not.toContainText(/К уроку|отста|успева/);
+  }
   await student.close();
 });

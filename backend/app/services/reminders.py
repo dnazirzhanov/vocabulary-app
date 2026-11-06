@@ -32,7 +32,6 @@ from app.core.config import Settings
 from app.core.logging import logger
 from app.models import DeckAssignment, Group, GroupMember, PushSubscription, User
 from app.services import decks, pace
-from app.services.group_rights import can
 from app.services.progress import local_day_bounds
 from app.services.promise import load_promises, promise_of, today_state
 from app.services.scheduling import local_date
@@ -149,8 +148,7 @@ def _group_report(db: Session, group: Group, now: datetime, my_yesterday: date) 
 
 
 def _deadline_reports(db: Session, user: User, now: datetime, today: date) -> list[str]:
-    """Decks due today, where the learner stands; those who may see everyone's standing also get
-    the count (ADR 0040). Nobody learns more here than the group's page shows them."""
+    """Decks due today, and where the learner stands: their own words, nobody else's (ADR 0054)."""
     lines: list[str] = []
     for group, me in _memberships(db, user):
         due_today = db.scalar(
@@ -176,8 +174,6 @@ def _deadline_reports(db: Session, user: User, now: datetime, today: date) -> li
                 behind = given.my_standing.behind
                 line += ": вы готовы" if behind == 0 else f": осталось {_words(behind)}"
             line += "."
-            if can(me.role, "see_standings") and given.on_track is not None:
-                line += f" Готовы {given.on_track} из {len(members)}."
             lines.append(line)
     return lines
 

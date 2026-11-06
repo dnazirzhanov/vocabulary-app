@@ -14,7 +14,6 @@ from app.schemas.groups import Action
 RIGHTS: Final[dict[Action, frozenset[str]]] = {
     "rename": frozenset({"owner"}),
     "give_decks": frozenset({"owner"}),
-    "see_standings": frozenset({"owner"}),
     "reset_invite": frozenset({"owner"}),
     "remove_member": frozenset({"owner"}),
     "transfer_ownership": frozenset({"owner"}),

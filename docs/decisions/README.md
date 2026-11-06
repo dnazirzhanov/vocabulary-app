@@ -33,7 +33,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0027](0027-no-plan-rank-by-words-learned.md) | No «план»: a day counts with any finished session; friends rank by words learned (ties: days, weeks in a row) | Accepted |
 | [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
-| [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Accepted |
+| [0030](0030-who-keeps-up-with-a-deadline.md) | Who keeps up with a deadline: «успевает» / «отстаёт на N» / «ещё не начинал»; the teacher sees all, a student only their own | Replaced by 0054 (nobody is shown it) |
 | [0031](0031-deadline-reminders-by-web-push.md) | Deadline reminders by Web Push: opt-in per device, one evening reminder only when a deadline deck has words today | Accepted (schedule replaced by 0042) |
 | [0032](0032-quiet-friends.md) | «Друзья» without the noise: my week, «К уроку», a weekly league of one number a person; the rest one tap away | Accepted (the league replaced by 0039) |
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |
@@ -56,3 +56,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0051](0051-one-words-button-no-deadline-sentence.md) | A quieter deck page: one button for a deck's words, its editor reached from there; no sentence about a deadline, and with it no «Напомнить в 17:00» | Accepted |
 | [0052](0052-friends-words-as-on-progress.md) | A friend's words on the group's page as on «Прогресс»: words met of the total, the two-tone bar and «знаю · учу · впереди», each friend a card; one component for both | Accepted |
 | [0053](0053-test-results-as-one-card-a-group.md) | A test's results as one card a group: a row a person with a small score bar, names of those yet to take it in a run, a neutral ring for «Не сдали»; never ranked | Accepted |
+| [0054](0054-no-readiness-for-class.md) | Nobody is told who keeps up with a deadline: «К уроку», «отстаёте на N» and «Готовы N из M» go, and the server stops sending them; a learner's own line in the deadline day's notification stays | Accepted |

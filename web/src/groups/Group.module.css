@@ -1,5 +1,5 @@
 /*
- * One group (ADR 0039): today by the promise, «К уроку» when a deadline is set, then the report —
+ * One group (ADR 0039): today by the promise, then the report —
  * each member's week of dots and the month's missed days. Quiet sections on paper; orange only for
  * the days done.
  */
@@ -364,52 +364,6 @@
   gap: var(--space-2);
   min-height: 52px;
   border-bottom: 1px solid var(--color-border);
-}
-
-/* --- «К уроку» (ADR 0030, 0032) -------------------------------------------------------------- */
-
-.forClass {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--color-border);
-}
-
-.classItem {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.classItem > p {
-  flex: 1 1 14rem;
-}
-
-.standing {
-  color: var(--color-success);
-  font-weight: var(--weight-strong);
-}
-
-.standing[data-status='not_started'] {
-  color: var(--color-text-muted);
-}
-
-.standing[data-behind] {
-  color: var(--color-error);
-}
-
-.late {
-  flex-basis: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--color-error);
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
 }
 
 /* --- housekeeping, folded -------------------------------------------------------------------- */

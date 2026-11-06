@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { suggestNicknames } from '../lib/nickname.ts';
-import { wordsLabel } from '../lib/pace.ts';
 import type { GroupSummary } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
@@ -86,21 +85,14 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
 }
 
 /**
- * One group, one line under its name (ADR 0032, 0039): a deadline I'm behind on, the most urgent
- * thing, or else today by the promise — how many did it, and me.
+ * One group, one line under its name (ADR 0039): today by the promise — how many did it, and me.
  */
 function GroupRow({ group, onOpen }: { group: GroupSummary; onOpen: () => void }) {
-  const late = group.behind_for_class;
-  const line = late
-    ? `«${late.title}»: ${late.status === 'not_started' ? 'ещё не начинали, ' : ''}отстаёте на ${wordsLabel(late.behind)}`
-    : todayLine(group);
   return (
     <button type="button" className={styles.group} onClick={onOpen}>
       <span className={styles.groupText}>
         <strong>{group.name}</strong>
-        <span className={styles.meta} data-late={late ? '' : undefined}>
-          {line}
-        </span>
+        <span className={styles.meta}>{todayLine(group)}</span>
       </span>
       <ForwardIcon className={styles.chevron} aria-hidden="true" />
     </button>

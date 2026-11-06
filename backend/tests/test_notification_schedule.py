@@ -287,7 +287,6 @@ def test_on_the_deadline_day_a_member_hears_where_they_stand(
     phone("pavel", BISHKEK)
     (morning,) = due(db, utc(5, 2))
     assert "Сегодня срок «Unit 4»: осталось 6\u00a0слов." in morning["body"]
-    assert "Готовы" not in morning["body"]  # the count is for those who may see everyone's
 
 
 def test_on_the_deadline_day_a_member_who_finished_is_told_so(
@@ -306,13 +305,14 @@ def test_on_the_deadline_day_a_member_who_finished_is_told_so(
     assert "Сегодня срок «Unit 4»: вы готовы." in morning["body"]
 
 
-def test_on_the_deadline_day_its_author_gets_the_count_not_a_standing(
+def test_on_the_deadline_day_its_author_hears_nothing_of_who_is_ready(
     client: TestClient, db: Session, phone: Any
 ) -> None:
     a_deck_due_today(client)
     phone("olga", BISHKEK)
     (morning,) = due(db, utc(5, 2))
-    assert "Сегодня срок «Unit 4». Готовы 0 из 3." in morning["body"]
+    assert "Сегодня срок «Unit 4»." in morning["body"]
+    assert "Готовы" not in morning["body"]
 
 
 # --- choosing ---------------------------------------------------------------------------------

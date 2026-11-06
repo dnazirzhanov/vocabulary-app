@@ -19,26 +19,6 @@ export function localToday(now: Date = new Date()): string {
 /** «7 ноября». */
 export const dueLabel = (day: string) => dayName.format(toTime(day));
 
-/** Where a member is against a deadline (ADR 0030), as the server judges it. */
-export interface Standing {
-  status: 'done' | 'on_track' | 'behind' | 'not_started';
-  behind: number;
-}
-
-/** «успевает», «отстаёт на 4 слова»…; `you`: the learner's own, «успеваете». */
-export function standingLabel({ status, behind }: Standing, you = false): string {
-  if (status === 'done') return 'все слова встречены';
-  if (status === 'on_track') return you ? 'успеваете' : 'успевает';
-  const late = `${you ? 'отстаёте' : 'отстаёт'} на ${wordsLabel(behind)}`;
-  if (status === 'not_started') {
-    // Third person without a past tense: a nickname says nothing of whether he or she.
-    const idle = you ? 'ещё не начинали' : 'ещё не начато';
-    // Not started is fine on the first day; later it is being behind too.
-    return behind > 0 ? `${idle}, ${late}` : idle;
-  }
-  return late;
-}
-
 /** A deck from a group in «Мои колоды»: «до срока 2 дня, осталось 6 слов». */
 export function deadlineLeft(deadline: string, today: string, left: number): string {
   const days = Math.round((toTime(deadline) - toTime(today)) / DAY_MS);

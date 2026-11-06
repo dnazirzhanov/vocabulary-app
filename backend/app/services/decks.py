@@ -54,15 +54,14 @@ from app.schemas.decks import (
     valid_headword,
 )
 from app.schemas.groups import (
-    AssignmentMemberOut,
     AssignmentOut,
     GroupProgressOut,
     StandingOut,
 )
 from app.schemas.learning import WordOut
 from app.services.generation import DraftCard, Provider, flags, word_key
-from app.services.group_rights import can, require
-from app.services.scheduling import REVIEW, WELL_LEARNED_STABILITY_DAYS, local_date
+from app.services.group_rights import require
+from app.services.scheduling import local_date
 
 MAX_WORDS_PER_DECK = 500  # room to grow a topic deck day by day (ADR 0019)
 # Photos read into a draft (ADR 0029): four at a time, eight per deck.
@@ -835,18 +834,10 @@ def board_assignments(
             .group_by(DeckWord.deck_id)
         ).all()
     )
-    well_learned = (UserWordProgress.fsrs_state == REVIEW) & (
-        UserWordProgress.stability >= WELL_LEARNED_STABILITY_DAYS
-    )
-    counts: dict[tuple[str, UUID], tuple[int, int]] = {
-        (deck_id, user_id): (int(met), int(known))
-        for deck_id, user_id, met, known in db.execute(
-            select(
-                DeckWord.deck_id,
-                UserWordProgress.user_id,
-                func.count(),
-                func.count().filter(well_learned),
-            )
+    counts: dict[tuple[str, UUID], int] = {
+        (deck_id, user_id): int(met)
+        for deck_id, user_id, met in db.execute(
+            select(DeckWord.deck_id, UserWordProgress.user_id, func.count())
             .join(
                 UserWordProgress,
                 and_(
@@ -862,48 +853,27 @@ def board_assignments(
 
     def out(assignment: DeckAssignment, deck: Deck) -> AssignmentOut:
         size = int(sizes.get(deck.id, 0))
-        each = {member.user_id: counts.get((deck.id, member.user_id), (0, 0)) for member in members}
+        each = {member.user_id: counts.get((deck.id, member.user_id), 0) for member in members}
         due_on = assignment.due_on
         given_on = local_date(assignment.assigned_at, zone)
-        standings = (
-            {
-                user_id: standing(met, size, given_on, due_on, today)
-                for user_id, (met, _) in each.items()
-            }
-            if due_on is not None
-            else {}
-        )
-        owner = can(me.role, "see_standings")
         return AssignmentOut(
             deck_id=deck.id,
             title=deck.title,
             due_on=due_on,
-            my_standing=standings.get(me.user_id),
-            on_track=sum(s.behind == 0 for s in standings.values())
-            if owner and standings
+            my_standing=standing(each[me.user_id], size, given_on, due_on, today)
+            if due_on is not None
             else None,
             author=nicknames.get(deck.owner_id) if deck.owner_id else None,
             is_mine=deck.owner_id == me.user_id,
             word_count=size,
             assigned_at=assignment.assigned_at,
-            mine=each[me.user_id][0],
+            mine=each[me.user_id],
             group=GroupProgressOut(
-                met=sum(min(met, size) for met, _ in each.values()),
+                met=sum(min(met, size) for met in each.values()),
                 total=size * len(members),
-                finished=sum(1 for met, _ in each.values() if size and met >= size),
+                finished=sum(1 for met in each.values() if size and met >= size),
                 learners=len(members),
             ),
-            members=[
-                AssignmentMemberOut(
-                    member_id=member.id,
-                    met=each[member.user_id][0],
-                    known=each[member.user_id][1],
-                    standing=standings.get(member.user_id),
-                )
-                for member in members
-            ]
-            if owner
-            else None,
         )
 
     return [out(assignment, deck) for assignment, deck in given]
