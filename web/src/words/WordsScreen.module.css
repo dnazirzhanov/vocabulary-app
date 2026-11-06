@@ -57,6 +57,34 @@
   outline: none;
 }
 
+/* The same small outline button as «Дать группе» under a deck's title (ADR 0036). */
+.edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.edit:hover {
+  background: var(--color-primary-tint);
+}
+
+.edit svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
 .message {
   display: flex;
   flex-direction: column;

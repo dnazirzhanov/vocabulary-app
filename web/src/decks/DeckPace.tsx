@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { api } from '../lib/api.ts';
-import { localToday, deadlineNote } from '../lib/deadline.ts';
 import { MAX_TARGET, MIN_TARGET, wordsLabel } from '../lib/pace.ts';
 import { newWords } from '../lib/today.ts';
 import type { Pace } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { RemindMe } from '../account/Reminders.tsx';
 import styles from './DeckPace.module.css';
 
 const PACE_CHOICES = [5, 10, 15, 20, 30];
@@ -17,25 +15,18 @@ const MAX_EXTRA = 100;
 const clamp = (n: number, low: number, high: number) => Math.min(high, Math.max(low, n));
 
 /**
- * New words a day in this deck (ADR 0028): the number, today's progress against it, a teacher's
- * deadline, and «Изменить» to change it in place — no settings screen to find, as in Anki.
+ * New words a day in this deck (ADR 0028): the number, and «Изменить» to change it in place — no
+ * settings screen to find, as in Anki.
  */
-export function DailyPace({ pace, left, onSaved }: { pace: Pace; left: number; onSaved: (pace: Pace) => void }) {
+export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(pace.target);
   const { run, busy, error } = useAsyncAction();
-  const deadline = deadlineNote(pace.deadline, localToday(), pace.deadline_share, left, pace.target);
 
   return (
     <div className={styles.pace}>
-      {deadline && (
-        <div className={styles.deadlineBox}>
-          <p role="note">{deadline}</p>
-          {left > 0 && <RemindMe />}
-        </div>
-      )}
       <div className={styles.line}>
-        {/* The number the learner chose (ADR 0028, 0035); today's count is in the sentence above. */}
+        {/* The number the learner chose (ADR 0028, 0035); today's count is on the button. */}
         <p>
           В день: <strong>{newWords(pace.target)}</strong>
           {pace.ramp_week != null && <span className={styles.muted}> · пока {pace.effective_target}, разогрев</span>}

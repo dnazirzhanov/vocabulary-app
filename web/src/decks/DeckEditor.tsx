@@ -44,7 +44,9 @@ interface DeckEditorProps {
   deckId: string;
   /** Where «Назад» leads: «Мои колоды», or the group board it was opened from. */
   backLabel: string;
-  onDone: () => void;
+  /** Back, with the deck's title as it now stands. */
+  onDone: (title: string) => void;
+  onDeleted: () => void;
   /** Studying this deck now (a personal deck's main action). */
   onStudy: (session: Session) => void;
   /** Another of my decks, e.g. one just made for a new topic (ADR 0019). */
@@ -56,7 +58,7 @@ interface DeckEditorProps {
  * correct one, and one action that gives the deck to the group. Students meet the words first in
  * their own daily lesson, at their own pace. Course words are linked, not copied.
  */
-export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: DeckEditorProps) {
+export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOpenDeck }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -208,7 +210,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        <button type="button" className={styles.back} onClick={onDone}>
+        <button type="button" className={styles.back} onClick={() => onDone(deck.title)}>
           <BackIcon aria-hidden="true" /> {backLabel}
         </button>
       </header>
@@ -506,7 +508,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onStudy, onOpenDeck }: D
                 run(async () => {
                   await api.deleteDeck(deck.id);
                   setConfirmDelete(false);
-                  onDone();
+                  onDeleted();
                 })
               }
             >

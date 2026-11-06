@@ -30,8 +30,8 @@ interface DeckScreenProps {
   onBack: () => void;
   /** A session started or resumed from here; `deckId` is the deck it belongs to. */
   onSession: (session: Session, deckId: string) => void;
-  onWords: (deckId: string, title: string) => void;
-  onEdit: (deckId: string) => void;
+  /** Its words; `mine`: my own deck, which is edited from there (ADR 0051). */
+  onWords: (deckId: string, title: string, mine: boolean) => void;
 }
 
 /**
@@ -39,7 +39,7 @@ interface DeckScreenProps {
  * Anki's three numbers, its own new words a day (ADR 0028) — and one button that studies this
  * deck, within today's pace. More words today are one tap further.
  */
-export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEdit }: DeckScreenProps) {
+export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
@@ -243,7 +243,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
           {/* What the day holds is on the button below; only the daily number is shown here. */}
           {pace && !stats.locked && left + pace.new_words_today > 0 && (
             <section className={styles.today} aria-label="Темп">
-              <DailyPace pace={pace} left={left} onSaved={() => void load()} />
+              <DailyPace pace={pace} onSaved={() => void load()} />
             </section>
           )}
 
@@ -332,22 +332,13 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
             )}
-            <button type="button" className={styles.link} onClick={() => onWords(deckId, stats.title)}>
+            <button type="button" className={styles.link} onClick={() => onWords(deckId, stats.title, stats.is_mine)}>
               <span>
                 <strong>Все слова колоды</strong>
-                <small>С вашим прогрессом по каждому</small>
+                <small>{stats.is_mine ? 'С прогрессом · добавить и поправить' : 'С вашим прогрессом по каждому'}</small>
               </span>
               <ForwardIcon className={styles.chevron} aria-hidden="true" />
             </button>
-            {stats.is_mine && (
-              <button type="button" className={styles.link} onClick={() => onEdit(deckId)}>
-                <span>
-                  <strong>Изменить колоду</strong>
-                  <small>Добавить и поправить карточки</small>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
-            )}
           </nav>
           {extraOpen && pace && (
             <ExtraWords open pace={pace} left={left} onClose={() => setExtraOpen(false)} onStart={startWith} />

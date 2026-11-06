@@ -80,10 +80,9 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
     'до срока 2\u00a0дня, осталось 4\u00a0слова',
   );
   await learner.getByRole('button', { name: /^Unit 5/ }).click();
-  await expect(learner.getByRole('note')).toHaveText(
-    `Выучить к ${dueText}. Сегодня 2\u00a0слова, чтобы успеть, — последний день останется для повторения.`,
-  );
+  // The button says what today asks for, and no sentence repeats it (ADR 0051).
   await expect(button(learner, 'Начать урок · 2 слова')).toBeVisible();
+  await expect(learner.locator('main')).not.toContainText('Выучить к');
 
   // Who keeps up (ADR 0030): the student sees only their own standing on the group page…
   await learner.goto('/');

@@ -5,7 +5,7 @@ import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { playAudio } from '../lib/audio.ts';
 import type { DeckWord, WordStatus } from '../lib/types.ts';
-import { BackIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { BackIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './WordsScreen.module.css';
 
@@ -24,10 +24,12 @@ interface WordsScreenProps {
   deckId: string;
   deckTitle: string;
   onBack: () => void;
+  /** My own deck: its editor (ADR 0051). */
+  onEdit?: () => void;
 }
 
 /** Every word of the deck, met or not, with where the learner stands on each. */
-export function WordsScreen({ deckId, deckTitle, onBack }: WordsScreenProps) {
+export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenProps) {
   const [words, setWords] = useState<DeckWord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<WordStatus | 'all'>('all');
@@ -70,6 +72,11 @@ export function WordsScreen({ deckId, deckTitle, onBack }: WordsScreenProps) {
           <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
             Слова колоды
           </h1>
+          {onEdit && (
+            <button type="button" className={styles.edit} onClick={onEdit}>
+              <PencilIcon aria-hidden="true" /> Изменить колоду
+            </button>
+          )}
 
           {error && (
             <div className={styles.message}>

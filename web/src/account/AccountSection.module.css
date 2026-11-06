@@ -153,22 +153,3 @@
 .choices .toggle span {
   font-weight: var(--weight-body);
 }
-
-/* «Напомнить в 17:00» on a deck with a deadline (ADR 0031): a quiet link-like button. */
-.remindButton {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-primary-strong);
-  font: inherit;
-  font-weight: var(--weight-strong);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.remindNote {
-  color: var(--color-success);
-  font-weight: var(--weight-strong);
-}
