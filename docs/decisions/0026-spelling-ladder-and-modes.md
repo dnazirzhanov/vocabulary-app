@@ -28,7 +28,8 @@ easily and which not, so the hard ones were never practised more than the rest.
   beside an unfinished lesson, so it never blocks a lesson. Every deck's page (not home) shows it
   as «Правописание не закончено» with how many words were spelled (right, with a mistake) and
   how many are left; «Продолжить» resumes at the next word. Starting spelling again resumes it,
-  whichever set is chosen.
+  whichever set is chosen. (Replaced by ADR 0050: the main button resumes it, and choosing another
+  set replaces it.)
 - Existing spelling answers were replayed into the ladder by the migration (hinted ones as misses).
 
 ## Consequences

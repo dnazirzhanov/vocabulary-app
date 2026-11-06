@@ -609,16 +609,17 @@ def start_session(
 ) -> SessionOut:
     """Start a session, or return the learner's unfinished one of that kind (a lesson, or
     spelling) so it can be resumed. A lesson open in another deck is set aside instead: the
-    learner chose this deck now, and its answers are already saved (ADR 0035)."""
+    learner chose this deck now, and its answers are already saved (ADR 0035). So is a spelling
+    when the learner names another set of words; the main button (`mix`) resumes it (ADR 0050)."""
     spelling_kind = isinstance(request, StartSpellingSession)
     existing = _open_session(db, user, spelling_kind)
     if existing is not None:
-        other_deck = (
-            not isinstance(request, StartSpellingSession)
-            and request.deck_id is not None
-            and existing.deck_id != request.deck_id
+        chose_another = (
+            request.mode != "mix"
+            if isinstance(request, StartSpellingSession)
+            else request.deck_id is not None and existing.deck_id != request.deck_id
         )
-        if not other_deck:
+        if not chose_another:
             return present_session(db, user, existing, now)
         existing.set_aside_at = now
         db.flush()

@@ -123,6 +123,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
   // Spelling (ADR 0026): the main button takes due hard words and words never spelled; the other
   // sets are one tap further, under «Другие режимы».
   const spelling = stats.spelling_today;
+  const mainSpelling = spelling.ready > 0 || spelling.paused !== null;
   const unwritten = Math.max(0, spelling.ready - spelling.due);
   const spellingNote =
     spelling.due > 0 && unwritten > 0
@@ -306,21 +307,22 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onEd
               </button>
             )}
             {/* A group's test can make words hard before any lesson meets one (ADR 0048). */}
-            {(spelling.met > 0 || spelling.hard > 0) && !spelling.paused && (
+            {(spelling.met > 0 || spelling.hard > 0) && (
               <button
                 type="button"
                 className={styles.link}
                 onClick={() => setModesOpen(true)}
-                aria-label={spelling.ready > 0 ? 'Правописание: другие режимы' : 'Правописание'}
+                aria-label={mainSpelling ? 'Правописание: другие режимы' : 'Правописание'}
                 aria-describedby="spelling-modes-note"
                 aria-haspopup="dialog"
               >
                 {/* Under the main button, its text lines up with that button's. */}
-                {spelling.ready === 0 ? <PencilIcon aria-hidden="true" /> : <span className={styles.iconSpace} />}
+                {spelling.ready === 0 && !spelling.paused && <PencilIcon aria-hidden="true" />}
+                {spelling.ready > 0 && !spelling.paused && <span className={styles.iconSpace} />}
                 <span>
-                  <strong>{spelling.ready > 0 ? 'Правописание: другие режимы' : 'Правописание'}</strong>
+                  <strong>{mainSpelling ? 'Правописание: другие режимы' : 'Правописание'}</strong>
                   <small id="spelling-modes-note">
-                    {spelling.ready > 0
+                    {mainSpelling
                       ? 'Сегодняшние, трудные или вразброс'
                       : spelling.hard > 0
                         ? `Трудных слов: ${spelling.hard} · сегодняшние, трудные или вразброс`
