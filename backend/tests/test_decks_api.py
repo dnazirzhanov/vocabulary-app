@@ -245,19 +245,13 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
     mine = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
     (given,) = mine["assignments"]
     assert (given["title"], given["author"], given["is_mine"]) == ("Unit 4", "Ольга", False)
-    assert (given["word_count"], given["mine"], given["members"]) == (3, 3, None)
+    assert (given["word_count"], given["mine"]) == (3, 3)
     # The whole group on the deck, for every member: 3 of 9 words met, one of three done.
     assert given["group"] == {"met": 3, "total": 9, "finished": 1, "learners": 3}
     owner = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     (given,) = owner["assignments"]
     assert given["mine"] == 0 and given["is_mine"]  # she learns it too, and hasn't started
     nicknames = {row["member_id"]: row["nickname"] for row in owner["rows"]}
-    # Met today, so nothing is remembered well yet (that takes weeks of reviews).
-    assert {nicknames[m["member_id"]]: (m["met"], m["known"]) for m in given["members"]} == {
-        "Ольга": (0, 0),
-        "Павел": (3, 0),
-        "Иван": (0, 0),
-    }
     # Places are the board's own rule: Pavel answered this week, so he alone has one.
     pavel = next(row for row in owner["rows"] if nicknames[row["member_id"]] == "Павел")
     assert pavel["rank"] == 1

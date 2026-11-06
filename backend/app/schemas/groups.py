@@ -13,7 +13,6 @@ from app.schemas.me import DayState, TodayState
 Action = Literal[
     "rename",
     "give_decks",
-    "see_standings",
     "reset_invite",
     "remove_member",
     "transfer_ownership",
@@ -67,14 +66,6 @@ class TodayMemberOut(BaseModel):
     studied_today: bool
 
 
-class BehindOut(BaseModel):
-    """A deck with a deadline I am behind on (ADR 0032): the most urgent line of a group's row."""
-
-    title: str
-    behind: int
-    status: Literal["behind", "not_started"]
-
-
 class GroupSummaryOut(GroupOut):
     """A group in the list of my groups (ADR 0023): its pulse before opening it."""
 
@@ -84,8 +75,6 @@ class GroupSummaryOut(GroupOut):
     today_done: int
     my_today: TodayState
     members: list[TodayMemberOut]
-    # The deadline deck I am furthest behind on, if any (ADR 0032).
-    behind_for_class: BehindOut | None = None
 
 
 class GroupPreviewOut(BaseModel):
@@ -163,16 +152,6 @@ class StandingOut(BaseModel):
     behind: int
 
 
-class AssignmentMemberOut(BaseModel):
-    member_id: UUID
-    # Words of the deck this member has met, and of those the ones they now remember well
-    # (FSRS stability ≥ 21 days, as on the progress page).
-    met: int
-    known: int
-    # Against the deadline, when the deck has one.
-    standing: StandingOut | None = None
-
-
 class GroupProgressOut(BaseModel):
     """The whole group on one deck, for every member: co-operative, like the week's shared goal."""
 
@@ -191,10 +170,8 @@ class AssignmentOut(BaseModel):
     deck_id: str
     title: str
     due_on: date | None
-    # With a deadline: my own standing, for every member; the owner also sees how many are on
-    # track (done or not behind) out of all members (ADR 0030).
+    # With a deadline: my own standing, for that day's notification. No screen shows it (ADR 0054).
     my_standing: StandingOut | None = None
-    on_track: int | None = None
     # Its author's nickname in the group (None once they left), and whether that is me.
     author: str | None
     is_mine: bool
@@ -203,8 +180,6 @@ class AssignmentOut(BaseModel):
     # Words of it I have met (whoever gave it learns it too).
     mine: int
     group: GroupProgressOut
-    # Every member's counts, for the group's owner only; null for everyone else.
-    members: list[AssignmentMemberOut] | None
 
 
 class LatestTestOut(BaseModel):

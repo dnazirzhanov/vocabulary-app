@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
-import { dueLabel, standingLabel } from '../lib/deadline.ts';
 import { knownLine, missesText, promiseText, todayLists, wordsCaption, wordsProgress } from '../lib/promise.ts';
 import { WordCount, WordStages } from '../progress/WordStages.tsx';
-import type { Assignment, Board, BoardRow, Group } from '../lib/types.ts';
+import type { Board, BoardRow, Group } from '../lib/types.ts';
 import { DayDots, StateMark } from '../promise/DayDots.tsx';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
 import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
@@ -27,7 +26,6 @@ interface GroupScreenProps {
   /** The author opens their deck, given to this group, in the editor (ADR 0019). */
   onOpenDeck: (deckId: string) => void;
   /** A member opens a deck with a deadline to study it. */
-  onStudyDeck: (deckId: string) => void;
   /** To the lesson on the home page. */
   onStudy: () => void;
   /** The group's spelling tests (ADR 0046). */
@@ -38,7 +36,7 @@ interface GroupScreenProps {
 
 /**
  * One group (ADR 0039): a promise and a report, not a ranking. Today's count by the promise and my
- * own status; «К уроку» when a deadline is set; then each member's week against what they promised
+ * own status; then each member's week against what they promised
  * and the month's missed days. A person's window adds the words they know. Everything else is a tap
  * away: the rule in «Как это считается?», housekeeping folded at the bottom.
  */
@@ -46,7 +44,6 @@ export function GroupScreen({
   groupId,
   inviteOnOpen = false,
   onOpenDeck,
-  onStudyDeck,
   onStudy,
   onTests,
   onBack,
@@ -93,11 +90,8 @@ export function GroupScreen({
   }
 
   const { group } = board;
-  // Who sees everyone's standing under «К уроку» is a right of the role (ADR 0040).
-  const owner = group.can.includes('see_standings');
   const showFold =
     board.assignments.length > 0 || group.can.includes('give_decks') || group.can.includes('delete_group');
-  const forClass = board.assignments.filter((assignment) => assignment.due_on);
   const me = board.rows.find((row) => row.is_me);
 
   return (
@@ -142,25 +136,6 @@ export function GroupScreen({
             <Today me={me} onStudy={onStudy} onPromise={() => setPromising(true)} />
             <Report rows={board.rows} onOpen={setPerson} />
           </section>
-
-          {forClass.length > 0 && (
-            <section aria-labelledby="class-title" className={styles.section}>
-              <h2 id="class-title" className={styles.sectionTitle}>
-                К уроку
-              </h2>
-              <ul className={styles.forClass}>
-                {forClass.map((assignment) => (
-                  <ForClass
-                    key={assignment.deck_id}
-                    assignment={assignment}
-                    board={board}
-                    owner={owner}
-                    onStudy={() => onStudyDeck(assignment.deck_id)}
-                  />
-                ))}
-              </ul>
-            </section>
-          )}
 
           {showFold && (
             <details className={styles.manage}>
@@ -253,56 +228,6 @@ function Today(props: { me: BoardRow | undefined; onStudy: () => void; onPromise
         </button>
       </p>
     </div>
-  );
-}
-
-/**
- * A deck due for the class. A member: their own status and the way to study it. The teacher: how
- * many keep up, and by name only those who don't.
- */
-function ForClass(props: { assignment: Assignment; board: Board; owner: boolean; onStudy: () => void }) {
-  const { assignment, board, owner, onStudy } = props;
-  const due = `к ${dueLabel(assignment.due_on!)}`;
-  if (owner && assignment.members) {
-    const me = board.rows.find((row) => row.is_me)?.member_id;
-    const names = new Map(board.rows.map((row) => [row.member_id, row.nickname]));
-    const students = assignment.members.filter((member) => member.member_id !== me && member.standing);
-    const late = students.filter((member) => member.standing!.behind > 0);
-    return (
-      <li className={styles.classItem}>
-        <p>
-          <strong>{assignment.title}</strong> {due}: успевают {students.length - late.length} из {students.length}
-        </p>
-        {late.length > 0 && (
-          <ul className={styles.late} aria-label={`Не успевают: «${assignment.title}»`}>
-            {late.map((member) => (
-              <li key={member.member_id}>
-                {names.get(member.member_id)} — {standingLabel(member.standing!)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </li>
-    );
-  }
-  const mine = assignment.my_standing;
-  return (
-    <li className={styles.classItem}>
-      <p>
-        <strong>{assignment.title}</strong> {due}
-        {mine && (
-          <span className={styles.standing} data-behind={mine.behind > 0 || undefined} data-status={mine.status}>
-            {' '}
-            · {standingLabel(mine, true)}
-          </span>
-        )}
-      </p>
-      {mine?.status !== 'done' && (
-        <button type="button" className={shared.smallButton} onClick={onStudy}>
-          Учить
-        </button>
-      )}
-    </li>
   );
 }
 

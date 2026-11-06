@@ -1,4 +1,3 @@
-import type { Standing } from './deadline.ts';
 // Mirrors backend/app/schemas/learning.py. Answer keys are absent until a result comes back.
 
 export interface Word {
@@ -259,14 +258,7 @@ export interface DeckWord {
 
 /** What a role may do in a group (ADR 0040); the server says which ones I may. */
 export type GroupAction =
-  | 'rename'
-  | 'give_decks'
-  | 'see_standings'
-  | 'reset_invite'
-  | 'remove_member'
-  | 'transfer_ownership'
-  | 'delete_group'
-  | 'manage_tests';
+  'rename' | 'give_decks' | 'reset_invite' | 'remove_member' | 'transfer_ownership' | 'delete_group' | 'manage_tests';
 
 export interface Group {
   id: string;
@@ -337,8 +329,6 @@ export interface GroupSummary extends Group {
   today_done: number;
   my_today: TodayState;
   members: { nickname: string; is_me: boolean; studied_today: boolean }[];
-  /** The deadline deck I am furthest behind on, if any (ADR 0032). */
-  behind_for_class?: { title: string; behind: number; status: 'behind' | 'not_started' } | null;
 }
 
 export interface Board {
@@ -374,16 +364,10 @@ export interface Assignment {
   assigned_at: string;
   /** «Выучить к» (YYYY-MM-DD), or null: each member's own pace (ADR 0028). */
   due_on: string | null;
-  /** With a deadline: my own standing; the owner also gets how many are on track (ADR 0030). */
-  my_standing?: Standing | null;
-  on_track?: number | null;
   /** Words of it I have met (whoever gave it learns it too). */
   mine: number;
   /** The whole group on it: words met against everyone meeting every word; members done. */
   group: { met: number; total: number; finished: number; learners: number };
-  /** Every member's counts, the owner's too, for the group's owner only: met, and remembered
-   * well (FSRS, as on the progress page). */
-  members: { member_id: string; met: number; known: number; standing?: Standing | null }[] | null;
 }
 
 export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'other';

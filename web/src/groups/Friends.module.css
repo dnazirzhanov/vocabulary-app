@@ -55,12 +55,6 @@
   font-size: var(--text-meta);
 }
 
-/* Behind for a class: the one line that asks for attention. */
-.meta[data-late] {
-  color: var(--color-error);
-  font-weight: var(--weight-strong);
-}
-
 .chevron {
   grid-column: 2;
   width: 20px;

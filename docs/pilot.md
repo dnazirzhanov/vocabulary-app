@@ -69,8 +69,8 @@ image's steps were reproduced by hand.
 - [ ] **The teacher makes the first deck** in «Мои колоды» from a photo of the textbook page
   («Текст» → «Добавить фото»), checks the words, and gives it to the group with «Выучить к» set
   to the next lesson.
-- [ ] **Show the teacher where to check readiness:** «Друзья» → the group → «Колоды группы»
-  («успевает» / «отстаёт на N слов»).
+- [ ] **Show the teacher where to check progress:** «Друзья» → the group: who kept today's promise,
+  and each student's words in the deck.
 
 ## 6. First lesson with the class (10 minutes of class time)
 - [ ] **Students join and turn on reminders:**

@@ -17,7 +17,7 @@ interface GroupDecksProps {
 
 /**
  * Decks given to the group, folded under «Управление группой» (ADR 0032): name, size, deadline,
- * and «Изменить» for its author. Readiness for the class is on the page itself, under «К уроку».
+ * and «Изменить» for its author.
  */
 export function GroupDecks({ board, onOpenDeck, onChanged }: GroupDecksProps) {
   const owner = board.group.can.includes('give_decks');

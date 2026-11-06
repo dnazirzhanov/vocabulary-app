@@ -203,24 +203,14 @@ def test_a_teacher_s_deadline_gives_even_shares_and_re_spreads_what_is_left(
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("pavel")).json()
     given_deck = board["assignments"][0]
     assert given_deck["due_on"] == "2026-11-07"
-    # A member sees only their own standing; the owner sees everyone's and how many keep up.
+    # Who keeps up is told to nobody (ADR 0054), not even the owner.
     assert given_deck["my_standing"] == {"status": "on_track", "behind": 0}
-    assert (given_deck["on_track"], given_deck["members"]) == (None, None)
     on_friday = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga", FRIDAY)).json()[
         "assignments"
     ][0]
-    standings = {m["met"]: m["standing"] for m in on_friday["members"]}
-    assert standings[6] == {"status": "on_track", "behind": 0}  # Pavel: Thursday's six
-    assert standings[0] == {"status": "not_started", "behind": 6}  # Olga herself
-    assert on_friday["on_track"] == 1
-
-    # The list of groups names the deadline deck each one is furthest behind on, if any.
-    def behind(user: str) -> object:
-        (summary,) = client.get("/api/groups", headers=as_(user, FRIDAY)).json()
-        return summary["behind_for_class"]
-
-    assert behind("olga") == {"title": "Морское дело", "behind": 6, "status": "not_started"}
-    assert behind("pavel") is None
+    assert "on_track" not in on_friday and "members" not in on_friday
+    (summary,) = client.get("/api/groups", headers=as_("olga", FRIDAY)).json()
+    assert "behind_for_class" not in summary
 
     # The teacher moves it to tomorrow: everything left, today.
     moved = client.patch(

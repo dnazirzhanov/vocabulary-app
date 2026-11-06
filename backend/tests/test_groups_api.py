@@ -246,7 +246,6 @@ def test_each_role_is_told_what_it_may_do(client: TestClient) -> None:
     assert set(mine["can"]) == {
         "rename",
         "give_decks",
-        "see_standings",
         "reset_invite",
         "remove_member",
         "transfer_ownership",
