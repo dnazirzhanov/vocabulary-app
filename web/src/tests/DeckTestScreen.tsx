@@ -26,7 +26,7 @@ interface DeckTestScreenProps {
 
 /**
  * One deck's test (ADR 0046): one main action for where things stand, and below it who passed, who
- * didn't and who hasn't taken it yet, by name in the report's own style. Never ranked, nothing red.
+ * didn't and who hasn't taken it yet, by name under the report's headings. Never ranked, nothing red.
  */
 export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScreenProps) {
   const [detail, setDetail] = useState<TestDetail | null>(null);
@@ -191,11 +191,9 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
           </div>
 
           <Results title="Сдали" state="done" rows={detail.passed} />
-          <Results title="Не сдали" state="pending" rows={detail.failed} />
+          <Results title="Не сдали" state="missed" rows={detail.failed} />
           {/* Nobody is behind on a test that has never been open. */}
-          {(test?.is_open || detail.passed.length + detail.failed.length > 0) && (
-            <Results title="Ещё не проходили" state="off" rows={detail.not_taken} />
-          )}
+          {(test?.is_open || detail.passed.length + detail.failed.length > 0) && <NotTaken rows={detail.not_taken} />}
         </div>
       </main>
       <Dialog open={starting} onClose={() => setStarting(false)} title="Начать тест?">
@@ -230,26 +228,64 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   );
 }
 
-function Results(props: { title: string; state: 'done' | 'pending' | 'off'; rows: TestResultRow[] }) {
+/** One card, a quiet row a person: their name, and their score as a bar and in words. */
+function Results(props: { title: string; state: 'done' | 'missed'; rows: TestResultRow[] }) {
   const { title, state, rows } = props;
   if (rows.length === 0) return null;
   return (
     <section aria-label={title} className={styles.results}>
-      <h2 className={report.namesTitle}>
-        <StateMark state={state} />
-        {title}: <span className={report.namesCount}>{rows.length}</span>
-      </h2>
-      <ul className={report.report}>
+      <ResultsTitle title={title} state={state} count={rows.length} />
+      <ul className={styles.roster}>
         {rows.map((row) => (
-          <li key={row.member_id} data-me={row.is_me || undefined} className={styles.result}>
-            <span className={report.nick}>
-              {row.nickname}
-              {row.is_me && <span className={report.me}>вы</span>}
-            </span>
-            {row.score && <span className={styles.score}>{scoreText(row.score)}</span>}
+          <li key={row.member_id} data-me={row.is_me || undefined} className={styles.person}>
+            <Name row={row} />
+            {row.score && (
+              <>
+                <span className={styles.scoreBar} data-short={!row.score.passed || undefined} aria-hidden="true">
+                  <span style={{ width: `${(row.score.correct / row.score.total) * 100}%` }} />
+                </span>
+                <span className={styles.score}>{scoreText(row.score)}</span>
+              </>
+            )}
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/** No score to line up, so names run on in one card: a whole class waiting stays short. */
+function NotTaken({ rows }: { rows: TestResultRow[] }) {
+  if (rows.length === 0) return null;
+  const title = 'Ещё не проходили';
+  return (
+    <section aria-label={title} className={styles.results}>
+      <ResultsTitle title={title} state="off" count={rows.length} />
+      <ul className={styles.waiting}>
+        {rows.map((row) => (
+          <li key={row.member_id}>
+            <Name row={row} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ResultsTitle(props: { title: string; state: 'done' | 'missed' | 'off'; count: number }) {
+  return (
+    <h2 className={report.namesTitle}>
+      <StateMark state={props.state} />
+      {props.title}: <span className={report.namesCount}>{props.count}</span>
+    </h2>
+  );
+}
+
+function Name({ row }: { row: TestResultRow }) {
+  return (
+    <span className={styles.name}>
+      {row.nickname}
+      {row.is_me && <span className={report.me}>вы</span>}
+    </span>
   );
 }
