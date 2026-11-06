@@ -686,12 +686,23 @@ def publish(
     due_on: date | None = None,
 ) -> TeacherDeckOut:
     """Publish the deck and give it to a group I own, with an optional «Выучить к» (ADR 0028).
-    Repeating it only sets the deadline; a deck taken back is given again."""
+    Repeating it only sets the deadline. A deck taken back is given again, and undoing that keeps
+    its deadline if the date is still to come (ADR 0049)."""
     deck = _owned_deck(db, user, deck_id)
     group = _owned_group(db, user, group_id)
     if not _deck_word_ids(db, deck.id):
         raise ApiError(409, "deck_empty", "Add a word first")
     _check_due(group, due_on, now)
+    if due_on is None:
+        taken_back = db.scalar(
+            select(DeckAssignment.due_on).where(
+                DeckAssignment.group_id == group.id,
+                DeckAssignment.deck_id == deck.id,
+                DeckAssignment.removed_at.is_not(None),
+            )
+        )
+        if taken_back and taken_back >= local_date(now, ZoneInfo(group.time_zone)):
+            due_on = taken_back
     deck.status = "published"
     db.execute(
         insert(DeckAssignment)

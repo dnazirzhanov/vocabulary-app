@@ -153,3 +153,39 @@ test('a new invite link stops the old one, and the owner can delete the group', 
   await expect(page.getByRole('heading', { name: 'Друзья' })).toBeFocused();
   expect(await (await anna.request.get('/api/groups')).json()).toEqual([]);
 });
+
+test('the owner removes a deck from the group page, after being asked, and a member cannot', async ({
+  page,
+  context,
+  browser,
+}) => {
+  const group = await ownerGroup(context);
+  const deck = await (await context.request.post('/api/decks', { data: { title: 'Unit 4' } })).json();
+  await context.request.post(`/api/decks/${deck.id}/words`, {
+    data: { headword: 'setback', pos: 'noun', translation: 'неудача', example: 'A setback.' },
+  });
+  await context.request.post(`/api/decks/${deck.id}/publish`, { data: { group_id: group.id } });
+  const anna = await member(browser, group.invite_code, 'Анна', 'anna');
+  const annaPage = await anna.newPage();
+  await openGroup(annaPage);
+  await annaPage.getByText('Управление группой').click();
+  await expect(annaPage.getByRole('button', { name: /^Убрать/ })).toHaveCount(0);
+
+  await openGroup(page);
+  await page.getByText('Управление группой').click();
+  await page.getByRole('button', { name: 'Убрать «Unit 4» из группы' }).click();
+  const asked = page.getByRole('dialog', { name: 'Убрать «Unit 4»?' });
+  await expect(asked.getByRole('button', { name: 'Отмена' })).toBeFocused();
+  await asked.getByRole('button', { name: 'Отмена' }).click();
+  await expect(page.getByRole('button', { name: 'Убрать «Unit 4» из группы' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Убрать «Unit 4» из группы' }).click();
+  await asked.getByRole('button', { name: 'Убрать из группы' }).click();
+  await expect(asked).toHaveCount(0);
+  await expect(page.getByText('Колоды группы')).toHaveCount(0);
+
+  await annaPage.reload();
+  const library = await (await anna.request.get('/api/decks/library')).json();
+  expect(library.from_groups).toEqual([]);
+  await anna.close();
+});

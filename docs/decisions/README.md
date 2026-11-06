@@ -39,7 +39,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0033](0033-quiet-progress.md) | «Прогресс»: words learned, then each deck in two lines — how far along, and its goal (today, and the finish at its pace or deadline) | Accepted |
 | [0034](0034-progress-at-a-glance.md) | «Прогресс» at a glance: «Вы знаете N слов, +M за неделю», the week, deck cards in plain stages (знаю · учу · впереди) with a goal; settings behind ⚙ | Accepted |
 | [0035](0035-deck-page-plain-today.md) | A deck's page: today in one sentence, «В день: N новых слов · Изменить», no «finish the other lesson first» (it is set aside), rename in place | Accepted |
-| [0036](0036-give-to-a-group-in-a-window.md) | Giving a deck to a group in a window: a button on the editor's «Новые карточки» card and a quiet icon on a deck's page | Accepted |
+| [0036](0036-give-to-a-group-in-a-window.md) | Giving a deck to a group in a window: a button on the editor's «Новые карточки» card and a quiet icon on a deck's page | Accepted (the window's contents replaced by 0049) |
 | [0037](0037-quiet-opening-page.md) | A quieter opening page: no intro sentence, no «Созданные мной» heading, no «Сегодня: …» on deck cards | Accepted |
 | [0038](0038-no-today-line-on-the-deck-page.md) | A quieter deck page: no «today» sentence (the button carries it), no «Ваша колода» | Accepted |
 | [0039](0039-promise-and-report.md) | «Друзья» as a promise and a report: chosen weekdays, who kept it today by name, words learned from the deck, missed days this month, pauses; the league goes | Accepted |
@@ -51,3 +51,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0046](0046-group-spelling-tests.md) | A group's spelling tests: the owner sets words, time and pass mark and opens it; a timed attempt (amended by 0048) with results open to the group; private unlimited practice; each attempt's order saved; the server's clock; a test's misses go to «Трудные» (0048) | Accepted |
 | [0047](0047-audio-hint-in-spelling-practice.md) | An audio hint in individual spelling practice: «Подсказки: Буква · Звук» below the letters; the word is said on a tap, as often as asked; a word heard counts as a miss on the ladder, like one hinted; a group's test has no hints at all | Accepted |
 | [0048](0048-group-test-skips-retakes-hard-words.md) | A group's test: skipped words come back once; each opening gives everyone one attempt; the group sees the latest result; misspelled and skipped words go to «Трудные» | Accepted |
+| [0049](0049-give-to-a-group-as-a-list.md) | Giving a deck to a group: one list of my groups, each with one action, and the deadline as a line of text that opens the picker | Accepted |
