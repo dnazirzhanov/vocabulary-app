@@ -3,6 +3,7 @@ import { wordsLabel } from '../lib/pace.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './SuggestionCard.module.css';
+import { t } from '../i18n/index.ts';
 
 interface SuggestionCardProps {
   suggestion: PaceSuggestion;
@@ -15,20 +16,20 @@ function message(suggestion: PaceSuggestion): { title: string; body: string } {
   const value = wordsLabel(suggestion.value);
   if (suggestion.kind === 'raise') {
     return {
-      title: 'Готовы к большему?',
-      body: `Вы выполняете цель почти каждый день и вспоминаете ${suggestion.recall_percent ?? 0}% слов на повторениях. Попробовать ${value} в день? Прежний темп можно вернуть в любой момент.`,
+      title: t.readyForMore,
+      body: t.suggestMore(suggestion.recall_percent ?? 0, value),
     };
   }
   if (suggestion.reason === 'low_recall') {
     return {
-      title: 'Чуть медленнее — и слова удержатся',
-      body: `На повторениях вы вспоминаете ${suggestion.recall_percent ?? 0}% слов. Обычно это значит, что новых слов многовато. Попробовать ${value} в день?`,
+      title: t.aLittleSlowerAndTheWords,
+      body: t.suggestLess(suggestion.recall_percent ?? 0, value),
     };
   }
   const achieved = Math.round(suggestion.achieved_per_day ?? suggestion.value);
   return {
-    title: 'Подберём темп под вас?',
-    body: `Последние дни вы учили около ${wordsLabel(achieved)} в день — это хороший темп. С целью ${value} в день она будет выполняться, а не висеть над вами.`,
+    title: t.shallWeFindAPaceThat,
+    body: t.suggestMatch(wordsLabel(achieved), value),
   };
 }
 
@@ -49,10 +50,10 @@ export function SuggestionCard({ suggestion, target, onAccept, onDismiss }: Sugg
           disabled={busy}
           onClick={() => run(() => onAccept(suggestion.value))}
         >
-          {suggestion.kind === 'raise' ? `Да, ${suggestion.value} в день` : `Поставить ${suggestion.value}`}
+          {suggestion.kind === 'raise' ? t.yesADay(suggestion.value) : t.set(suggestion.value)}
         </button>
         <SecondaryButton type="button" className={styles.dismiss} disabled={busy} onClick={() => run(onDismiss)}>
-          {suggestion.kind === 'raise' ? 'Не сейчас' : `Оставить ${target}`}
+          {suggestion.kind === 'raise' ? t.notNow : t.keep(target)}
         </SecondaryButton>
       </div>
       {error && (

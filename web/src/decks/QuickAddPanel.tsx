@@ -5,6 +5,7 @@ import type { GenerateResult } from '../lib/types.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
+import { t } from '../i18n/index.ts';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 const MAX_WORDS = 20;
@@ -41,9 +42,9 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
 
   return (
     <form className={styles.paneForm} onSubmit={(event) => void submit(event)} aria-labelledby="tab-words">
-      <p className={styles.note}>Напишите слова — ИИ составит карточки: перевод, пример и его перевод.</p>
+      <p className={styles.note}>{t.writeTheWordsAndAIWill}</p>
       <label className={styles.field}>
-        <span className="visually-hidden">Слова для карточек</span>
+        <span className="visually-hidden">{t.wordsForTheCards}</span>
         <textarea
           lang="en"
           rows={2}
@@ -61,7 +62,7 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
       </label>
       <div className={styles.options}>
         <label className={styles.field}>
-          <span>Уровень</span>
+          <span>{t.level}</span>
           <select value={level} disabled={busy} onChange={(event) => setLevel(event.target.value)}>
             {LEVELS.map((value) => (
               <option key={value}>{value}</option>
@@ -69,12 +70,12 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
           </select>
         </label>
         <PrimaryButton type="submit" disabled={busy || words.length === 0 || tooMany} aria-busy={busy}>
-          {busy ? 'Составляем…' : words.length > 1 ? `Создать карточки · ${words.length}` : 'Создать карточку'}
+          {busy ? t.makingTheCards : words.length > 1 ? t.createCards(words.length) : t.createACard}
         </PrimaryButton>
       </div>
       <div role="status" className={styles.generateStatus}>
-        {tooMany && <p className={styles.note}>За один раз — до {MAX_WORDS} слов.</p>}
-        {busy && <p className={styles.note}>Составляем карточки — обычно несколько секунд.</p>}
+        {tooMany && <p className={styles.note}>{t.atMostWordsAtOnce(MAX_WORDS)}</p>}
+        {busy && <p className={styles.note}>{t.makingTheCardsItUsuallyTakes}</p>}
         {!busy && last && <DraftResult result={last} />}
       </div>
       {error && (

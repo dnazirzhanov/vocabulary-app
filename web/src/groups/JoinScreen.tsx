@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { plural } from '../i18n/plural.ts';
 import { api, ApiError, describeError } from '../lib/api.ts';
 import { suggestNicknames } from '../lib/nickname.ts';
 import type { GroupPreview } from '../lib/types.ts';
@@ -8,8 +7,9 @@ import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import styles from './Groups.module.css';
+import { t } from '../i18n/index.ts';
 
-const members = (n: number) => `${n}\u00a0${plural(n, { one: 'участник', few: 'участника', many: 'участников' })}`;
+const members = (n: number) => t.membersCount(n);
 
 interface JoinScreenProps {
   code: string;
@@ -31,9 +31,9 @@ export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
       .then(setPreview, (caught: unknown) =>
         setProblem(
           caught instanceof ApiError && caught.status === 404
-            ? 'Такой группы нет. Проверьте код или попросите новую ссылку.'
+            ? t.thereSNoSuchGroupCheck
             : caught instanceof ApiError && caught.status === 429
-              ? 'Слишком много попыток. Подождите минуту.'
+              ? t.tooManyAttemptsWaitAMinute
               : describeError(caught),
         ),
       );
@@ -44,7 +44,7 @@ export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onCancel}>
-          <BackIcon aria-hidden="true" /> Не сейчас
+          <BackIcon aria-hidden="true" /> {t.notNow}
         </button>
       </header>
       <main className={styles.main}>
@@ -52,25 +52,22 @@ export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
           {problem && (
             <>
               <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-                Приглашение не найдено
+                {t.invitationNotFound}
               </h1>
               <p className={styles.lead}>{problem}</p>
             </>
           )}
-          {!problem && !preview && <p aria-busy="true">Загружаем…</p>}
+          {!problem && !preview && <p aria-busy="true">{t.loading}</p>}
           {preview && (
             <>
-              <p className={styles.eyebrow}>Вас пригласили в группу</p>
+              <p className={styles.eyebrow}>{t.invitedToGroup}</p>
               <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
                 {preview.name}
               </h1>
               <p className={styles.meta}>{members(preview.member_count)}</p>
-              <p className={styles.lead}>
-                В группе видно только ваше имя здесь и сколько дней вы занимались на этой неделе. E-mail никто не
-                увидит, переписки нет.
-              </p>
+              <p className={styles.lead}>{t.theGroupOnlySeesYourName}</p>
               {preview.already_member ? (
-                <p className={styles.lead}>Вы уже в этой группе.</p>
+                <p className={styles.lead}>{t.youReAlreadyInThisGroup}</p>
               ) : (
                 <div className={styles.card}>
                   <NicknamePicker value={nickname} onChange={setNickname} />
@@ -88,7 +85,7 @@ export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
                 aria-busy={busy}
                 onClick={() => run(async () => onJoined((await api.joinGroup(code, nickname)).id))}
               >
-                {preview.already_member ? 'Открыть группу' : busy ? 'Вступаем…' : 'Вступить'}
+                {preview.already_member ? t.openTheGroup : busy ? t.joining : t.join}
               </PrimaryButton>
             </>
           )}

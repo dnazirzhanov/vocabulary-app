@@ -17,3 +17,10 @@ test('typed nicknames follow the server rules', () => {
   assert.equal(nicknameProblem('wwwfun'), 'Без ссылок.');
   assert.equal(nicknameProblem('a'), 'Не короче 2 символов.');
 });
+
+test("a nickname may be in any of the app's languages", () => {
+  for (const name of ['Айгүл', 'Қанат', 'Ҷамшед', 'Gʻayrat', "O'g'il", 'Анна-Мария']) {
+    assert.equal(nicknameProblem(name), null, name);
+  }
+  assert.notEqual(nicknameProblem('a@b.c'), null);
+});

@@ -6,13 +6,14 @@ import { BackIcon, ForwardIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
 import styles from './Tests.module.css';
+import { t } from '../i18n/index.ts';
 
 function deckNote(deck: TestDeck): string | null {
   if (deck.mine) {
     const score = `${scoreText(deck.mine)} · ${verdictText(deck.mine.passed)}`;
-    return deck.can_start ? `${score} · Открыт снова` : score;
+    return deck.can_start ? t.openAgain(score) : score;
   }
-  return deck.is_open ? 'Открыт' : null;
+  return deck.is_open ? t.open : null;
 }
 
 /** The group's decks, to choose which test (ADR 0046). */
@@ -38,7 +39,7 @@ export function TestsScreen(props: { groupId: string; onOpen: (deckId: string) =
       <main className="message-screen">
         <p role="alert">{error}</p>
         <PrimaryButton type="button" onClick={() => (setError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -46,7 +47,7 @@ export function TestsScreen(props: { groupId: string; onOpen: (deckId: string) =
   if (!tests) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -54,16 +55,16 @@ export function TestsScreen(props: { groupId: string; onOpen: (deckId: string) =
     <div className={shared.screen}>
       <header className={shared.topbar}>
         <button type="button" className={shared.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> К группе
+          <BackIcon aria-hidden="true" /> {t.toTheGroup}
         </button>
       </header>
       <main className={shared.main}>
         <div className={shared.column}>
           <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
-            Тесты
+            {t.tests}
           </h1>
           {tests.decks.length === 0 ? (
-            <p className={shared.lead}>Тестов пока нет.</p>
+            <p className={shared.lead}>{t.noTestsYet}</p>
           ) : (
             <ul className={styles.decks}>
               {tests.decks.map((deck) => {

@@ -9,6 +9,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { WeekdayPicker } from './WeekdayPicker.tsx';
 import styles from './PromiseDialog.module.css';
+import { t } from '../i18n/index.ts';
 
 const MAX_PAUSE_DAYS = 31;
 
@@ -58,20 +59,18 @@ export function PromiseDialog({
   const settled = info ? (info.pending?.weekdays ?? info.weekdays) : [];
 
   return (
-    <Dialog open onClose={onClose} title="Моё обещание">
+    <Dialog open onClose={onClose} title={t.myPromiseTitle}>
       {loadError ? (
         <p className={styles.problem} role="alert">
           {loadError}
         </p>
       ) : !info ? (
         <p className={styles.note} aria-busy="true">
-          Загружаем…
+          {t.loading}
         </p>
       ) : (
         <>
-          <p className={styles.note}>
-            В какие дни вы обещаете заниматься. Изменение начнётся с завтрашнего дня: сегодняшний день уже не меняется.
-          </p>
+          <p className={styles.note}>{t.theDaysYouPromiseToStudy}</p>
           <WeekdayPicker
             value={chosen}
             onChange={(weekdays) => {
@@ -89,38 +88,36 @@ export function PromiseDialog({
               })
             }
           >
-            Сохранить
+            {t.save}
           </PrimaryButton>
           {saved && (
             <p className={styles.saved} role="status">
-              Сохранено: {promiseText(chosen)}
+              {t.saved} {promiseText(chosen)}
             </p>
           )}
 
           <section className={styles.pause} aria-labelledby="pause-title">
             <h3 id="pause-title" className={styles.pauseTitle}>
-              Пауза
+              {t.pause}
             </h3>
             {info.pause ? (
               <>
-                <p>
-                  Пауза с {dueLabel(info.pause.from_date)} по {dueLabel(info.pause.until_date)}.
-                </p>
+                <p>{t.pauseFromTo(dueLabel(info.pause.from_date), dueLabel(info.pause.until_date))}</p>
                 <button
                   type="button"
                   className={styles.linkButton}
                   disabled={busy}
                   onClick={() => run(async () => show(await api.endPause()))}
                 >
-                  Снять паузу
+                  {t.endThePause}
                 </button>
               </>
             ) : (
               <>
-                <p className={styles.note}>Отпуск или болезнь: дни паузы не считаются пропусками. Начинается завтра.</p>
+                <p className={styles.note}>{t.holidayOrIllnessPausedDaysDon}</p>
                 <div className={styles.pauseRow}>
                   <label className={styles.field}>
-                    <span>Пауза до</span>
+                    <span>{t.pauseUntil}</span>
                     <input
                       type="date"
                       min={tomorrow}
@@ -140,7 +137,7 @@ export function PromiseDialog({
                       })
                     }
                   >
-                    Поставить паузу
+                    {t.startAPause}
                   </button>
                 </div>
               </>

@@ -1,4 +1,5 @@
 import type { AttemptResult, Exercise, Rating, Session } from '../lib/types.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * A card:     front → back → saving → (next) …                         (ADR 0012)
@@ -113,12 +114,12 @@ export function remaining(state: LessonState): { fresh: number; review: number; 
 /** "<1 мин", "10 мин", "3 дн", "2 мес" — the interval under a rating button. */
 export function formatInterval(seconds: number): string {
   const minutes = seconds / 60;
-  if (minutes < 1) return '<1 мин';
-  if (minutes < 60) return `${Math.round(minutes)} мин`;
+  if (minutes < 1) return t.n1Min;
+  if (minutes < 60) return t.min(Math.round(minutes));
   const hours = minutes / 60;
-  if (hours < 24) return `${Math.round(hours)} ч`;
+  if (hours < 24) return t.h(Math.round(hours));
   const days = hours / 24;
-  if (days < 31) return `${Math.round(days)} дн`;
-  if (days < 365) return `${Math.round(days / 30)} мес`;
-  return `${(days / 365).toFixed(1).replace('.0', '')} г`;
+  if (days < 31) return t.d(Math.round(days));
+  if (days < 365) return t.mo(Math.round(days / 30));
+  return t.y((days / 365).toFixed(1).replace('.0', ''));
 }

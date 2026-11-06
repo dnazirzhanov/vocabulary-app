@@ -8,6 +8,7 @@ import { CameraIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
+import { t } from '../i18n/index.ts';
 
 const COUNTS = [5, 10, 20, 30, 50];
 const MAX_COUNT = 50;
@@ -58,11 +59,7 @@ export function GeneratePanel({
       const texts = await readPhotos(files, (done) => setReading({ done, total: files.length }));
       const read = texts.filter((part) => part.length >= MIN_PHOTO_TEXT);
       if (read.length < texts.length)
-        setPhotoNote(
-          read.length === 0
-            ? 'На фото почти нет текста — снимите страницу ближе и ровнее.'
-            : 'На одном из фото почти нет текста — его пропустили.',
-        );
+        setPhotoNote(read.length === 0 ? t.thereSAlmostNoTextIn : t.oneOfThePhotosHasAlmost);
       if (read.length > 0) {
         setText((before) => [before.trim(), ...read].filter(Boolean).join('\n\n').slice(0, MAX_TEXT));
         setPhotos((before) => [
@@ -71,7 +68,7 @@ export function GeneratePanel({
         ]);
       }
     } catch {
-      setError('Не удалось прочитать фото. Проверьте интернет: в первый раз загружается модуль чтения (около 7 МБ).');
+      setError(t.couldnTReadThePhotoCheck);
     } finally {
       setReading(null);
     }
@@ -81,7 +78,7 @@ export function GeneratePanel({
   const addImages = (files: File[]) => {
     const images = files.filter((file) => file.type.startsWith('image/'));
     if (images.length === 0) {
-      setPhotoNote('Это не картинка: перетащите скриншот или фото страницы (PNG, JPG).');
+      setPhotoNote(t.thatIsnTAPictureDrag);
       return;
     }
     if (!working) void addPhotos(images);
@@ -139,15 +136,12 @@ export function GeneratePanel({
     >
       {dragging && (
         <div className={styles.dropHint} aria-hidden="true">
-          <CameraIcon /> Отпустите — прочитаем текст с картинки
+          <CameraIcon /> {t.letGoAndWeLlRead}
         </div>
       )}
-      <p className={styles.note}>
-        Вставьте текст, упражнение или список слов либо сфотографируйте страницу — подберём слова и составим карточки с
-        переводом и примером. Ни текст, ни фото не сохраняются.
-      </p>
+      <p className={styles.note}>{t.pasteATextAnExerciseOr}</p>
       <label className={styles.field}>
-        <span className="visually-hidden">Текст урока</span>
+        <span className="visually-hidden">{t.lessonText}</span>
         <textarea
           lang="en"
           rows={7}
@@ -174,7 +168,7 @@ export function GeneratePanel({
           accept="image/*"
           multiple
           hidden
-          aria-label="Фото страниц"
+          aria-label={t.photosOfPages}
           onChange={(event) => {
             const chosen = Array.from(event.target.files ?? []);
             event.target.value = ''; // the same photo can be chosen again
@@ -188,41 +182,36 @@ export function GeneratePanel({
           onClick={() => fileInput.current?.click()}
           aria-describedby="photos-note"
         >
-          <CameraIcon aria-hidden="true" /> Добавить фото
+          <CameraIcon aria-hidden="true" /> {t.addAPhoto}
         </button>
         <p id="photos-note" className={styles.note}>
           {photosLeft <= 0
-            ? `В колоду уже добавлено ${MAX_PHOTOS_PER_DECK} фото — больше нельзя.`
-            : `До ${MAX_PHOTOS_PER_DRAFT} за раз · для этой колоды осталось ${photosLeft - photos.length} из ${MAX_PHOTOS_PER_DECK}`}
-          {photosLeft > 0 && (
-            <span className={styles.desktopOnly}>
-              {' '}
-              · скриншот можно перетащить сюда или вставить в поле (Ctrl+V, на Mac ⌘V)
-            </span>
-          )}
+            ? t.photosHaveAlreadyBeenAddedTo(MAX_PHOTOS_PER_DECK)
+            : t.upToAtATimeOf(MAX_PHOTOS_PER_DRAFT, photosLeft - photos.length, MAX_PHOTOS_PER_DECK)}
+          {photosLeft > 0 && <span className={styles.desktopOnly}> {t.youCanDragAScreenshotHere}</span>}
         </p>
       </div>
       <div role="status" className={styles.generateStatus}>
         {reading && (
           <>
             <p className={styles.note}>
-              Читаем фото {Math.min(reading.total, Math.floor(reading.done) + 1)} из {reading.total}…
+              {t.readingPhotoOf(Math.min(reading.total, Math.floor(reading.done) + 1), reading.total)}
             </p>
-            <progress className={styles.reading} max={reading.total} value={reading.done} aria-label="Читаем фото" />
+            <progress
+              className={styles.reading}
+              max={reading.total}
+              value={reading.done}
+              aria-label={t.readingThePhotos}
+            />
           </>
         )}
-        {!reading && photos.length > 0 && (
-          <p className={styles.note}>
-            Текст с {photos.length === 1 ? 'фото' : `${photos.length} фото`} — в поле выше. Проверьте и поправьте, если
-            что-то прочиталось неверно.
-          </p>
-        )}
+        {!reading && photos.length > 0 && <p className={styles.note}>{t.textFromPhotos(photos.length)}</p>}
         {!reading && photoNote && <p className={styles.problem}>{photoNote}</p>}
       </div>
 
       <div className={styles.options}>
         <fieldset className={styles.choice}>
-          <legend>Сколько слов</legend>
+          <legend>{t.howManyWords}</legend>
           <div className={styles.segments}>
             {COUNTS.map((value) => (
               <label key={value} className={styles.segment} data-selected={value === count || undefined}>
@@ -239,7 +228,7 @@ export function GeneratePanel({
             ))}
           </div>
           <label className={styles.countOwn}>
-            <span>или своё число, до {MAX_COUNT}</span>
+            <span>{t.orYourOwnNumberUpTo(MAX_COUNT)}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -252,7 +241,7 @@ export function GeneratePanel({
           </label>
         </fieldset>
         <label className={styles.field}>
-          <span>Уровень</span>
+          <span>{t.level}</span>
           <select value={level} disabled={working} onChange={(event) => setLevel(event.target.value)}>
             {LEVELS.map((value) => (
               <option key={value}>{value}</option>
@@ -261,14 +250,10 @@ export function GeneratePanel({
         </label>
       </div>
       <PrimaryButton type="submit" disabled={working || !ready} aria-busy={busy}>
-        {busy ? 'Подбираем слова…' : `Подобрать ${wordsLabel(count)}`}
+        {busy ? t.pickingWords : t.pick(wordsLabel(count))}
       </PrimaryButton>
       <div role="status" className={styles.generateStatus}>
-        {busy && (
-          <p className={styles.note}>
-            Читаем текст и составляем карточки — это может занять {count > 20 ? 'пару минут' : 'до минуты'}.
-          </p>
-        )}
+        {busy && <p className={styles.note}>{t.readingAndMakingCards(count > 20)}</p>}
         {!busy && last && <DraftResult result={last} />}
       </div>
       {error && (

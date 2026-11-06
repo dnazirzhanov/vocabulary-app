@@ -3,6 +3,7 @@ import { api, describeError } from '../lib/api.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../lib/push.ts';
 import type { Me, NotificationChoice } from '../lib/types.ts';
 import styles from './AccountSection.module.css';
+import { t } from '../i18n/index.ts';
 
 /** Where this device stands with reminders; null while asking. */
 export function usePushState(): [PushState | null, (next: PushState) => void] {
@@ -20,15 +21,14 @@ export function usePushState(): [PushState | null, (next: PushState) => void] {
   return [state, setState];
 }
 
-export const INSTALL =
-  'На iPhone уведомления приходят, только если приложение на экране «Домой»: нажмите «Поделиться» → «На экран „Домой“» и откройте его оттуда.';
-export const BLOCKED = 'Уведомления запрещены в настройках браузера для этого сайта — разрешите их там.';
+export const INSTALL = t.onIPhoneNotificationsOnlyArriveIf;
+export const BLOCKED = t.notificationsAreBlockedForThisSite;
 
 const CHOICES: { field: NotificationChoice; label: string }[] = [
-  { field: 'notify_morning', label: 'Утром: что сегодня по обещанию' },
-  { field: 'notify_afternoon', label: 'В 17:00: если сегодня ещё не занимались' },
-  { field: 'notify_report', label: 'Отчёт группы за вчера' },
-  { field: 'notify_deadline', label: 'Срок колоды' },
+  { field: 'notify_morning', label: t.inTheMorningTodaySPromise },
+  { field: 'notify_afternoon', label: t.at1700IfYouHaven },
+  { field: 'notify_report', label: t.theGroupSReportForYesterday },
+  { field: 'notify_deadline', label: t.deckDeadline },
 ];
 
 /** Which notifications this learner wants, on any of their devices (ADR 0042). */
@@ -48,7 +48,7 @@ function NotificationChoices() {
   };
   return (
     <fieldset className={styles.choices}>
-      <legend className="visually-hidden">Какие уведомления присылать</legend>
+      <legend className="visually-hidden">{t.whichNotificationsToSend}</legend>
       {me &&
         CHOICES.map(({ field, label }) => (
           <label key={field} className={styles.toggle}>
@@ -85,8 +85,8 @@ export function Reminders() {
       : state === 'denied'
         ? BLOCKED
         : state === 'unsupported'
-          ? 'Этот браузер не умеет показывать уведомления.'
-          : 'На этом устройстве. Не чаще двух раз в день.';
+          ? t.thisBrowserCanTShowNotifications
+          : t.onThisDeviceNoMoreThan;
   const toggle = async (on: boolean) => {
     setBusy(true);
     setError(null);
@@ -99,7 +99,7 @@ export function Reminders() {
     }
   };
   return (
-    <section aria-label="Уведомления" className={styles.notifications}>
+    <section aria-label={t.notifications} className={styles.notifications}>
       <label className={styles.toggle}>
         <input
           type="checkbox"
@@ -109,7 +109,7 @@ export function Reminders() {
           onChange={(event) => void toggle(event.target.checked)}
         />
         <span>
-          Уведомления
+          {t.notifications}
           <small>{note}</small>
         </span>
       </label>

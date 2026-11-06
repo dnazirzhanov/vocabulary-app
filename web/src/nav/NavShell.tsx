@@ -4,6 +4,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ChartIcon, GearIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
 import styles from './NavShell.module.css';
+import { t } from '../i18n/index.ts';
 
 export type NavTab = 'today' | 'friends' | 'progress';
 
@@ -24,9 +25,9 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
   const [settings, setSettings] = useState(false);
   const signOut = useAsyncAction();
   const items = [
-    { tab: 'today', label: 'Сегодня', Icon: HomeIcon },
-    { tab: 'friends', label: 'Друзья', Icon: PeopleIcon },
-    { tab: 'progress', label: 'Прогресс', Icon: ChartIcon },
+    { tab: 'today', label: t.today, Icon: HomeIcon },
+    { tab: 'friends', label: t.friends, Icon: PeopleIcon },
+    { tab: 'progress', label: t.progress, Icon: ChartIcon },
   ] as const;
 
   return (
@@ -42,23 +43,23 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
               aria-busy={signOut.busy}
               onClick={() => void signOut.run(onSignOut)}
             >
-              {signOut.busy ? 'Выходим…' : 'Выйти'}
+              {signOut.busy ? t.signingOut : t.signOut}
             </button>
           )}
           <button
             type="button"
             className={styles.settings}
             onClick={() => setSettings(true)}
-            aria-label="Настройки"
-            title="Настройки"
+            aria-label={t.settings}
+            title={t.settings}
           >
             <GearIcon aria-hidden="true" />
           </button>
         </div>
       </div>
-      <nav className={styles.nav} aria-label="Разделы">
+      <nav className={styles.nav} aria-label={t.sections}>
         <p className={styles.brand} aria-hidden="true">
-          Словарь
+          {t.slovar}
         </p>
         <ul className={styles.items}>
           {items.map(({ tab: target, label, Icon }) => (
@@ -78,7 +79,7 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
           ))}
         </ul>
       </nav>
-      <Dialog open={settings} onClose={() => setSettings(false)} title="Настройки">
+      <Dialog open={settings} onClose={() => setSettings(false)} title={t.settings}>
         <AccountSection {...account} />
       </Dialog>
     </div>

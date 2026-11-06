@@ -9,6 +9,7 @@ import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './GoalScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 interface GoalScreenProps {
   me: Me;
@@ -70,15 +71,13 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
       <header className={styles.topbar}>
         {back ? (
           <button type="button" className={styles.back} onClick={() => setStep(back)}>
-            <BackIcon aria-hidden="true" /> Назад
+            <BackIcon aria-hidden="true" /> {t.back}
           </button>
         ) : (
           <span />
         )}
         <p className={styles.steps}>
-          <span className="visually-hidden">
-            Вопрос {position + 1} из {total}
-          </span>
+          <span className="visually-hidden">{t.questionOf(position + 1, total)}</span>
           {Array.from({ length: total }, (_, index) => (
             <span key={index} aria-hidden="true" className={styles.dot} data-active={index <= position} />
           ))}
@@ -89,7 +88,7 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
         <div className={styles.question}>
           {step === 'words' && (
             <>
-              {heading('Сколько новых слов в день?')}
+              {heading(t.howManyNewWordsADay)}
               <div className={styles.options}>
                 {PRESETS.map((preset) => (
                   <button
@@ -110,7 +109,7 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
           )}
           {step === 'days' && (
             <>
-              {heading('В какие дни будете заниматься?')}
+              {heading(t.whichDaysWillYouStudy)}
               <WeekdayPicker value={weekdays} onChange={setWeekdays} />
               {problem}
               <PrimaryButton
@@ -119,31 +118,31 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
                 aria-busy={busy}
                 onClick={() => (asks ? setStep('notify') : void run(finish))}
               >
-                {asks ? 'Дальше' : busy ? 'Сохраняем…' : 'Начать'}
+                {asks ? t.next : busy ? t.saving : t.startPlain}
               </PrimaryButton>
             </>
           )}
           {step === 'notify' && (
             <>
-              {heading('Присылать напоминания?')}
+              {heading(t.sendReminders)}
               {problem}
               <div className={styles.options}>
                 <button type="button" className={styles.option} disabled={busy} aria-busy={busy} onClick={sayYes}>
-                  Да
+                  {t.yes}
                 </button>
                 <button type="button" className={styles.option} disabled={busy} onClick={() => void run(finish)}>
-                  Не сейчас
+                  {t.notNow}
                 </button>
               </div>
             </>
           )}
           {step === 'how' && (
             <>
-              {heading('Присылать напоминания?')}
+              {heading(t.sendReminders)}
               <p className={styles.how}>{push === 'denied' ? BLOCKED : INSTALL}</p>
               {problem}
               <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => void run(finish)}>
-                Понятно
+                {t.gotIt}
               </PrimaryButton>
             </>
           )}

@@ -20,6 +20,7 @@ import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/t
 import { BulbIcon, CheckIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
+import { t } from '../i18n/index.ts';
 
 interface SpellingExerciseProps {
   exercise: Exercise;
@@ -58,7 +59,7 @@ export function SpellingExercise({
   onSubmit,
   onContinue,
   onHint,
-  eyebrow = 'Правописание',
+  eyebrow = t.spellingTitle,
   submitLabel,
   onSkip,
   onDraft,
@@ -109,7 +110,7 @@ export function SpellingExercise({
       const tile = tileForKey(exercise.tiles, picked, given.letter);
       if (tile !== null && picked.length === given.position)
         setPicked((current) => pick(current, tile, exercise.slots));
-      else setHintNote(`Буква ${given.position + 1} — «${given.letter}».`);
+      else setHintNote(t.letterIs(given.position + 1, given.letter));
     } catch (error) {
       setHintNote(describeError(error));
     } finally {
@@ -154,7 +155,7 @@ export function SpellingExercise({
         <div className={styles.questionHead}>
           <p className={styles.eyebrow}>{eyebrow}</p>
           <button type="button" className={styles.skip} disabled={busy} onClick={onSkip}>
-            Пропустить
+            {t.skip}
             <ForwardIcon aria-hidden="true" />
           </button>
         </div>
@@ -173,7 +174,7 @@ export function SpellingExercise({
       </div>
 
       {/* One list per word of a phrase, so a line breaks between words, never inside one. */}
-      <div className={styles.slots} role="group" aria-label={`Ответ: ${picked.length} из ${exercise.slots} букв`}>
+      <div className={styles.slots} role="group" aria-label={t.answerOfLetters(picked.length, exercise.slots)}>
         {slotWords(exercise.slots, exercise.separators).map((slots, index) => (
           <ol key={index} className={styles.slotWord}>
             {slots.map((slot) => {
@@ -190,7 +191,7 @@ export function SpellingExercise({
                   )}
                   <li>
                     {letter === null ? (
-                      <span className={styles.slot} data-empty aria-label={`Буква ${slot + 1}: пусто`} />
+                      <span className={styles.slot} data-empty aria-label={t.letterEmpty(slot + 1)} />
                     ) : (
                       <button
                         type="button"
@@ -198,7 +199,7 @@ export function SpellingExercise({
                         data-hinted={slot === hintedSlot || undefined}
                         disabled={!editable}
                         onClick={() => setPicked((current) => removeAt(current, slot))}
-                        aria-label={`Буква ${slot + 1}: ${letter}${slot === hintedSlot ? ' (подсказка)' : ''}, убрать`}
+                        aria-label={t.letterRemove(slot + 1, letter, slot === hintedSlot)}
                       >
                         {letter}
                       </button>
@@ -215,7 +216,7 @@ export function SpellingExercise({
         <Feedback right={Boolean(result.correct) || builtRight} built={answer} word={word ?? ''} />
       ) : (
         <>
-          <div className={styles.tiles} role="group" aria-label="Буквы">
+          <div className={styles.tiles} role="group" aria-label={t.letters}>
             {exercise.tiles.map((letter, tile) => {
               const used = picked.includes(tile);
               return (
@@ -226,7 +227,7 @@ export function SpellingExercise({
                   data-used={used || undefined}
                   disabled={used || !editable}
                   onClick={() => setPicked((current) => pick(current, tile, exercise.slots))}
-                  aria-label={used ? `${letter}, уже в ответе` : letter}
+                  aria-label={used ? t.alreadyInTheAnswer(letter) : letter}
                 >
                   {used ? '' : letter}
                 </button>
@@ -240,7 +241,7 @@ export function SpellingExercise({
               disabled={!editable || picked.length === 0}
               onClick={() => setPicked(backspace)}
             >
-              ⌫ Стереть
+              {t.delete}
             </button>
             <button
               type="button"
@@ -248,14 +249,14 @@ export function SpellingExercise({
               disabled={!editable || picked.length === 0}
               onClick={() => setPicked([])}
             >
-              Очистить
+              {t.clear}
             </button>
           </div>
           {/* Below the letters and asked for: the card itself asks for the word from memory (ADR 0047). */}
           {!again && (onHint || pronunciation) && (
-            <div className={styles.hints} role="group" aria-label="Подсказки">
+            <div className={styles.hints} role="group" aria-label={t.hints}>
               <span className={styles.hintsLabel} aria-hidden="true">
-                Подсказки:
+                {t.hintsColon}
               </span>
               {onHint && (
                 <button
@@ -263,11 +264,11 @@ export function SpellingExercise({
                   className={styles.hintButton}
                   disabled={!editable || hint !== null || hinting || full}
                   aria-busy={hinting}
-                  aria-label={hint ? 'Подсказка использована' : 'Подсказка: буква'}
+                  aria-label={hint ? t.hintUsed : t.hintLetter}
                   onClick={() => void askHint()}
                 >
                   <BulbIcon aria-hidden="true" />
-                  Буква
+                  {t.letter}
                 </button>
               )}
               {pronunciation && (
@@ -275,7 +276,7 @@ export function SpellingExercise({
                   type="button"
                   className={styles.hintButton}
                   disabled={!editable}
-                  aria-label="Подсказка: звук"
+                  aria-label={t.hintSound}
                   onClick={(event) => {
                     void playAudio('words', pronunciation.key, pronunciation.text);
                     setHeard(true);
@@ -285,7 +286,7 @@ export function SpellingExercise({
                   }}
                 >
                   <SpeakerIcon aria-hidden="true" />
-                  Звук
+                  {t.sound}
                 </button>
               )}
             </div>
@@ -297,7 +298,7 @@ export function SpellingExercise({
           )}
           {again && full && !builtRight && (
             <p className={styles.fixHint} role="status">
-              Сверьтесь со словом вверху и поправьте буквы.
+              {t.compareWithTheWordAboveAnd}
             </p>
           )}
         </>
@@ -312,16 +313,16 @@ export function SpellingExercise({
             aria-busy={busy}
             onClick={check}
           >
-            {submitLabel ?? (busy ? 'Проверяем…' : 'Проверить')}
+            {submitLabel ?? (busy ? t.checking : t.checkAnswer)}
           </PrimaryButton>
         ) : (
           <PrimaryButton type="button" className={styles.primary} onClick={onContinue}>
-            Дальше
+            {t.next}
           </PrimaryButton>
         )}
         {result && !result.correct && !again && (
           <button type="button" className={styles.showWord} onClick={buildAgain}>
-            Собрать ещё раз
+            {t.buildItAgain}
           </button>
         )}
       </div>
@@ -335,7 +336,7 @@ function Feedback({ right, built, word }: { right: boolean; built: string; word:
     return (
       <div className={styles.feedback} data-tone="right" role="status">
         <p className={styles.verdict}>
-          <CheckIcon aria-hidden="true" /> Верно
+          <CheckIcon aria-hidden="true" /> {t.correct}
         </p>
         <p className={styles.answer} lang="en">
           {word}
@@ -345,10 +346,10 @@ function Feedback({ right, built, word }: { right: boolean; built: string; word:
   }
   return (
     <div className={styles.feedback} data-tone="wrong" role="status">
-      <p className={styles.verdict}>Почти</p>
+      <p className={styles.verdict}>{t.almost}</p>
       <dl className={styles.compare}>
         <div>
-          <dt>Ваш ответ</dt>
+          <dt>{t.yourAnswer}</dt>
           <dd lang="en">
             {differences(built, word).map(({ letter, differs }, index) =>
               differs ? (
@@ -362,7 +363,7 @@ function Feedback({ right, built, word }: { right: boolean; built: string; word:
           </dd>
         </div>
         <div>
-          <dt>Правильно</dt>
+          <dt>{t.rightAnswer}</dt>
           <dd lang="en">{word}</dd>
         </div>
       </dl>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { CloseIcon } from './icons.tsx';
 import styles from './Dialog.module.css';
+import { t } from '../i18n/index.ts';
 
 interface DialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
             <h2 id={titleId} className={styles.title}>
               {title}
             </h2>
-            <button type="button" className={styles.close} onClick={onClose} aria-label="Закрыть">
+            <button type="button" className={styles.close} onClick={onClose} aria-label={t.close}>
               <CloseIcon aria-hidden="true" />
             </button>
           </header>

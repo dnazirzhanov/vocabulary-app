@@ -11,6 +11,7 @@ import { LessonProgress } from './LessonProgress.tsx';
 import { SpellingExercise } from './SpellingExercise.tsx';
 import styles from './LessonScreen.module.css';
 import { WordPopover } from './WordPopover.tsx';
+import { t } from '../i18n/index.ts';
 
 interface LessonScreenProps {
   session: Session;
@@ -20,10 +21,10 @@ interface LessonScreenProps {
 }
 
 const RATINGS: { rating: Rating; label: string; tone: string }[] = [
-  { rating: 1, label: 'Снова', tone: 'again' },
-  { rating: 2, label: 'Трудно', tone: 'hard' },
-  { rating: 3, label: 'Хорошо', tone: 'good' },
-  { rating: 4, label: 'Легко', tone: 'easy' },
+  { rating: 1, label: t.again, tone: 'again' },
+  { rating: 2, label: t.hard, tone: 'hard' },
+  { rating: 3, label: t.good, tone: 'good' },
+  { rating: 4, label: t.easy, tone: 'easy' },
 ];
 
 function ListenButton({ onPlay, label, small }: { onPlay: () => void; label: string; small?: boolean }) {
@@ -81,10 +82,7 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
         <h1 className={styles.word} lang="en" tabIndex={-1} data-autofocus>
           {word.headword}
         </h1>
-        <ListenButton
-          onPlay={() => void playAudio('words', word.id, word.headword)}
-          label={`Послушать: ${word.headword}`}
-        />
+        <ListenButton onPlay={() => void playAudio('words', word.id, word.headword)} label={t.listen(word.headword)} />
       </div>
       {revealed && (
         <div className={styles.back}>
@@ -100,11 +98,11 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
               <ListenButton
                 small
                 onPlay={() => void playAudio('examples', word.id, word.example)}
-                label="Послушать пример"
+                label={t.listenToTheExample}
               />
             </p>
             <p className={styles.exampleRu}>{word.example_ru}</p>
-            <p className={styles.tapHint}>Нажмите на любое слово, чтобы увидеть перевод</p>
+            <p className={styles.tapHint}>{t.tapAnyWordToSeeIts}</p>
           </div>
         </div>
       )}
@@ -214,7 +212,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <button type="button" className={styles.exit} onClick={onExit} aria-label="Выйти из урока">
+          <button type="button" className={styles.exit} onClick={onExit} aria-label={t.exitTheLesson}>
             <CloseIcon />
           </button>
           <LessonProgress answered={state.results.length} total={state.exercises.length} />
@@ -224,8 +222,8 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               type="button"
               className={styles.autoplay}
               aria-pressed={autoplay}
-              aria-label="Произносить слово автоматически"
-              title={autoplay ? 'Автозвук включён' : 'Автозвук выключен'}
+              aria-label={t.sayTheWordAutomatically}
+              title={autoplay ? t.autoSoundOn : t.autoSoundOff}
               onClick={() => {
                 setAutoplay(!autoplay);
                 setAutoplayState(!autoplay);
@@ -234,22 +232,19 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               {autoplay ? <SpeakerIcon /> : <MuteIcon />}
             </button>
           )}
-          <p
-            className={styles.counters}
-            aria-label={`Осталось: новых ${left.fresh}, повторений ${left.review}, правописание ${left.spelling}`}
-          >
+          <p className={styles.counters} aria-label={t.leftNewReviewsSpelling(left.fresh, left.review, left.spelling)}>
             {card ? (
               <>
                 <span className={styles.countNew}>
-                  <strong>{left.fresh}</strong> нов.
+                  <strong>{left.fresh}</strong> {t.newShort}
                 </span>
                 <span className={styles.countReview}>
-                  <strong>{left.review}</strong> повт.
+                  <strong>{left.review}</strong> {t.reviewShort}
                 </span>
               </>
             ) : (
               <span className={styles.countSpelling}>
-                <strong>{left.spelling}</strong> букв.
+                <strong>{left.spelling}</strong> {t.spell}
               </span>
             )}
           </p>
@@ -291,15 +286,15 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               <AlertIcon aria-hidden="true" />
               <span>{state.error}</span>
               <PrimaryButton type="button" onClick={() => dispatch({ type: 'retry' })}>
-                Повторить
+                {t.tryAgain}
               </PrimaryButton>
             </div>
           ) : !card ? null : state.phase === 'front' ? (
             <PrimaryButton type="button" className={styles.reveal} onClick={() => dispatch({ type: 'reveal' })}>
-              Показать ответ
+              {t.showAnswer}
             </PrimaryButton>
           ) : (
-            <div className={styles.ratings} role="group" aria-label="Как хорошо вы вспомнили?">
+            <div className={styles.ratings} role="group" aria-label={t.howWellDidYouRemember}>
               {RATINGS.map(({ rating, label, tone }) => (
                 <button
                   key={rating}

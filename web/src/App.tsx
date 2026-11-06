@@ -24,6 +24,7 @@ import type { Deck, Me, Session, Summary, TestAttempt } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
+import { t } from './i18n/index.ts';
 
 type Screen =
   | { name: 'home' }
@@ -191,7 +192,7 @@ function Learning({ email }: { email: string | null }) {
       <main className="message-screen">
         <p role="alert">{error}</p>
         <PrimaryButton type="button" onClick={retry}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -347,7 +348,7 @@ function Learning({ email }: { email: string | null }) {
         <DeckEditor
           key={deckId}
           deckId={deckId}
-          backLabel={from ? 'Слова колоды' : groupId ? 'К группе' : 'Мои колоды'}
+          backLabel={from ? t.deckWords : groupId ? t.toTheGroup : t.myDecks}
           onDone={(title) => setScreen(from ? { name: 'words', deckId, title, mine: true, from } : leaveEditor())}
           onDeleted={() => setScreen(leaveEditor())}
           onStudy={(session) => startSession(session, deckId)}
@@ -367,7 +368,7 @@ function Learning({ email }: { email: string | null }) {
         <DeckScreen
           key={deckId}
           deckId={deckId}
-          backLabel={from === 'course' ? 'Курс' : from === 'progress' ? 'Прогресс' : 'Мои колоды'}
+          backLabel={from === 'course' ? t.course : from === 'progress' ? t.progress : t.myDecks}
           onBack={() => setScreen(backTo(from))}
           onSession={startSession}
           onWords={(id, title, mine) => setScreen({ name: 'words', deckId: id, title, mine, from })}

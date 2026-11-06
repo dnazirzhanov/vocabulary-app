@@ -4,16 +4,17 @@ import { describeAuthError, supabase, type AuthFailure } from '../lib/auth.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { PasswordField, useRepeatedPassword } from './PasswordField.tsx';
 import styles from './AuthScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 /** `confirm` and `recover` are the two steps that ask for the code from an email (ADR 0043). */
 type Step = 'signUp' | 'signIn' | 'forgot' | 'confirm' | 'recover';
 
 const TITLES: Record<Step, string> = {
-  signUp: 'Создайте аккаунт',
-  signIn: 'Вход',
-  forgot: 'Забыли пароль?',
-  confirm: 'Введите код',
-  recover: 'Введите код',
+  signUp: t.createAnAccount,
+  signIn: t.signIn,
+  forgot: t.forgotYourPassword,
+  confirm: t.enterTheCode,
+  recover: t.enterTheCode,
 };
 const MIN_PASSWORD = 8;
 const RESEND_SECONDS = 60;
@@ -138,12 +139,10 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
       <AuthLayout onSubmit={submit}>
         {heading}
         <p className={styles.lead}>
-          {step === 'confirm'
-            ? `Мы отправили код на ${address}.`
-            : `Если такой аккаунт есть, мы отправили код на ${address}.`}
+          {step === 'confirm' ? t.weSentACodeTo(address) : t.ifThatAccountExistsWeSent(address)}
         </p>
         <label className={styles.field}>
-          <span>Код из письма</span>
+          <span>{t.codeFromTheEmail}</span>
           <input
             className={styles.code}
             type="text"
@@ -156,18 +155,18 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         </label>
         {problem}
         <PrimaryButton type="submit" disabled={busy || code.length < 6} aria-busy={busy}>
-          {busy ? 'Подождите…' : 'Подтвердить'}
+          {busy ? t.pleaseWait : t.confirm}
         </PrimaryButton>
-        <p className={styles.note}>Письма нет? Проверьте папку «Спам».</p>
+        <p className={styles.note}>{t.noEmailCheckYourSpamFolder}</p>
         <p className={styles.switch}>
           <button type="button" disabled={busy || resendIn > 0} onClick={() => void resend()}>
-            {resendIn > 0 ? `Отправить ещё раз через ${resendIn} с` : 'Отправить ещё раз'}
+            {resendIn > 0 ? t.sendAgainInS(resendIn) : t.sendAgain}
           </button>
         </p>
         <p className={styles.switch}>
-          {step === 'confirm' && 'Уже есть аккаунт? '}
+          {step === 'confirm' && t.alreadyHaveAnAccount}
           <button type="button" onClick={() => goTo('signIn')}>
-            {step === 'confirm' ? 'Войти' : 'Вернуться ко входу'}
+            {step === 'confirm' ? t.signInNow : t.backToSignIn}
           </button>
         </p>
       </AuthLayout>
@@ -193,15 +192,15 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
     return (
       <AuthLayout onSubmit={submit}>
         {heading}
-        <p className={styles.lead}>Укажите e-mail аккаунта, и мы пришлём код, чтобы задать новый пароль.</p>
+        <p className={styles.lead}>{t.enterYourAccountSEmailAnd}</p>
         {emailField}
         {problem}
         <PrimaryButton type="submit" disabled={busy || !address} aria-busy={busy}>
-          {busy ? 'Подождите…' : 'Прислать код'}
+          {busy ? t.pleaseWait : t.sendCode}
         </PrimaryButton>
         <p className={styles.switch}>
           <button type="button" onClick={() => goTo('signIn')}>
-            Вернуться ко входу
+            {t.backToSignIn}
           </button>
         </p>
       </AuthLayout>
@@ -211,21 +210,19 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
   return (
     <AuthLayout onSubmit={submit}>
       {heading}
-      {invited && (
-        <p className={styles.invited}>Вас пригласили в группу. Войдите или создайте аккаунт, чтобы вступить.</p>
-      )}
-      {step === 'signUp' && <p className={styles.lead}>Чтобы прогресс сохранялся на любом устройстве.</p>}
+      {invited && <p className={styles.invited}>{t.youVeBeenInvitedToA}</p>}
+      {step === 'signUp' && <p className={styles.lead}>{t.soYourProgressIsSavedOn}</p>}
       {emailField}
       <PasswordField
-        label="Пароль"
+        label={t.password}
         value={password}
         onChange={setPassword}
         autoComplete={step === 'signUp' ? 'new-password' : 'current-password'}
-        hint={step === 'signUp' ? 'Не короче 8 символов.' : undefined}
+        hint={step === 'signUp' ? t.atLeast8Characters : undefined}
       />
       {step === 'signUp' && (
         <PasswordField
-          label="Повторите пароль"
+          label={t.repeatThePassword}
           value={repeat}
           onChange={setRepeat}
           onBlur={onLeave}
@@ -239,22 +236,22 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         disabled={busy || !address || password.length < MIN_PASSWORD || (step === 'signUp' && !matches)}
         aria-busy={busy}
       >
-        {busy ? 'Подождите…' : step === 'signUp' ? 'Создать аккаунт' : 'Войти'}
+        {busy ? t.pleaseWait : step === 'signUp' ? t.createAccount : t.signInNow}
       </PrimaryButton>
       <p className={styles.switch}>
-        {step === 'signUp' ? 'Уже есть аккаунт?' : 'Ещё нет аккаунта?'}{' '}
+        {step === 'signUp' ? t.alreadyHaveAccountQuestion : t.noAccountYet}{' '}
         <button type="button" onClick={() => goTo(step === 'signUp' ? 'signIn' : 'signUp')}>
-          {step === 'signUp' ? 'Войти' : 'Создать'}
+          {step === 'signUp' ? t.signInNow : t.create}
         </button>
       </p>
       {step === 'signIn' && (
         <p className={styles.switch}>
           <button type="button" onClick={() => goTo('forgot')}>
-            Забыли пароль?
+            {t.forgotYourPassword}
           </button>
         </p>
       )}
-      {step === 'signUp' && <p className={styles.note}>Мы храним только ваш e-mail и прогресс обучения.</p>}
+      {step === 'signUp' && <p className={styles.note}>{t.weOnlyStoreYourEmailAnd}</p>}
     </AuthLayout>
   );
 }
@@ -279,18 +276,18 @@ export function NewPasswordScreen({ onDone }: { onDone: () => void }) {
   return (
     <AuthLayout onSubmit={submit}>
       <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-        Новый пароль
+        {t.newPassword}
       </h1>
-      <p className={styles.lead}>На других устройствах нужно будет войти заново.</p>
+      <p className={styles.lead}>{t.youLlNeedToSignIn}</p>
       <PasswordField
-        label="Новый пароль"
+        label={t.newPassword}
         value={password}
         onChange={setPassword}
         autoComplete="new-password"
-        hint="Не короче 8 символов."
+        hint={t.atLeast8Characters}
       />
       <PasswordField
-        label="Повторите пароль"
+        label={t.repeatThePassword}
         value={repeat}
         onChange={setRepeat}
         onBlur={onLeave}
@@ -303,7 +300,7 @@ export function NewPasswordScreen({ onDone }: { onDone: () => void }) {
         </p>
       )}
       <PrimaryButton type="submit" disabled={busy || password.length < MIN_PASSWORD || !matches} aria-busy={busy}>
-        {busy ? 'Подождите…' : 'Сохранить пароль'}
+        {busy ? t.pleaseWait : t.savePassword}
       </PrimaryButton>
     </AuthLayout>
   );

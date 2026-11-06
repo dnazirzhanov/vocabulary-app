@@ -7,6 +7,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
+import { t } from '../i18n/index.ts';
 
 export interface AccountProps {
   email: string | null;
@@ -43,7 +44,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
     });
 
   return (
-    <section aria-label="Аккаунт" className={styles.account}>
+    <section aria-label={t.account} className={styles.account}>
       {email && <p className={styles.email}>{email}</p>}
       {!confirming && (
         <>
@@ -58,8 +59,8 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               }}
             />
             <span>
-              Звуки
-              <small>Короткий звон за верное слово и мелодия в конце урока</small>
+              {t.sounds}
+              <small>{t.aShortChimeForACorrect}</small>
             </span>
           </label>
           <Reminders />
@@ -67,12 +68,14 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
       )}
       {confirming ? (
         <div className={styles.confirm} role="group" aria-labelledby="delete-warning">
-          <p id="delete-warning">
-            Аккаунт{email ? ', e-mail' : ''} и все результаты будут удалены навсегда, восстановить их будет нельзя. Ваши
-            группы перейдут следующему участнику, а колоды, которые вы им дали, останутся.
-          </p>
+          <p id="delete-warning">{t.deleteAccountWarning(Boolean(email))}</p>
           {email && (
-            <PasswordField label="Ваш пароль" value={password} onChange={setPassword} autoComplete="current-password" />
+            <PasswordField
+              label={t.yourPassword}
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+            />
           )}
           <div className={styles.confirmActions}>
             <SecondaryButton
@@ -84,7 +87,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               }}
               disabled={busy}
             >
-              Отмена
+              {t.cancel}
             </SecondaryButton>
             <button
               type="button"
@@ -93,7 +96,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               aria-busy={busy}
               onClick={() => void deleteAccount()}
             >
-              {busy ? 'Удаляем…' : 'Да, удалить'}
+              {busy ? t.deleting : t.yesDelete}
             </button>
           </div>
           {problem && (
@@ -111,11 +114,11 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               aria-busy={signOut.busy}
               onClick={() => void signOut.run(onSignOut)}
             >
-              {signOut.busy ? 'Выходим…' : 'Выйти'}
+              {signOut.busy ? t.signingOut : t.signOut}
             </SecondaryButton>
           )}
           <button type="button" className={styles.dangerLink} onClick={() => setConfirming(true)}>
-            Удалить аккаунт
+            {t.deleteAccount}
           </button>
         </div>
       )}

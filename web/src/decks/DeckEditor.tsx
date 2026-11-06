@@ -13,30 +13,31 @@ import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
+import { t } from '../i18n/index.ts';
 
 const POS: { value: PartOfSpeech; label: string }[] = [
-  { value: 'noun', label: 'существительное' },
-  { value: 'verb', label: 'глагол' },
-  { value: 'adjective', label: 'прилагательное' },
-  { value: 'adverb', label: 'наречие' },
-  { value: 'phrase', label: 'выражение' },
-  { value: 'other', label: 'другое' },
+  { value: 'noun', label: t.noun },
+  { value: 'verb', label: t.verb },
+  { value: 'adjective', label: t.adjective },
+  { value: 'adverb', label: t.adverb },
+  { value: 'phrase', label: t.expression },
+  { value: 'other', label: t.other },
 ];
 const posLabel = (pos: string) => POS.find((option) => option.value === pos)?.label ?? pos;
 // Must match the server's rule (backend/app/schemas/decks.py): letters, a phrase joined by one
 // space, hyphen or apostrophe.
 const HEADWORD = /^[a-z]+([ '-][a-z]+)*$/;
 const FLAGS: Record<WordFlag, string> = {
-  translation_not_russian: 'перевод не на русском',
-  example_without_word: 'в примере нет этого слова',
-  example_long: 'длинный пример',
+  translation_not_russian: t.translationIsNotInRussian,
+  example_without_word: t.theExampleDoesnTContainThis,
+  example_long: t.longExample,
 };
 type ComposerMode = 'words' | 'topic' | 'text' | 'manual';
 const COMPOSER_MODES: { value: ComposerMode; label: string }[] = [
-  { value: 'words', label: 'Слова' },
-  { value: 'topic', label: 'Тема' },
-  { value: 'text', label: 'Текст' },
-  { value: 'manual', label: 'Вручную' },
+  { value: 'words', label: t.words },
+  { value: 'topic', label: t.topic },
+  { value: 'text', label: t.text },
+  { value: 'manual', label: t.byHand },
 ];
 const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', example: '', example_ru: '' };
 
@@ -117,7 +118,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
       <main className="message-screen">
         <p role="alert">{loadError}</p>
         <PrimaryButton type="button" onClick={() => (setLoadError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -125,7 +126,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   if (!deck) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -157,8 +158,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
         example_ru: card.example_ru,
       });
       const notes = card.flags.map((flag) => FLAGS[flag]);
-      if (card.provider === 'demo') notes.push('демо-режим, перевод ненастоящий');
-      setSuggestNote(notes.length ? `Проверьте: ${notes.join(', ')}.` : 'Готово — проверьте и добавьте.');
+      if (card.provider === 'demo') notes.push(t.demoModeTheTranslationIsnT);
+      setSuggestNote(notes.length ? t.check(notes.join(', ')) : t.doneCheckItAndAddIt);
     } catch (caught) {
       setFormError(describeError(caught));
     } finally {
@@ -174,7 +175,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
-    if (headwordInvalid) return setFormError('Слово: английские буквы; слова выражения — через пробел или дефис.');
+    if (headwordInvalid) return setFormError(t.wordEnglishLettersWordsOfA);
     const word = { ...form, headword };
     setSaving(true);
     setFormError(null);
@@ -217,12 +218,12 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
       <main className={styles.main}>
         <div className={styles.column}>
           <div className={styles.intro}>
-            <p className={styles.eyebrow}>Моя колода</p>
+            <p className={styles.eyebrow}>{t.myDeck}</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
             </h1>
             <label className={styles.titleField}>
-              <span className="visually-hidden">Название колоды</span>
+              <span className="visually-hidden">{t.deckName}</span>
               <input
                 value={title}
                 maxLength={80}
@@ -240,14 +241,14 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             <div className={styles.composerHead}>
               <div className={styles.composerTop}>
                 <h2 id="composer-title" className={styles.composerTitle}>
-                  {editing ? 'Изменить карточку' : 'Новые карточки'}
+                  {editing ? t.editCard : t.newCards}
                 </h2>
                 {/* Giving the deck to a group sits here, beside the cards it will hold (ADR 0036). */}
                 {!editing && (canGive || deck.groups.length > 0) && count > 0 && (
                   <GiveButton groups={deck.groups} onClick={() => setGiving(true)} />
                 )}
               </div>
-              <div className={styles.tabs} role="tablist" aria-label="Как добавить">
+              <div className={styles.tabs} role="tablist" aria-label={t.howToAdd}>
                 {COMPOSER_MODES.map((option) => (
                   <button
                     key={option.value}
@@ -278,7 +279,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                   noValidate
                 >
                   <label className={styles.field}>
-                    <span>Слово или выражение</span>
+                    <span>{t.wordOrPhrase}</span>
                     <input
                       ref={firstField}
                       lang="en"
@@ -300,7 +301,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                     aria-busy={suggesting}
                     onClick={() => void suggest()}
                   >
-                    {suggesting ? 'Заполняем…' : 'Заполнить с ИИ'}
+                    {suggesting ? t.fillingIn : t.fillInWithAI}
                   </button>
                   {suggestNote && (
                     <p className={styles.note} role="status">
@@ -308,7 +309,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                     </p>
                   )}
                   <label className={styles.field}>
-                    <span>Часть речи</span>
+                    <span>{t.partOfSpeech}</span>
                     <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
                       {POS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -318,17 +319,17 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                     </select>
                   </label>
                   <label className={styles.field}>
-                    <span>Перевод</span>
+                    <span>{t.translation}</span>
                     <input
                       required
                       maxLength={120}
-                      placeholder="проводить, выполнять"
+                      placeholder={t.carryOutPerform}
                       value={form.translation}
                       onChange={(event) => field('translation', event.target.value)}
                     />
                   </label>
                   <label className={styles.field}>
-                    <span>Пример</span>
+                    <span>{t.example}</span>
                     <textarea
                       lang="en"
                       required
@@ -341,7 +342,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                   </label>
                   <label className={styles.field}>
                     <span>
-                      Перевод примера <span className={styles.optional}>— необязательно</span>
+                      {t.exampleTranslation} <span className={styles.optional}>{t.optional}</span>
                     </span>
                     <textarea
                       rows={2}
@@ -350,9 +351,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                       onChange={(event) => field('example_ru', event.target.value)}
                     />
                   </label>
-                  {!editing && (
-                    <p className={styles.note}>Слово из курса подставится само — ученики не выучат его дважды.</p>
-                  )}
+                  {!editing && <p className={styles.note}>{t.aWordFromTheCourseFills}</p>}
                   {formError && (
                     <p className={styles.problem} role="alert">
                       {formError}
@@ -364,11 +363,11 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                       disabled={saving || !headword || !form.translation.trim() || !form.example.trim()}
                       aria-busy={saving}
                     >
-                      {saving ? 'Сохраняем…' : editing ? 'Сохранить' : 'Добавить слово'}
+                      {saving ? t.saving : editing ? t.save : t.addWord}
                     </PrimaryButton>
                     {editing && (
                       <button type="button" className={styles.linkButton} onClick={resetForm}>
-                        Отмена
+                        {t.cancel}
                       </button>
                     )}
                   </div>
@@ -379,10 +378,11 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
 
           <section ref={listRef} className={styles.cards} aria-labelledby="cards-title">
             <h2 id="cards-title" className={styles.sectionTitle}>
-              Карточки в колоде{count > 0 && <span className={styles.sectionCount}> · {count}</span>}
+              {t.cardsInTheDeck}
+              {count > 0 && <span className={styles.sectionCount}> · {count}</span>}
             </h2>
             {count === 0 ? (
-              <p className={styles.empty}>Пока пусто. Добавленные карточки появятся здесь — новые сверху.</p>
+              <p className={styles.empty}>{t.emptyForNowCardsYouAdd}</p>
             ) : (
               <ul className={styles.words}>
                 {[...deck.words].reverse().map(({ word, from_course, source_sentence, flags }) => (
@@ -394,12 +394,12 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                           type="button"
                           className={styles.listen}
                           onClick={() => void playAudio('words', word.id, word.headword)}
-                          aria-label={`Послушать: ${word.headword}`}
+                          aria-label={t.listen(word.headword)}
                         >
                           <SpeakerIcon aria-hidden="true" />
                         </button>
                         <span className={styles.pos}>{posLabel(word.pos)}</span>
-                        {from_course && <span className={styles.courseTag}>из курса</span>}
+                        {from_course && <span className={styles.courseTag}>{t.fromTheCourse}</span>}
                       </p>
                       <p className={styles.meaning}>{word.translation}</p>
                       <p className={styles.example} lang="en">
@@ -407,20 +407,20 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                       </p>
                       {source_sentence && source_sentence !== word.example && (
                         <p className={styles.source}>
-                          <span>Из текста:</span> <q lang="en">{source_sentence}</q>
+                          <span>{t.fromTheText}</span> <q lang="en">{source_sentence}</q>
                         </p>
                       )}
                       {flags.length > 0 && (
                         <p className={styles.flag}>
                           <AlertIcon aria-hidden="true" />
-                          Проверьте: {flags.map((flag) => FLAGS[flag]).join(', ')}
+                          {t.checkColon} {flags.map((flag) => FLAGS[flag]).join(', ')}
                         </p>
                       )}
                     </div>
                     <div className={styles.rowActions}>
                       {!from_course && (
                         <button type="button" className={styles.linkButton} onClick={() => startEdit(word.id)}>
-                          Изменить
+                          {t.edit}
                         </button>
                       )}
                       <button
@@ -433,9 +433,9 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                             show(await api.removeDeckWord(deck.id, word.id));
                           })
                         }
-                        aria-label={`Убрать «${word.headword}»`}
+                        aria-label={t.remove(word.headword)}
                       >
-                        Убрать
+                        {t.removeAction}
                       </button>
                     </div>
                   </li>
@@ -446,11 +446,11 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
 
           <section className={styles.danger} aria-labelledby="danger-title">
             <h2 id="danger-title" className={styles.sectionTitle}>
-              Удалить колоду
+              {t.deleteDeck}
             </h2>
-            <p className={styles.note}>Карточки и прогресс по ним удалятся навсегда.</p>
+            <p className={styles.note}>{t.theCardsAndTheirProgressWill}</p>
             <button type="button" className={styles.dangerButton} onClick={() => setConfirmDelete(true)}>
-              <TrashIcon aria-hidden="true" /> Удалить колоду
+              <TrashIcon aria-hidden="true" /> {t.deleteDeck}
             </button>
           </section>
         </div>
@@ -470,23 +470,18 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             aria-busy={busy}
             onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
           >
-            {count === 0 ? 'Учить' : `Учить · ${wordsLabel(count)}`}
+            {count === 0 ? t.study : t.studyWords(wordsLabel(count))}
           </button>
         </div>
       </footer>
 
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={`Удалить колоду «${deck.title}»?`}>
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t.deleteTheDeck(deck.title)}>
         <div className={styles.confirm}>
-          <p>
-            {count > 0
-              ? `${wordsLabel(count)} и прогресс по ${count === 1 ? 'нему' : 'ним'} удалятся навсегда — вернуть их не получится.`
-              : 'Колода удалится навсегда.'}
-          </p>
+          <p>{count > 0 ? t.deckWordsWillBeDeleted(count) : t.theDeckWillBeDeletedFor}</p>
           {deck.groups.length > 0 && (
             <p className={styles.confirmWarning}>
               <AlertIcon aria-hidden="true" />
-              Колода задана {deck.groups.length === 1 ? 'группе' : 'группам'}{' '}
-              {deck.groups.map((group) => `«${group.name}»`).join(', ')} — у участников она тоже пропадёт.
+              {t.deckIsGivenWarning(deck.groups.length, deck.groups.map((group) => t.quoted(group.name)).join(', '))}
             </p>
           )}
           <div className={styles.confirmActions}>
@@ -497,7 +492,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
               data-autofocus
               onClick={() => setConfirmDelete(false)}
             >
-              Отмена
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -512,7 +507,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                 })
               }
             >
-              {busy ? 'Удаляем…' : 'Удалить колоду'}
+              {busy ? t.deleting : t.deleteDeck}
             </button>
           </div>
           {error && (

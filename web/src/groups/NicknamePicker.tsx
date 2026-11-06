@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { nicknameProblem, suggestNicknames } from '../lib/nickname.ts';
 import { RepeatIcon } from '../ui/icons.tsx';
 import styles from './Groups.module.css';
+import { t } from '../i18n/index.ts';
 
 interface NicknamePickerProps {
   value: string;
@@ -17,8 +18,8 @@ export function NicknamePicker({ value, onChange }: NicknamePickerProps) {
 
   return (
     <fieldset className={styles.nickname}>
-      <legend className={styles.label}>Имя в группе</legend>
-      <p className={styles.hint}>Его увидят участники группы. Настоящее имя и e-mail не нужны.</p>
+      <legend className={styles.label}>{t.nameInTheGroup}</legend>
+      <p className={styles.hint}>{t.groupMembersWillSeeItYour}</p>
       <div className={styles.chips}>
         {suggestions.map((suggestion) => (
           <label key={suggestion} className={styles.chip} data-selected={!typing && value === suggestion}>
@@ -45,17 +46,17 @@ export function NicknamePicker({ value, onChange }: NicknamePickerProps) {
             onChange(next[0]);
           }}
         >
-          <RepeatIcon aria-hidden="true" /> Другие
+          <RepeatIcon aria-hidden="true" /> {t.others}
         </button>
       </div>
       <label className={styles.field}>
-        <span>Или своё</span>
+        <span>{t.orYourOwn}</span>
         <input
           type="text"
           maxLength={20}
           autoComplete="off"
           value={typing ? value : ''}
-          placeholder="например, Ёжик"
+          placeholder={t.forExampleHedgehog}
           aria-invalid={problem ? true : undefined}
           aria-describedby={problem ? `${id}-problem` : undefined}
           onChange={(event) => {

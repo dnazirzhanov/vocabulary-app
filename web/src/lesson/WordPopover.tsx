@@ -3,6 +3,7 @@ import { playAudio } from '../lib/audio.ts';
 import type { GlossaryEntry } from '../lib/types.ts';
 import { SpeakerIcon } from '../ui/icons.tsx';
 import styles from './WordPopover.module.css';
+import { t } from '../i18n/index.ts';
 
 interface WordPopoverProps {
   /** The word as written in the sentence. */
@@ -63,7 +64,7 @@ export function WordPopover({ text, form, entry, anchor, onClose }: WordPopoverP
       ref={ref}
       className={styles.popover}
       role="dialog"
-      aria-label={`${text}: перевод`}
+      aria-label={t.wordTranslation(text)}
       tabIndex={-1}
       data-above={position?.above || undefined}
       style={position ? { top: position.top, left: position.left } : { visibility: 'hidden' }}
@@ -76,7 +77,7 @@ export function WordPopover({ text, form, entry, anchor, onClose }: WordPopoverP
           type="button"
           className={styles.listen}
           onClick={() => void playAudio('glossary', form, text)}
-          aria-label={`Послушать: ${text}`}
+          aria-label={t.listen(text)}
         >
           <SpeakerIcon />
         </button>
@@ -86,13 +87,13 @@ export function WordPopover({ text, form, entry, anchor, onClose }: WordPopoverP
           <p className={styles.ru}>{entry.ru}</p>
           {entry.lemma && entry.lemma !== form && (
             <p className={styles.meta}>
-              словарная форма: <span lang="en">{entry.lemma}</span>
+              {t.dictionaryForm} <span lang="en">{entry.lemma}</span>
             </p>
           )}
           {entry.note && <p className={styles.meta}>{entry.note}</p>}
         </>
       ) : (
-        <p className={styles.meta}>Перевод скоро появится.</p>
+        <p className={styles.meta}>{t.theTranslationWillAppearSoon}</p>
       )}
     </div>
   );

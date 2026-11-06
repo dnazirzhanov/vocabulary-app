@@ -5,6 +5,7 @@ import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { DeckList } from './DeckList.tsx';
 import styles from './CourseScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 interface CourseScreenProps {
   /** A level's page: its stats and its own «Учить» (ADR 0020). */
@@ -36,7 +37,7 @@ export function CourseScreen({ onOpenDeck, onBack }: CourseScreenProps) {
       <main className={styles.message}>
         <p role="alert">{loadError}</p>
         <PrimaryButton type="button" onClick={() => (setLoadError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -44,7 +45,7 @@ export function CourseScreen({ onOpenDeck, onBack }: CourseScreenProps) {
   if (!decks) {
     return (
       <main className={styles.message} aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -53,22 +54,19 @@ export function CourseScreen({ onOpenDeck, onBack }: CourseScreenProps) {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> Мои колоды
+          <BackIcon aria-hidden="true" /> {t.myDecks}
         </button>
       </header>
       <main className={styles.main}>
         <div className={styles.layout}>
           <div className={styles.intro}>
             <h1 ref={headingRef} tabIndex={-1} className={styles.pageTitle}>
-              Английский по уровням
+              {t.englishByLevels}
             </h1>
-            <p className={styles.lead}>
-              Самые нужные слова английского, от простых к сложным. Откройте уровень — новые слова придут в вашем темпе,
-              а повторения напомнят о выученных. Следующий уровень откроется, когда пройдёте этот.
-            </p>
+            <p className={styles.lead}>{t.theMostUsefulEnglishWordsFrom}</p>
           </div>
           {decks.length === 0 ? (
-            <p className={styles.lead}>Скоро здесь появятся уровни.</p>
+            <p className={styles.lead}>{t.levelsWillAppearHereSoon}</p>
           ) : (
             <DeckList decks={decks} busy={false} onStart={onOpenDeck} />
           )}

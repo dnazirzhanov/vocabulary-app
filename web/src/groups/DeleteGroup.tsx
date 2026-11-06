@@ -5,6 +5,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * «Удалить группу» (ADR 0040), for the owner, folded away with the group's other management. It
@@ -18,10 +19,7 @@ export function DeleteGroup({ group, onDeleted }: { group: Group; onDeleted: () 
     <div className={styles.deleteGroup}>
       {asking ? (
         <>
-          <p>
-            Удалить группу «{group.name}»? Участники выйдут из неё. Колоды останутся у своих авторов, а то, что выучил
-            каждый, — у каждого.
-          </p>
+          <p>{t.deleteGroupQuestion(group.name)}</p>
           <span className={shared.confirm}>
             <button
               type="button"
@@ -34,7 +32,7 @@ export function DeleteGroup({ group, onDeleted }: { group: Group; onDeleted: () 
                 })
               }
             >
-              Да, удалить
+              {t.yesDelete}
             </button>
             <SecondaryButton
               type="button"
@@ -42,13 +40,13 @@ export function DeleteGroup({ group, onDeleted }: { group: Group; onDeleted: () 
               onClick={() => setAsking(false)}
               data-autofocus
             >
-              Отмена
+              {t.cancel}
             </SecondaryButton>
           </span>
         </>
       ) : (
         <button type="button" className={styles.dangerLink} onClick={() => setAsking(true)}>
-          Удалить группу
+          {t.deleteGroup}
         </button>
       )}
       {error && (

@@ -428,3 +428,17 @@ def test_a_word_counts_as_learned_in_the_period_it_was_first_recalled(client: Te
     play_as(client, "olga", session, THURSDAY)
     week, ever = board_of(client, group["id"]), board_of(client, group["id"], "all")
     assert week["rows"][0]["learned"] == ever["rows"][0]["learned"] == 5
+
+
+def test_a_nickname_may_be_in_any_of_the_apps_languages(client: TestClient) -> None:
+    for name in ("Айгүл", "Қанат", "Ҷамшед", "Gʻayrat", "O'g'il"):
+        response = client.post(
+            "/api/groups",
+            json={"name": "Группа", "nickname": name},
+            headers=as_(f"user-{name.encode().hex()}"),
+        )
+        assert response.status_code == 201, name
+    refused = client.post(
+        "/api/groups", json={"name": "Группа", "nickname": "a@b.c"}, headers=as_("mail")
+    )
+    assert refused.json()["error"]["code"] == "invalid_nickname"
