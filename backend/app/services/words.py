@@ -25,6 +25,7 @@ def _status(progress: UserWordProgress | None) -> Status:
 def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
     rows = db.execute(
         select(Word, UserWordProgress)
+        .select_from(DeckWord)
         .join(Word, Word.id == DeckWord.word_id)
         .outerjoin(
             UserWordProgress,
