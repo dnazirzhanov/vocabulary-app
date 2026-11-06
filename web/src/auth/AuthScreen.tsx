@@ -48,11 +48,12 @@ function useAuthCall() {
 function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit: (event: FormEvent) => void }) {
   return (
     <main className={styles.screen}>
+      {/* First, and needing no reading: someone who can't read this page has to find it. In the
+        corner, where ⚙ is on every other page; out of the layout, which stays stage and form. */}
+      <div className={styles.language}>
+        <LanguageSelect label={t.appLanguage} value={uiLanguage} options={UI_LANGUAGES} onChoose={switchLanguage} />
+      </div>
       <div className={styles.layout}>
-        {/* First, and needing no reading: someone who can't read this page has to find it. */}
-        <div className={styles.language}>
-          <LanguageSelect label={t.appLanguage} value={uiLanguage} options={UI_LANGUAGES} onChoose={switchLanguage} />
-        </div>
         <div className={styles.stage} aria-hidden="true">
           <Illustration id="key" className={styles.art} />
         </div>
