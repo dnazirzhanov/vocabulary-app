@@ -24,7 +24,7 @@ def _status(progress: UserWordProgress | None) -> Status:
 
 def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
     rows = db.execute(
-        select(DeckWord.position, Word, UserWordProgress)
+        select(Word, UserWordProgress)
         .join(Word, Word.id == DeckWord.word_id)
         .outerjoin(
             UserWordProgress,
@@ -33,9 +33,10 @@ def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
         .where(DeckWord.deck_id == deck_id)
         .order_by(DeckWord.position)
     )
+    # Numbered as they stand: stored positions are only an order, and removing a word leaves a gap.
     return [
         DeckWordOut(
-            position=position,
+            position=number,
             word=WordOut(
                 id=word.id,
                 headword=word.headword,
@@ -48,7 +49,7 @@ def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
             status=_status(progress),
             next_review_at=progress.due_at if progress else None,
         )
-        for position, word, progress in rows
+        for number, (word, progress) in enumerate(rows)
     ]
 
 

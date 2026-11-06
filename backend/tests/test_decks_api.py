@@ -510,3 +510,17 @@ def test_a_friends_words_in_a_deck_are_the_numbers_on_their_progress_page(
     on_board, on_progress = both(later)
     assert on_board == on_progress
     assert on_board[1] > 0
+
+
+def test_a_decks_words_are_numbered_from_the_start_with_no_gaps(client: TestClient) -> None:
+    deck = write_deck(client, class_group(client)["id"], [SETBACK, CARRY_OUT, MONEY])
+
+    def numbers() -> list[tuple[int, str]]:
+        rows = client.get(f"/api/decks/{deck['id']}/words", headers=as_("olga")).json()
+        return [(row["position"], row["word"]["headword"]) for row in rows]
+
+    assert numbers() == [(0, "setback"), (1, "carry out"), (2, "money")]
+
+    carry_out = next(w for w in deck["words"] if w["word"]["headword"] == "carry out")
+    client.delete(f"/api/decks/{deck['id']}/words/{carry_out['word']['id']}", headers=as_("olga"))
+    assert numbers() == [(0, "setback"), (1, "money")]
