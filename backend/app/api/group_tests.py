@@ -10,6 +10,7 @@ from app.schemas.group_tests import (
     AnswerIn,
     OpenTestIn,
     SaveTestIn,
+    SkipIn,
     StartAttemptIn,
     TestAttemptOut,
     TestDetailOut,
@@ -57,7 +58,7 @@ def start_attempt(
     group_id: UUID, deck_id: str, body: StartAttemptIn, user: CurrentUser, db: DbSession, now: Now
 ) -> TestAttemptOut:
     """Starts, or returns the attempt already running, so it is safe to repeat."""
-    return group_tests.start_attempt(db, user, group_id, deck_id, body.kind, body.only_weak, now)
+    return group_tests.start_attempt(db, user, group_id, deck_id, body.kind, now)
 
 
 @router.get("/test-attempts/{attempt_id}")
@@ -71,3 +72,11 @@ def answer_question(
 ) -> TestAttemptOut:
     """Safe to retry: the first answer to a question stands."""
     return group_tests.answer_question(db, user, attempt_id, body.question_id, body.answer, now)
+
+
+@router.post("/test-attempts/{attempt_id}/skips")
+def skip_question(
+    attempt_id: UUID, body: SkipIn, user: CurrentUser, db: DbSession, now: Now
+) -> TestAttemptOut:
+    """Safe to retry: the same skip twice is one skip."""
+    return group_tests.skip_question(db, user, attempt_id, body.question_id, body.again, now)

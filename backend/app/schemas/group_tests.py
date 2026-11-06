@@ -34,13 +34,17 @@ class OpenTestIn(_Input):
 
 class StartAttemptIn(_Input):
     kind: AttemptKind
-    # Practice only my weak words, rather than all the test's.
-    only_weak: bool = False
 
 
 class AnswerIn(_Input):
     question_id: Annotated[str, StringConstraints(min_length=1, max_length=12)]
     answer: Annotated[str, StringConstraints(min_length=1, max_length=80)]
+
+
+class SkipIn(_Input):
+    question_id: Annotated[str, StringConstraints(min_length=1, max_length=12)]
+    # The word has come back: skipping it now is final.
+    again: bool = False
 
 
 class ScoreOut(BaseModel):
@@ -57,7 +61,9 @@ class TestDeckOut(BaseModel):
     # Whether a test has been saved for it, and if so whether it can be started.
     has_test: bool
     is_open: bool
+    # My latest result, and whether this opening still has an attempt for me.
     mine: ScoreOut | None
+    can_start: bool
 
 
 class TestsOut(BaseModel):
@@ -80,20 +86,16 @@ class ResultRowOut(BaseModel):
     score: ScoreOut | None
 
 
-class WeakWordOut(BaseModel):
-    word: str
-    translation: str
-
-
 class MyTestOut(BaseModel):
     state: Literal["none", "running", "done"]
     attempt_id: UUID | None
     deadline_at: datetime | None
+    # My latest result, whichever opening it came from.
     score: ScoreOut | None
+    # The test is open and I have an attempt left in this opening.
+    can_start: bool
     # An unfinished practice to go back to.
     practice_attempt_id: UUID | None
-    # Words whose latest answer was wrong: mine alone. Empty while my timed test runs.
-    weak: list[WeakWordOut]
 
 
 class TestDetailOut(BaseModel):
@@ -130,8 +132,9 @@ class TestSetupOut(BaseModel):
 class MistakeOut(BaseModel):
     translation: str
     word: str
-    # None: the time ran out before this word.
+    # None: never answered, because it was skipped or the time ran out first.
     answer: str | None
+    skipped: bool
 
 
 class AttemptResultOut(BaseModel):
@@ -139,6 +142,7 @@ class AttemptResultOut(BaseModel):
     total: int
     # Practice has no pass mark.
     passed: bool | None
+    pass_percent: int | None
     timed_out: bool
     mistakes: list[MistakeOut]
 
@@ -148,9 +152,12 @@ class TestAttemptOut(BaseModel):
     kind: AttemptKind
     deck_id: str
     title: str
+    # Words answered or skipped at least once, for the progress bar.
     answered: int
     total: int
     deadline_at: datetime | None
+    # The word has been skipped once and has come back.
+    returning: bool
     # Exactly one of these: the next word, or how it went.
     question: SpellingExercise | None
     result: AttemptResultOut | None

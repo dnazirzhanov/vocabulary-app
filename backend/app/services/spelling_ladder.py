@@ -70,11 +70,12 @@ class Words:
 
 
 def _due(words: Words, now: datetime) -> list[str]:
-    met = set(words.met)
+    # Being on the ladder is enough: a group's test can put a word there before any lesson meets
+    # it (ADR 0048).
     due = [
         word
         for word, spelled in words.ladder.items()
-        if word in met and spelled.rung < KNOWN and spelled.due_at <= now
+        if spelled.rung < KNOWN and spelled.due_at <= now
     ]
     return sorted(due, key=lambda word: (words.ladder[word].rung, words.ladder[word].due_at))
 
@@ -102,8 +103,7 @@ def pick(mode: Mode, size: int, words: Words, now: datetime, rng: random.Random)
 
         chosen = sorted(words.today, key=spelled_today)  # stable: in the order learned
     elif mode == "hard":
-        met = set(words.met)
-        hard = [w for w, s in words.ladder.items() if s.rung == HARD and w in met]
+        hard = [w for w, s in words.ladder.items() if s.rung == HARD]
         chosen = sorted(hard, key=lambda word: words.ladder[word].due_at)
     else:
 
@@ -133,8 +133,7 @@ class Overview:
 def overview(words: Words, now: datetime) -> Overview:
     fresh = set(_fresh(words))
     due = len(_due(words, now))
-    met = set(words.met)
-    rungs = [spelled.rung for word, spelled in words.ladder.items() if word in met]
+    rungs = [spelled.rung for spelled in words.ladder.values()]
     return Overview(
         ready=min(due + len(fresh), DEFAULT_SIZE),
         due=due,

@@ -14,7 +14,7 @@ import { TestSetup } from './TestSetup.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
 
-// While a test is open, results arrive as students finish: a teacher in the room sees them come in.
+// Results arrive as students finish, and a closed test opens: everyone in the room sees it soon.
 const REFRESH_MS = 30_000;
 
 interface DeckTestScreenProps {
@@ -27,7 +27,6 @@ interface DeckTestScreenProps {
 /**
  * One deck's test (ADR 0046): one main action for where things stand, and below it who passed, who
  * didn't and who hasn't taken it yet, by name in the report's own style. Never ranked, nothing red.
- * A student's weak words come last and are theirs alone.
  */
 export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScreenProps) {
   const [detail, setDetail] = useState<TestDetail | null>(null);
@@ -45,14 +44,14 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
     void load();
   }, [load]);
 
-  const open = Boolean(detail?.test?.is_open);
+  const hasTest = Boolean(detail?.test);
   useEffect(() => {
-    if (!open) return;
+    if (!hasTest) return;
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') void load();
     }, REFRESH_MS);
     return () => clearInterval(timer);
-  }, [open, load]);
+  }, [hasTest, load]);
 
   const ready = detail !== null;
   useEffect(() => {
@@ -84,8 +83,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   }
 
   const { test, mine, can_manage: manager } = detail;
-  const start = (kind: TestAttemptKind, onlyWeak = false) =>
-    run(async () => onRun(await api.startTestAttempt(groupId, deckId, kind, onlyWeak)));
+  const start = (kind: TestAttemptKind) => run(async () => onRun(await api.startTestAttempt(groupId, deckId, kind)));
   const setOpen = (value: boolean) => run(async () => setDetail(await api.openTest(groupId, deckId, value)));
 
   const running = mine.state === 'running';
@@ -105,17 +103,24 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
         Продолжить тест{left !== null && ` · ${clockText(left)}`}
       </PrimaryButton>
     );
+  } else if (mine.can_start) {
+    main = (
+      <>
+        {mine.score && (
+          <p className={shared.note}>
+            Прошлый раз: {scoreText(mine.score)} · {verdictText(mine.score.passed)}
+          </p>
+        )}
+        <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
+          Начать тест
+        </PrimaryButton>
+      </>
+    );
   } else if (mine.score) {
     main = (
       <p className={styles.state}>
         {scoreText(mine.score)} · {verdictText(mine.score.passed)}
       </p>
-    );
-  } else if (test.is_open) {
-    main = (
-      <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
-        Начать тест
-      </PrimaryButton>
     );
   } else if (manager) {
     main = (
@@ -190,29 +195,6 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
           {/* Nobody is behind on a test that has never been open. */}
           {(test?.is_open || detail.passed.length + detail.failed.length > 0) && (
             <Results title="Ещё не проходили" state="off" rows={detail.not_taken} />
-          )}
-
-          {mine.weak.length > 0 && (
-            <section aria-labelledby="weak-title" className={styles.weak}>
-              <h2 id="weak-title" className={report.namesTitle}>
-                Слова для работы: {mine.weak.length}
-              </h2>
-              <ul className={styles.weakWords}>
-                {mine.weak.map((word) => (
-                  <li key={word.word}>
-                    <strong lang="en">{word.word}</strong> <span>{word.translation}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                className={shared.smallButton}
-                disabled={busy}
-                onClick={() => void start('practice', true)}
-              >
-                Потренировать
-              </button>
-            </section>
           )}
         </div>
       </main>

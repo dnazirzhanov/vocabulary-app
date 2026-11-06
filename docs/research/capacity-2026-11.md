@@ -103,9 +103,13 @@ seconds. Same setup and same limits as above, including the Apple M1.
   works, without room to spare, so a real host at that speed should get more time on the test or more CPU.
 - **Unmeasured here:** the same run with other classes on the server at once, and any real host. Neither ran in this measurement.
 
-**Size:** 281 bytes a question, attempts included, measured over 2,130 questions. Five 30-word tests for 1,000 students is about 42 MB, and twenty about
-170 MB, against about 245 MB in use and a 500 MB free limit. Test results stay as long as the test, so this one grows; many tests per student will
-eventually need old results thinned.
+**With skips, misses and «Трудные» (ADR 0048, measured the same day, 0.1 CPU):** 10% of words skipped and about 15% misspelled, with finishing writing misses to the ladder.
+All 30 finished with no failed requests. Answers took 0.51 s typically and 0.71 s at p95, using 0.040 of the 0.1 and 8.5 KB from the database a request. A first version read an attempt's words
+twice per answer, at 13.1 KB a request, which this run caught and fixed. The 0.05 CPU run wasn't repeated with these changes.
+
+**Size:** 258 bytes a question, attempts included, measured over 3,930 questions. Five 30-word tests for 1,000 students is about 39 MB, and twenty about
+155 MB, against about 245 MB in use and a 500 MB free limit. **Every retake counts as another test here,** and results stay as long as the test, so this one grows; a class that
+retakes often will eventually need old attempts thinned.
 
 ## Next, in order
 1. **Run this on the deployed free host,** before a class. It replaces the biggest assumption here.

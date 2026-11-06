@@ -549,7 +549,9 @@ export interface TestDeck {
   title: string;
   has_test: boolean;
   is_open: boolean;
+  /** My latest result, and whether this opening still has an attempt for me. */
   mine: TestScore | null;
+  can_start: boolean;
 }
 
 export interface GroupTests {
@@ -564,11 +566,6 @@ export interface TestResultRow {
   score: TestScore | null;
 }
 
-export interface WeakWord {
-  word: string;
-  translation: string;
-}
-
 export interface TestDetail {
   deck_id: string;
   title: string;
@@ -581,10 +578,12 @@ export interface TestDetail {
     state: 'none' | 'running' | 'done';
     attempt_id: string | null;
     deadline_at: string | null;
+    /** My latest result, whichever opening it came from. */
     score: TestScore | null;
+    /** The test is open and I have an attempt left in this opening. */
+    can_start: boolean;
     /** An unfinished practice to go back to. */
     practice_attempt_id: string | null;
-    weak: WeakWord[];
   };
 }
 
@@ -613,17 +612,21 @@ export interface TestAttempt {
   kind: TestAttemptKind;
   deck_id: string;
   title: string;
+  /** Words answered or skipped at least once. */
   answered: number;
   total: number;
   deadline_at: string | null;
+  /** The word has been skipped once and has come back. */
+  returning: boolean;
   question: SpellingExercise | null;
   result: {
     correct: number;
     total: number;
     /** Practice has no pass mark. */
     passed: boolean | null;
+    pass_percent: number | null;
     timed_out: boolean;
-    /** `answer` is null for a word the time ran out on. */
-    mistakes: { translation: string; word: string; answer: string | null }[];
+    /** `answer` is null for a word never answered: skipped, or the time ran out first. */
+    mistakes: { translation: string; word: string; answer: string | null; skipped: boolean }[];
   } | null;
 }

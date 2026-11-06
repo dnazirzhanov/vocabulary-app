@@ -90,7 +90,7 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
   await expect(page.getByRole('button', { name: /^Правописание · \d/ })).toHaveCount(0);
 
   // The other modes: today's words again, the hard one, or a random draw; 5 to 30 at a time.
-  await expect(button(page, 'Правописание')).toHaveAccessibleDescription(/На сегодня всё написано/);
+  await expect(button(page, 'Правописание')).toHaveAccessibleDescription(/Трудных слов: 1/);
   await button(page, 'Правописание').click();
   const dialog = page.getByRole('dialog', { name: 'Правописание' });
   await expect(dialog.getByRole('radio', { name: /Сегодняшние/ })).toBeChecked();

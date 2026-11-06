@@ -8,7 +8,10 @@ import shared from '../groups/Groups.module.css';
 import styles from './Tests.module.css';
 
 function deckNote(deck: TestDeck): string | null {
-  if (deck.mine) return `${scoreText(deck.mine)} · ${verdictText(deck.mine.passed)}`;
+  if (deck.mine) {
+    const score = `${scoreText(deck.mine)} · ${verdictText(deck.mine.passed)}`;
+    return deck.can_start ? `${score} · Открыт снова` : score;
+  }
   return deck.is_open ? 'Открыт' : null;
 }
 

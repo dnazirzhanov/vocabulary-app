@@ -606,7 +606,11 @@ def remove_word(db: Session, user: User, deck_id: str, word_id: str) -> TeacherD
     word = _deck_word(db, deck, word_id)
     db.execute(delete(DeckWord).where(DeckWord.deck_id == deck.id, DeckWord.word_id == word.id))
     met = db.scalar(select(UserWordProgress.word_id).where(UserWordProgress.word_id == word.id))
-    if word.owner_deck_id == deck.id and met is None:
+    # A group's test can put a word on someone's ladder before any lesson meets it (ADR 0048).
+    on_ladder = db.scalar(
+        select(SpellingProgress.word_id).where(SpellingProgress.word_id == word.id)
+    )
+    if word.owner_deck_id == deck.id and met is None and on_ladder is None:
         db.delete(word)
     db.commit()
     return _deck_out(db, deck)
@@ -636,6 +640,7 @@ def delete_deck(db: Session, user: User, deck_id: str) -> None:
     )
     db.execute(delete(ReviewAttempt).where(ReviewAttempt.word_id.in_(own)))
     db.execute(delete(UserWordProgress).where(UserWordProgress.word_id.in_(own)))
+    db.execute(delete(SpellingProgress).where(SpellingProgress.word_id.in_(own)))
     # The deck's rows in deck_words, its assignments and its own words go with it (cascade).
     db.delete(deck)
     db.commit()

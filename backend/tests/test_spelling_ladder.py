@@ -73,6 +73,22 @@ def test_hard_is_the_bottom_rung_due_first() -> None:
     assert pick("hard", 10, WORDS, NOW, random.Random(1)) == ["c", "f"]
 
 
+def test_a_word_on_the_ladder_counts_without_having_been_met() -> None:
+    """A group's test can put a word there before any lesson meets it (ADR 0048)."""
+    words = Words(
+        met=["a"],
+        today=[],
+        ladder={"t": Spelled(HARD, NOW - timedelta(hours=1), NOW - timedelta(days=1))},
+        today_start=TODAY_START,
+    )
+    assert pick("hard", 10, words, NOW, random.Random(1)) == ["t"]
+    assert pick("mix", 10, words, NOW, random.Random(1)) == ["t", "a"]
+    seen = overview(words, NOW)
+    assert (seen.hard, seen.due, seen.met) == (1, 1, 1)
+    # Words never met stay out of the draw from everything met.
+    assert pick("random", 10, words, NOW, random.Random(1)) == ["a"]
+
+
 def test_random_favours_words_never_spelled_and_rarely_a_known_one() -> None:
     first: dict[str, int] = {}
     for seed in range(3000):
