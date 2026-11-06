@@ -24,14 +24,15 @@ export function DayDots({ states }: { states: DayState[] }) {
   );
 }
 
-const MARK: Record<TodayState, DayState> = { done: 'done', pending: 'today', off: 'off' };
+const MARK: Record<TodayState | 'missed', DayState> = { done: 'done', pending: 'today', off: 'off', missed: 'missed' };
 
 /**
  * One dot of the same language, for a heading of today's lists: a ✓ for those who did it, a
- * ringed ring for those who haven't yet, a small dot for a day off. It repeats what the week of
+ * ringed ring for those who haven't yet, a small dot for a day off, and on a test a dashed ring for
+ * those who didn't pass. It repeats what the week of
  * dots says in a friend's window, so the marks are learned once.
  */
-export function StateMark({ state }: { state: TodayState }) {
+export function StateMark({ state }: { state: TodayState | 'missed' }) {
   return (
     <span className={styles.mark} data-state={MARK[state]} aria-hidden="true">
       <span className={styles.dot}>{state === 'done' && <CheckIcon />}</span>

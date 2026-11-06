@@ -55,3 +55,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0050](0050-another-spelling-mode-while-one-waits.md) | A spelling left unfinished no longer hides the other modes: «Продолжить» resumes it, and choosing another set replaces it, keeping what was spelled | Accepted |
 | [0051](0051-one-words-button-no-deadline-sentence.md) | A quieter deck page: one button for a deck's words, its editor reached from there; no sentence about a deadline, and with it no «Напомнить в 17:00» | Accepted |
 | [0052](0052-friends-words-as-on-progress.md) | A friend's words on the group's page as on «Прогресс»: words met of the total, the two-tone bar and «знаю · учу · впереди», each friend a card; one component for both | Accepted |
+| [0053](0053-test-results-as-one-card-a-group.md) | A test's results as one card a group: a row a person with a small score bar, names of those yet to take it in a run, a neutral ring for «Не сдали»; never ranked | Accepted |
