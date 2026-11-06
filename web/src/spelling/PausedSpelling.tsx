@@ -5,7 +5,7 @@ import styles from './PausedSpelling.module.css';
 
 /**
  * A spelling session left unfinished (ADR 0026): how far it got, and a way back to the next
- * word. Shown on home and on every deck's page until it is done, so it is never lost.
+ * word. Shown on every deck's page until it is done or another set of words is chosen (ADR 0050).
  */
 export function PausedSpelling({
   paused,

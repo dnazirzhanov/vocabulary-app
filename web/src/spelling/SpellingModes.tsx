@@ -35,6 +35,7 @@ function modes(state: SpellingState): { id: Choice; title: string; note: string;
 /**
  * «Другие режимы»: today's words, the hard ones, or a random draw, 5 to 30 at a time. The main
  * button stays one tap on the deck's page; this is for when the learner wants something else.
+ * Starting one replaces a spelling left unfinished (ADR 0050), so it says so.
  */
 export function SpellingModes({
   open,
@@ -84,6 +85,7 @@ export function SpellingModes({
           </button>
         ))}
       </div>
+      {state.paused && <p className={styles.note}>Незаконченное правописание закроется, написанное сохранится.</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}

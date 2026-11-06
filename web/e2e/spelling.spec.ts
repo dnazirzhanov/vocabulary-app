@@ -162,6 +162,31 @@ test('spelling left midway waits with its progress on the deck page, not home, a
   await expect(button(page, 'Продолжить правописание')).toHaveCount(0);
 });
 
+test('another mode can be chosen while a spelling waits, and replaces it', async ({ page }) => {
+  await lesson(page);
+  await button(page, 'Правописание · 5 слов').click();
+  await spellOne(page, 'house'); // right
+  await spellOne(page, 'wtaer'); // a mistake, so one word is hard now
+  await page.getByRole('button', { name: 'Выйти из урока' }).click();
+
+  // Both ways on: carry on, or choose something else.
+  await expect(button(page, 'Продолжить правописание')).toBeVisible();
+  await button(page, 'Правописание: другие режимы').click();
+  await expect(page.getByRole('dialog')).toContainText('Незаконченное правописание закроется');
+  await page.getByRole('radio', { name: /Трудные/ }).check();
+  await button(page, 'Начать · 1 слово').click();
+
+  await expect(page.locator('[data-spelling] h1')).toHaveText('вода');
+  await page.getByRole('button', { name: 'Выйти из урока' }).click();
+
+  // The chosen set is what waits now; the one before is gone, and its mistake stayed hard.
+  await expect(button(page, 'Продолжить правописание')).toHaveAccessibleDescription(
+    'Написано 0 из 1 · осталось 1 слово',
+  );
+  await button(page, 'Продолжить правописание').click();
+  await expect(page.locator('[data-spelling] h1')).toHaveText('вода');
+});
+
 /** Builds the current spelling card from a keyboard and moves on. */
 async function spellOne(page: Page, built: string) {
   await expect(page.locator('[data-spelling] h1')).toBeVisible();

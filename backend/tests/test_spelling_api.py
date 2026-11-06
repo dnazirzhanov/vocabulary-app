@@ -310,11 +310,42 @@ def test_a_paused_spelling_keeps_its_place_and_never_blocks_a_lesson(
         client.get("/api/sessions/active", headers=at(later)).json()["session"]["id"]
         == (lesson["id"])
     )
-    # Spelling again resumes the paused one, with its two answers, whatever set is asked for.
-    resumed = client.post(
-        "/api/sessions", json={"kind": "spelling", "mode": "random"}, headers=at(later)
-    ).json()
+    # The main button resumes the paused one, with its two answers.
+    resumed = client.post("/api/sessions", json={"kind": "spelling"}, headers=at(later)).json()
     assert resumed["id"] == session["id"] and len(resumed["results"]) == 2
     finish(client, resumed, at(later))
     client.post(f"/api/sessions/{session['id']}/complete", headers=at(later))
     assert spelling_state(client, later)["paused"] is None
+
+
+def test_choosing_another_set_replaces_a_paused_spelling_and_keeps_its_answers(
+    client: TestClient, play: Play
+) -> None:
+    """ADR 0050: the learner stops one spelling to practise another set; what they spelled counts,
+    and the main button then resumes the new one."""
+    play(STUDY, DAY0, spell=False)
+    paused = start_spelling(client).json()
+    answer(client, paused, paused["exercises"][0]["id"], "house")
+    answer(client, paused, paused["exercises"][1]["id"], "wtaer")
+
+    hard = client.post(
+        "/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=at(DAY0)
+    ).json()
+    assert hard["id"] != paused["id"] and hard["results"] == []
+    assert spelling_state(client)["paused"] == {"spelled": 0, "right": 0, "total": 1}
+    assert spelling_state(client)["hard"] == 1  # «wtaer» still counts
+
+    assert start_spelling(client).json()["id"] == hard["id"]
+
+
+def test_a_set_with_no_words_leaves_a_paused_spelling_alone(client: TestClient, play: Play) -> None:
+    play(STUDY, DAY0, spell=False)
+    paused = start_spelling(client).json()
+    answer(client, paused, paused["exercises"][0]["id"], "house")
+
+    empty = client.post(
+        "/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=at(DAY0)
+    )
+    assert (empty.status_code, empty.json()["error"]["code"]) == (409, "nothing_to_spell")
+    assert spelling_state(client)["paused"] == {"spelled": 1, "right": 1, "total": 5}
+    assert start_spelling(client).json()["id"] == paused["id"]
