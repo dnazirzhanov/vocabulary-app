@@ -634,7 +634,6 @@ export const tg: Messages = {
   appLanguage: 'Забони барнома',
   translationLanguage: 'Забони тарҷума',
   firstLanguageQuestion: 'Забони англисиро бо кадом забон омӯхтан мехоҳед?',
-  translationIn: (a: Arg) => `Тарҷума: ${a}`,
   wordingQuestion: 'Дар тарҷума хато ҳаст?',
   wordingHint: 'Чӣ нодуруст аст ва чӣ тавр дуруст аст?',
   wordingSend: 'Фиристодан',

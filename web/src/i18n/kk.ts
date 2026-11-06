@@ -633,7 +633,6 @@ export const kk: Messages = {
   appLanguage: 'Қолданба тілі',
   translationLanguage: 'Аударма тілі',
   firstLanguageQuestion: 'Ағылшын тілін қай тілде үйренгіңіз келеді?',
-  translationIn: (a: Arg) => `Аударма: ${a}`,
   wordingQuestion: 'Аудармада қате бар ма?',
   wordingHint: 'Не қате және қалай дұрыс?',
   wordingSend: 'Жіберу',

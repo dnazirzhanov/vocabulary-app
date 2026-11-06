@@ -66,15 +66,49 @@ def test_a_new_deck_takes_my_language_or_the_one_named(client: TestClient) -> No
     assert named["language"] == "tg"
 
 
-def test_a_decks_language_changes_only_while_it_has_no_words(client: TestClient) -> None:
+def fill(
+    client: TestClient, deck_id: str, words: list[str], language: str | None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"words": words}
+    if language:
+        body["language"] = language
+    response = client.post(f"/api/decks/{deck_id}/words/fill", json=body)
+    assert response.status_code == 200, response.text
+    deck: dict[str, Any] = response.json()["deck"]
+    return deck
+
+
+def test_the_language_is_chosen_where_cards_are_made(client: TestClient) -> None:
+    """Each batch in the language chosen for it; the next one starts from the last choice."""
+    choose(client, language="ky")
+    deck = client.post("/api/decks", json={"title": "Жол"}).json()
+    assert deck["language"] == "ky"
+    after_kazakh = fill(client, deck["id"], ["road"], "kk")
+    assert after_kazakh["language"] == "kk"
+    after_tajik = fill(client, deck["id"], ["river"], "tg")
+    after_default = fill(client, deck["id"], ["lake"], None)
+    meanings = {card["word"]["headword"]: card["word"] for card in after_default["words"]}
+    assert {w: meanings[w]["language"] for w in meanings} == {
+        "road": "kk",
+        "river": "tg",
+        "lake": "tg",
+    }
+    assert "аудармасы" in meanings["road"]["translation"]
+    assert "тарҷумаи" in meanings["river"]["translation"]
+    assert after_tajik["language"] == "tg"
+    # A card is judged in its own language, not the deck's latest.
+    assert all("translation_wrong_language" not in card["flags"] for card in after_default["words"])
+
+
+def test_a_suggested_card_comes_in_the_language_asked_and_saves_nothing(client: TestClient) -> None:
     choose(client, language="ky")
     deck = client.post("/api/decks", json={"title": "Жол"}).json()
     url = f"/api/decks/{deck['id']}"
-    assert client.put(f"{url}/language", json={"language": "uz"}).json()["language"] == "uz"
-    word = {"headword": "road", "pos": "noun", "translation": "yo‘l", "example": "A long road."}
-    assert client.post(f"{url}/words", json=word).status_code < 300
-    refused = client.put(f"{url}/language", json={"language": "kk"})
-    assert (refused.status_code, refused.json()["error"]["code"]) == (409, "deck_has_words")
+    card = client.post(f"{url}/words/suggest", json={"headword": "road", "language": "uz"}).json()
+    assert ("tarjimasi" in card["translation"] and card["flags"] == []) or "tarjimasi" in card[
+        "translation"
+    ]
+    assert client.get(f"{url}/edit").json()["language"] == "ky"
 
 
 def test_a_word_the_course_also_has_keeps_this_decks_own_meaning(
@@ -95,18 +129,22 @@ def test_a_word_the_course_also_has_keeps_this_decks_own_meaning(
     assert linked["words"][0]["from_course"] is True  # still saves learning it twice in Russian
 
 
-def test_tapping_a_word_is_offered_only_where_the_glossary_is_in_the_decks_language(
+def test_each_card_says_its_language_so_tapping_is_offered_only_on_russian_ones(
     client: TestClient, db: Session
 ) -> None:
     course = client.post("/api/sessions", json={"kind": "study", "deck_id": a_course(db)}).json()
-    assert course["glossary"] is True
+    assert {step["word"]["language"] for step in course["exercises"] if "word" in step} == {"ru"}
     client.post(f"/api/sessions/{course['id']}/complete")
-    choose(client, language="ky")
-    deck = client.post("/api/decks", json={"title": "Жол"}).json()
-    word = {"headword": "road", "pos": "noun", "translation": "жол", "example": "A long road."}
-    client.post(f"/api/decks/{deck['id']}/words", json=word)
+    deck = client.post("/api/decks", json={"title": "Смешанная"}).json()
+    fill(client, deck["id"], ["road"], "ky")
+    fill(client, deck["id"], ["river"], "ru")
     own = client.post("/api/sessions", json={"kind": "study", "deck_id": deck["id"]}).json()
-    assert own["glossary"] is False
+    languages = {
+        step["word"]["headword"]: step["word"]["language"]
+        for step in own["exercises"]
+        if "word" in step
+    }
+    assert languages == {"road": "ky", "river": "ru"}
 
 
 @pytest.mark.parametrize(

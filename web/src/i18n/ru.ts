@@ -629,7 +629,6 @@ export const ru = {
   appLanguage: 'Язык приложения',
   translationLanguage: 'Язык перевода',
   firstLanguageQuestion: 'На каком языке вы хотите учить английский?',
-  translationIn: (a: Arg) => `Перевод: ${a}`,
   wordingQuestion: 'Ошибка в переводе?',
   wordingHint: 'Что написано неверно и как правильно?',
   wordingSend: 'Отправить',

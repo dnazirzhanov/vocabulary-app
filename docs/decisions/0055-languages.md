@@ -10,7 +10,7 @@ The app was Russian-only: about 900 strings in 65 files, Russian grammar in code
 - **Two settings, never one:** the translation language (on cards: Russian, Uzbek, Tajik, Kazakh, Kyrgyz) and the app language (those five and English). The app language starts as the translation language chosen, and each can be changed in ⚙.
 - **Uzbek in Latin script** (`oʻ`, `gʻ`).
 - **The course stays Russian-only** and is hidden for everyone else.
-- **A deck has one translation language,** chosen by its author; a group's students see it whatever they chose.
+- **The translation language is chosen where cards are made,** beside their level, on every way of adding them. Each word keeps its own, so a deck may hold several; the deck remembers the last choice as the next default. A group's students see each card's language whatever they chose. (The owner's correction: this first shipped as one language per deck, set once in the editor.)
 - **Released without native review,** by the owner's choice, with a way to report bad wording.
 
 ## How text works
@@ -30,7 +30,7 @@ The app was Russian-only: about 900 strings in 65 files, Russian grammar in code
 - **Bad wording can be reported** from ⚙, stored with the language, at most 5 a day, read with `app.cli wording-reports`.
 
 - **`course_open(user)` is the one rule for course words,** on the server, used by every path to them. A home card hidden alone would still leak Russian cards into lessons.
-- **A deck in another language never links a course word,** which would bring its Russian meaning, and shows examples without tap-a-word, because the glossary is Russian.
+- **A card in another language never links a course word,** which would bring its Russian meaning, and shows its example without tap-a-word, because the glossary is Russian.
 - **Each AI prompt shows one card in the deck's language:** a Russian example pulls the answer to Russian. Code flags a card whose script is wrong, whose translation copies the word, or, for Kazakh, Kyrgyz and Tajik, a longer translation with none of that language's own letters. A flag asks the author to look; it can't judge meaning.
 
 ## Consequences

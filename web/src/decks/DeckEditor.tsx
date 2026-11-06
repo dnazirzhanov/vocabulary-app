@@ -1,3 +1,4 @@
+import type { CardLanguage } from '../i18n/languages.ts';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
@@ -10,7 +11,7 @@ import { GeneratePanel } from './GeneratePanel.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
-import { DeckLanguage } from './DeckLanguage.tsx';
+import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
@@ -65,6 +66,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [form, setForm] = useState<DeckWordInput>(EMPTY);
+  // Shared by every way of adding cards, so a choice made on one tab holds on the next (ADR 0055).
+  const [language, setLanguage] = useState<CardLanguage>('ru');
   const [editing, setEditing] = useState<string | null>(null); // a word id
   // The composer's way of adding cards: from words (the fast default), from a text, or by hand.
   const [mode, setMode] = useState<ComposerMode>('words');
@@ -93,6 +96,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const show = useCallback((loaded: TeacherDeck) => {
     setDeck(loaded);
     setTitle(loaded.title);
+    setLanguage(loaded.language);
   }, []);
   const load = useCallback(
     () => api.teacherDeck(deckId).then(show, (caught: unknown) => setLoadError(describeError(caught))),
@@ -150,7 +154,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     setSuggestNote(null);
     setFormError(null);
     try {
-      const card = await api.suggestWord(deck.id, headword, 'B1');
+      const card = await api.suggestWord(deck.id, headword, 'B1', language);
       setForm({
         headword: card.headword,
         pos: card.pos,
@@ -177,7 +181,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     event.preventDefault();
     if (saving) return;
     if (headwordInvalid) return setFormError(t.wordEnglishLettersWordsOfA);
-    const word = { ...form, headword };
+    const word = { ...form, headword, language };
     setSaving(true);
     setFormError(null);
     try {
@@ -199,6 +203,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     const entry = deck.words.find((item) => item.word.id === id);
     if (!entry) return;
     const { headword: h, pos, translation, example, example_translation } = entry.word;
+    setLanguage(entry.word.language);
     setForm({ headword: h, pos: pos as PartOfSpeech, translation, example, example_translation });
     setEditing(id);
     setFormError(null);
@@ -249,11 +254,6 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                   <GiveButton groups={deck.groups} onClick={() => setGiving(true)} />
                 )}
               </div>
-              <DeckLanguage
-                language={deck.language}
-                fixed={count > 0}
-                onChoose={(language) => void api.setDeckLanguage(deck.id, language).then(setDeck, () => null)}
-              />
               <div className={styles.tabs} role="tablist" aria-label={t.howToAdd}>
                 {COMPOSER_MODES.map((option) => (
                   <button
@@ -272,17 +272,28 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
               </div>
             </div>
             <div id={`pane-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`} className={styles.pane}>
-              {mode === 'words' && <QuickAddPanel deckId={deck.id} onAdded={drafted} />}
+              {mode === 'words' && (
+                <QuickAddPanel deckId={deck.id} language={language} onLanguage={setLanguage} onAdded={drafted} />
+              )}
               {mode === 'topic' && (
                 <TopicPanel
                   deckId={deck.id}
-                  language={deck.language}
+                  language={language}
+                  onLanguage={setLanguage}
                   topics={deck.topics}
                   onAdded={drafted}
                   onOpenDeck={onOpenDeck}
                 />
               )}
-              {mode === 'text' && <GeneratePanel deckId={deck.id} photosLeft={deck.photos_left} onDrafted={drafted} />}
+              {mode === 'text' && (
+                <GeneratePanel
+                  deckId={deck.id}
+                  language={language}
+                  onLanguage={setLanguage}
+                  photosLeft={deck.photos_left}
+                  onDrafted={drafted}
+                />
+              )}
               {mode === 'manual' && (
                 <form
                   className={styles.form}
@@ -320,6 +331,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                       {suggestNote}
                     </p>
                   )}
+                  <TranslationLanguage value={language} onChange={setLanguage} />
                   <label className={styles.field}>
                     <span>{t.partOfSpeech}</span>
                     <select value={form.pos} onChange={(event) => field('pos', event.target.value as PartOfSpeech)}>
@@ -363,8 +375,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                       onChange={(event) => field('example_translation', event.target.value)}
                     />
                   </label>
-                  {/* Only Russian decks share the course's words (ADR 0055). */}
-                  {!editing && deck.language === 'ru' && <p className={styles.note}>{t.aWordFromTheCourseFills}</p>}
+                  {/* Only Russian cards share the course's words (ADR 0055). */}
+                  {!editing && language === 'ru' && <p className={styles.note}>{t.aWordFromTheCourseFills}</p>}
                   {formError && (
                     <p className={styles.problem} role="alert">
                       {formError}

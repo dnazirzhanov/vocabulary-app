@@ -1,4 +1,5 @@
 import type { CardLanguage } from '../i18n/languages.ts';
+import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { deckTitleFor, isNewTopic } from '../lib/topics.ts';
@@ -18,12 +19,14 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 export function TopicPanel({
   deckId,
   language,
+  onLanguage,
   topics,
   onAdded,
   onOpenDeck,
 }: {
   deckId: string;
   language: CardLanguage;
+  onLanguage: (language: CardLanguage) => void;
   /** The deck's topics, the latest first: the field starts with it, so continuing is one tap. */
   topics: string[];
   onAdded: (result: GenerateResult) => void;
@@ -57,11 +60,11 @@ export function TopicPanel({
     try {
       if (into === 'new') {
         const deck = await api.createDeck(deckTitleFor(topic), language);
-        await api.topicWords(deck.id, topic.trim(), count, level);
+        await api.topicWords(deck.id, topic.trim(), count, level, language);
         onOpenDeck(deck.id);
         return;
       }
-      const result = await api.topicWords(deckId, topic.trim(), count, level);
+      const result = await api.topicWords(deckId, topic.trim(), count, level, language);
       setFork(false);
       setLast(result);
       onAdded(result);
@@ -120,6 +123,7 @@ export function TopicPanel({
             ))}
           </select>
         </label>
+        <TranslationLanguage value={language} disabled={busy} onChange={onLanguage} />
       </div>
       {fork ? (
         <div ref={forkRef} className={styles.fork} role="group" aria-labelledby="fork-title">

@@ -636,7 +636,6 @@ export const uz: Messages = {
   appLanguage: 'Ilova tili',
   translationLanguage: 'Tarjima tili',
   firstLanguageQuestion: 'Ingliz tilini qaysi tilda o‘rganmoqchisiz?',
-  translationIn: (a: Arg) => `Tarjima: ${a}`,
   wordingQuestion: 'Tarjimada xato bormi?',
   wordingHint: 'Nima noto‘g‘ri va qanday bo‘lishi kerak?',
   wordingSend: 'Yuborish',

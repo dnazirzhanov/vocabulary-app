@@ -1,3 +1,5 @@
+import type { CardLanguage } from '../i18n/languages.ts';
+import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { wordsIn } from '../lib/quickAdd.ts';
@@ -14,7 +16,13 @@ const MAX_WORDS = 20;
  * The fast way (ADR 0019): name the words, get full cards — meaning, part of speech, an example
  * and its translation — saved to the deck for review. The device reads them aloud.
  */
-export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (result: GenerateResult) => void }) {
+export function QuickAddPanel(props: {
+  deckId: string;
+  language: CardLanguage;
+  onLanguage: (language: CardLanguage) => void;
+  onAdded: (result: GenerateResult) => void;
+}) {
+  const { deckId, language, onLanguage, onAdded } = props;
   const [typed, setTyped] = useState('');
   const [level, setLevel] = useState('B1');
   const [busy, setBusy] = useState(false);
@@ -29,7 +37,7 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
     setBusy(true);
     setError(null);
     try {
-      const result = await api.fillWords(deckId, words, level);
+      const result = await api.fillWords(deckId, words, level, language);
       setLast(result);
       setTyped('');
       onAdded(result);
@@ -69,6 +77,7 @@ export function QuickAddPanel({ deckId, onAdded }: { deckId: string; onAdded: (r
             ))}
           </select>
         </label>
+        <TranslationLanguage value={language} disabled={busy} onChange={onLanguage} />
         <PrimaryButton type="submit" disabled={busy || words.length === 0 || tooMany} aria-busy={busy}>
           {busy ? t.makingTheCards : words.length > 1 ? t.createCards(words.length) : t.createACard}
         </PrimaryButton>

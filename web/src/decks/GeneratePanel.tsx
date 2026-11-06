@@ -1,3 +1,5 @@
+import type { CardLanguage } from '../i18n/languages.ts';
+import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { readPhotos } from '../lib/ocr.ts';
@@ -23,10 +25,14 @@ const MAX_TEXT = 20_000;
  */
 export function GeneratePanel({
   deckId,
+  language,
+  onLanguage,
   photosLeft,
   onDrafted,
 }: {
   deckId: string;
+  language: CardLanguage;
+  onLanguage: (language: CardLanguage) => void;
   /** Photos the deck can still take (of 8). */
   photosLeft: number;
   onDrafted: (result: GenerateResult) => void;
@@ -103,7 +109,7 @@ export function GeneratePanel({
     setBusy(true);
     setError(null);
     try {
-      const result = await api.generateDeck(deckId, text.trim(), count, level, photos.length);
+      const result = await api.generateDeck(deckId, text.trim(), count, level, language, photos.length);
       setLast(result);
       setPhotos([]);
       setPhotoNote(null);
@@ -248,6 +254,7 @@ export function GeneratePanel({
             ))}
           </select>
         </label>
+        <TranslationLanguage value={language} disabled={working} onChange={onLanguage} />
       </div>
       <PrimaryButton type="submit" disabled={working || !ready} aria-busy={busy}>
         {busy ? t.pickingWords : t.pick(wordsLabel(count))}
