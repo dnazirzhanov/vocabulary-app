@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import exists, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckWord, LearningSession, ReviewAttempt, User, UserWordProgress
@@ -116,12 +116,13 @@ def knowledge(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Kn
     not exposure: a word recalled in a later review (reviews come a day or more after meeting it)
     with any answer but «Снова»."""
     given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
+    course = literal(decks.course_open(user))
     candidates = list(
         db.scalars(
             select(Deck)
             .where(
                 or_(
-                    (Deck.kind == "course") & (Deck.status == "published"),
+                    (Deck.kind == "course") & (Deck.status == "published") & course,
                     Deck.owner_id == user.id,
                     Deck.id.in_(list(given)),
                 )

@@ -1,4 +1,4 @@
-import type { UiLanguage } from '../i18n/languages.ts';
+import type { CardLanguage, UiLanguage } from '../i18n/languages.ts';
 // Mirrors backend/app/schemas/learning.py. Answer keys are absent until a result comes back.
 
 export interface Word {
@@ -7,7 +7,7 @@ export interface Word {
   pos: string;
   translation: string;
   example: string;
-  example_ru: string;
+  example_translation: string;
   illustration: string | null;
 }
 
@@ -122,6 +122,8 @@ export interface Session {
   id: string;
   kind: SessionKind;
   deck_id: string;
+  /** Whether an example's words can be tapped for their meaning (ADR 0055). */
+  glossary: boolean;
   completed: boolean;
   exercises: Exercise[];
   results: AttemptResult[];
@@ -191,6 +193,8 @@ export interface Me {
   notify_deadline: boolean;
   /** The app's language; null until this account has one. */
   ui_language: UiLanguage | null;
+  /** What new decks are translated into; null until asked, the first question (ADR 0055). */
+  language: CardLanguage | null;
   onboarded: boolean;
   /** When the pace was first chosen: the ramp's weeks count from here. */
   onboarded_at: string | null;
@@ -213,7 +217,10 @@ export type TodayState = 'done' | 'pending' | 'off';
 export type NotificationChoice = 'notify_morning' | 'notify_afternoon' | 'notify_report' | 'notify_deadline';
 
 export type MeUpdate = Partial<
-  Pick<Me, 'daily_target_words' | 'ui_language' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice>
+  Pick<
+    Me,
+    'daily_target_words' | 'ui_language' | 'language' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice
+  >
 >;
 
 export interface PaceSuggestion {
@@ -381,10 +388,10 @@ export interface DeckWordInput {
   pos: PartOfSpeech;
   translation: string;
   example: string;
-  example_ru: string;
+  example_translation: string;
 }
 
-export type WordFlag = 'translation_not_russian' | 'example_without_word' | 'example_long';
+export type WordFlag = 'translation_wrong_language' | 'example_without_word' | 'example_long';
 
 export interface TeacherWord {
   word: Word;
@@ -470,6 +477,8 @@ export interface Library {
 export interface TeacherDeck {
   id: string;
   title: string;
+  /** What its words are translated into (ADR 0055). */
+  language: CardLanguage;
   status: 'draft' | 'published';
   created_at: string;
   /** `from_course`: the course's own word, linked; its content is not edited here. */

@@ -29,5 +29,11 @@ The app was Russian-only: about 900 strings in 65 files, Russian grammar in code
 - **Sign-up and reset emails carry only the code,** one template for everyone. Branching a template by language can only be tested by sending real mail, and one mistake there would stop every sign-up.
 - **Bad wording can be reported** from ⚙, stored with the language, at most 5 a day, read with `app.cli wording-reports`.
 
+- **`course_open(user)` is the one rule for course words,** on the server, used by every path to them. A home card hidden alone would still leak Russian cards into lessons.
+- **A deck in another language never links a course word,** which would bring its Russian meaning, and shows examples without tap-a-word, because the glossary is Russian.
+- **Each AI prompt shows one card in the deck's language:** a Russian example pulls the answer to Russian. Code flags a card whose script is wrong, whose translation copies the word, or, for Kazakh, Kyrgyz and Tajik, a longer translation with none of that language's own letters. A flag asks the author to look; it can't judge meaning.
+
 ## Consequences
 - Adding a line means adding it in every language, or the build fails. That is the point.
+- New users outside Russian start with no content until they make a deck or join a group, so their first minute depends on AI deck-making.
+- A student in a mixed class sees the teacher's translation language. Someone who moves from Russian to another language still sees their earlier course words in «Трудные», in Russian.

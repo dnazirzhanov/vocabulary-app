@@ -25,7 +25,7 @@ CARRY_OUT = {
     "pos": "phrase",
     "translation": "проводить, выполнять",
     "example": "They carried out the experiment.",
-    "example_ru": "Они провели эксперимент.",
+    "example_translation": "Они провели эксперимент.",
 }
 # A course word: linked, so its course content stands.
 MONEY = {"headword": "money", "pos": "noun", "translation": "деньги", "example": "No money."}

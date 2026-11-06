@@ -1,15 +1,19 @@
-import { UI_LANGUAGES, type UiLanguage } from '../i18n/languages.ts';
-import { t, uiLanguage } from '../i18n/index.ts';
 import styles from './LanguageSelect.module.css';
 
-/** The app's language. The list is each language's own name, so it can be read in any of them. */
-export function LanguageSelect(props: { onChoose: (language: UiLanguage) => void; compact?: boolean }) {
-  const { onChoose, compact } = props;
+/** A language to choose. The list is each language's own name, so it can be read in any of them. */
+export function LanguageSelect<Code extends string>(props: {
+  label: string;
+  value: Code;
+  options: Record<Code, string>;
+  onChoose: (language: Code) => void;
+  compact?: boolean;
+}) {
+  const { label, value, options, onChoose, compact } = props;
   return (
     <label className={styles.language}>
-      <span className={compact ? 'visually-hidden' : undefined}>{t.appLanguage}</span>
-      <select value={uiLanguage} onChange={(event) => onChoose(event.target.value as UiLanguage)}>
-        {Object.entries(UI_LANGUAGES).map(([code, name]) => (
+      <span className={compact ? 'visually-hidden' : undefined}>{label}</span>
+      <select value={value} onChange={(event) => onChoose(event.target.value as Code)}>
+        {(Object.entries(options) as [Code, string][]).map(([code, name]) => (
           <option key={code} value={code}>
             {name}
           </option>

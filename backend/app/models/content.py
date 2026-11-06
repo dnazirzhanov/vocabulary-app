@@ -58,7 +58,7 @@ class Word(Base):
     translation: Mapped[str] = mapped_column(String(120))
     also_accept: Mapped[list[str]] = mapped_column(ARRAY(String(64)))
     example: Mapped[str] = mapped_column(Text)
-    example_ru: Mapped[str] = mapped_column(Text)
+    example_translation: Mapped[str] = mapped_column(Text)
     illustration: Mapped[str | None] = mapped_column(String(32))
     # The sentence of the teacher's material the word was drafted from (ADR 0018).
     source_sentence: Mapped[str | None] = mapped_column(Text)

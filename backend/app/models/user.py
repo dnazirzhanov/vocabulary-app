@@ -39,6 +39,8 @@ class User(Base):
     time_zone: Mapped[str | None] = mapped_column(String(64))
     # The app's language, for its text and notifications (ADR 0055); null until it has one.
     ui_language: Mapped[str | None] = mapped_column(String(2))
+    # What new decks are translated into (ADR 0055): null until asked, which reads as Russian.
+    language: Mapped[str | None] = mapped_column(String(2))
     # Which notifications the learner wants (ADR 0042).
     notify_morning: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     notify_afternoon: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))

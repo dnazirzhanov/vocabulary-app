@@ -13,14 +13,17 @@ export const DEMO = { 'X-Dev-Generation': 'demo' };
 export const learnerHeaders = (context: BrowserContext) => ({ 'X-Dev-User': learnerId.get(context)!, ...DEMO });
 
 /** Every test is a brand-new learner, so tests never share progress and can run in parallel. */
-export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
+export const test = base.extend<{ learner: Learner; onboarded: boolean; languageChosen: boolean }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
-  context: async ({ context, onboarded }, use) => {
+  // `test.use({ languageChosen: false })` starts at the first question of all (ADR 0055).
+  languageChosen: [true, { option: true }],
+  context: async ({ context, onboarded, languageChosen }, use) => {
     const id = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
+    if (languageChosen) await context.request.patch('/api/me', { data: { language: 'ru' } });
     if (onboarded) {
       await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
     }

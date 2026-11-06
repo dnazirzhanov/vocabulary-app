@@ -37,6 +37,75 @@ test('the language is changed in settings, stays after a reload and follows the 
   await other.close();
 });
 
+test.describe('a new learner who knows only Kyrgyz', () => {
+  test.use({ onboarded: false, languageChosen: false, locale: 'ru-RU' });
+
+  test('chooses it first, then studies a whole deck without a Russian word', async ({ page }) => {
+    await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: null } }));
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'На каком языке вы хотите учить английский?' })).toBeFocused();
+    await expect(page.getByRole('main').getByRole('button')).toHaveCount(5);
+    await page.getByRole('button', { name: 'Кыргызча' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Күнүнө канча жаңы сөз?' })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ky');
+    await page.getByRole('button', { name: /^5\sсөз$/ }).click();
+    await page.getByRole('button', { name: 'Баштоо', exact: true }).click();
+
+    // No course: it is in Russian.
+    await expect(page.getByRole('heading', { level: 1, name: 'Менин топтомдорум' })).toBeVisible();
+    await expect(page.getByText('Деңгээлдер боюнча англис тили')).toHaveCount(0);
+    const clean = async (where: string) => {
+      await page.waitForLoadState('networkidle');
+      const text = await page.locator('body').innerText();
+      // Russian-only words a slip would show; Kyrgyz shares the rest of the alphabet.
+      expect(text, where).not.toMatch(/Загружаем|Сохранить|Мои колоды|Сегодня|перевод|Создать|Повторить|Английск/);
+    };
+    await clean('home');
+
+    // A deck made with AI is in Kyrgyz; the language is one quiet line, and can be changed while empty.
+    await page.getByRole('button', { name: /Топтом түзүү/ }).click();
+    await page.getByLabel('Жаңы топтомдун аты').fill('Сапар');
+    await page.getByRole('button', { name: 'Түзүү', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Котормо: Кыргызча/ })).toBeVisible();
+    await clean('editor');
+    await page.getByRole('button', { name: /Котормо: Кыргызча/ }).click();
+    await page.getByRole('button', { name: 'Қазақша' }).click();
+    await expect(page.getByRole('button', { name: /Котормо: Қазақша/ })).toBeVisible();
+    await page.getByRole('button', { name: /Котормо: Қазақша/ }).click();
+    await page.getByRole('button', { name: 'Кыргызча' }).click();
+    await page.getByRole('tab', { name: 'Сөздөр' }).click();
+    await page.getByLabel('Карточкалар үчүн сөздөр').fill('house\nriver');
+    await page.getByRole('button', { name: /Карточкаларды түзүү/ }).click();
+    await expect(page.getByText('«house» котормосу (демо)')).toBeVisible();
+    // With words in it, the language is only stated: a deck never mixes languages.
+    await expect(page.getByText(/Котормо: Кыргызча/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Котормо: Кыргызча/ })).toHaveCount(0);
+
+    // Studying it: the word that's also in the course keeps its Kyrgyz meaning, and tapping is off.
+    await page.getByRole('button', { name: /Окуу · 2/ }).click();
+    await page.getByRole('button', { name: 'Жоопту көрсөтүү' }).click();
+    await expect(page.locator('[data-translation]')).toContainText('котормосу (демо)');
+    await expect(page.getByText('Котормосун көрүү үчүн каалаган сөздү басыңыз')).toHaveCount(0);
+    await clean('lesson');
+  });
+});
+
+test('the translation language is changed in settings, and the course goes and comes back with it', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByText('Английский по уровням')).toBeVisible();
+  await page.getByRole('button', { name: 'Настройки' }).first().click();
+  await page.getByLabel('Язык перевода').selectOption('uz');
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+  // The app's own language stays: the two are separate.
+  await expect(page.getByText('Английский по уровням')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Настройки' }).first().click();
+  await page.getByLabel('Язык перевода').selectOption('ru');
+  await expect(page.getByText('Английский по уровням')).toBeVisible();
+});
+
 test('bad wording can be reported from settings', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Настройки' }).first().click();

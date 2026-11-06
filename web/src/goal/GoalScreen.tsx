@@ -9,18 +9,20 @@ import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './GoalScreen.module.css';
-import { t } from '../i18n/index.ts';
+import { switchLanguage, t } from '../i18n/index.ts';
+import { CARD_LANGUAGES, type CardLanguage } from '../i18n/languages.ts';
 
 interface GoalScreenProps {
   me: Me;
   onDone: (me: Me) => void;
 }
 
-type Step = 'words' | 'days' | 'notify' | 'how';
+type Step = 'language' | 'words' | 'days' | 'notify' | 'how';
 
 /** First run: small questions, one at a time, and nothing else (ADR 0042, 0045). */
 export function GoalScreen({ me, onDone }: GoalScreenProps) {
-  const [step, setStep] = useState<Step>('words');
+  // Language first: everything after it should be read in it (ADR 0055).
+  const [step, setStep] = useState<Step>(me.language ? 'words' : 'language');
   const [words, setWords] = useState<number | null>(me.daily_target_words);
   const [weekdays, setWeekdays] = useState(me.promise.pending?.weekdays ?? me.promise.weekdays);
   const [push] = usePushState();
@@ -76,16 +78,44 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
         ) : (
           <span />
         )}
-        <p className={styles.steps}>
-          <span className="visually-hidden">{t.questionOf(position + 1, total)}</span>
-          {Array.from({ length: total }, (_, index) => (
-            <span key={index} aria-hidden="true" className={styles.dot} data-active={index <= position} />
-          ))}
-        </p>
+        {step !== 'language' && (
+          <p className={styles.steps}>
+            <span className="visually-hidden">{t.questionOf(position + 1, total)}</span>
+            {Array.from({ length: total }, (_, index) => (
+              <span key={index} aria-hidden="true" className={styles.dot} data-active={index <= position} />
+            ))}
+          </p>
+        )}
       </header>
 
       <main className={styles.main}>
         <div className={styles.question}>
+          {step === 'language' && (
+            <>
+              {heading(t.firstLanguageQuestion)}
+              <div className={styles.options}>
+                {(Object.entries(CARD_LANGUAGES) as [CardLanguage, string][]).map(([code, name]) => (
+                  <button
+                    key={code}
+                    type="button"
+                    className={styles.option}
+                    disabled={busy}
+                    onClick={() => {
+                      void run(async () => {
+                        // The app's language follows, and can be changed apart from it in settings.
+                        await api.updateMe({ language: code, ui_language: code });
+                        // Reloads into the language; if that can't be saved, go on in this one.
+                        if (!switchLanguage(code)) setStep('words');
+                      });
+                    }}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+              {problem}
+            </>
+          )}
           {step === 'words' && (
             <>
               {heading(t.howManyNewWordsADay)}

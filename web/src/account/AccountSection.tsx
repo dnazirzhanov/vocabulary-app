@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PasswordField } from '../auth/PasswordField.tsx';
 import { api } from '../lib/api.ts';
 import { checkPassword } from '../lib/auth.ts';
@@ -8,7 +8,8 @@ import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { ReportWording } from './ReportWording.tsx';
 import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
-import { switchLanguage, t } from '../i18n/index.ts';
+import { switchLanguage, t, uiLanguage } from '../i18n/index.ts';
+import { CARD_LANGUAGES, UI_LANGUAGES, type CardLanguage } from '../i18n/languages.ts';
 import { LanguageSelect } from '../ui/LanguageSelect.tsx';
 
 export interface AccountProps {
@@ -28,6 +29,13 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
   const [wrongPassword, setWrongPassword] = useState<string | null>(null);
   const [sounds, setSounds] = useState(soundsOn);
   const { run, busy, error } = useAsyncAction();
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage | null>(null);
+  useEffect(() => {
+    void api.me().then(
+      (me) => setCardLanguage(me.language ?? 'ru'),
+      () => null,
+    );
+  }, []);
   const signOut = useAsyncAction();
   const problem = wrongPassword ?? error;
 
@@ -67,6 +75,9 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
           </label>
           <div className={styles.language}>
             <LanguageSelect
+              label={t.appLanguage}
+              value={uiLanguage}
+              options={UI_LANGUAGES}
               onChoose={(language) => {
                 void run(async () => {
                   await api.updateMe({ ui_language: language });
@@ -74,6 +85,19 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
                 });
               }}
             />
+            {cardLanguage && (
+              <LanguageSelect
+                label={t.translationLanguage}
+                value={cardLanguage}
+                options={CARD_LANGUAGES}
+                onChoose={(language) => {
+                  void run(async () => {
+                    await api.updateMe({ language });
+                    location.reload(); // The course opens or closes with it.
+                  });
+                }}
+              />
+            )}
           </div>
           <Reminders />
           <ReportWording />

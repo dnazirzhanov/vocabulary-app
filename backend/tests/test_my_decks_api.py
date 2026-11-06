@@ -235,13 +235,15 @@ class TopicScript:
         self.rounds = list(rounds)
         self.calls: list[dict[str, Any]] = []
 
-    def topic(self, topic: str, count: int, level: str, avoid: list[str]) -> list[Any]:
+    def topic(
+        self, topic: str, count: int, level: str, avoid: list[str], language: str = "ru"
+    ) -> list[Any]:
         self.calls.append({"count": count, "avoid": list(avoid)})
         words = self.rounds.pop(0) if self.rounds else []
         return [
             DraftCard(
                 headword=word, pos="noun", translation="перевод", example=f"A {word}.",
-                example_ru="", source_sentence="",
+                example_translation="", source_sentence="",
             )
             for word in words
         ]  # fmt: skip

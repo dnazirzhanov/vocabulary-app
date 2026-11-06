@@ -15,7 +15,7 @@ interface HomeScreenProps {
   /** My deck's editor. */
   onOpenDeck: (deckId: string) => void;
   /** The course: English words level by level. */
-  onOpenCourse: () => void;
+  onOpenCourse?: () => void;
 }
 
 /**
@@ -197,16 +197,19 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           )}
 
           {/* The course, level by level: offered, one tap away (ADR 0021). */}
-          <section className={styles.course} aria-labelledby="course-title">
-            <h2 id="course-title" className={styles.courseTitle}>
-              {t.englishByLevels}
-            </h2>
-            <p className={styles.courseText}>{t.aReadyMadeCourseTheMost}</p>
-            <button type="button" className={styles.outlineButton} onClick={onOpenCourse}>
-              {t.openTheCourse}
-              <ForwardIcon aria-hidden="true" />
-            </button>
-          </section>
+          {/* Only for those studying in Russian, the language it is written in (ADR 0055). */}
+          {onOpenCourse && (
+            <section className={styles.course} aria-labelledby="course-title">
+              <h2 id="course-title" className={styles.courseTitle}>
+                {t.englishByLevels}
+              </h2>
+              <p className={styles.courseText}>{t.aReadyMadeCourseTheMost}</p>
+              <button type="button" className={styles.outlineButton} onClick={onOpenCourse}>
+                {t.openTheCourse}
+                <ForwardIcon aria-hidden="true" />
+              </button>
+            </section>
+          )}
         </div>
       </main>
     </div>

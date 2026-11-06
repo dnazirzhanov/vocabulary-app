@@ -10,6 +10,7 @@ from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.ratelimit import limit_generations
 from app.schemas.decks import (
+    DeckLanguageIn,
     DeckWordIn,
     DueIn,
     FillIn,
@@ -46,6 +47,13 @@ def create_deck(body: NewDeckIn, user: CurrentUser, db: DbSession, now: Now) -> 
 def get_deck(deck_id: DeckId, user: CurrentUser, db: DbSession) -> TeacherDeckOut:
     """The deck as its author edits it (anyone else: 404)."""
     return decks.get_deck(db, user, deck_id)
+
+
+@router.put("/decks/{deck_id}/language")
+def put_deck_language(
+    deck_id: str, body: DeckLanguageIn, user: CurrentUser, db: DbSession
+) -> TeacherDeckOut:
+    return decks.set_language(db, user, deck_id, body.language)
 
 
 @router.patch("/decks/{deck_id}")

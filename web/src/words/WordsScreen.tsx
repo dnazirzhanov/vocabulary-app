@@ -183,7 +183,7 @@ function WordRow({ row }: { row: DeckWord }) {
       <details className={styles.example}>
         <summary>{t.example}</summary>
         <p lang="en">{word.example}</p>
-        <p className={styles.exampleRu}>{word.example_ru}</p>
+        <p className={styles.exampleRu}>{word.example_translation}</p>
       </details>
     </li>
   );

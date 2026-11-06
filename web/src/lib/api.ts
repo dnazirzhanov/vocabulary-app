@@ -1,3 +1,4 @@
+import type { CardLanguage } from '../i18n/languages.ts';
 import { accessToken, dropSession } from './auth.ts';
 import { syncWithServer } from './clock.ts';
 import type {
@@ -170,7 +171,10 @@ export const api = {
   // Teachers' decks (ADR 0017): written by a group's owner, then given to the group.
   myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
   /** A new deck, mine until I give it to a group I own (ADR 0019). */
-  createDeck: (title: string) => request<TeacherDeck>('POST', '/decks', { title }),
+  createDeck: (title: string, language?: CardLanguage) => request<TeacherDeck>('POST', '/decks', { title, language }),
+  /** What a deck is translated into, while it has no words (ADR 0055). */
+  setDeckLanguage: (deckId: string, language: CardLanguage) =>
+    request<TeacherDeck>('PUT', `/decks/${deckId}/language`, { language }),
   library: () => request<Library>('GET', '/decks/library'),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
   deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),

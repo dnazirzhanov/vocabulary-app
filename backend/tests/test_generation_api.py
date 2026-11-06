@@ -52,7 +52,9 @@ class FixedProvider:
     def __init__(self) -> None:
         self.asked: dict[str, Any] = {}
 
-    def draft(self, text: str, count: int, level: Level, avoid: list[str]) -> list[DraftCard]:
+    def draft(
+        self, text: str, count: int, level: Level, avoid: list[str], language: str
+    ) -> list[DraftCard]:
         self.asked = {"count": count, "level": level, "avoid": avoid}
 
         def card(headword: str, translation: str, example: str, pos: Pos = "noun") -> DraftCard:
@@ -61,7 +63,7 @@ class FixedProvider:
                 pos=pos,
                 translation=translation,
                 example=example,
-                example_ru="",
+                example_translation="",
                 source_sentence=TEXT.split(". ")[0] + ".",
             )
 
@@ -78,7 +80,9 @@ class FixedProvider:
 class FailingProvider(DemoProvider):
     """The drafting service down."""
 
-    def draft(self, text: str, count: int, level: Level, avoid: list[str]) -> list[DraftCard]:
+    def draft(
+        self, text: str, count: int, level: Level, avoid: list[str], language: str
+    ) -> list[DraftCard]:
         raise ApiError(502, "generation_failed", "The drafting service did not answer")
 
 
@@ -120,7 +124,7 @@ def test_a_draft_is_checked_and_problems_are_reported(
     assert list(words) == ["setback", "carry out", "money", "pollution"]
     assert words["money"]["from_course"] and words["money"]["word"]["id"] == "money"
     assert words["carry out"]["flags"] == []  # "carried out" uses the phrase
-    assert words["pollution"]["flags"] == ["translation_not_russian"]
+    assert words["pollution"]["flags"] == ["translation_wrong_language"]
     assert {(s["headword"], s["reason"]) for s in result["skipped"]} == {
         ("setback", "duplicate"),
         ("not valid!", "invalid"),
@@ -214,13 +218,13 @@ def test_which_provider_drafts() -> None:
 
 
 def test_flags_point_at_what_to_check() -> None:
-    assert flags("carry out", "проводить", "They carried out the test.") == []
-    assert flags("manage to", "суметь", "She managed to finish.") == []
-    assert flags("setback", "setback", "No word here.") == [
-        "translation_not_russian",
+    assert flags("carry out", "проводить", "They carried out the test.", "ru") == []
+    assert flags("manage to", "суметь", "She managed to finish.", "ru") == []
+    assert flags("setback", "setback", "No word here.", "ru") == [
+        "translation_wrong_language",
         "example_without_word",
     ]
-    assert "example_long" in flags("x", "икс", "x " * 90)
+    assert "example_long" in flags("x", "икс", "x " * 90, "ru")
 
 
 def test_the_app_starts_without_a_key() -> None:
@@ -231,7 +235,7 @@ def test_the_app_starts_without_a_key() -> None:
 
 CARD_JSON = (
     '{"cards": [{"headword": "carry out", "pos": "phrase", "translation": "проводить",'
-    ' "example": "They carried out the test.", "example_ru": "Они провели тест.",'
+    ' "example": "They carried out the test.", "example_translation": "Они провели тест.",'
     ' "source_sentence": "The company managed to carry out the experiment."}]}'
 )
 
@@ -271,7 +275,7 @@ def status_error(status: int) -> openai.APIStatusError:
 
 def test_deepseek_asks_for_json_and_reads_the_cards() -> None:
     completions = Completions(CARD_JSON)
-    cards = deepseek(completions).draft(TEXT, 10, "B1", ["setback"])
+    cards = deepseek(completions).draft(TEXT, 10, "B1", ["setback"], "ru")
     assert [card.headword for card in cards] == ["carry out"]
     request = completions.requests[0]
     assert request["model"] == "deepseek-flash"
@@ -283,9 +287,9 @@ def test_deepseek_asks_for_json_and_reads_the_cards() -> None:
 
 
 def test_deepseek_tries_once_more_after_an_empty_answer() -> None:
-    assert len(deepseek(Completions("", CARD_JSON)).draft(TEXT, 10, "B1", [])) == 1
+    assert len(deepseek(Completions("", CARD_JSON)).draft(TEXT, 10, "B1", [], "ru")) == 1
     with pytest.raises(ApiError) as empty:
-        deepseek(Completions("", "  ")).draft(TEXT, 10, "B1", [])
+        deepseek(Completions("", "  ")).draft(TEXT, 10, "B1", [], "ru")
     assert empty.value.code == "generation_failed"
 
 
@@ -302,13 +306,13 @@ def test_deepseek_tries_once_more_after_an_empty_answer() -> None:
 )
 def test_deepseek_failures_say_what_happened(answer: Any, code: str) -> None:
     with pytest.raises(ApiError) as failed:
-        deepseek(Completions(answer)).draft(TEXT, 10, "B1", [])
+        deepseek(Completions(answer)).draft(TEXT, 10, "B1", [], "ru")
     assert failed.value.code == code
 
 
 def test_an_unexpected_part_of_speech_is_other_not_a_failed_draft() -> None:
     answer = CARD_JSON.replace('"pos": "phrase"', '"pos": "preposition"')
-    (card,) = deepseek(Completions(answer)).draft(TEXT, 10, "B1", [])
+    (card,) = deepseek(Completions(answer)).draft(TEXT, 10, "B1", [], "ru")
     assert card.pos == "other"
 
 
@@ -324,7 +328,7 @@ def test_a_dev_header_asks_for_the_demo_whatever_the_server_holds() -> None:
 
 def test_deepseek_fills_cards_for_the_words_named() -> None:
     completions = Completions(CARD_JSON)
-    cards = deepseek(completions).fill(["carry out", "reluctant"], "A2")
+    cards = deepseek(completions).fill(["carry out", "reluctant"], "A2", "ru")
     assert [card.headword for card in cards] == ["carry out"]
     system, user = (message["content"] for message in completions.requests[0]["messages"])
     assert "The learner names the words" in system and "json" in system
@@ -334,7 +338,7 @@ def test_deepseek_fills_cards_for_the_words_named() -> None:
 
 def test_deepseek_chooses_words_for_a_topic() -> None:
     completions = Completions(CARD_JSON)
-    cards = deepseek(completions).topic("в аэропорту", 10, "A2", ["passport"])
+    cards = deepseek(completions).topic("в аэропорту", 10, "A2", ["passport"], "ru")
     assert [card.headword for card in cards] == ["carry out"]
     system, user = (message["content"] for message in completions.requests[0]["messages"])
     assert "names a topic" in system and "json" in system

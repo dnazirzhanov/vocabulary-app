@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 # still open; later (promised, to come); off (not promised, or paused).
 # The languages the app's text comes in (ADR 0055).
 UiLanguage = Literal["ru", "uz", "kk", "ky", "tg", "en"]
+# The languages a card's meaning comes in. English is what's learned, so it isn't one of them.
+CardLanguage = Literal["ru", "uz", "kk", "ky", "tg"]
 
 DayState = Literal["done", "missed", "today", "later", "off"]
 # Today for one member: done (a session finished), pending (promised, not yet), off.
@@ -62,6 +64,8 @@ class MeOut(BaseModel):
     ramp_enabled: bool
     # The app's language; null until this account has one (ADR 0055).
     ui_language: UiLanguage | None
+    # What new decks are translated into; null until asked, the first question (ADR 0055).
+    language: CardLanguage | None
     # Which notifications the learner wants (ADR 0042).
     notify_morning: bool
     notify_afternoon: bool
@@ -86,6 +90,7 @@ class MeUpdate(BaseModel):
     notify_report: bool | None = None
     notify_deadline: bool | None = None
     ui_language: UiLanguage | None = None
+    language: CardLanguage | None = None
 
 
 class WordingReportIn(BaseModel):

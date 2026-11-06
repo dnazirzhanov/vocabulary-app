@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -283,12 +283,13 @@ def words_left(db: Session, user: User) -> int:
         db.scalars(select(UserWordProgress.word_id).where(UserWordProgress.user_id == user.id))
     )
     given = [item.deck.id for item in decks.assigned_decks(db, user)]
+    course = literal(decks.course_open(user))
     words = db.scalars(
         select(DeckWord.word_id)
         .join(Deck, Deck.id == DeckWord.deck_id)
         .where(
             or_(
-                (Deck.kind == "course") & (Deck.status == "published"),
+                (Deck.kind == "course") & (Deck.status == "published") & course,
                 Deck.owner_id == user.id,
                 Deck.id.in_(given),
             )
