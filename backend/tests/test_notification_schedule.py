@@ -407,3 +407,27 @@ def test_stopping_at_the_time_limit_carries_on_without_sending_twice(
     third = send_reminders(db, utc(5, 3, 30), sender)
     assert (third.sent, third.finished) == (0, True)
     assert len(sender.sent) == 3
+
+
+@pytest.mark.parametrize(
+    ("language", "expected"),
+    [
+        ("ky", "Бүгүн «Unit 4» мөөнөтү: 6 сөз калды."),
+        ("kk", "Бүгін «Unit 4» мерзімі: 6 сөз қалды."),
+        ("tg", "Имрӯз мӯҳлати «Unit 4»: 6 калима монд."),
+        ("uz", "Bugun «Unit 4» muddati: 6 ta so‘z qoldi."),
+        ("en", "“Unit 4” is due today: 6 words left."),
+    ],
+)
+def test_a_notification_comes_in_the_learners_own_language(
+    client: TestClient, db: Session, phone: Any, language: str, expected: str
+) -> None:
+    a_deck_due_today(client)
+    phone("pavel", BISHKEK)
+    response = client.patch(
+        "/api/me", json={"ui_language": language}, headers=as_("pavel", THURSDAY)
+    )
+    assert response.status_code == 200
+    (morning,) = due(db, utc(5, 2))
+    assert expected in morning["body"]
+    assert morning["lang"] == language

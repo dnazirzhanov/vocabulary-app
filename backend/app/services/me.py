@@ -1,12 +1,13 @@
 """The learner's own settings."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.core.errors import ApiError
+from app.models import User, WordingReport
 from app.schemas.me import MeOut, MeUpdate
 from app.services.promise import preset, promise_out, set_weekdays, weekdays_of
 from app.services.scheduling import local_date
@@ -45,6 +46,21 @@ def update_me(
         user.onboarded_at = now
     db.commit()
     return me_out(db, user, now, time_zone)
+
+
+MAX_WORDING_REPORTS_A_DAY = 5
+
+
+def report_wording(db: Session, user: User, body: str, now: datetime) -> None:
+    sent = db.scalar(
+        select(func.count())
+        .select_from(WordingReport)
+        .where(WordingReport.user_id == user.id, WordingReport.created_at > now - timedelta(days=1))
+    )
+    if (sent or 0) >= MAX_WORDING_REPORTS_A_DAY:
+        raise ApiError(429, "too_many_wording_reports", "Too many reports today")
+    db.add(WordingReport(user_id=user.id, ui_language=user.ui_language, text=body, created_at=now))
+    db.commit()
 
 
 def remember_time_zone(db: Session, user: User, time_zone: ZoneInfo | None) -> None:

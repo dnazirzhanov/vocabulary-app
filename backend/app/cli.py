@@ -5,8 +5,11 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.models import WordingReport
 from app.services.cleanup import clean_up
 from app.services.content import (
     ContentError,
@@ -41,10 +44,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     commands.add_parser("send-reminders", help="send this hour's notifications (ADR 0042)")
     commands.add_parser("clean-up", help="remove old answers, keeping what screens need (ADR 0044)")
+    commands.add_parser("wording-reports", help="the latest reports of bad wording (ADR 0055)")
     args = parser.parse_args(argv)
 
     if args.command == "vapid-keys":
         print("\n".join(f"{name}={value}" for name, value in vapid_keys().items()))
+        return 0
+
+    if args.command == "wording-reports":
+        with get_sessionmaker()() as db:
+            for report in db.scalars(
+                select(WordingReport).order_by(WordingReport.created_at.desc()).limit(200)
+            ):
+                print(f"{report.created_at:%Y-%m-%d}\t{report.ui_language}\t{report.text}")
         return 0
 
     if args.command == "send-reminders":
@@ -69,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         with get_sessionmaker()() as db:
             code = seed_classmates(db, f"dev|{args.owner}", datetime.now(UTC))
-        print(f"Demo group ready (invite code {code}); open the app and go to «Друзья».")
+        print(f"Demo group ready (invite code {code}); open the app and go to Friends.")
         return 0
 
     problems: list[str] = []

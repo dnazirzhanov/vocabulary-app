@@ -16,9 +16,10 @@ from app.schemas.me import (
     PauseIn,
     PromiseIn,
     PromiseOut,
+    WordingReportIn,
 )
 from app.services import decks, pace
-from app.services.me import me_out, remember_time_zone, update_me
+from app.services.me import me_out, remember_time_zone, report_wording, update_me
 from app.services.promise import end_pause, promise_out, set_pause, set_weekdays
 from app.services.scheduling import local_date
 
@@ -38,6 +39,12 @@ def patch_me(
     changes: MeUpdate, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
 ) -> MeOut:
     return update_me(db, user, changes, now, time_zone)
+
+
+@router.post("/me/wording-reports", status_code=204)
+def post_wording_report(body: WordingReportIn, user: CurrentUser, db: DbSession, now: Now) -> None:
+    """A line of the app's text that reads wrong, in this learner's language (ADR 0055)."""
+    report_wording(db, user, body.text, now)
 
 
 @router.put("/me/promise")

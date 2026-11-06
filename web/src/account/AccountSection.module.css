@@ -157,3 +157,48 @@
 .language {
   margin-bottom: var(--space-4);
 }
+
+.wordingLink {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-bottom: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.wordingNote {
+  margin-bottom: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.wording {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.wording label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.wording textarea {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}

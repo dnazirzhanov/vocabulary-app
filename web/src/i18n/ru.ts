@@ -627,6 +627,10 @@ export const ru = {
   nothingFound: 'Ничего не нашлось.',
   reviewLower: 'повтор',
   appLanguage: 'Язык приложения',
+  wordingQuestion: 'Ошибка в переводе?',
+  wordingHint: 'Что написано неверно и как правильно?',
+  wordingSend: 'Отправить',
+  wordingThanks: 'Спасибо! Мы исправим.',
   monthNames: [
     'январь',
     'февраль',

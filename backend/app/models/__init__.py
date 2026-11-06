@@ -31,6 +31,7 @@ from app.models.user import (
     PromisePause,
     PushSubscription,
     User,
+    WordingReport,
 )
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "User",
     "UserWordProgress",
     "Word",
+    "WordingReport",
 ]

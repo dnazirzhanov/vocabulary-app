@@ -13,8 +13,9 @@ For a first class, follow `pilot.md`: these steps in order, plus what the class 
    and app password; sender name «Словарь». Without this Supabase only mails its own project team.
 5. Authentication → Sign In / Providers → Email: **«Confirm email» on**, minimum password length 8.
 6. Authentication → Email Templates: the app asks for a **code**, so use `{{ .Token }}` and no link.
-   - «Confirm signup», subject «Код для входа в Словарь»: `<p>Ваш код: <b>{{ .Token }}</b></p>`
-   - «Reset password», subject «Код для нового пароля»: `<p>Ваш код: <b>{{ .Token }}</b></p><p>Если это были не вы, просто удалите письмо.</p>`
+   The same mail goes to everyone, whatever their language (ADR 0055), so it is only the code.
+   - «Confirm signup», subject `Slovar: {{ .Token }}`: `<p style="font-size:28px"><b>{{ .Token }}</b></p>`
+   - «Reset password», subject `Slovar: {{ .Token }}`: `<p style="font-size:28px"><b>{{ .Token }}</b></p>`
 7. Authentication → Rate Limits: **a school shares one IP**, and the defaults stop a class. Raise
    sign-ups and sign-ins, token verifications and token refreshes per IP, and emails per hour (custom
    SMTP starts at 30). Check the numbers against a real class before relying on them; Gmail's own

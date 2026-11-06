@@ -29,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.locale import DEFAULT, Texts, texts_for
 from app.core.logging import logger
 from app.models import DeckAssignment, Group, GroupMember, PushSubscription, User
 from app.services import decks, pace
@@ -54,36 +55,6 @@ class Reminder:
     body: str
 
 
-def _words(n: int) -> str:
-    last, tens = n % 10, n % 100
-    form = (
-        "слово"
-        if last == 1 and tens != 11
-        else "слова"
-        if 2 <= last <= 4 and not 12 <= tens <= 14
-        else "слов"
-    )
-    return f"{n} {form}"
-
-
-def _day(day: date) -> str:
-    months = [
-        "января",
-        "февраля",
-        "марта",
-        "апреля",
-        "мая",
-        "июня",
-        "июля",
-        "августа",
-        "сентября",
-        "октября",
-        "ноября",
-        "декабря",
-    ]
-    return f"{day.day} {months[day.month - 1]}"
-
-
 def _words_due(
     db: Session, user: User, now: datetime, zone: ZoneInfo
 ) -> list[tuple[str, int, date]]:
@@ -101,14 +72,14 @@ def _words_due(
     return due
 
 
-def _words_line(due: list[tuple[str, int, date]], today: date) -> str:
+def _words_line(texts: Texts, due: list[tuple[str, int, date]], today: date) -> str:
     if len(due) == 1:
         title, count, due_on = due[0]
         if due_on == today:
-            return f"Осталось {_words(count)} в «{title}»."
-        return f"Сегодня {_words(count)} по «{title}», чтобы успеть к {_day(due_on)}."
-    titles = ", ".join(f"«{title}»" for title, _, _ in due)
-    return f"Сегодня {_words(sum(count for _, count, _ in due))}: {titles}."
+            return texts.left_in_deck(texts.words(count), title)
+        return texts.today_for_deadline(texts.words(count), title, texts.day(due_on))
+    titles = ", ".join(texts.quoted(title) for title, _, _ in due)
+    return texts.today_in_decks(texts.words(sum(count for _, count, _ in due)), titles)
 
 
 def _memberships(db: Session, user: User) -> list[tuple[Group, GroupMember]]:
@@ -121,7 +92,9 @@ def _memberships(db: Session, user: User) -> list[tuple[Group, GroupMember]]:
     return [(group, member) for group, member in rows]
 
 
-def _group_report(db: Session, group: Group, now: datetime, my_yesterday: date) -> str | None:
+def _group_report(
+    db: Session, texts: Texts, group: Group, now: datetime, my_yesterday: date
+) -> str | None:
     """The group's last finished day, in the group's own zone (ADR 0039): a count, or None when
     nobody had promised it. Named by date if that isn't this reader's yesterday."""
     zone = ZoneInfo(group.time_zone)
@@ -143,11 +116,14 @@ def _group_report(db: Session, group: Group, now: datetime, my_yesterday: date) 
     if not counted:
         return None
     done = sum(today_state(promises[user.id], studied[user.id], day) == "done" for user in counted)
-    when = "Вчера" if day == my_yesterday else _day(day).capitalize()
-    return f"{when} в «{group.name}»: {done} из {len(counted)} сдержали обещание."
+    if day == my_yesterday:
+        return texts.report_yesterday(group.name, done, len(counted))
+    return texts.report_on(texts.day(day), group.name, done, len(counted))
 
 
-def _deadline_reports(db: Session, user: User, now: datetime, today: date) -> list[str]:
+def _deadline_reports(
+    db: Session, texts: Texts, user: User, now: datetime, today: date
+) -> list[str]:
     """Decks due today, and where the learner stands: their own words, nobody else's (ADR 0054)."""
     lines: list[str] = []
     for group, me in _memberships(db, user):
@@ -169,12 +145,14 @@ def _deadline_reports(db: Session, user: User, now: datetime, today: date) -> li
         ):
             if given.due_on != today:
                 continue
-            line = f"Сегодня срок «{given.title}»"
-            if not given.is_mine and given.my_standing is not None:
-                behind = given.my_standing.behind
-                line += ": вы готовы" if behind == 0 else f": осталось {_words(behind)}"
-            line += "."
-            lines.append(line)
+            if given.is_mine or given.my_standing is None:
+                lines.append(texts.deadline_today(given.title))
+            elif given.my_standing.behind == 0:
+                lines.append(texts.deadline_ready(given.title))
+            else:
+                lines.append(
+                    texts.deadline_left(given.title, texts.words(given.my_standing.behind))
+                )
     return lines
 
 
@@ -185,9 +163,10 @@ def _state_today(db: Session, user: User, now: datetime, zone: ZoneInfo, today: 
 
 def morning_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Reminder | None:
     """One notification with what the learner chose, or None with nothing to say."""
+    texts = texts_for(user.ui_language)
     today = local_date(now, zone)
     promised = user.notify_morning and _state_today(db, user, now, zone, today) == "pending"
-    deadlines = _deadline_reports(db, user, now, today) if user.notify_deadline else []
+    deadlines = _deadline_reports(db, texts, user, now, today) if user.notify_deadline else []
     words = (
         [item for item in _words_due(db, user, now, zone) if item[2] != today]
         if user.notify_deadline
@@ -197,20 +176,20 @@ def morning_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> R
         [
             line
             for group, _ in _memberships(db, user)[:1]
-            if (line := _group_report(db, group, now, today - timedelta(days=1)))
+            if (line := _group_report(db, texts, group, now, today - timedelta(days=1)))
         ]
         if user.notify_report
         else []
     )
-    lines = [*deadlines, *([_words_line(words, today)] if words else []), *reports]
+    lines = [*deadlines, *([_words_line(texts, words, today)] if words else []), *reports]
     if promised:
-        return Reminder("Сегодня день занятий", " ".join(lines) or "Вас ждёт урок.")
+        return Reminder(texts.study_day, " ".join(lines) or texts.lesson_waits)
     if deadlines:
-        return Reminder("Срок — сегодня", " ".join(lines))
+        return Reminder(texts.deadline_title, " ".join(lines))
     if words:
-        return Reminder("Слова к уроку", " ".join(lines))
+        return Reminder(texts.words_title, " ".join(lines))
     if reports:
-        return Reminder("Отчёт группы", " ".join(lines))
+        return Reminder(texts.report_title, " ".join(lines))
     return None
 
 
@@ -218,14 +197,15 @@ def afternoon_message(db: Session, user: User, now: datetime, zone: ZoneInfo) ->
     """Only if today is still open: the promise not done yet, or words left for a deadline."""
     if not user.notify_afternoon:
         return None
+    texts = texts_for(user.ui_language)
     today = local_date(now, zone)
     words = _words_due(db, user, now, zone) if user.notify_deadline else []
-    line = _words_line(words, today) if words else None
+    line = _words_line(texts, words, today) if words else None
     if _state_today(db, user, now, zone, today) == "pending":
-        return Reminder("Сегодня ещё не занимались", line or "Ещё есть время сдержать обещание.")
+        return Reminder(texts.not_yet_title, line or texts.still_time)
     if not line:
         return None
-    return Reminder("Срок — сегодня" if words[0][2] == today else "Слова к уроку", line)
+    return Reminder(texts.deadline_title if words[0][2] == today else texts.words_title, line)
 
 
 class Sender(Protocol):
@@ -308,7 +288,13 @@ def send_reminders(
         if reminder is None:
             continue
         payload = json.dumps(
-            {"title": reminder.title, "body": reminder.body, "url": "/"}, ensure_ascii=False
+            {
+                "title": reminder.title,
+                "body": reminder.body,
+                "url": "/",
+                "lang": user.ui_language or DEFAULT,
+            },
+            ensure_ascii=False,
         )
         for subscription in waiting:
             try:

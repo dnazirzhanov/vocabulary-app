@@ -182,3 +182,15 @@ def test_no_suggestion_once_the_course_has_no_new_words(
     db.commit()
     pace = client.get("/api/me/pace", params={"deck_id": "a1-a2"}, headers=at(today)).json()
     assert pace["suggestion"] is None
+
+
+def test_bad_wording_is_reported_within_a_daily_limit(client: TestClient) -> None:
+    for _ in range(5):
+        sent = client.post("/api/me/wording-reports", json={"text": " Опечатка "})
+        assert sent.status_code == 204
+    refused = client.post("/api/me/wording-reports", json={"text": "Ещё"})
+    assert (refused.status_code, refused.json()["error"]["code"]) == (
+        429,
+        "too_many_wording_reports",
+    )
+    assert client.post("/api/me/wording-reports", json={"text": "  "}).status_code == 422

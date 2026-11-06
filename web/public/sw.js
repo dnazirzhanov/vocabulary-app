@@ -5,7 +5,8 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (event) => {
-  let message = { title: 'Словарь', body: 'Пора повторить слова.', url: '/' };
+  // The server sends the words, in the learner's language; this only guards against a bad payload.
+  let message = { title: 'Slovar', body: '', url: '/', lang: 'ru' };
   try {
     message = { ...message, ...event.data.json() };
   } catch {
@@ -16,7 +17,7 @@ self.addEventListener('push', (event) => {
       body: message.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      lang: 'ru',
+      lang: message.lang,
       // One at a time: a new one replaces the last if it is still there.
       tag: 'reminder',
       data: { url: message.url },

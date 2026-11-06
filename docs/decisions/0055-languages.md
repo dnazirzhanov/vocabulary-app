@@ -25,5 +25,9 @@ The app was Russian-only: about 900 strings in 65 files, Russian grammar in code
 - **Uzbek writes `o‘`, `g‘` and `’`** rather than `ʻ` and `ʼ`: in the app's font `ʻ` is twice as wide and splits words visibly. Typed names accept all of them.
 - **Tests look at what the compiler can't:** every argument kept, no line left in Russian, every letter from the right alphabet.
 
+- **Notifications go in the app language** through `core/locale.py`, and a Russian string elsewhere in the server fails a test.
+- **Sign-up and reset emails carry only the code,** one template for everyone. Branching a template by language can only be tested by sending real mail, and one mistake there would stop every sign-up.
+- **Bad wording can be reported** from ⚙, stored with the language, at most 5 a day, read with `app.cli wording-reports`.
+
 ## Consequences
 - Adding a line means adding it in every language, or the build fails. That is the point.
