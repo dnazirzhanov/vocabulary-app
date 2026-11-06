@@ -39,9 +39,10 @@ type Screen =
   | { name: 'course' }
   // A deck's page (ADR 0020); `from`: where «Назад» leads.
   | { name: 'deck-page'; deckId: string; from: 'home' | 'course' | 'progress' }
-  | { name: 'words'; deckId: string; title: string; from: 'home' | 'course' | 'progress' }
-  // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there.
-  | { name: 'deck'; deckId: string; groupId: string | null }
+  | { name: 'words'; deckId: string; title: string; mine: boolean; from: 'home' | 'course' | 'progress' }
+  // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there;
+  // `from`: opened from the deck's words (ADR 0051), which «Назад» returns to.
+  | { name: 'deck'; deckId: string; groupId: string | null; from?: 'home' | 'course' | 'progress' }
   | { name: 'join'; code: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
@@ -341,14 +342,16 @@ function Learning({ email }: { email: string | null }) {
       );
     }
     if (screen.name === 'deck') {
-      const { groupId } = screen;
+      const { deckId, groupId, from } = screen;
+      const leaveEditor = (): Screen => (groupId ? { name: 'board', groupId } : { name: 'home' });
       return (
         <DeckEditor
-          key={screen.deckId}
-          deckId={screen.deckId}
-          backLabel={groupId ? 'К группе' : 'Мои колоды'}
-          onDone={() => setScreen(groupId ? { name: 'board', groupId } : { name: 'home' })}
-          onStudy={(session) => startSession(session, screen.deckId)}
+          key={deckId}
+          deckId={deckId}
+          backLabel={from ? 'Слова колоды' : groupId ? 'К группе' : 'Мои колоды'}
+          onDone={(title) => setScreen(from ? { name: 'words', deckId, title, mine: true, from } : leaveEditor())}
+          onDeleted={() => setScreen(leaveEditor())}
+          onStudy={(session) => startSession(session, deckId)}
           onOpenDeck={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
         />
       );
@@ -368,14 +371,20 @@ function Learning({ email }: { email: string | null }) {
           backLabel={from === 'course' ? 'Курс' : from === 'progress' ? 'Прогресс' : 'Мои колоды'}
           onBack={() => setScreen(backTo(from))}
           onSession={startSession}
-          onWords={(id, title) => setScreen({ name: 'words', deckId: id, title, from })}
-          onEdit={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
+          onWords={(id, title, mine) => setScreen({ name: 'words', deckId: id, title, mine, from })}
         />
       );
     }
     if (screen.name === 'words') {
       const { deckId, from } = screen;
-      return <WordsScreen deckId={deckId} deckTitle={screen.title} onBack={() => openPage(deckId, from)} />;
+      return (
+        <WordsScreen
+          deckId={deckId}
+          deckTitle={screen.title}
+          onBack={() => openPage(deckId, from)}
+          onEdit={screen.mine ? () => setScreen({ name: 'deck', deckId, groupId: null, from }) : undefined}
+        />
+      );
     }
     return (
       <HomeScreen

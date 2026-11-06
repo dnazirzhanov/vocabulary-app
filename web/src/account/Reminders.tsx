@@ -122,33 +122,3 @@ export function Reminders() {
     </section>
   );
 }
-
-/** On a deck with a deadline: the offer to be reminded, while it is not on. */
-export function RemindMe() {
-  const [state, setState] = usePushState();
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-  if (done) return <p className={styles.remindNote}>Напомним в 17:00, если на сегодня останутся слова.</p>;
-  if (state !== 'off') return null;
-  return (
-    <button
-      type="button"
-      className={styles.remindButton}
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const next = await enablePush();
-          setState(next);
-          setDone(next === 'on');
-        } catch {
-          setState('off');
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      Напомнить в 17:00
-    </button>
-  );
-}

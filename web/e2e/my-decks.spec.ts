@@ -1,4 +1,4 @@
-import { button, DEMO, expect, finishSession, test } from './learner.ts';
+import { button, DEMO, expect, finishSession, openDeck, test } from './learner.ts';
 
 // «Мои колоды» (ADR 0019): a deck of one's own from «Сегодня», cards made from words with AI
 // (demo provider here), studied by opening the deck.
@@ -59,6 +59,44 @@ test('a deck given to a group is in its members’ «Мои колоды»', asy
   // The author finds it among her own, with the group it went to.
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Созданные мной' })).toContainText('в группе 7Б английский');
+});
+
+// One way in (ADR 0051): a deck's words, and from there its editor, and back.
+test('my deck is edited from its words; a course deck has no such button', async ({ page, context }) => {
+  const deck = await (await context.request.post('/api/decks', { data: { title: 'Путешествия' } })).json();
+  await context.request.post(`/api/decks/${deck.id}/words`, {
+    data: { headword: 'luggage', pos: 'noun', translation: 'багаж', example: 'My luggage is heavy.' },
+  });
+  const allWords = page.getByRole('button', { name: /^Все слова колоды/ });
+  const edit = button(page, 'Изменить колоду');
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Путешествия/ }).click();
+  await expect(allWords).toBeVisible();
+  await expect(edit).toHaveCount(0);
+  await allWords.click();
+  await edit.click();
+
+  // Renamed in the editor: back on the words, the new name shows.
+  const name = page.getByRole('textbox', { name: 'Название колоды' });
+  await name.fill('Поездки');
+  await name.blur();
+  await expect(page.getByRole('heading', { level: 1, name: 'Поездки' })).toBeAttached();
+  await button(page, 'Слова колоды').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Слова колоды' })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Поездки');
+  await expect(page.locator('main')).toContainText('luggage');
+
+  // Deleted from there: home, not the words of a deck that is gone.
+  await edit.click();
+  await button(page, 'Удалить колоду').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Удалить колоду' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+
+  await openDeck(page);
+  await allWords.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Слова колоды' })).toBeVisible();
+  await expect(edit).toHaveCount(0);
 });
 
 // A topic becomes cards (ADR 0019): the fourth way in the composer, demo provider here.
