@@ -58,7 +58,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   // The week of dots, under its label, says the promise; no weeks-in-a-row figure.
   await expect(window.getByRole('region', { name: 'Обещанные дни' })).toBeVisible();
   await expect(window).not.toContainText(/недел/i);
-  await expect(window).toContainText('знаю 0 · учу 5');
+  await expect(window).toContainText('учу 5');
   await page.keyboard.press('Escape');
 
   // A friend (a different learner) opens the link.

@@ -54,3 +54,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0049](0049-give-to-a-group-as-a-list.md) | Giving a deck to a group: one list of my groups, each with one action, and the deadline as a line of text that opens the picker | Accepted |
 | [0050](0050-another-spelling-mode-while-one-waits.md) | A spelling left unfinished no longer hides the other modes: «Продолжить» resumes it, and choosing another set replaces it, keeping what was spelled | Accepted |
 | [0051](0051-one-words-button-no-deadline-sentence.md) | A quieter deck page: one button for a deck's words, its editor reached from there; no sentence about a deadline, and with it no «Напомнить в 17:00» | Accepted |
+| [0052](0052-friends-words-as-on-progress.md) | A friend's words on the group's page as on «Прогресс»: words met of the total, the two-tone bar and «знаю · учу · впереди», each friend a card; one component for both | Accepted |

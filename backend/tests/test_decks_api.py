@@ -473,3 +473,40 @@ def test_a_group_owner_who_did_not_write_the_deck_can_remove_it(client: TestClie
     url = f"/api/groups/{group['id']}/decks/{deck['id']}"
     assert client.delete(url, headers=as_("olga")).status_code == 403  # no longer the owner
     assert client.delete(url, headers=as_("pavel")).status_code == 204
+
+
+def test_a_friends_words_in_a_deck_are_the_numbers_on_their_progress_page(
+    client: TestClient,
+) -> None:
+    """ADR 0052: the group's page and «Прогресс» must never disagree about a learner's deck."""
+    group = class_group(client)
+    deck = give(client, write_deck(client, group["id"], [SETBACK, CARRY_OUT]), group["id"])
+
+    def both(moment: datetime) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+        headers = as_("olga") | at(moment)
+        board = client.get(f"/api/groups/{group['id']}/board", headers=headers).json()
+        me = next(row for row in board["rows"] if row["is_me"])
+        row = next(d for d in me["decks"] if d["deck_id"] == deck["id"])
+        progress = client.get("/api/progress/decks", headers=headers).json()
+        mine = next(d for d in progress["decks"] if d["id"] == deck["id"])
+        return (
+            (row["met"], row["learned"], row["word_count"]),
+            (mine["met"], mine["learned"], mine["word_count"]),
+        )
+
+    learn(client, "olga", deck)
+    on_board, on_progress = both(THURSDAY)
+    assert on_board == on_progress
+    met, learned, _ = on_board
+    assert met > 0 and learned == 0  # met, so not «0» on the group's page
+
+    later = THURSDAY + timedelta(days=14)
+    headers = as_("olga") | at(later)
+    response = client.post("/api/sessions", json=lesson_of(deck), headers=headers)
+    assert response.status_code == 200, response.text
+    review = response.json()
+    finish(client, review, headers)
+    client.post(f"/api/sessions/{review['id']}/complete", headers=headers)
+    on_board, on_progress = both(later)
+    assert on_board == on_progress
+    assert on_board[1] > 0

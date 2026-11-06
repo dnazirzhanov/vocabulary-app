@@ -1,10 +1,8 @@
-import { deckStages } from '../lib/deckStages.ts';
 import type { DeckProgress, Knowledge as KnowledgeData, Progress } from '../lib/types.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
 import { WeekDays } from './Consistency.tsx';
+import { WordCount, WordStages } from './WordStages.tsx';
 import styles from './Knowledge.module.css';
-
-const width = (part: number, whole: number) => `${whole ? Math.min(100, (part / whole) * 100) : 0}%`;
 
 /**
  * The answer at a glance (ADR 0034): how many words I know — recalled a day or more after meeting
@@ -66,22 +64,14 @@ export function Decks({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (
 }
 
 function DeckCard({ deck, onOpen }: { deck: DeckProgress; onOpen: () => void }) {
-  const stages = deckStages(deck);
   return (
     <li>
       <button type="button" className={styles.card} onClick={onOpen}>
         <span className={styles.cardHead}>
           <strong className={styles.cardTitle}>{deck.title}</strong>
-          <span className={styles.count}>
-            {deck.met}&nbsp;/&nbsp;{deck.word_count}
-          </span>
+          <WordCount met={deck.met} total={deck.word_count} />
         </span>
-        {/* Two tones: words I know (strong) inside words met (light); the line below names them. */}
-        <span className={styles.bar} role="img" aria-label={stages}>
-          <span data-tone="met" style={{ width: width(deck.met, deck.word_count) }} />
-          <span data-tone="learned" style={{ width: width(deck.learned, deck.word_count) }} />
-        </span>
-        <span className={styles.stages}>{stages}</span>
+        <WordStages met={deck.met} learned={deck.learned} total={deck.word_count} />
         <ForwardIcon className={styles.chevron} aria-hidden="true" />
       </button>
     </li>

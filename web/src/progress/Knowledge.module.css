@@ -74,12 +74,6 @@
   box-shadow: inset 0 0 0 1px var(--color-option-edge-hover);
 }
 
-.cardHead,
-.bar,
-.stages {
-  grid-column: 1;
-}
-
 .cardHead {
   display: flex;
   align-items: baseline;
@@ -93,44 +87,9 @@
   overflow-wrap: anywhere;
 }
 
-.count {
-  color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.bar {
-  position: relative;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 5px;
-  background: var(--color-activity-none);
-}
-
-.bar span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  transition: width var(--duration-progress) var(--ease-out);
-}
-
-[data-tone='met'] {
-  background: var(--color-activity-some);
-}
-
-[data-tone='learned'] {
-  background: var(--color-activity-goal);
-}
-
-.stages {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
 .chevron {
   grid-column: 2;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 2;
   width: 20px;
   height: 20px;
   color: var(--color-text-muted);
