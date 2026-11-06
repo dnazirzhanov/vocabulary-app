@@ -169,3 +169,8 @@
     height: clamp(320px, 60dvh, 520px);
   }
 }
+
+.language {
+  display: flex;
+  justify-content: flex-end;
+}

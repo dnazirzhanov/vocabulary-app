@@ -18,8 +18,6 @@ import shared from './Groups.module.css';
 import styles from './Group.module.css';
 import { t } from '../i18n/index.ts';
 
-const number = new Intl.NumberFormat('ru');
-
 interface GroupScreenProps {
   groupId: string;
   /** Open the invitation straight away: the group has just been created. */
@@ -296,7 +294,7 @@ function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void;
         <DayDots states={row.week_states} />
       </section>
       <p className={styles.missed}>
-        {t.daysMissedThisMonth} <strong>{number.format(row.month_misses)}</strong>
+        {t.daysMissedThisMonth} <strong>{row.month_misses}</strong>
       </p>
       <section aria-labelledby="words-title" className={styles.wordsBlock}>
         <h3 id="words-title" className={styles.blockTitle}>

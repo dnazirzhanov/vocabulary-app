@@ -37,6 +37,8 @@ class User(Base):
     # The learner's IANA zone as last sent by the browser: group boards count each member's days
     # in the member's own zone.
     time_zone: Mapped[str | None] = mapped_column(String(64))
+    # The app's language, for its text and notifications (ADR 0055); null until it has one.
+    ui_language: Mapped[str | None] = mapped_column(String(2))
     # Which notifications the learner wants (ADR 0042).
     notify_morning: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     notify_afternoon: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))

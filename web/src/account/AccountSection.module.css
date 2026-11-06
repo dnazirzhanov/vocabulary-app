@@ -153,3 +153,7 @@
 .choices .toggle span {
   font-weight: var(--weight-body);
 }
+
+.language {
+  margin-bottom: var(--space-4);
+}

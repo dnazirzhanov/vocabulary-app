@@ -17,6 +17,7 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,
+        ui_language=user.ui_language,
         notify_morning=user.notify_morning,
         notify_afternoon=user.notify_afternoon,
         notify_report=user.notify_report,

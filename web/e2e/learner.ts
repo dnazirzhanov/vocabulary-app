@@ -9,6 +9,9 @@ const learnerId = new WeakMap<BrowserContext, string>();
 /** Drafting decks uses the demo, never a real model, even when the dev server holds a key. */
 export const DEMO = { 'X-Dev-Generation': 'demo' };
 
+/** Who this learner is, for the same person on a second device. */
+export const learnerHeaders = (context: BrowserContext) => ({ 'X-Dev-User': learnerId.get(context)!, ...DEMO });
+
 /** Every test is a brand-new learner, so tests never share progress and can run in parallel. */
 export const test = base.extend<{ learner: Learner; onboarded: boolean }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.

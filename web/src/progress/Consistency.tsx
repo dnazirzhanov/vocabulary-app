@@ -1,3 +1,4 @@
+import { dueLabel } from '../lib/deadline.ts';
 import { useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
 import { promiseText, weekdaysOf } from '../lib/promise.ts';
@@ -10,13 +11,12 @@ import { t } from '../i18n/index.ts';
 
 const WEEKDAYS = t.weekdays;
 const LEVEL_NAME: Record<Level, string> = { 0: t.noStudy, 1: t.startedNotFinished, 2: t.dayCounted };
-const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
-const describe = (cell: Cell) => `${dayName.format(Date.parse(`${cell.date}T00:00:00Z`))}: ${LEVEL_NAME[cell.level]}`;
+const describe = (cell: Cell) => `${dueLabel(cell.date)}: ${LEVEL_NAME[cell.level]}`;
 
 /** One day of the heatmap in words: its date, cards answered, and whether it counts. */
 const dayLine = (cell: Cell) => {
-  const date = dayName.format(Date.parse(`${cell.date}T00:00:00Z`));
+  const date = dueLabel(cell.date);
   if (cell.cards === 0) return t.noStudyOn(date);
   return t.dayCards(date, cell.cards, cell.level === 2);
 };
