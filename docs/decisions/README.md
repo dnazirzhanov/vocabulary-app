@@ -29,7 +29,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0023](0023-friends-groups-first.md) | «Друзья»: groups first; a group's statistics over a week, month or all time | Accepted (ranking refined by 0027) |
 | [0024](0024-celebrations-and-reward-sounds.md) | Finish screens celebrate with confetti and a chord; a chime for each word spelled right; sounds can be turned off | Accepted |
 | [0025](0025-anki-days-and-ordered-intervals.md) | Scheduling days start at 4 AM; reviews due from the start of their day; Hard < Good < Easy, a day apart | Accepted |
-| [0026](0026-spelling-ladder-and-modes.md) | Spelling: a ladder per word (hard → 3 → 7 days → «умеет писать»), ten words at a time, modes today / hard / random | Accepted |
+| [0026](0026-spelling-ladder-and-modes.md) | Spelling: a ladder per word (hard → 3 → 7 days → «умеет писать»), ten words at a time, modes today / hard / random | Accepted; sets drawn from one deck by 0056 |
 | [0027](0027-no-plan-rank-by-words-learned.md) | No «план»: a day counts with any finished session; friends rank by words learned (ties: days, weeks in a row) | Accepted |
 | [0028](0028-pace-per-deck-and-deadlines.md) | New words a day per deck, changed in place; extra words for today; a teacher's «Выучить к» spread evenly, done a day early | Accepted |
 | [0029](0029-decks-from-photos.md) | Decks from photos read in the browser (Tesseract): 4 per draft, 8 per deck; 1–50 words a draft | Accepted |
@@ -58,3 +58,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0053](0053-test-results-as-one-card-a-group.md) | A test's results as one card a group: a row a person with a small score bar, names of those yet to take it in a run, a neutral ring for «Не сдали»; never ranked | Accepted |
 | [0054](0054-no-readiness-for-class.md) | Nobody is told who keeps up with a deadline: «К уроку», «отстаёте на N» and «Готовы N из M» go, and the server stops sending them; a learner's own line in the deadline day's notification stays | Accepted |
 | [0055](0055-languages.md) | Learn English in your own language: separate translation and app languages, the translation language chosen where cards are made, the course stays Russian-only, every line typed against the Russian one | Accepted |
+| [0056](0056-spelling-per-deck.md) | Each deck's spelling is its own words: a session names its deck, counts and an unfinished spelling are the deck's, one ladder per word | Accepted |

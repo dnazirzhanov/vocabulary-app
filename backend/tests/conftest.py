@@ -104,7 +104,7 @@ def play(client: TestClient) -> Play:
             f"/api/sessions/{session['id']}/complete", headers=headers
         ).json()
         if spell and start.get("kind") == "study":
-            spell_today(client, headers, spellings)
+            spell_today(client, headers, start["deck_id"], spellings)
         return summary
 
     return run

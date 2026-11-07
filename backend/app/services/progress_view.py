@@ -79,22 +79,25 @@ def course_progress(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
         activity=[_day_out(day) for _, day in sorted(days.items())],
         promised_week=promised_week(promise, today),
         recall=RecallRate(recalled=recalled, reviewed=reviewed, days=RECALL_RATE_DAYS),
-        spelling_today=spelling_today(db, user, now, time_zone),
     )
 
 
-def spelling_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> SpellingTodayOut:
-    """Where the learner's spelling stands (ADR 0026): the main button's words, today's words
-    still to spell, and the ladder's hard and known words."""
-    seen = spelling_ladder.overview(spelling_ladder.load(db, user, now, time_zone), now)
-    return SpellingTodayOut(**asdict(seen), paused=_paused_spelling(db, user))
+def spelling_today(
+    db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo
+) -> SpellingTodayOut:
+    """Where the learner's spelling in one deck stands (ADR 0026, 0056): the main button's words,
+    today's words still to spell, and the ladder's hard and known words."""
+    words = spelling_ladder.load(db, user, deck_id, now, time_zone)
+    seen = spelling_ladder.overview(words, now)
+    return SpellingTodayOut(**asdict(seen), paused=_paused_spelling(db, user, deck_id))
 
 
-def _paused_spelling(db: Session, user: User) -> SpellingPausedOut | None:
-    """An unfinished spelling session: how far it got (ADR 0026)."""
+def _paused_spelling(db: Session, user: User, deck_id: str) -> SpellingPausedOut | None:
+    """The deck's unfinished spelling session: how far it got (ADR 0026, 0056)."""
     session = db.scalar(
         select(LearningSession).where(
             LearningSession.user_id == user.id,
+            LearningSession.deck_id == deck_id,
             LearningSession.kind == "spelling",
             LearningSession.completed_at.is_(None),
             LearningSession.set_aside_at.is_(None),

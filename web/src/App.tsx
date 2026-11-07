@@ -232,7 +232,7 @@ function Learning({ email }: { email: string | null }) {
             else throw error;
           }
         }}
-        onSpelling={async () => showSession(await api.startSpellingSession())}
+        onSpelling={async () => showSession(await api.startSpellingSession(summary.deck_id))}
         onHome={leave}
       />
     );

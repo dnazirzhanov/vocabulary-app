@@ -196,7 +196,7 @@ def test_a_decks_page_shows_my_progress_on_it(client: TestClient) -> None:
     stats = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("pavel")).json()
     # All three met: nothing new left in it, though today's pace has room for two more.
     assert (stats["introduced_count"], stats["well_learned"], stats["new_today"]) == (3, 0, 0)
-    # Spelling covers today's words, whichever deck they came from.
+    # Its spelling is its own words (ADR 0056).
     assert (stats["spelling_today"]["ready"], stats["spelling_today"]["today_left"]) == (3, 3)
     assert client.get(f"/api/decks/{deck['id']}/stats", headers=as_("olga")).json()["is_mine"]
     stranger = client.get(f"/api/decks/{deck['id']}/stats", headers=as_("stranger"))
@@ -213,7 +213,9 @@ def test_a_phrase_is_spelled_with_its_gaps(client: TestClient) -> None:
     give(client, write_deck(client, group["id"], [CARRY_OUT]), group["id"])
     deck = client.get("/api/decks/library", headers=as_("pavel")).json()["from_groups"][0]
     learn(client, "pavel", deck)
-    session = client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel")).json()
+    session = client.post(
+        "/api/sessions", json={"kind": "spelling", "deck_id": deck["id"]}, headers=as_("pavel")
+    ).json()
     card = session["exercises"][0]
     assert card["prompt"]["translation"] == "проводить, выполнять"
     assert card["slots"] == 8

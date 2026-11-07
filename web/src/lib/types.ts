@@ -146,8 +146,9 @@ export interface Summary {
   new_words: number;
   reviewed_words: number;
   ratings: { again: number; hard: number; good: number; easy: number };
-  /** Where spelling stands now: the summary's next step (ADR 0026). */
-  spelling_today: SpellingState;
+  /** Where the deck's spelling stands now: the summary's next step (ADR 0026, 0056); null when
+   * the deck was deleted. */
+  spelling_today: SpellingState | null;
   /** A spelling session's result (ADR 0016), or null for other sessions. */
   spelling: { words: number; first_try: number; needs_practice: number } | null;
 }
@@ -176,8 +177,6 @@ export interface Progress {
   promised_week: boolean[];
   /** Delayed recall in scheduled reviews over `days` days */
   recall: { recalled: number; reviewed: number; days: number };
-  /** Where my spelling stands (ADR 0026). */
-  spelling_today: SpellingState;
 }
 
 // Mirrors backend/app/schemas/me.py.

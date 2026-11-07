@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.decks import get_provider
-from app.models import UserWordProgress
+from app.models import DeckWord, UserWordProgress
 from app.services.generation import DraftCard
 from tests.support import at, cards, finish
 
@@ -182,7 +182,9 @@ def test_deleting_a_deck_takes_its_cards_and_their_progress(
     ).json()
     finish(client, session, as_("pavel"))
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_("pavel"))
-    client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel"))
+    client.post(
+        "/api/sessions", json={"kind": "spelling", "deck_id": deck["id"]}, headers=as_("pavel")
+    )
 
     # Only its author deletes it.
     for user in ("pavel", "stranger"):
@@ -199,7 +201,13 @@ def test_deleting_a_deck_takes_its_cards_and_their_progress(
     assert progress_on(db, ["money"]) == ["money"]
     # The unfinished spelling that showed its card is gone too; the next one starts cleanly.
     assert client.get("/api/sessions/active", headers=as_("pavel")).json()["session"] is None
-    spelling = client.post("/api/sessions", json={"kind": "spelling"}, headers=as_("pavel")).json()
+    gone = {"kind": "spelling", "deck_id": deck["id"]}
+    assert client.post("/api/sessions", json=gone, headers=as_("pavel")).status_code == 404
+    # Money is still Pavel's, spelled from the course level it belongs to.
+    level = db.scalar(select(DeckWord.deck_id).where(DeckWord.word_id == "money"))
+    spelling = client.post(
+        "/api/sessions", json={"kind": "spelling", "deck_id": level}, headers=as_("pavel")
+    ).json()
     assert spelling["kind"] == "spelling" and len(spelling["exercises"]) == 1  # money
     assert client.delete(f"/api/decks/{deck['id']}", headers=as_("olga")).status_code == 404
 

@@ -78,13 +78,17 @@ def headword_of(session_id: str, exercise_id: str) -> str:
 def spell_today(
     client: TestClient,
     headers: dict[str, str],
+    deck_id: str,
     spellings: Spellings | None = None,
     start: Mapping[str, object] | None = None,
 ) -> dict[str, Any] | None:
-    """Runs a spelling session (ADR 0016), the main button's words unless `start` asks for
-    another set (ADR 0026); returns the summary, or None when there is nothing to spell."""
+    """Runs a spelling session of the deck (ADR 0016, 0056), the main button's words unless
+    `start` asks for another set (ADR 0026); returns the summary, or None when there is nothing
+    to spell."""
     started = client.post(
-        "/api/sessions", json=dict(start or {"kind": "spelling"}), headers=headers
+        "/api/sessions",
+        json={"kind": "spelling", **(start or {}), "deck_id": deck_id},
+        headers=headers,
     )
     if started.status_code == 409:
         return None

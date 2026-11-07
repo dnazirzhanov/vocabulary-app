@@ -82,7 +82,7 @@ class DeckStatsOut(BaseModel):
     new_today: int
     next_due_at: datetime | None
     locked: bool
-    # Today's spelling covers words learned today from any deck.
+    # Spelling of this deck's words only (ADR 0056).
     spelling_today: "SpellingTodayOut"
 
 
@@ -209,10 +209,12 @@ class StartHardSession(_Input):
 
 
 class StartSpellingSession(_Input):
-    """Spelling cards (ADR 0016) for one set of words, at most `size` (ADR 0026): `mix` (due hard
-    words, then today's and other words never spelled), `today`, `hard` or `random`."""
+    """Spelling cards (ADR 0016) for one set of a deck's words (ADR 0056), at most `size`
+    (ADR 0026): `mix` (due hard words, then today's and other words never spelled), `today`,
+    `hard` or `random`."""
 
     kind: Literal["spelling"]
+    deck_id: Annotated[str, StringConstraints(max_length=64)]
     mode: Literal["mix", "today", "hard", "random"] = "mix"
     size: Literal[5, 10, 20, 30] = 10
 
@@ -264,8 +266,9 @@ class SummaryOut(BaseModel):
     new_words: int
     reviewed_words: int
     ratings: RatingCounts
-    # Where spelling stands once this session is done (ADR 0026): the summary's next step.
-    spelling_today: "SpellingTodayOut"
+    # Where the deck's spelling stands once this session is done (ADR 0026, 0056): the summary's
+    # next step; null when the deck was deleted.
+    spelling_today: "SpellingTodayOut | None"
     spelling: "SpellingSummaryOut | None" = None
 
 
@@ -357,7 +360,6 @@ class ProgressOut(BaseModel):
     # This week's promise: Monday … Sunday, true on the days promised (ADR 0039).
     promised_week: list[bool]
     recall: RecallRate
-    spelling_today: "SpellingTodayOut"
 
 
 class SpellingTodayOut(BaseModel):
