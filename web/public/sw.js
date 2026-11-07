@@ -5,6 +5,8 @@ const VERSION = 'dev';
 const SHELL = [];
 
 const SHELL_CACHE = `shell-${VERSION}`;
+// A kept file is the same file whatever the request said: some servers add `Vary: Origin`, which
+// would otherwise keep a navigation from matching the page kept at install.
 const AUDIO_CACHE = 'audio-1';
 
 self.addEventListener('install', (event) => {
@@ -40,14 +42,14 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     // The newest app when online; without a connection, the one kept at install.
-    event.respondWith(fetch(request).catch(() => caches.match('/', { cacheName: SHELL_CACHE })));
+    event.respondWith(fetch(request).catch(() => caches.match('/', { cacheName: SHELL_CACHE, ignoreVary: true })));
     return;
   }
   if (url.pathname.startsWith('/audio/')) {
     // Recorded pronunciation: kept once heard, so it plays again offline.
     event.respondWith(
       caches.open(AUDIO_CACHE).then((cache) =>
-        cache.match(request).then(
+        cache.match(request, { ignoreVary: true }).then(
           (kept) =>
             kept ??
             fetch(request).then((response) => {
@@ -60,7 +62,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   // Built files never change under their name: the kept copy, else the network.
-  event.respondWith(caches.match(request, { cacheName: SHELL_CACHE }).then((kept) => kept ?? fetch(request)));
+  event.respondWith(
+    caches.match(request, { cacheName: SHELL_CACHE, ignoreVary: true }).then((kept) => kept ?? fetch(request)),
+  );
 });
 
 self.addEventListener('push', (event) => {
