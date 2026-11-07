@@ -1,5 +1,5 @@
-"""API contracts for friend groups and their weekly board (ADR 0011). Members are identified by a
-nickname and a member id only: never an e-mail or a user id."""
+"""API contracts for friend groups and their weekly board (ADR 0011). Members are identified by
+their name (ADR 0057) and a member id only: never an e-mail or a user id."""
 
 from datetime import date, datetime
 from typing import Annotated, Literal
@@ -20,7 +20,6 @@ Action = Literal[
     "manage_tests",
 ]
 
-Nickname = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=20)]
 GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=40)]
 
 
@@ -28,7 +27,6 @@ class CreateGroupIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: GroupName
-    nickname: Nickname
 
 
 class RenameGroupIn(BaseModel):
@@ -43,25 +41,18 @@ class TransferIn(BaseModel):
     member_id: UUID
 
 
-class JoinGroupIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    nickname: Nickname
-
-
 class GroupOut(BaseModel):
     id: UUID
     name: str
     invite_code: str
     member_count: int
     role: Literal["owner", "member"]
-    nickname: str
     # The actions my role allows here (ADR 0040).
     can: list[Action]
 
 
 class TodayMemberOut(BaseModel):
-    nickname: str
+    name: str
     is_me: bool
     studied_today: bool
 
@@ -101,7 +92,7 @@ class MemberDeckOut(BaseModel):
 
 class BoardRow(BaseModel):
     member_id: UUID
-    nickname: str
+    name: str
     role: Literal["owner", "member"]
     is_me: bool
     # Over the period: words learned (first recalled in a later review), days studied (a session
@@ -172,7 +163,7 @@ class AssignmentOut(BaseModel):
     due_on: date | None
     # With a deadline: my own standing, for that day's notification. No screen shows it (ADR 0054).
     my_standing: StandingOut | None = None
-    # Its author's nickname in the group (None once they left), and whether that is me.
+    # Its author's name (None once they left the group), and whether that is me.
     author: str | None
     is_mine: bool
     word_count: int

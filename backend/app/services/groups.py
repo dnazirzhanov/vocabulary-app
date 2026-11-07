@@ -1,9 +1,10 @@
 """Friend groups and their board (ADR 0011, 0023).
 
 Motivation comes largely from other people, so learners can study alongside friends or a class.
-Learners may be minors, so a group shows nicknames only, has no chat, and is joined by an invite
-code. The board is the members' statistics over a week, a month or all time (ADR 0023), ranked
-by one score: words learned — recalled in a review a day or more after meeting them (ADR 0027).
+Learners may be minors, so a group shows each member's name only (ADR 0057), has no chat, and is
+joined by an invite code. The board is the members' statistics over a week, a month or all time
+(ADR 0023), ranked by one score: words learned — recalled in a review a day or more after
+meeting them (ADR 0027).
 """
 
 import re
@@ -31,6 +32,7 @@ from app.schemas.groups import (
 )
 from app.services.decks import board_assignments, member_deck_progress
 from app.services.group_rights import actions_for, require
+from app.services.names import LINK_LIKE, require_name, shown_name, squash
 from app.services.progress import local_day_bounds
 from app.services.promise import (
     load_promises,
@@ -48,35 +50,13 @@ CODE_LENGTH = 8
 MAX_GROUPS_PER_USER = 5
 MAX_MEMBERS = 50
 
-# Letters and digits of any language (ң, ө, ҷ, ʻ…), with a space, hyphen or apostrophe (O'g'il).
-_NICKNAME = re.compile(r"(?:[^\W_]|[ '‘’-]){2,20}")
-_LINK_LIKE = re.compile(r"(https?|www)", re.IGNORECASE)
-
 
 # --- input rules ----------------------------------------------------------------------------
 
 
-def _squash(text: str) -> str:
-    return " ".join(text.split())
-
-
-def clean_nickname(raw: str) -> str:
-    """Letters, digits, spaces and hyphens, 2–20 characters. Nothing that could carry contact
-    details: no links, no e-mail (the alphabet has no "@" or "."), no phone-like digit runs."""
-    nickname = _squash(raw)
-    if not _NICKNAME.fullmatch(nickname):
-        raise ApiError(422, "invalid_nickname", "Use 2–20 letters, digits, spaces or hyphens")
-    digits = sum(character.isdigit() for character in nickname)
-    if digits >= 5 or digits == len(re.sub(r"[ '‘’-]", "", nickname)):
-        raise ApiError(422, "invalid_nickname", "A nickname cannot be a number")
-    if _LINK_LIKE.search(nickname):
-        raise ApiError(422, "invalid_nickname", "A nickname cannot contain a link")
-    return nickname
-
-
 def clean_group_name(raw: str) -> str:
-    name = _squash(raw)
-    if not 2 <= len(name) <= 40 or "@" in name or _LINK_LIKE.search(name) or "<" in name:
+    name = squash(raw)
+    if not 2 <= len(name) <= 40 or "@" in name or LINK_LIKE.search(name) or "<" in name:
         raise ApiError(422, "invalid_group_name", "Use 2–40 characters, without links")
     return name
 
@@ -104,7 +84,6 @@ def _group_out(db: Session, group: Group, member: GroupMember) -> GroupOut:
         invite_code=group.invite_code,
         member_count=_member_count(db, group.id),
         role=member.role,
-        nickname=member.nickname,
         can=actions_for(member.role),
     )
 
@@ -140,9 +119,7 @@ def my_groups(db: Session, user: User, now: datetime) -> list[GroupSummaryOut]:
                 today_done=week.today_done,
                 my_today=me.promise_today,
                 members=[
-                    TodayMemberOut(
-                        nickname=row.nickname, is_me=row.is_me, studied_today=row.studied_today
-                    )
+                    TodayMemberOut(name=row.name, is_me=row.is_me, studied_today=row.studied_today)
                     for row in week.rows
                 ],
             )
@@ -176,28 +153,19 @@ def _require_room_for_another_group(db: Session, user: User) -> None:
         raise ApiError(409, "too_many_groups", f"At most {MAX_GROUPS_PER_USER} groups per learner")
 
 
-def _add_member(
-    db: Session, group: Group, user: User, nickname: str, role: str, now: datetime
-) -> GroupMember:
-    member = GroupMember(
-        group_id=group.id, user_id=user.id, nickname=nickname, role=role, joined_at=now
-    )
+def _add_member(db: Session, group: Group, user: User, role: str, now: datetime) -> GroupMember:
+    member = GroupMember(group_id=group.id, user_id=user.id, role=role, joined_at=now)
     db.add(member)
-    try:
-        db.flush()
-    except IntegrityError as exc:
-        db.rollback()
-        raise ApiError(
-            409, "nickname_taken", "Someone in this group already has that nickname"
-        ) from exc
+    db.flush()
     return member
 
 
 def create_group(
-    db: Session, user: User, name: str, nickname: str, time_zone: ZoneInfo, now: datetime
+    db: Session, user: User, name: str, time_zone: ZoneInfo, now: datetime
 ) -> GroupOut:
+    require_name(user)
     _require_room_for_another_group(db, user)
-    clean_name, clean_nick = clean_group_name(name), clean_nickname(nickname)
+    clean_name = clean_group_name(name)
     for _ in range(5):  # 32^8 codes: a collision is very unlikely, but not impossible
         group = Group(name=clean_name, invite_code=new_invite_code(), time_zone=time_zone.key)
         db.add(group)
@@ -208,12 +176,13 @@ def create_group(
             db.rollback()
     else:
         raise ApiError(503, "code_unavailable", "Could not create an invite code; try again")
-    member = _add_member(db, group, user, clean_nick, "owner", now)
+    member = _add_member(db, group, user, "owner", now)
     db.commit()
     return _group_out(db, group, member)
 
 
-def join(db: Session, user: User, code: str, nickname: str, now: datetime) -> GroupOut:
+def join(db: Session, user: User, code: str, now: datetime) -> GroupOut:
+    require_name(user)
     group = _group_by_code(db, code)
     existing = db.scalar(
         select(GroupMember).where(GroupMember.group_id == group.id, GroupMember.user_id == user.id)
@@ -223,7 +192,7 @@ def join(db: Session, user: User, code: str, nickname: str, now: datetime) -> Gr
     _require_room_for_another_group(db, user)
     if _member_count(db, group.id) >= MAX_MEMBERS:
         raise ApiError(409, "group_full", f"A group holds at most {MAX_MEMBERS} learners")
-    member = _add_member(db, group, user, clean_nickname(nickname), "member", now)
+    member = _add_member(db, group, user, "member", now)
     db.commit()
     return _group_out(db, group, member)
 
@@ -353,12 +322,10 @@ def places(rows: list[BoardRow]) -> dict[UUID, int | None]:
 
 
 def rank(rows: list[BoardRow]) -> list[BoardRow]:
-    """Every row with its place, best first; members without a place come last, by nickname."""
+    """Every row with its place, best first; members without a place come last, by name."""
     by = places(rows)
     ranked = [row.model_copy(update={"rank": by[row.member_id]}) for row in rows]
-    return sorted(
-        ranked, key=lambda row: (row.rank is None, row.rank or 0, row.nickname.casefold())
-    )
+    return sorted(ranked, key=lambda row: (row.rank is None, row.rank or 0, row.name.casefold()))
 
 
 def period_bounds(period: Period, today: date) -> tuple[date | None, date]:
@@ -460,7 +427,7 @@ def board(
         rows.append(
             BoardRow(
                 member_id=member.id,
-                nickname=member.nickname,
+                name=shown_name(member_user),
                 role=member.role,
                 is_me=member.id == me.id,
                 learned=learned[member_user.id],
@@ -492,7 +459,7 @@ def board(
     places_by = places(rows)
     rows = [row.model_copy(update={"rank": places_by[row.member_id]}) for row in rows]
     # Me first, then alphabetical: the report is a list of friends, never an order of merit.
-    rows.sort(key=lambda row: (not row.is_me, row.nickname.casefold()))
+    rows.sort(key=lambda row: (not row.is_me, row.name.casefold()))
     return BoardOut(
         group=_group_out(db, group, me),
         today=today,

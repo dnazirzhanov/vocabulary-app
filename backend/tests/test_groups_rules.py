@@ -10,21 +10,26 @@ from app.schemas.groups import BoardRow
 from app.services.groups import (
     CODE_ALPHABET,
     clean_group_name,
-    clean_nickname,
     new_invite_code,
     normalize_code,
     period_bounds,
     rank,
 )
+from app.services.names import clean_name
 from app.services.study_days import week_of
 
 
 @pytest.mark.parametrize(
     ("raw", "clean"),
-    [("Быстрый Барсук", "Быстрый Барсук"), ("  Ёжик   7 ", "Ёжик 7"), ("Max-2", "Max-2")],
+    [
+        ("Быстрый Барсук", "Быстрый Барсук"),
+        ("  Ёжик   7 ", "Ёжик 7"),
+        ("Max-2", "Max-2"),
+        ("Анна К.", "Анна К."),
+    ],
 )
-def test_nicknames_are_tidied(raw: str, clean: str) -> None:
-    assert clean_nickname(raw) == clean
+def test_names_are_tidied(raw: str, clean: str) -> None:
+    assert clean_name(raw) == clean
 
 
 @pytest.mark.parametrize(
@@ -32,7 +37,9 @@ def test_nicknames_are_tidied(raw: str, clean: str) -> None:
     [
         "a",  # too short
         "x" * 21,
-        "ivan@mail.ru",  # contact details: no "@" or "."
+        "ivan@mail.ru",  # contact details: no "@", no dot inside a word
+        "ivan.ru",
+        "1.2",
         "+996 555 123",  # phone-like
         "0555123456",
         "1234",  # only a number
@@ -41,9 +48,9 @@ def test_nicknames_are_tidied(raw: str, clean: str) -> None:
         "<b>",
     ],
 )
-def test_nicknames_cannot_carry_contacts_or_links(raw: str) -> None:
+def test_names_cannot_carry_contacts_or_links(raw: str) -> None:
     with pytest.raises(ApiError):
-        clean_nickname(raw)
+        clean_name(raw)
 
 
 def test_group_names() -> None:
@@ -65,10 +72,10 @@ def test_the_week_runs_monday_to_sunday() -> None:
     assert (days[0], days[-1]) == (date(2026, 11, 2), date(2026, 11, 8))
 
 
-def row(nickname: str, learned: int = 0, days: int = 0, cards: int = 0) -> BoardRow:
+def row(name: str, learned: int = 0, days: int = 0, cards: int = 0) -> BoardRow:
     return BoardRow(
         member_id=uuid4(),
-        nickname=nickname,
+        name=name,
         role="member",
         is_me=False,
         learned=learned,
@@ -98,7 +105,7 @@ def test_places_go_by_words_learned_then_days_and_equal_ones_share_a_place() -> 
         row("Started", cards=4),  # answered, nothing learned yet: last with a place
         row("Resting"),
     ]
-    assert [(r.nickname, r.rank) for r in rank(rows)] == [
+    assert [(r.name, r.rank) for r in rank(rows)] == [
         ("Learner", 1),
         ("Also steady", 2),
         ("Steady", 2),

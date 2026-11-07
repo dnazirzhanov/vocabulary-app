@@ -9,12 +9,14 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import User, WordingReport
 from app.schemas.me import MeOut, MeUpdate
+from app.services.names import clean_name
 from app.services.promise import preset, promise_out, set_weekdays, weekdays_of
 from app.services.scheduling import local_date
 
 
 def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut:
     return MeOut(
+        name=user.name,
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,
@@ -40,6 +42,8 @@ def update_me(
         if field == "study_days_per_week":
             # The old «days a week» number is a promise on spread-out weekdays (ADR 0039).
             set_weekdays(db, user, weekdays_of(preset(value)), local_date(now, time_zone))
+        elif field == "name":
+            user.name = clean_name(value)
         else:
             setattr(user, field, value)
     # Choosing a pace finishes the first-run screens and starts the ramp's clock.

@@ -315,7 +315,7 @@ class DeckProgressOut(BaseModel):
     id: str
     title: str
     kind: Literal["course", "user"]
-    # Where it comes from: a course level, my own, or a group's (author's nickname, group).
+    # Where it comes from: a course level, my own, or a group's (author's name, group).
     level: str | None
     is_mine: bool
     author: str | None

@@ -27,7 +27,7 @@ from app.services import group_tests
 from app.services.cleanup import KEEP_ANSWERS, clean_up
 from app.services.group_tests import GRACE, is_pass, shuffled
 from app.services.spelling_ladder import HARD, KNOWN
-from tests.support import at
+from tests.support import at, named
 
 NOW = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 HEADWORDS = [
@@ -66,14 +66,13 @@ class Class:
     def __init__(self, client: TestClient, headwords: list[str] | None = None) -> None:
         self.client = client
         group = client.post(
-            "/api/groups", json={"name": "7Б", "nickname": "Ольга"}, headers=as_("olga")
+            "/api/groups", json={"name": "7Б"}, headers=named(client, as_("olga"), "Ольга")
         ).json()
         self.group_id = group["id"]
-        for user, nickname in (("pavel", "Павел"), ("ivan", "Иван")):
+        for user, name in (("pavel", "Павел"), ("ivan", "Иван")):
             joined = client.post(
                 f"/api/groups/join/{group['invite_code']}",
-                json={"nickname": nickname},
-                headers=as_(user),
+                headers=named(client, as_(user), name),
             )
             assert joined.status_code == 200
         deck = client.post("/api/decks", json={"title": "Unit 4"}, headers=as_("olga")).json()
@@ -191,7 +190,7 @@ def _keys(attempt_id: str) -> list[str]:
 
 
 def names(rows: list[dict[str, Any]]) -> list[str]:
-    return [row["nickname"] for row in rows]
+    return [row["name"] for row in rows]
 
 
 # --- the rules ------------------------------------------------------------------------------
@@ -673,8 +672,7 @@ def test_results_are_open_to_the_group_without_ranking(client: TestClient) -> No
     board = client.get(f"/api/groups/{room.group_id}/board", headers=as_("olga")).json()
     client.post(
         f"/api/groups/join/{board['group']['invite_code']}",
-        json={"nickname": "Анна"},
-        headers=as_("anna"),
+        headers=named(client, as_("anna"), "Анна"),
     )
     room.ready()
     room.take("pavel")
@@ -909,8 +907,8 @@ def test_practice_can_skip_too(client: TestClient) -> None:
 # --- retakes: one attempt each time the test opens --------------------------------------------
 
 
-def score_of(rows: list[dict[str, Any]], nickname: str) -> dict[str, Any]:
-    score: dict[str, Any] = next(row for row in rows if row["nickname"] == nickname)["score"]
+def score_of(rows: list[dict[str, Any]], name: str) -> dict[str, Any]:
+    score: dict[str, Any] = next(row for row in rows if row["name"] == name)["score"]
     return score
 
 
@@ -1371,7 +1369,9 @@ def test_results_go_with_who_or_what_they_belong_to(
     room = Class(client, ["setback", "bargain"])
     room.ready()
     room.take("pavel")
-    pavel = db.scalar(select(GroupMember).where(GroupMember.nickname == "Павел"))
+    pavel = db.scalar(
+        select(GroupMember).join(User, User.id == GroupMember.user_id).where(User.name == "Павел")
+    )
     assert pavel is not None
     pavel_id = pavel.id
     db.rollback()

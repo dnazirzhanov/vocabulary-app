@@ -1,4 +1,4 @@
-import { button, expect, finishSession, openDeck, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, test, named } from './learner.ts';
 
 // The promise (ADR 0039): chosen weekdays, a change that starts tomorrow, a pause, and a group
 // report of who kept it. The server clock is fixed so every day is known.
@@ -60,10 +60,10 @@ test('the group report shows a missed promise, and a paused one is not missed', 
 }) => {
   await learner.travelTo(MONDAY);
   const group = await (
-    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б английский' } })
   ).json();
   // Two friends join on Monday and promise every day; Борис pauses until Friday, from tomorrow.
-  for (const [user, nickname, pause] of [
+  for (const [user, name, pause] of [
     ['anna', 'Анна', false],
     ['boris', 'Борис', true],
   ] as const) {
@@ -71,7 +71,7 @@ test('the group report shows a missed promise, and a paused one is not missed', 
       extraHTTPHeaders: { 'X-Dev-User': `e2e-${user}-${Date.now()}`, 'X-Dev-Now': MONDAY.toISOString() },
     });
     await friend.request.patch('/api/me', { data: { daily_target_words: 3, study_days_per_week: 7 } });
-    await friend.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname } });
+    await (await named(friend, name)).request.post(`/api/groups/join/${group.invite_code}`);
     if (pause) await friend.request.put('/api/me/promise/pause', { data: { until: '2026-11-06' } });
     await friend.close();
   }

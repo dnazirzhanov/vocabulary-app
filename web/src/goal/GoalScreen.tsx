@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BLOCKED, INSTALL, usePushState } from '../account/Reminders.tsx';
 import { api } from '../lib/api.ts';
+import { NAME_MAX, nameProblem } from '../lib/name.ts';
 import { PRESETS, wordsLabel } from '../lib/pace.ts';
 import { enablePush } from '../lib/push.ts';
 import type { Me } from '../lib/types.ts';
@@ -17,12 +18,17 @@ interface GoalScreenProps {
   onDone: (me: Me) => void;
 }
 
-type Step = 'language' | 'words' | 'days' | 'notify' | 'how';
+type Step = 'language' | 'name' | 'words' | 'days' | 'notify' | 'how';
 
-/** First run: small questions, one at a time, and nothing else (ADR 0042, 0045). */
+/** First run: small questions, one at a time, and nothing else (ADR 0042, 0045, 0057). */
 export function GoalScreen({ me, onDone }: GoalScreenProps) {
-  // Language first: everything after it should be read in it (ADR 0055).
-  const [step, setStep] = useState<Step>(me.language ? 'words' : 'language');
+  // Language first: everything after it should be read in it (ADR 0055). Then the name, which is
+  // all a learner who began before it was asked sees (ADR 0057).
+  const [step, setStep] = useState<Step>(
+    me.onboarded ? 'name' : !me.language ? 'language' : me.name === null ? 'name' : 'words',
+  );
+  const [name, setName] = useState('');
+  const nameIssue = name.trim() ? nameProblem(name) : null;
   const [words, setWords] = useState<number | null>(me.daily_target_words);
   const [weekdays, setWeekdays] = useState(me.promise.pending?.weekdays ?? me.promise.weekdays);
   const [push] = usePushState();
@@ -78,7 +84,7 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
         ) : (
           <span />
         )}
-        {step !== 'language' && (
+        {step !== 'language' && step !== 'name' && (
           <p className={styles.steps}>
             <span className="visually-hidden">{t.questionOf(position + 1, total)}</span>
             {Array.from({ length: total }, (_, index) => (
@@ -105,7 +111,7 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
                         // The app's language follows, and can be changed apart from it in settings.
                         await api.updateMe({ language: code, ui_language: code });
                         // Reloads into the language; if that can't be saved, go on in this one.
-                        if (!switchLanguage(code)) setStep('words');
+                        if (!switchLanguage(code)) setStep(me.name === null ? 'name' : 'words');
                       });
                     }}
                   >
@@ -115,6 +121,39 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
               </div>
               {problem}
             </>
+          )}
+          {step === 'name' && (
+            <form
+              className={styles.nameForm}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void run(async () => {
+                  const updated = await api.updateMe({ name });
+                  if (updated.onboarded) onDone(updated);
+                  else setStep('words');
+                });
+              }}
+            >
+              {heading(t.whatSYourName)}
+              <input
+                type="text"
+                className={styles.nameInput}
+                value={name}
+                maxLength={NAME_MAX}
+                autoComplete="given-name"
+                aria-label={t.yourName}
+                aria-invalid={nameIssue ? true : undefined}
+                aria-describedby="name-note"
+                onChange={(event) => setName(event.target.value)}
+              />
+              <p id="name-note" className={nameIssue ? styles.error : styles.how}>
+                {nameIssue ?? t.nameHint}
+              </p>
+              {problem}
+              <PrimaryButton type="submit" disabled={busy || !name.trim() || nameIssue !== null} aria-busy={busy}>
+                {busy ? t.saving : t.next}
+              </PrimaryButton>
+            </form>
           )}
           {step === 'words' && (
             <>

@@ -119,3 +119,29 @@
   color: var(--color-error);
   font-weight: var(--weight-strong);
 }
+
+/* The name: one field under the question, then its note and «Далее» (ADR 0057). */
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nameInput {
+  min-height: 56px;
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.125rem;
+}
+
+.nameInput:focus {
+  border-color: var(--color-primary-strong);
+}
+
+.nameInput[aria-invalid='true'] {
+  border-color: var(--color-error);
+}

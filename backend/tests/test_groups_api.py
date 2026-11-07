@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from tests.support import at, finish, spell_today
+from tests.support import at, finish, named, spell_today
 
 # Thursday 5 November 2026, 09:00 UTC; the group's week is Monday 2 – Sunday 8 November.
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
@@ -18,15 +18,16 @@ def as_(name: str, moment: datetime = THURSDAY, zone: str = "UTC") -> dict[str, 
 
 def create(client: TestClient, owner: str = "olga", name: str = "7Б английский") -> dict[str, Any]:
     response = client.post(
-        "/api/groups", json={"name": name, "nickname": "Смелый Ёж"}, headers=as_(owner)
+        "/api/groups", json={"name": name}, headers=named(client, as_(owner), "Смелый Ёж")
     )
     assert response.status_code == 201
     group: dict[str, Any] = response.json()
     return group
 
 
-def join(client: TestClient, user: str, code: str, nickname: str) -> Any:
-    return client.post(f"/api/groups/join/{code}", json={"nickname": nickname}, headers=as_(user))
+def join(client: TestClient, user: str, code: str, name: str) -> Any:
+    """Joins as `user`, who has said their name is `name` (ADR 0057)."""
+    return client.post(f"/api/groups/join/{code}", headers=named(client, as_(user), name))
 
 
 def test_create_preview_and_join_by_code(client: TestClient) -> None:
@@ -41,18 +42,41 @@ def test_create_preview_and_join_by_code(client: TestClient) -> None:
     assert joined.status_code == 200
     assert (joined.json()["role"], joined.json()["member_count"]) == ("member", 2)
     # A second tap on the invite changes nothing.
-    assert join(client, "pavel", code, "Другое Имя").json()["nickname"] == "Весёлый Кот"
+    again = client.post(f"/api/groups/join/{code}", headers=as_("pavel"))
+    assert (again.status_code, again.json()["member_count"]) == (200, 2)
     assert [g["name"] for g in client.get("/api/groups", headers=as_("pavel")).json()] == [
         "7Б английский"
     ]
 
 
-def test_nicknames_are_unique_within_a_group(client: TestClient) -> None:
+def test_two_people_with_the_same_name_can_be_in_one_group(client: TestClient) -> None:
+    """ADR 0057: a class can have two Анна; one name serves every group, so it can't be refused
+    because of someone in one of them."""
+    group = create(client)
+    assert join(client, "pavel", group["invite_code"], "смелый ёж").status_code == 200
+    rows = board_of(client, group["id"])["rows"]
+    assert [row["name"] for row in rows] == ["Смелый Ёж", "смелый ёж"]
+
+
+def test_joining_or_starting_a_group_needs_a_name(client: TestClient) -> None:
     code = create(client)["invite_code"]
-    taken = join(client, "pavel", code, "смелый ёж")  # case does not make a new name
-    assert taken.status_code == 409
-    assert taken.json()["error"]["code"] == "nickname_taken"
-    assert join(client, "pavel", code, "ivan@mail.ru").status_code == 422
+    for path, body in ((f"/api/groups/join/{code}", None), ("/api/groups", {"name": "Моя"})):
+        refused = client.post(path, json=body, headers=as_("nameless"))
+        assert (refused.status_code, refused.json()["error"]["code"]) == (409, "name_required")
+    assert client.get("/api/groups", headers=as_("nameless")).json() == []
+
+
+def test_a_new_name_shows_in_every_group(client: TestClient) -> None:
+    first, second = create(client, name="Первая"), create(client, name="Вторая")
+    for group in (first, second):
+        join(client, "pavel", group["invite_code"], "Весёлый Кот")
+    assert (
+        client.patch("/api/me", json={"name": "  Павел   К. "}, headers=as_("pavel")).json()["name"]
+        == "Павел К."
+    )
+    for group in (first, second):
+        names = [row["name"] for row in board_of(client, group["id"])["rows"]]
+        assert names == ["Смелый Ёж", "Павел К."]
 
 
 def test_unknown_codes_and_guessing_are_limited(client: TestClient) -> None:
@@ -72,7 +96,7 @@ def test_a_board_is_only_for_members_and_shows_no_contact_details(client: TestCl
     row = board["rows"][0]
     assert set(row) == {
         "member_id",
-        "nickname",
+        "name",
         "role",
         "is_me",
         "learned",
@@ -131,7 +155,7 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
         "2026-11-02",
         "2026-11-08",
     )
-    rows = {row["nickname"]: row for row in board["rows"]}
+    rows = {row["name"]: row for row in board["rows"]}
     olga, pavel, rest = rows["Смелый Ёж"], rows["Весёлый Кот"], rows["Тихий Лис"]
     # Words learned decide the place: Pavel's five recalled words beat Olga's three days.
     assert (pavel["learned"], pavel["days"], pavel["rank"]) == (5, 1, 1)
@@ -141,7 +165,7 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
     assert (pavel["studied_today"], olga["studied_today"]) == (True, False)
     assert rest["rank"] is None
     # The report lists me first and then the others alphabetically, never by place.
-    assert [row["nickname"] for row in board["rows"]] == ["Смелый Ёж", "Весёлый Кот", "Тихий Лис"]
+    assert [row["name"] for row in board["rows"]] == ["Смелый Ёж", "Весёлый Кот", "Тихий Лис"]
     assert board["totals"] == {
         "days": 4,
         "learned": olga["learned"] + pavel["learned"],
@@ -149,8 +173,8 @@ def test_the_board_ranks_by_words_learned_over_a_week_a_month_or_all_time(
     }
 
     # This month leaves October out; all time counts it.
-    month = {row["nickname"]: row for row in board_of(client, group["id"], "month")["rows"]}
-    ever = {row["nickname"]: row for row in board_of(client, group["id"], "all")["rows"]}
+    month = {row["name"]: row for row in board_of(client, group["id"], "month")["rows"]}
+    ever = {row["name"]: row for row in board_of(client, group["id"], "all")["rows"]}
     assert (month["Весёлый Кот"]["days"], ever["Весёлый Кот"]["days"]) == (1, 2)
     assert ever["Весёлый Кот"]["cards"] > month["Весёлый Кот"]["cards"]
     assert board_of(client, group["id"], "all")["period_start"] is None
@@ -169,8 +193,8 @@ def test_the_list_of_groups_shows_each_group_s_pulse(client: TestClient) -> None
         "pending",
     )
     assert summary["members"] == [  # me first, then alphabetical
-        {"nickname": "Смелый Ёж", "is_me": True, "studied_today": False},
-        {"nickname": "Весёлый Кот", "is_me": False, "studied_today": True},
+        {"name": "Смелый Ёж", "is_me": True, "studied_today": False},
+        {"name": "Весёлый Кот", "is_me": False, "studied_today": True},
     ]
 
 
@@ -187,8 +211,8 @@ def test_the_days_of_the_report_are_the_groups(client: TestClient) -> None:
     # A group in Bishkek (UTC+6): 23:30 UTC on Sunday 1 November is already Monday 2 November there.
     group = client.post(
         "/api/groups",
-        json={"name": "Бишкек", "nickname": "Ольга"},
-        headers=as_("olga", zone="Asia/Bishkek"),
+        json={"name": "Бишкек"},
+        headers=named(client, as_("olga", zone="Asia/Bishkek"), "Ольга"),
     ).json()
     join(client, "aibek", group["invite_code"], "Ранний Орёл")
     late_sunday = datetime(2026, 11, 1, 23, 30, tzinfo=UTC)
@@ -199,7 +223,7 @@ def test_the_days_of_the_report_are_the_groups(client: TestClient) -> None:
     play_as(client, "aibek", session, late_sunday, "Asia/Bishkek")
 
     board = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
-    aibek = next(row for row in board["rows"] if row["nickname"] == "Ранний Орёл")
+    aibek = next(row for row in board["rows"] if row["name"] == "Ранний Орёл")
     assert aibek["week"][0] is True  # Monday, in the group's day
     assert aibek["days"] == 1
 
@@ -210,7 +234,7 @@ def test_owners_can_remove_members_and_ownership_passes_on(client: TestClient) -
     join(client, "pavel", code, "Весёлый Кот")
     join(client, "rest", code, "Тихий Лис")
     board = client.get(f"/api/groups/{group_id}/board", headers=as_("olga")).json()
-    rest_id = next(r["member_id"] for r in board["rows"] if r["nickname"] == "Тихий Лис")
+    rest_id = next(r["member_id"] for r in board["rows"] if r["name"] == "Тихий Лис")
 
     not_owner = client.delete(f"/api/groups/{group_id}/members/{rest_id}", headers=as_("pavel"))
     assert not_owner.status_code == 403
@@ -226,9 +250,9 @@ def test_owners_can_remove_members_and_ownership_passes_on(client: TestClient) -
     assert client.get(f"/api/groups/join/{code}", headers=as_("pavel")).status_code == 404
 
 
-def member_id(client: TestClient, group_id: str, nickname: str, viewer: str = "olga") -> str:
+def member_id(client: TestClient, group_id: str, name: str, viewer: str = "olga") -> str:
     board = client.get(f"/api/groups/{group_id}/board", headers=as_(viewer)).json()
-    return str(next(row["member_id"] for row in board["rows"] if row["nickname"] == nickname))
+    return str(next(row["member_id"] for row in board["rows"] if row["name"] == name))
 
 
 def code_of(response_json: dict[str, Any]) -> str:
@@ -359,11 +383,11 @@ def test_an_owner_who_leaves_names_who_takes_over(client: TestClient) -> None:
     rest = member_id(client, group["id"], "Тихий Лис")
     assert client.delete(path, params={"successor": rest}, headers=as_("olga")).status_code == 204
     roles = {
-        g["nickname"]: g["role"]
+        u: g["role"]
         for u in ("pavel", "rest")
         for g in client.get("/api/groups", headers=as_(u)).json()
     }
-    assert roles == {"Весёлый Кот": "member", "Тихий Лис": "owner"}
+    assert roles == {"pavel": "member", "rest": "owner"}
 
 
 def test_naming_a_successor_follows_the_rules(client: TestClient) -> None:
@@ -411,9 +435,7 @@ def test_deleting_an_account_hands_over_its_groups(client: TestClient) -> None:
 def test_a_learner_can_be_in_at_most_five_groups(client: TestClient) -> None:
     for n in range(5):
         create(client, name=f"Группа {n + 1}")
-    too_many = client.post(
-        "/api/groups", json={"name": "Шестая", "nickname": "Смелый Ёж"}, headers=as_("olga")
-    )
+    too_many = client.post("/api/groups", json={"name": "Шестая"}, headers=as_("olga"))
     assert too_many.status_code == 409
 
 
@@ -430,15 +452,13 @@ def test_a_word_counts_as_learned_in_the_period_it_was_first_recalled(client: Te
     assert week["rows"][0]["learned"] == ever["rows"][0]["learned"] == 5
 
 
-def test_a_nickname_may_be_in_any_of_the_apps_languages(client: TestClient) -> None:
+def test_a_name_may_be_in_any_of_the_apps_languages(client: TestClient) -> None:
     for name in ("Айгүл", "Қанат", "Ҷамшед", "G‘ayrat", "Gʻayrat", "O'g'il"):
-        response = client.post(
-            "/api/groups",
-            json={"name": "Группа", "nickname": name},
-            headers=as_(f"user-{name.encode().hex()}"),
+        saved = client.patch(
+            "/api/me", json={"name": name}, headers=as_(f"user-{name.encode().hex()}")
         )
-        assert response.status_code == 201, name
-    refused = client.post(
-        "/api/groups", json={"name": "Группа", "nickname": "a@b.c"}, headers=as_("mail")
-    )
-    assert refused.json()["error"]["code"] == "invalid_nickname"
+        assert (saved.status_code, saved.json()["name"]) == (200, name)
+    for bad in ("a@b.c", "x", "0555123456", "www kid"):
+        refused = client.patch("/api/me", json={"name": bad}, headers=as_("mail"))
+        assert refused.json()["error"]["code"] == "invalid_name", bad
+    assert client.get("/api/me", headers=as_("mail")).json()["name"] is None

@@ -70,7 +70,7 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
                 checked={successor === row.member_id}
                 onChange={() => setSuccessor(row.member_id)}
               />
-              {row.nickname}
+              {row.name}
             </label>
           ))}
         </fieldset>

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import PushSubscription, User
 from app.services.reminders import send_reminders
-from tests.support import at, finish
+from tests.support import at, finish, named
 
 BISHKEK = "Asia/Bishkek"  # UTC+6, no clock changes
 EVERY_DAY = list(range(7))
@@ -194,13 +194,14 @@ def a_group(client: TestClient, zone: str = BISHKEK) -> dict[str, Any]:
     """Olga's group, joined a week before, with Pavel and Ivan who promise every day."""
     joined = THURSDAY - timedelta(days=7)
     group: dict[str, Any] = client.post(
-        "/api/groups", json={"name": "7Б", "nickname": "Ольга"}, headers=as_("olga", joined, zone)
+        "/api/groups",
+        json={"name": "7Б"},
+        headers=named(client, as_("olga", joined, zone), "Ольга"),
     ).json()
-    for user, nickname in (("pavel", "Павел"), ("ivan", "Иван")):
+    for user, name in (("pavel", "Павел"), ("ivan", "Иван")):
         client.post(
             f"/api/groups/join/{group['invite_code']}",
-            json={"nickname": nickname},
-            headers=as_(user, joined, zone),
+            headers=named(client, as_(user, joined, zone), name),
         )
     for user in ("olga", "pavel", "ivan"):
         client.put("/api/me/promise", json={"weekdays": EVERY_DAY}, headers=as_(user, joined, zone))
@@ -251,8 +252,7 @@ def test_the_day_someone_joined_does_not_count_against_them(
     phone("olga", BISHKEK)
     client.post(
         f"/api/groups/join/{group['invite_code']}",
-        json={"nickname": "Новый"},
-        headers=as_("newcomer", utc(4, 6)),
+        headers=named(client, as_("newcomer", utc(4, 6)), "Новый"),
     )
     (morning,) = due(db, utc(5, 2))
     assert "0 из 3" in morning["body"]

@@ -89,8 +89,6 @@ for (const [name, messages] of Object.entries({ ru, ...LANGUAGES })) {
     assert.ok(messages.weekDaysDone(5).includes('{0}'));
     assert.equal(messages.weekdays.length, 7);
     assert.equal(messages.monthNames.length, 12);
-    assert.equal(messages.nicknameAdjectives.length, ru.nicknameAdjectives.length);
-    assert.equal(messages.nicknameAnimals.length, ru.nicknameAnimals.length);
     for (let month = 0; month < 12; month += 1) assert.ok(!messages.dayMonth(1, month).includes('undefined'));
   });
 }

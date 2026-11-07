@@ -21,6 +21,7 @@ def new_word_count(session: dict[str, Any]) -> int:
 
 def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> None:
     assert client.get("/api/me").json() == {
+        "name": None,
         "daily_target_words": None,
         "study_days_per_week": 6,
         "ramp_enabled": True,
@@ -39,6 +40,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "/api/me", json={"daily_target_words": 3, "study_days_per_week": 5}, headers=at(DAY_1)
     )
     assert changed.json() == {
+        "name": None,
         "daily_target_words": 3,
         "study_days_per_week": 5,
         "ramp_enabled": True,

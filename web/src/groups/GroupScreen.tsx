@@ -262,7 +262,7 @@ function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
       <button type="button" className={styles.friend} data-me={row.is_me || undefined} onClick={onOpen}>
         <span className={styles.friendHead}>
           <span className={styles.nick}>
-            {row.nickname}
+            {row.name}
             {row.is_me && <span className={styles.me}>{t.you}</span>}
           </span>
           {progress && <WordCount met={progress.met} total={progress.total} />}
@@ -286,7 +286,7 @@ function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
 function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void; onChanged: () => void }) {
   const { row, group, onClose, onChanged } = props;
   return (
-    <Dialog open onClose={onClose} title={row.is_me ? t.youSuffix(row.nickname) : row.nickname}>
+    <Dialog open onClose={onClose} title={row.is_me ? t.youSuffix(row.name) : row.name}>
       <section aria-labelledby="schedule-title" className={styles.block}>
         <h3 id="schedule-title" className={styles.blockTitle}>
           {t.promisedDays}

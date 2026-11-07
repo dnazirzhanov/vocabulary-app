@@ -1,20 +1,20 @@
 import { type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { button, DEMO, expect, test } from './learner.ts';
+import { button, DEMO, expect, test, named } from './learner.ts';
 
 // What each person may do in a group (ADR 0040): the owner renames it, hands it over, removes
 // people, makes a new link and deletes it; everyone can leave, and an owner names who takes over.
 
-async function member(browser: Browser, code: string, nickname: string, id: string) {
+async function member(browser: Browser, code: string, name: string, id: string) {
   const context = await browser.newContext({
     extraHTTPHeaders: { ...DEMO, 'X-Dev-User': `e2e-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` },
   });
   await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
-  await context.request.post(`/api/groups/join/${code}`, { data: { nickname } });
+  await (await named(context, name)).request.post(`/api/groups/join/${code}`);
   return context;
 }
 
 async function ownerGroup(context: BrowserContext, name = '7Б английский') {
-  const group = await (await context.request.post('/api/groups', { data: { name, nickname: 'Ольга' } })).json();
+  const group = await (await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name } })).json();
   return group as { id: string; invite_code: string };
 }
 

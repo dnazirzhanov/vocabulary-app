@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { button, DEMO, expect, finishSession, spellToday, test } from './learner.ts';
+import { button, DEMO, expect, finishSession, spellToday, test, named } from './learner.ts';
 
 /** Makes a deck from home. */
 async function newDeck(page: Page, title: string) {
@@ -23,7 +23,7 @@ async function openGroup(page: Page) {
 // group; a member meets them first in the daily lesson and spells the phrase; the owner sees it.
 test('a teacher gives words to a group and a student learns them first', async ({ page, context, browser }) => {
   const group = await (
-    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б английский' } })
   ).json();
   const student = await browser.newContext({
     extraHTTPHeaders: {
@@ -32,7 +32,7 @@ test('a teacher gives words to a group and a student learns them first', async (
     },
   });
   await student.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
-  await student.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname: 'Анна' } });
+  await (await named(student, 'Анна')).request.post(`/api/groups/join/${group.invite_code}`);
 
   // The teacher writes a deck of her own in «Мои колоды», then gives it to her group.
   await page.goto('/');

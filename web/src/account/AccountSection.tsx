@@ -12,6 +12,7 @@ import styles from './AccountSection.module.css';
 import { switchLanguage, t, uiLanguage } from '../i18n/index.ts';
 import { CARD_LANGUAGES, UI_LANGUAGES, type CardLanguage } from '../i18n/languages.ts';
 import { LanguageRow } from './LanguageRow.tsx';
+import { NameRow } from './NameRow.tsx';
 
 export interface AccountProps {
   email: string | null;
@@ -31,9 +32,13 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
   const [sounds, setSounds] = useState(soundsOn);
   const { run, busy, error } = useAsyncAction();
   const [cardLanguage, setCardLanguage] = useState<CardLanguage | null>(null);
+  const [name, setName] = useState<string | null>(null);
   useEffect(() => {
     void api.me().then(
-      (me) => setCardLanguage(me.language ?? 'ru'),
+      (me) => {
+        setCardLanguage(me.language ?? 'ru');
+        setName(me.name);
+      },
       () => null,
     );
   }, []);
@@ -74,6 +79,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
             </span>
           </label>
           <div className={styles.language}>
+            {name !== null && <NameRow name={name} onSaved={setName} />}
             <LanguageRow
               disabled={busy}
               label={t.appLanguage}

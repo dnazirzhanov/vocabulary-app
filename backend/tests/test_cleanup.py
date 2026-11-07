@@ -12,7 +12,7 @@ from app.main import create_app
 from app.models import LearningSession, ReviewAttempt, StudyDayTotal
 from app.services.cleanup import KEEP_ANSWERS, clean_up
 from app.services.study_days import HISTORY_DAYS
-from tests.support import Play, at, finish
+from tests.support import Play, at, finish, named
 
 NOW = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)  # a Wednesday
 STUDY = {"kind": "study", "deck_id": "a1-a2"}
@@ -66,8 +66,8 @@ def test_every_screen_reads_the_same_after_old_answers_are_removed(
 ) -> None:
     group = client.post(
         "/api/groups",
-        json={"name": "7Б", "nickname": "Ольга"},
-        headers=at(days_ago(70), BISHKEK),
+        json={"name": "7Б"},
+        headers=named(client, at(days_ago(70), BISHKEK), "Ольга"),
     ).json()
     # Lessons long ago, whose words come back as reviews, one forgotten; and lately, in the window.
     forgot_once: dict[str, int] = {}

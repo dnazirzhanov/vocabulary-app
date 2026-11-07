@@ -100,8 +100,8 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/sessions/{id}/complete` | summary: words with mistake counts and `next_review_at`, answer totals, session `points`, `today_points`, `daily_goal`, `deck_id` |
 | `GET /api/progress` | the whole course: word stages (met, reviewing, well learned, due), today's plan, a year of days (plan done or not, ADR 0015), this week's promise, weeks kept in a row, delayed-recall rate over 30 days |
 | `GET /api/decks/{id}/words` | every word of the deck in order (nothing hidden) with the learner's status (`not_started`, `new`, `learning`, `well_learned`) and `next_review_at` |
-| `GET /api/groups`, `POST /api/groups` | my groups; create one `{name, nickname}` (ADR 0011) |
-| `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining with `{nickname}`; rate-limited |
+| `GET /api/groups`, `POST /api/groups` | my groups; create one `{name}`, under my own name (ADR 0011, 0057) |
+| `GET /api/groups/join/{code}`, `POST /api/groups/join/{code}` | invite preview (name, member count) and joining, no body; both need my name (409 `name_required`, ADR 0057); rate-limited |
 | `GET /api/groups/{id}/board` | the week's board: places by the share of each member's promise kept (plan days of the days promised, ADR 0015), plan-day dots, weeks kept in a row, the shared goal in planned words, and the decks given to the group: author, my words met, the group's progress, and each member's met and well-remembered words for the owner (ADR 0017, 0019); members only; no points |
 | `DELETE /api/groups/{id}/members/me`, `DELETE /api/groups/{id}/members/{member_id}` | leave; the owner removes a member |
 | `GET /api/glossary` | every word form used in example sentences → `{ru, lemma, note}`, for tap-a-word (ADR 0013) |
@@ -117,7 +117,7 @@ JSON over HTTPS. Errors always have the shape `{"error": {"code": "...", "messag
 | `POST /api/decks/{id}/generate` | draft cards from a teacher's text `{text, count, level}` into the deck: added cards, skipped ones with reasons, the provider; the text is not stored; 20 a day (ADR 0018) |
 | `POST /api/decks/{id}/publish`, `DELETE /api/groups/{group_id}/decks/{deck_id}` | publish and give to a group I own `{group_id}` (idempotent); take back |
 | `GET /api/me/profile`, `GET /api/groups/{id}/members/{member_id}/profile` | a learner's week against their own promise and the learning beyond it (ADR 0015); one's own for everyone, a member's for members of that group only; nickname, no ids or e-mail |
-| `GET /api/me`, `PATCH /api/me` | pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
+| `GET /api/me`, `PATCH /api/me` | `name` (ADR 0057), pace settings (`daily_target_words` 1–100, `study_days_per_week`, `ramp_enabled`) and `onboarded`; saving a target finishes the first-run screens (ADR 0010) |
 | `GET /api/me/pace?deck_id=` | today's plan: target, ramp, new words today, size of the next lesson or bonus, review-debt block, measured seconds per exercise, an optional suggestion |
 | `POST /api/me/pace/dismiss` | `{kind: "lower" \| "raise"}`: that suggestion stays quiet for 7 days |
 

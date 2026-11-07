@@ -152,10 +152,9 @@ export const api = {
   addExtraWords: (deckId: string, words: number) =>
     request<Pace>('POST', `/decks/${encodeURIComponent(deckId)}/pace/extra`, { words }),
   groups: () => request<GroupSummary[]>('GET', '/groups'),
-  createGroup: (name: string, nickname: string) => request<Group>('POST', '/groups', { name, nickname }),
+  createGroup: (name: string) => request<Group>('POST', '/groups', { name }),
   previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
-  joinGroup: (code: string, nickname: string) =>
-    request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`, { nickname }),
+  joinGroup: (code: string) => request<Group>('POST', `/groups/join/${encodeURIComponent(code)}`),
   board: (groupId: string, period: Period = 'week') =>
     request<Board>('GET', `/groups/${groupId}/board?period=${period}`),
   /** Leave; an owner names the member who takes the group over (ADR 0040). */
@@ -245,8 +244,8 @@ const MESSAGES: Record<string, string> = {
   server_busy: t.aLotOfStudentsAreStudying,
   account_delete_failed: t.couldnTDeleteTheAccountAnd,
   reauth_required: t.enterYourPasswordAgainToDelete,
-  nickname_taken: t.thatNameIsAlreadyTakenIn,
-  invalid_nickname: t.thatNameWonTWorkOnly,
+  invalid_name: t.thatNameWonTWorkOnly,
+  name_required: t.nameRequired,
   invalid_group_name: t.name2To40CharactersNo,
   too_many_wording_reports: t.tooManyAttemptsWaitAMinute,
   too_many_groups: t.youCanBeInAtMost,

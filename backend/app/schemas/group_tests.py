@@ -80,7 +80,7 @@ class TestSettingsOut(BaseModel):
 
 class ResultRowOut(BaseModel):
     member_id: UUID
-    nickname: str
+    name: str
     is_me: bool
     # None: not taken yet.
     score: ScoreOut | None

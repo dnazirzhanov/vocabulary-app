@@ -15,7 +15,7 @@ from app.core.config import Settings, get_settings
 from app.main import create_app
 from app.models import PushSubscription, User
 from app.services.reminders import send_reminders, vapid_keys
-from tests.support import at
+from tests.support import at, named
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 EVENING = THURSDAY.replace(hour=18, minute=30)
@@ -64,10 +64,10 @@ def push_client(db: Session) -> Iterator[TestClient]:
 def a_class_with_a_deadline(client: TestClient) -> dict[str, Any]:
     """Olga gives Pavel six words on Thursday, due Saturday: three today, three tomorrow."""
     group = client.post(
-        "/api/groups", json={"name": "7Б", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
-        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("pavel"), "Павел")
     )
     deck: dict[str, Any] = client.post(
         "/api/decks", json={"title": "Морское дело"}, headers=as_("olga")

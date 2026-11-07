@@ -1,4 +1,4 @@
-import { button, DEMO, expect, finishSession, openDeck, test } from './learner.ts';
+import { button, DEMO, expect, finishSession, openDeck, test, named } from './learner.ts';
 
 // «Мои колоды» (ADR 0019): a deck of one's own from «Сегодня», cards made from words with AI
 // (demo provider here), studied by opening the deck.
@@ -38,7 +38,7 @@ test('a learner makes a deck from words and studies it', async ({ page }) => {
 
 test('a deck given to a group is in its members’ «Мои колоды»', async ({ page, context, browser }) => {
   const group = await (
-    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б английский' } })
   ).json();
   const deck = await (await context.request.post('/api/decks', { data: { title: 'Unit 4' } })).json();
   await context.request.post(`/api/decks/${deck.id}/words`, {
@@ -50,7 +50,7 @@ test('a deck given to a group is in its members’ «Мои колоды»', asy
     extraHTTPHeaders: { ...DEMO, 'X-Dev-User': `e2e-member-${Date.now().toString(36)}` },
   });
   await member.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
-  await member.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname: 'Анна' } });
+  await (await named(member, 'Анна')).request.post(`/api/groups/join/${group.invite_code}`);
   const learner = await member.newPage();
   await learner.goto('/');
   await expect(learner.getByRole('region', { name: 'Из моих групп' })).toContainText('от Ольга · 7Б английский');

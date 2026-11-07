@@ -14,7 +14,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0008](0008-points-goal-streak.md) | Points, daily goal and streaks reward evidence of learning | Goal and streak superseded by 0015 |
 | [0009](0009-supabase-auth.md) | Supabase Auth with local JWT verification; one container for API and web | Accepted (confirmation, reset and deletion replaced by 0043) |
 | [0010](0010-pace-and-course-goal.md) | A sourced course goal; a daily pace the learner picks and the app tunes | Accepted (pace per deck: 0028) |
-| [0011](0011-friend-groups-and-board.md) | Friend groups with a weekly board that rewards showing up | Accepted |
+| [0011](0011-friend-groups-and-board.md) | Friend groups with a weekly board that rewards showing up | Accepted (nicknames replaced by one name, 0057) |
 | [0012](0012-anki-style-flashcards-fsrs.md) | Anki-style flashcards scheduled by FSRS | Accepted; refined by 0025 |
 | [0013](0013-recorded-audio-and-tap-a-word.md) | Recorded neural-voice audio; every example word tappable | Accepted |
 | [0014](0014-course-levels-and-anki-deck-list.md) | Level decks, later ones locked; Anki-style counts and a «Today» home | Accepted |
@@ -47,7 +47,7 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0042](0042-notifications-by-each-learners-clock.md) | Notifications at 08:00 and 17:00 by each learner's clock, with the group's report and deck deadlines; four choices; a first-run question; ⚙ on every page | Accepted |
 | [0043](0043-accounts.md) | Accounts for a class: codes by email through a free Gmail sender, reset, per-device sign-out, deleting the login too with the password asked again | Accepted |
 | [0044](0044-capacity-and-cleanup.md) | Old answers give way nightly with what screens need kept apart; a full server refuses at once and the app retries; friends screens read only the days they show | Accepted |
-| [0045](0045-first-run-two-questions.md) | Login first; a new password typed twice; «Выйти» on the main screen; first run as two small questions with no pitch or pictures | Accepted |
+| [0045](0045-first-run-two-questions.md) | Login first; a new password typed twice; «Выйти» on the main screen; first run as two small questions with no pitch or pictures | Accepted (the name asked too, 0057) |
 | [0046](0046-group-spelling-tests.md) | A group's spelling tests: the owner sets words, time and pass mark and opens it; a timed attempt (amended by 0048) with results open to the group; private unlimited practice; each attempt's order saved; the server's clock; a test's misses go to «Трудные» (0048) | Accepted |
 | [0047](0047-audio-hint-in-spelling-practice.md) | An audio hint in individual spelling practice: «Подсказки: Буква · Звук» below the letters; the word is said on a tap, as often as asked; a word heard counts as a miss on the ladder, like one hinted; a group's test has no hints at all | Accepted |
 | [0048](0048-group-test-skips-retakes-hard-words.md) | A group's test: skipped words come back once; each opening gives everyone one attempt; the group sees the latest result; misspelled and skipped words go to «Трудные» | Accepted |
@@ -59,3 +59,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0054](0054-no-readiness-for-class.md) | Nobody is told who keeps up with a deadline: «К уроку», «отстаёте на N» and «Готовы N из M» go, and the server stops sending them; a learner's own line in the deadline day's notification stays | Accepted |
 | [0055](0055-languages.md) | Learn English in your own language: separate translation and app languages, the translation language chosen where cards are made, the course stays Russian-only, every line typed against the Russian one | Accepted |
 | [0056](0056-spelling-per-deck.md) | Each deck's spelling is its own words: a session names its deck, counts and an unfinished spelling are the deck's, one ladder per word | Accepted |
+| [0057](0057-one-name-per-person.md) | One name per person, asked after the language on the first run and changed in ⚙, shown in every group instead of a nickname per group; no age | Accepted |

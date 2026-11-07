@@ -1,5 +1,5 @@
 import { type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { button, DEMO, expect, test } from './learner.ts';
+import { button, DEMO, expect, test, named } from './learner.ts';
 
 // A group's spelling tests (ADR 0046): the owner sets one up and opens it, everyone takes it alone
 // in their own order against their own clock, and the results are open to the group by name.
@@ -31,19 +31,21 @@ async function deckFor(context: BrowserContext, groupId: string, count = 10) {
 }
 
 async function ownerGroup(context: BrowserContext, count = 10) {
-  const group = await (await context.request.post('/api/groups', { data: { name: '7Б', nickname: 'Ольга' } })).json();
+  const group = await (
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б' } })
+  ).json();
   const deckId = await deckFor(context, group.id, count);
   return { id: group.id as string, code: group.invite_code as string, deckId };
 }
 
 const identities = new WeakMap<BrowserContext, string>();
 
-async function member(browser: Browser, code: string, nickname: string) {
+async function member(browser: Browser, code: string, name: string) {
   const id = `e2e-m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const context = await browser.newContext({ extraHTTPHeaders: { ...DEMO, 'X-Dev-User': id } });
   identities.set(context, id);
   await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
-  await context.request.post(`/api/groups/join/${code}`, { data: { nickname } });
+  await (await named(context, name)).request.post(`/api/groups/join/${code}`);
   return context;
 }
 
@@ -551,7 +553,7 @@ test('a member sees the way to tests only once a test exists', async ({ page, co
 });
 
 test('a group with no decks has no way to tests', async ({ page, context }) => {
-  await context.request.post('/api/groups', { data: { name: '7Б', nickname: 'Ольга' } });
+  await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б' } });
   await page.goto('/');
   await page
     .getByRole('button', { name: /Друзья/ })

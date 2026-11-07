@@ -328,18 +328,24 @@ def test_detail(
     _close_expired(db, [test.id], now)
 
     finished = _finished_attempts(db, test)
-    members = db.scalars(select(GroupMember).where(GroupMember.group_id == group_id)).all()
+    named = db.execute(
+        select(GroupMember, User.name)
+        .join(User, User.id == GroupMember.user_id)
+        .where(GroupMember.group_id == group_id)
+    ).all()
+    members = [other for other, _ in named]
+    names = {other.id: name or "" for other, name in named}
     passed: list[ResultRowOut] = []
     failed: list[ResultRowOut] = []
     not_taken: list[ResultRowOut] = []
     # Me first, then alphabetical: a list of friends, never an order of merit (ADR 0039).
-    for other in sorted(members, key=lambda m: (m.id != member.id, m.nickname.casefold())):
+    for other in sorted(members, key=lambda m: (m.id != member.id, names[m.id].casefold())):
         if not _is_listed(other, finished):
             continue
         attempt = finished.get(other.id)
         score = _score(attempt, test) if attempt else None
         row = ResultRowOut(
-            member_id=other.id, nickname=other.nickname, is_me=other.id == member.id, score=score
+            member_id=other.id, name=names[other.id], is_me=other.id == member.id, score=score
         )
         if score is None:
             not_taken.append(row)

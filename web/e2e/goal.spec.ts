@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { button, expect, fakePush, openDeck, test } from './learner.ts';
+import { button, expect, fakePush, openDeck, openSettings, test } from './learner.ts';
 
 test.describe('a learner who has not chosen a pace', () => {
   test.use({ onboarded: false });
@@ -115,5 +115,56 @@ test.describe('a learner who has not chosen a pace', () => {
       await button(page, 'Понятно').click();
       await arrived(page);
     });
+  });
+});
+
+test.describe('a new learner (ADR 0057)', () => {
+  test.use({ onboarded: false, named: null });
+
+  test('says their name after the language, then the pace', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Как вас зовут?' })).toBeFocused();
+    const field = page.getByLabel('Имя', { exact: true });
+    const next = button(page, 'Дальше');
+    await expect(next).toBeDisabled();
+    // Nothing that reaches a child outside the app: an address is refused before it is sent.
+    await field.fill('anna@mail.ru');
+    await expect(page.getByText('Только буквы, цифры, пробел и дефис.')).toBeVisible();
+    await expect(next).toBeDisabled();
+    await field.fill('Анна К.');
+    await next.click();
+    await expect(page.getByRole('heading', { name: 'Сколько новых слов в день?' })).toBeFocused();
+    expect((await (await page.request.get('/api/me')).json()).name).toBe('Анна К.');
+  });
+});
+
+test.describe('a learner from before names were asked (ADR 0057)', () => {
+  test.use({ named: null });
+
+  test('is asked only the name, once, and can change it in settings', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Как вас зовут?' })).toBeFocused();
+    await page.getByLabel('Имя', { exact: true }).fill('Анна');
+    await button(page, 'Дальше').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+
+    // The name a group shows is the one from settings, changed in place.
+    expect((await page.request.post('/api/groups', { data: { name: '7Б' } })).ok()).toBe(true);
+    await openSettings(page);
+    const settings = page.getByRole('dialog', { name: 'Настройки' });
+    await settings.getByRole('button', { name: /^Имя\s*Анна/ }).click();
+    await settings.getByLabel('Имя', { exact: true }).fill('Анна Б.');
+    await settings.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(settings.getByRole('button', { name: /^Имя\s*Анна Б\./ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await button(page, 'Друзья').click();
+    await page
+      .getByRole('link', { name: /7Б/ })
+      .or(page.getByRole('button', { name: /7Б/ }))
+      .first()
+      .click();
+    await expect(page.getByRole('main')).toContainText('Анна Б.');
   });
 });

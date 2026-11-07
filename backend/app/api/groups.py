@@ -13,7 +13,6 @@ from app.schemas.groups import (
     GroupOut,
     GroupPreviewOut,
     GroupSummaryOut,
-    JoinGroupIn,
     Period,
     RenameGroupIn,
     TransferIn,
@@ -40,7 +39,7 @@ def create_group(
     sent_zone: SentTimeZone,
 ) -> GroupOut:
     remember_time_zone(db, user, sent_zone)
-    return groups.create_group(db, user, body.name, body.nickname, time_zone, now)
+    return groups.create_group(db, user, body.name, time_zone, now)
 
 
 @router.get("/groups/join/{code}", dependencies=[Depends(limit_joins)])
@@ -50,7 +49,6 @@ def preview_invite(user: CurrentUser, db: DbSession, code: str = Code) -> GroupP
 
 @router.post("/groups/join/{code}", dependencies=[Depends(limit_joins)])
 def join_group(
-    body: JoinGroupIn,
     user: CurrentUser,
     db: DbSession,
     now: Now,
@@ -58,7 +56,7 @@ def join_group(
     code: str = Code,
 ) -> GroupOut:
     remember_time_zone(db, user, sent_zone)
-    return groups.join(db, user, code, body.nickname, now)
+    return groups.join(db, user, code, now)
 
 
 @router.get("/groups/{group_id}/board")
