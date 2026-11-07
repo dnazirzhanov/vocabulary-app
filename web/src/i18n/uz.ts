@@ -32,6 +32,9 @@ export const uz: Messages = {
   yesDelete: 'Ha, o‘chirish',
   signingOut: 'Chiqilmoqda…',
   signOut: 'Chiqish',
+  signOutQuestion: 'Ilovadan chiqasizmi?',
+  signOutNote: 'Qaytish uchun pochta va parolni qayta kiritishingiz kerak bo‘ladi.',
+  stay: 'Qolish',
   deleteAccount: 'Hisobni o‘chirish',
   onIPhoneNotificationsOnlyArriveIf:
     'iPhone’da bildirishnomalar faqat ilova «Bosh ekran»da bo‘lsa keladi: «Ulashish» → «Bosh ekranga» tugmasini bosing va ilovani o‘sha yerdan oching.',
@@ -343,7 +346,7 @@ export const uz: Messages = {
   fromMyGroups: 'Guruhlarimdan',
   group: (a: Arg) => `${a} guruhi`,
   aReadyMadeCourseTheMost:
-    'Tayyor kurs: eng kerakli inglizcha so‘zlar, oddiydan murakkabga, kuniga bir nechta, sizning sur’atingizda.',
+    'Tayyor ingliz-rus kursi: eng kerakli inglizcha so‘zlar, oddiydan murakkabga, kuniga bir nechta, sizning sur’atingizda.',
   openTheCourse: 'Kursni ochish',
   inGroupNamed: (a: Arg) => `${a} guruhida`,
   emptyAddSomeWords: 'bo‘sh, so‘z qo‘shing',

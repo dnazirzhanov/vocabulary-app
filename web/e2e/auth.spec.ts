@@ -6,6 +6,13 @@ const SUPABASE = 'http://localhost:54321';
 const base64url = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
 const fakeToken = `${base64url({ alg: 'ES256', typ: 'JWT' })}.${base64url({ sub: 'user-1', role: 'authenticated' })}.sig`;
 
+/** «Выйти» asks first (an accidental tap signs no one out); the window's own «Выйти» does it. */
+async function signOut(page: Page, button: Locator) {
+  await button.click();
+  const asked = page.getByRole('dialog', { name: 'Выйти из приложения?' });
+  await asked.getByRole('button', { name: 'Выйти', exact: true }).click();
+}
+
 function sessionFor(email: string) {
   return {
     access_token: fakeToken,
@@ -159,7 +166,7 @@ test('the session survives a reload, and signing out returns to the form', async
 
   await openSettings(page); // the account is behind ⚙
   await expect(page.getByText('right@example.com')).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
+  await signOut(page, page.getByRole('dialog').getByRole('button', { name: 'Выйти' }));
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 
   await page.reload();
@@ -321,7 +328,7 @@ test('signing out stops reminders on this device and leaves other devices signed
     (request) => request.url().endsWith('/api/push/subscriptions') && request.method() === 'DELETE',
   );
   const logout = page.waitForRequest((request) => request.url().includes('/logout'));
-  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
+  await signOut(page, page.getByRole('dialog').getByRole('button', { name: 'Выйти' }));
   await forgotten;
   expect((await logout).url()).toContain('scope=local');
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
@@ -335,8 +342,20 @@ test('«Выйти» on the main screen signs out too, and stops reminders', asy
   await signUp(page, 'right@example.com', 'long-enough-1');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
 
+  // Asked first: «Остаться» has the focus and keeps the learner in, with nothing sent.
+  const home = page.getByRole('button', { name: 'Выйти', exact: true });
+  await home.click();
+  const asked = page.getByRole('dialog', { name: 'Выйти из приложения?' });
+  await expect(asked.getByRole('button', { name: 'Остаться' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(asked).toBeHidden();
+  await home.click();
+  await page.keyboard.press('Escape');
+  await expect(asked).toBeHidden();
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+
   const logout = page.waitForRequest((request) => request.url().includes('/logout'));
-  await page.getByRole('button', { name: 'Выйти', exact: true }).click();
+  await signOut(page, home);
   expect((await logout).url()).toContain('scope=local');
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
@@ -349,7 +368,7 @@ test('signing out without a connection still signs out and stops reminders', asy
 
   await page.route('**/api/push/subscriptions', (route) => route.abort());
   await page.route(`${SUPABASE}/**/logout*`, (route) => route.abort());
-  await page.getByRole('dialog').getByRole('button', { name: 'Выйти' }).click();
+  await signOut(page, page.getByRole('dialog').getByRole('button', { name: 'Выйти' }));
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('unsubscribed'))).toBe('yes');
   await page.reload();

@@ -32,6 +32,9 @@ export const kk: Messages = {
   yesDelete: 'Иә, жою',
   signingOut: 'Шығуда…',
   signOut: 'Шығу',
+  signOutQuestion: 'Қолданбадан шығасыз ба?',
+  signOutNote: 'Қайта кіру үшін пошта мен құпиясөзді қайта енгізу керек болады.',
+  stay: 'Қалу',
   deleteAccount: 'Аккаунтты жою',
   onIPhoneNotificationsOnlyArriveIf:
     'iPhone-да хабарландырулар қолданба «Басты экранда» болса ғана келеді: «Бөлісу» → «Басты экранға» басып, оны сол жерден ашыңыз.',
@@ -343,7 +346,7 @@ export const kk: Messages = {
   fromMyGroups: 'Топтарымнан',
   group: (a: Arg) => `${a} тобы`,
   aReadyMadeCourseTheMost:
-    'Дайын курс: ағылшын тілінің ең қажетті сөздері, оңайдан қиынға, күніне бірнеше, өз қарқыныңызбен.',
+    'Дайын ағылшынша-орысша курс: ағылшын тілінің ең қажетті сөздері, оңайдан қиынға, күніне бірнеше, өз қарқыныңызбен.',
   openTheCourse: 'Курсты ашу',
   inGroupNamed: (a: Arg) => `${a} тобында`,
   emptyAddSomeWords: 'бос, сөз қосыңыз',

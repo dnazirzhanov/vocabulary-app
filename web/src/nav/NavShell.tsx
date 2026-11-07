@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
-import { useAsyncAction } from '../lib/useAsyncAction.ts';
+import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ChartIcon, GearIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
 import styles from './NavShell.module.css';
@@ -23,7 +23,6 @@ interface NavShellProps {
  */
 export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavShellProps) {
   const [settings, setSettings] = useState(false);
-  const signOut = useAsyncAction();
   const items = [
     { tab: 'today', label: t.today, Icon: HomeIcon },
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
@@ -36,15 +35,13 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
         {children}
         <div className={styles.corner}>
           {onSignOut && (
-            <button
-              type="button"
-              className={styles.signOut}
-              disabled={signOut.busy}
-              aria-busy={signOut.busy}
-              onClick={() => void signOut.run(onSignOut)}
-            >
-              {signOut.busy ? t.signingOut : t.signOut}
-            </button>
+            <SignOutConfirm onSignOut={onSignOut}>
+              {(ask) => (
+                <button type="button" className={styles.signOut} onClick={ask}>
+                  {t.signOut}
+                </button>
+              )}
+            </SignOutConfirm>
           )}
           <button
             type="button"
