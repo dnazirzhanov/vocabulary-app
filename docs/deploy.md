@@ -102,8 +102,8 @@ Capacity was measured on a laptop with the CPU limited, not on a real host
 usage page for database size and egress: the free plan includes 500 MB and 5 GB a month.
 
 ## 4. Backups (free Supabase has none)
-Nightly: `pg_dump "$DATABASE_URL" | gzip | gpg -c > backup.sql.gz.gpg`, stored outside Supabase.
-**Restore it into a scratch database once before inviting anyone.**
+Add the two secrets in `docs/backups.md` («Turning it on»), run the Backup workflow once by hand
+and check it is green, before inviting anyone.
 
 ## 5. Roll back
 Redeploy the previous image. If a migration is at fault, `alembic downgrade -1` against the database.

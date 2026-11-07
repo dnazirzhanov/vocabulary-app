@@ -44,6 +44,20 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic check # models and migrations must not drift apart
       - run: uv run pytest
+      # The nightly backup's scripts on every change (docs/backups.md): dump the test database,
+      # encrypted, then restore it into an empty one and check it.
+      - name: Backup scripts restore what they dump
+        working-directory: .
+        env:
+          BACKUP_PASSPHRASE: ci-only-passphrase
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          scripts/backup.sh "$TEST_DATABASE_URL" /tmp/backup
+          psql postgresql://vocab:vocab@localhost:5432/vocab_test -c "CREATE DATABASE vocab_restore"
+          scripts/restore-check.sh /tmp/backup/app-*.dump.enc postgresql://vocab:vocab@localhost:5432/vocab_restore
 
   web:
     runs-on: ubuntu-latest
