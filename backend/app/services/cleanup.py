@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models import GroupTestAttempt, LearningSession, ReviewAttempt, StudyDayTotal, User
+from app.services import sync
 from app.services.progress import RECALL_RATE_DAYS
 from app.services.study_days import HISTORY_DAYS
 
@@ -95,4 +96,6 @@ def clean_up(db: Session, now: datetime, max_seconds: float = MAX_SECONDS) -> Cl
         )
     )
     db.commit()
+    # Sync's memory of deletions and applied changes: a device away longer pulls everything.
+    sync.forget_old(db, now)
     return Cleaned(lessons, answers, finished=True)

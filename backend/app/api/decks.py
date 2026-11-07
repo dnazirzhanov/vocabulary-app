@@ -50,21 +50,23 @@ def get_deck(deck_id: DeckId, user: CurrentUser, db: DbSession) -> TeacherDeckOu
 
 @router.patch("/decks/{deck_id}")
 def rename_deck(
-    deck_id: DeckId, body: RenameDeckIn, user: CurrentUser, db: DbSession
+    deck_id: DeckId, body: RenameDeckIn, user: CurrentUser, db: DbSession, now: Now
 ) -> TeacherDeckOut:
-    return decks.rename(db, user, deck_id, body.title)
+    return decks.rename(db, user, deck_id, body.title, now)
 
 
 @router.delete("/decks/{deck_id}", status_code=204)
-def delete_deck(deck_id: DeckId, user: CurrentUser, db: DbSession) -> Response:
+def delete_deck(deck_id: DeckId, user: CurrentUser, db: DbSession, now: Now) -> Response:
     """My deck, for good: its own cards, everyone's progress on them, its lessons (ADR 0019)."""
-    decks.delete_deck(db, user, deck_id)
+    decks.delete_deck(db, user, deck_id, now)
     return Response(status_code=204)
 
 
 @router.post("/decks/{deck_id}/words", status_code=201)
-def add_word(deck_id: DeckId, body: DeckWordIn, user: CurrentUser, db: DbSession) -> TeacherDeckOut:
-    return decks.add_word(db, user, deck_id, body)
+def add_word(
+    deck_id: DeckId, body: DeckWordIn, user: CurrentUser, db: DbSession, now: Now
+) -> TeacherDeckOut:
+    return decks.add_word(db, user, deck_id, body, now)
 
 
 DEV_GENERATION_HEADER = "X-Dev-Generation"
@@ -137,16 +139,16 @@ def suggest(
 
 @router.put("/decks/{deck_id}/words/{word_id}")
 def edit_word(
-    deck_id: DeckId, word_id: WordId, body: DeckWordIn, user: CurrentUser, db: DbSession
+    deck_id: DeckId, word_id: WordId, body: DeckWordIn, user: CurrentUser, db: DbSession, now: Now
 ) -> TeacherDeckOut:
-    return decks.edit_word(db, user, deck_id, word_id, body)
+    return decks.edit_word(db, user, deck_id, word_id, body, now)
 
 
 @router.delete("/decks/{deck_id}/words/{word_id}")
 def remove_word(
-    deck_id: DeckId, word_id: WordId, user: CurrentUser, db: DbSession
+    deck_id: DeckId, word_id: WordId, user: CurrentUser, db: DbSession, now: Now
 ) -> TeacherDeckOut:
-    return decks.remove_word(db, user, deck_id, word_id)
+    return decks.remove_word(db, user, deck_id, word_id, now)
 
 
 @router.post("/decks/{deck_id}/publish")

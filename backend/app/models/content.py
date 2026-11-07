@@ -3,10 +3,13 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     ARRAY,
+    BigInteger,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
+    Index,
+    Integer,
     SmallInteger,
     String,
     Text,
@@ -21,7 +24,10 @@ from app.models.base import Base
 
 class Deck(Base):
     __tablename__ = "decks"
-    __table_args__ = (CheckConstraint("kind IN ('course', 'user')", name="kind_values"),)
+    __table_args__ = (
+        CheckConstraint("kind IN ('course', 'user')", name="kind_values"),
+        Index("ix_decks_owner_id_change_seq", "owner_id", "change_seq"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
@@ -46,6 +52,13 @@ class Deck(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Photos its words were drafted from, read in the author's browser (ADR 0029): at most 8.
     photos_used: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    # Sync (ADR 0061): the title's version, and a number from `sync_change_seq` renewed by every
+    # change to the deck or its cards, so a device asks only for what changed since it last did.
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    change_seq: Mapped[int] = mapped_column(
+        BigInteger, server_default=text("nextval('sync_change_seq')")
+    )
 
 
 class Word(Base):
@@ -68,6 +81,9 @@ class Word(Base):
     owner_deck_id: Mapped[str | None] = mapped_column(
         ForeignKey("decks.id", ondelete="CASCADE"), index=True
     )
+    # Sync (ADR 0061): renewed by every edit, so a stale one is noticed.
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DeckWord(Base):

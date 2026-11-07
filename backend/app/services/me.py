@@ -36,6 +36,15 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
 def update_me(
     db: Session, user: User, changes: MeUpdate, now: datetime, time_zone: ZoneInfo
 ) -> MeOut:
+    apply_changes(db, user, changes, now, time_zone)
+    db.commit()
+    return me_out(db, user, now, time_zone)
+
+
+def apply_changes(
+    db: Session, user: User, changes: MeUpdate, now: datetime, time_zone: ZoneInfo
+) -> None:
+    """The settings sent, checked and set; the caller commits (also from sync, ADR 0061)."""
     for field in changes.model_fields_set:
         value = getattr(changes, field)
         if value is None:  # null is "leave as is"; a target cannot be unset
@@ -50,8 +59,6 @@ def update_me(
     # Choosing a pace finishes the first-run screens and starts the ramp's clock.
     if user.onboarded_at is None and user.daily_target_words is not None:
         user.onboarded_at = now
-    db.commit()
-    return me_out(db, user, now, time_zone)
 
 
 MAX_WORDING_REPORTS_A_DAY = 5
