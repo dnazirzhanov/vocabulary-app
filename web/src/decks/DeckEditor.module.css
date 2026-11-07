@@ -802,3 +802,23 @@
   width: 20px;
   height: 20px;
 }
+
+/* A change made on this device and not on the server yet (ADR 0061): said quietly. */
+.waiting {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* Changed on another device meanwhile: what it says there, and the two ways out. */
+.problemBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.problemActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

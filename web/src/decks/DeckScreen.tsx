@@ -1,3 +1,4 @@
+import { withSnapshot } from '../local/session.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
 import { api, describeError } from '../lib/api.ts';
@@ -55,7 +56,11 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
 
   const load = useCallback(
     () =>
-      Promise.all([api.deckStats(deckId), api.activeSession()])
+      // Without a connection: the page as last seen (ADR 0060); studying itself needs the server.
+      Promise.all([
+        withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value),
+        withSnapshot('activeSession', () => api.activeSession()).then(({ value }) => value),
+      ])
         .then(async ([stats, active]) => {
           // The pace (its suggestion, the review brake) is secondary: the page works without it.
           const pace = await api.pace(deckId).catch(() => null);

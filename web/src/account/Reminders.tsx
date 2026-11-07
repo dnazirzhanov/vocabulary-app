@@ -1,3 +1,5 @@
+import { withSnapshot } from '../local/session.ts';
+import { saveMe } from '../local/settings.ts';
 import { useEffect, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { disablePush, enablePush, pushState, type PushState } from '../lib/push.ts';
@@ -36,12 +38,15 @@ function NotificationChoices() {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    void api.me().then(setMe, (caught: unknown) => setError(describeError(caught)));
+    void withSnapshot('me', () => api.me()).then(
+      ({ value }) => setMe(value),
+      (caught: unknown) => setError(describeError(caught)),
+    );
   }, []);
   const choose = async (field: NotificationChoice, on: boolean) => {
     setError(null);
     try {
-      setMe(await api.updateMe({ [field]: on }));
+      setMe(await saveMe({ [field]: on }));
     } catch (caught) {
       setError(describeError(caught));
     }
