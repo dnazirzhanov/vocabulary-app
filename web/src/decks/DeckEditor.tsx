@@ -10,6 +10,7 @@ import { GeneratePanel } from './GeneratePanel.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
+import { DeckLanguage } from './DeckLanguage.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
@@ -28,7 +29,7 @@ const posLabel = (pos: string) => POS.find((option) => option.value === pos)?.la
 // space, hyphen or apostrophe.
 const HEADWORD = /^[a-z]+([ '-][a-z]+)*$/;
 const FLAGS: Record<WordFlag, string> = {
-  translation_not_russian: t.translationIsNotInRussian,
+  translation_wrong_language: t.translationWrongLanguage,
   example_without_word: t.theExampleDoesnTContainThis,
   example_long: t.longExample,
 };
@@ -39,7 +40,7 @@ const COMPOSER_MODES: { value: ComposerMode; label: string }[] = [
   { value: 'text', label: t.text },
   { value: 'manual', label: t.byHand },
 ];
-const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', example: '', example_ru: '' };
+const EMPTY: DeckWordInput = { headword: '', pos: 'noun', translation: '', example: '', example_translation: '' };
 
 interface DeckEditorProps {
   deckId: string;
@@ -155,7 +156,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
         pos: card.pos,
         translation: card.translation,
         example: card.example,
-        example_ru: card.example_ru,
+        example_translation: card.example_translation,
       });
       const notes = card.flags.map((flag) => FLAGS[flag]);
       if (card.provider === 'demo') notes.push(t.demoModeTheTranslationIsnT);
@@ -197,8 +198,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);
     if (!entry) return;
-    const { headword: h, pos, translation, example, example_ru } = entry.word;
-    setForm({ headword: h, pos: pos as PartOfSpeech, translation, example, example_ru });
+    const { headword: h, pos, translation, example, example_translation } = entry.word;
+    setForm({ headword: h, pos: pos as PartOfSpeech, translation, example, example_translation });
     setEditing(id);
     setFormError(null);
     setMode('manual');
@@ -248,6 +249,11 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                   <GiveButton groups={deck.groups} onClick={() => setGiving(true)} />
                 )}
               </div>
+              <DeckLanguage
+                language={deck.language}
+                fixed={count > 0}
+                onChoose={(language) => void api.setDeckLanguage(deck.id, language).then(setDeck, () => null)}
+              />
               <div className={styles.tabs} role="tablist" aria-label={t.howToAdd}>
                 {COMPOSER_MODES.map((option) => (
                   <button
@@ -268,7 +274,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             <div id={`pane-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`} className={styles.pane}>
               {mode === 'words' && <QuickAddPanel deckId={deck.id} onAdded={drafted} />}
               {mode === 'topic' && (
-                <TopicPanel deckId={deck.id} topics={deck.topics} onAdded={drafted} onOpenDeck={onOpenDeck} />
+                <TopicPanel
+                  deckId={deck.id}
+                  language={deck.language}
+                  topics={deck.topics}
+                  onAdded={drafted}
+                  onOpenDeck={onOpenDeck}
+                />
               )}
               {mode === 'text' && <GeneratePanel deckId={deck.id} photosLeft={deck.photos_left} onDrafted={drafted} />}
               {mode === 'manual' && (
@@ -347,11 +359,12 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                     <textarea
                       rows={2}
                       maxLength={300}
-                      value={form.example_ru}
-                      onChange={(event) => field('example_ru', event.target.value)}
+                      value={form.example_translation}
+                      onChange={(event) => field('example_translation', event.target.value)}
                     />
                   </label>
-                  {!editing && <p className={styles.note}>{t.aWordFromTheCourseFills}</p>}
+                  {/* Only Russian decks share the course's words (ADR 0055). */}
+                  {!editing && deck.language === 'ru' && <p className={styles.note}>{t.aWordFromTheCourseFills}</p>}
                   {formError && (
                     <p className={styles.problem} role="alert">
                       {formError}

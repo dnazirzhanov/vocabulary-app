@@ -8,7 +8,7 @@ const card = (id: string, isNew = true): CardExercise => ({
   type: 'card',
   new: isNew,
   previews: [],
-  word: { id, headword: id, pos: 'noun', translation: 't', example: 'e', example_ru: 'e', illustration: null },
+  word: { id, headword: id, pos: 'noun', translation: 't', example: 'e', example_translation: 'e', illustration: null },
 });
 const spelling = (id: string): SpellingExercise => ({
   id,
@@ -23,6 +23,7 @@ const spelling = (id: string): SpellingExercise => ({
 const session = (cards: Exercise[], results: AttemptResult[] = []): Session => ({
   id: 's',
   kind: 'study',
+  glossary: true,
   deck_id: 'd',
   completed: false,
   exercises: cards,

@@ -72,6 +72,9 @@ TOPIC_CALLS = 2
 AVOID_LIMIT = 600
 
 
+COURSE_LANGUAGE = "ru"
+
+
 def over_ask(wanted: int) -> int:
     """A few spare words, since the AI sometimes repeats one it was told to avoid."""
     return max(3, -(-wanted * 3 // 10))
@@ -91,7 +94,7 @@ def _word_out(word: Word) -> WordOut:
         pos=word.pos,
         translation=word.translation,
         example=word.example,
-        example_ru=word.example_ru,
+        example_translation=word.example_translation,
         illustration=word.illustration,
     )
 
@@ -142,6 +145,12 @@ def _active_assignments(user: User) -> Select[str, datetime, UUID, date | None]:
     )
 
 
+def course_open(user: User) -> bool:
+    """The course is written in Russian only, so it is for those studying in Russian (ADR 0055).
+    An account not yet asked reads as Russian. Every path to course words goes through this."""
+    return user.language in (None, COURSE_LANGUAGE)
+
+
 def visible_deck(db: Session, user: User, deck_id: str) -> Deck:
     """A deck I may study or browse: a published course level, a deck given to one of my groups,
     or one I wrote (in any state)."""
@@ -151,7 +160,9 @@ def visible_deck(db: Session, user: User, deck_id: str) -> Deck:
         return deck
     if deck is not None and deck.status == "published":
         if deck.kind == "course":
-            return deck
+            if course_open(user):
+                return deck
+            raise ApiError(404, "deck_not_found", "Deck not found")
         given = _active_assignments(user).where(DeckAssignment.deck_id == deck_id).limit(1)
         if db.execute(given).first() is not None:
             return deck
@@ -256,6 +267,7 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
             )
         ),
         photos_left=max(0, MAX_PHOTOS_PER_DECK - deck.photos_used),
+        language=deck.explanation_language,
     )
 
 
@@ -265,7 +277,15 @@ def _teacher_word(deck: Deck, word: Word) -> TeacherWordOut:
         word=_word_out(word),
         from_course=not own,
         source_sentence=word.source_sentence,
-        flags=flags(word.headword, word.translation, word.example) if own else [],
+        flags=flags(
+            word.headword,
+            word.translation,
+            word.example,
+            deck.explanation_language,
+            word.example_translation,
+        )
+        if own
+        else [],
     )
 
 
@@ -279,7 +299,7 @@ def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> Teac
         title=body.title,
         description="",
         learning_language="en",
-        explanation_language="ru",
+        explanation_language=body.language or user.language or COURSE_LANGUAGE,
         status="draft",
         content_version=1,
         level=None,
@@ -300,6 +320,16 @@ def my_decks(db: Session, user: User) -> list[TeacherDeckOut]:
         .order_by(Deck.created_at.desc(), Deck.id)
     )
     return [_deck_out(db, deck) for deck in decks]
+
+
+def set_language(db: Session, user: User, deck_id: str, language: str) -> TeacherDeckOut:
+    """What a deck is translated into. Only while it has no words: a deck never mixes languages."""
+    deck = _owned_deck(db, user, deck_id)
+    if _deck_word_ids(db, deck.id):
+        raise ApiError(409, "deck_has_words", "A deck with words keeps its language")
+    deck.explanation_language = language
+    db.commit()
+    return _deck_out(db, deck)
 
 
 def get_deck(db: Session, user: User, deck_id: str) -> TeacherDeckOut:
@@ -350,7 +380,12 @@ def _same_headword(db: Session, deck_id: str, headword: str, but: str | None = N
 def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | None = None) -> None:
     """A word at the end of the deck: the course's own when it has it, else a new word of the
     deck. The caller checks for room and duplicates and commits."""
-    word = _course_word(db, body.headword, body.pos)
+    # The course's meanings are Russian: a deck in another language writes its own.
+    word = (
+        _course_word(db, body.headword, body.pos)
+        if deck.explanation_language == COURSE_LANGUAGE
+        else None
+    )
     if word is None:
         word = Word(
             id=_new_id("t"),
@@ -359,7 +394,7 @@ def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | No
             translation=body.translation,
             also_accept=[],
             example=body.example,
-            example_ru=body.example_ru,
+            example_translation=body.example_translation,
             illustration=None,
             owner_deck_id=deck.id,
             source_sentence=source_sentence,
@@ -418,7 +453,9 @@ def generate(
         raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
     seen = _seen(db, deck)
     wanted = min(body.count, room)
-    cards = provider.draft(body.text, wanted, body.level, list(seen.values()))
+    cards = provider.draft(
+        body.text, wanted, body.level, list(seen.values()), deck.explanation_language
+    )
     added, skipped, repeats = _save_drafts(db, deck, cards, set(seen), wanted)
     skipped += [SkippedOut(headword=word, reason="duplicate") for word in repeats]
     deck.photos_used += body.photos
@@ -465,7 +502,7 @@ def _save_drafts(
                 pos=card.pos,
                 translation=card.translation.strip(),
                 example=card.example.strip(),
-                example_ru=card.example_ru.strip()[:300],
+                example_translation=card.example_translation.strip()[:300],
             )
             _append(db, deck, fields, card.source_sentence.strip() or None)
             taken.add(key)
@@ -485,7 +522,7 @@ def fill(db: Session, user: User, deck_id: str, body: FillIn, provider: Provider
     named: dict[str, str] = {}
     for word in body.words:
         named.setdefault(" ".join(word.lower().split()), word)
-    cards = provider.fill(list(named.values()), body.level)
+    cards = provider.fill(list(named.values()), body.level, deck.explanation_language)
     # Named on purpose: only a word in the deck now is a repeat (one taken out may come back).
     taken = {word_key(word) for word in present}
     added, skipped, repeats = _save_drafts(db, deck, cards, taken, room)
@@ -521,7 +558,7 @@ def topic(
     repeats: list[str] = []
     for _ in range(TOPIC_CALLS):
         ask = (wanted - added) + over_ask(wanted - added)
-        cards = provider.topic(body.topic, ask, body.level, avoid)
+        cards = provider.topic(body.topic, ask, body.level, avoid, deck.explanation_language)
         more, problems, again = _save_drafts(db, deck, cards, taken, wanted - added)
         added += more
         skipped += problems
@@ -550,8 +587,8 @@ def suggest(
     db: Session, user: User, deck_id: str, body: SuggestIn, provider: Provider
 ) -> SuggestOut:
     """One card filled in for the manual form; nothing is saved until the learner adds it."""
-    _owned_deck(db, user, deck_id)
-    cards = provider.fill([body.headword], body.level)
+    deck = _owned_deck(db, user, deck_id)
+    cards = provider.fill([body.headword], body.level, deck.explanation_language)
     if not cards:
         raise ApiError(422, "generation_refused", "No card could be made for this word")
     card = cards[0]
@@ -561,8 +598,14 @@ def suggest(
         pos=card.pos,
         translation=card.translation.strip()[:120],
         example=card.example.strip()[:300],
-        example_ru=card.example_ru.strip()[:300],
-        flags=flags(headword, card.translation, card.example),
+        example_translation=card.example_translation.strip()[:300],
+        flags=flags(
+            headword,
+            card.translation,
+            card.example,
+            deck.explanation_language,
+            card.example_translation,
+        ),
         provider=provider.name,
     )
 
@@ -593,7 +636,7 @@ def edit_word(
     word.pos = body.pos
     word.translation = body.translation
     word.example = body.example
-    word.example_ru = body.example_ru
+    word.example_translation = body.example_translation
     db.commit()
     return _deck_out(db, deck)
 

@@ -14,7 +14,7 @@ const word = (position: number, status: WordStatus, nextReview: string | null = 
     pos: 'noun',
     translation: 't',
     example: 'e',
-    example_ru: 'e',
+    example_translation: 'e',
     illustration: null,
   },
 });

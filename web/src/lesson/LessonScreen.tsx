@@ -74,7 +74,8 @@ function TappableSentence({
 }
 
 /** The card itself: the word on the front; translation, picture and example on the back. */
-function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean; onTap: (t: Tapped) => void }) {
+function Card(props: { card: CardExercise; revealed: boolean; glossary: boolean; onTap: (t: Tapped) => void }) {
+  const { card, revealed, glossary, onTap } = props;
   const { word } = card;
   return (
     <article className={styles.card} data-revealed={revealed || undefined} data-card={card.id}>
@@ -93,7 +94,12 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
           <div className={styles.example}>
             <p lang="en" className={styles.exampleEn}>
               <span>
-                <TappableSentence sentence={word.example} headword={word.headword} onTap={onTap} />
+                {/* The glossary is in Russian: elsewhere a tap would show the wrong language. */}
+                {glossary ? (
+                  <TappableSentence sentence={word.example} headword={word.headword} onTap={onTap} />
+                ) : (
+                  word.example
+                )}
               </span>
               <ListenButton
                 small
@@ -101,8 +107,8 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
                 label={t.listenToTheExample}
               />
             </p>
-            <p className={styles.exampleRu}>{word.example_ru}</p>
-            <p className={styles.tapHint}>{t.tapAnyWordToSeeIts}</p>
+            <p className={styles.exampleRu}>{word.example_translation}</p>
+            {glossary && <p className={styles.tapHint}>{t.tapAnyWordToSeeIts}</p>}
           </div>
         </div>
       )}
@@ -254,7 +260,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       <main ref={mainRef} className={styles.main}>
         <div key={exercise.id} className={styles.cardWrap}>
           {exercise.type === 'card' ? (
-            <Card card={exercise} revealed={revealed} onTap={setTapped} />
+            <Card card={exercise} revealed={revealed} glossary={session.glossary} onTap={setTapped} />
           ) : (
             <SpellingExercise
               exercise={exercise}

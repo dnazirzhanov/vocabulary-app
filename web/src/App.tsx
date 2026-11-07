@@ -19,7 +19,6 @@ import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import { forgetRunningTest, runningTest } from './lib/groupTests.ts';
 import { forgetDevice } from './lib/push.ts';
-import { currentDeck } from './lib/today.ts';
 import type { Deck, Me, Session, Summary, TestAttempt } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
@@ -204,8 +203,7 @@ function Learning({ email }: { email: string | null }) {
   }
   if (!profile) return null;
   const { me, decks } = profile;
-  const current = currentDeck(decks);
-  if (current && !me.onboarded) {
+  if (!me.onboarded) {
     return (
       <GoalScreen
         me={me}
@@ -395,7 +393,7 @@ function Learning({ email }: { email: string | null }) {
       <HomeScreen
         onOpenPage={(deckId) => openPage(deckId, 'home')}
         onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
-        onOpenCourse={() => setScreen({ name: 'course' })}
+        onOpenCourse={decks.length > 0 ? () => setScreen({ name: 'course' }) : undefined}
       />
     );
   }

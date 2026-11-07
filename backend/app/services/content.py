@@ -175,6 +175,8 @@ def import_deck(db: Session, content: DeckContent) -> ImportStats:
     """Upsert words and the deck, replace the deck's word order. One transaction; safe to re-run."""
     for word in content.words:
         values = word.model_dump()
+        # The course's files name it for what it is there: Russian.
+        values["example_translation"] = values.pop("example_ru")
         db.execute(
             insert(Word)
             .values(**values)

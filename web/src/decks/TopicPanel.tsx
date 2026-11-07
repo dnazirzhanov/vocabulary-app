@@ -1,3 +1,4 @@
+import type { CardLanguage } from '../i18n/languages.ts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { deckTitleFor, isNewTopic } from '../lib/topics.ts';
@@ -16,11 +17,13 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
  */
 export function TopicPanel({
   deckId,
+  language,
   topics,
   onAdded,
   onOpenDeck,
 }: {
   deckId: string;
+  language: CardLanguage;
   /** The deck's topics, the latest first: the field starts with it, so continuing is one tap. */
   topics: string[];
   onAdded: (result: GenerateResult) => void;
@@ -53,7 +56,7 @@ export function TopicPanel({
     setError(null);
     try {
       if (into === 'new') {
-        const deck = await api.createDeck(deckTitleFor(topic));
+        const deck = await api.createDeck(deckTitleFor(topic), language);
         await api.topicWords(deck.id, topic.trim(), count, level);
         onOpenDeck(deck.id);
         return;

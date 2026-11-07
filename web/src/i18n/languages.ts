@@ -10,6 +10,17 @@ export const UI_LANGUAGES = {
 
 export type UiLanguage = keyof typeof UI_LANGUAGES;
 
+/** What a card's meaning comes in. English is what's learned, so it isn't one of them. */
+export const CARD_LANGUAGES = {
+  ru: UI_LANGUAGES.ru,
+  uz: UI_LANGUAGES.uz,
+  kk: UI_LANGUAGES.kk,
+  ky: UI_LANGUAGES.ky,
+  tg: UI_LANGUAGES.tg,
+} as const;
+
+export type CardLanguage = keyof typeof CARD_LANGUAGES;
+
 const known = (code: string | null | undefined): code is UiLanguage =>
   code != null && Object.hasOwn(UI_LANGUAGES, code);
 

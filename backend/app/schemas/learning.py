@@ -20,7 +20,7 @@ class WordOut(BaseModel):
     pos: str
     translation: str
     example: str
-    example_ru: str
+    example_translation: str
     illustration: str | None
 
 
@@ -180,6 +180,8 @@ class SessionOut(BaseModel):
     id: UUID
     kind: SessionKind
     deck_id: str | None  # null for a finished lesson whose deck was deleted
+    # Whether an example's words can be tapped for their meaning (ADR 0055).
+    glossary: bool
     completed: bool
     exercises: list[ExerciseOut]
     # One per rated exercise, in exercise order; the client resumes after the last one.

@@ -4,7 +4,8 @@ import { describeAuthError, supabase, type AuthFailure } from '../lib/auth.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { PasswordField, useRepeatedPassword } from './PasswordField.tsx';
 import styles from './AuthScreen.module.css';
-import { switchLanguage, t } from '../i18n/index.ts';
+import { switchLanguage, t, uiLanguage } from '../i18n/index.ts';
+import { UI_LANGUAGES } from '../i18n/languages.ts';
 import { LanguageSelect } from '../ui/LanguageSelect.tsx';
 
 /** `confirm` and `recover` are the two steps that ask for the code from an email (ADR 0043). */
@@ -50,7 +51,13 @@ function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit: (ev
       <div className={styles.layout}>
         {/* First, and needing no reading: someone who can't read this page has to find it. */}
         <div className={styles.language}>
-          <LanguageSelect compact onChoose={switchLanguage} />
+          <LanguageSelect
+            compact
+            label={t.appLanguage}
+            value={uiLanguage}
+            options={UI_LANGUAGES}
+            onChoose={switchLanguage}
+          />
         </div>
         <div className={styles.stage} aria-hidden="true">
           <Illustration id="key" className={styles.art} />

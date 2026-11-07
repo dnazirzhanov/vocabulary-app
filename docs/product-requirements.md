@@ -39,7 +39,7 @@ P0, P1 and out-of-scope lists are as in the brief (§4). Interpretation for the 
 
 - **Exercise types:** introduce card → choose the meaning (en→ru, recognition) → type the word (ru→en, production). A recall-before-reveal review mode arrives with spaced repetition (Phase 3).
 - **Images** are optional. Only five original illustrations exist; every exercise must work without one, using the example sentence as the visual focus. During multiple choice the picture is not shown before answering, so learners cannot match picture→translation without reading the English word.
-- **Interface language:** Russian copy, English learning content. Copy is kept in components for now; extraction into a message file happens only when a second interface language is actually needed.
+- **Languages:** the app's text in Russian, Uzbek, Kazakh, Kyrgyz, Tajik and English; card meanings in the first five; learning English only (ADR 0055). The course is Russian-only.
 - **Platform:** mobile-first web app; PWA install later.
 
 ## Current state vs P0 (after Phase 3)

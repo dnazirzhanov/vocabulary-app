@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.learning import WordOut
+from app.schemas.me import CardLanguage
 
 
 class _Input(BaseModel):
@@ -46,6 +47,12 @@ class NewDeckIn(_Input):
     """Every deck starts as its author's own; giving it to a group is a separate step (ADR 0019)."""
 
     title: Title
+    # What it is translated into; the author's own language unless named (ADR 0055).
+    language: CardLanguage | None = None
+
+
+class DeckLanguageIn(_Input):
+    language: CardLanguage
 
 
 class RenameDeckIn(_Input):
@@ -58,7 +65,7 @@ class DeckWordIn(_Input):
     translation: Meaning
     example: Sentence
     # The example's Russian translation; optional, shown under the example when present.
-    example_ru: Translation = ""
+    example_translation: Translation = ""
 
 
 class PublishIn(_Input):
@@ -114,7 +121,7 @@ class SuggestOut(BaseModel):
     pos: Literal["noun", "verb", "adjective", "adverb", "phrase", "other"]
     translation: str
     example: str
-    example_ru: str
+    example_translation: str
     flags: list[str]
     provider: Literal["deepseek", "demo"]
 
@@ -146,6 +153,8 @@ class TeacherDeckOut(BaseModel):
     groups: list[AssignedGroupOut]
     # Topics it has been grown with, the latest first (ADR 0019).
     topics: list[str] = []
+    # What its words are translated into (ADR 0055).
+    language: CardLanguage
     # Photos it can still be drafted from (ADR 0029).
     photos_left: int = 0
 
