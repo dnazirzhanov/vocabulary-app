@@ -1,3 +1,4 @@
+import { setOffline } from '../local/online.ts';
 import type { CardLanguage } from '../i18n/languages.ts';
 import { accessToken, dropSession } from './auth.ts';
 import { syncWithServer } from './clock.ts';
@@ -81,8 +82,10 @@ async function request<T>(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
+    setOffline(true);
     throw new ApiError('network', 0, 'network_error', 'The request did not reach the server');
   }
+  setOffline(false);
   syncWithServer(response.headers.get('X-Server-Time'));
   const data: unknown = await response.json().catch(() => null);
   if (response.status === 401) await dropSession();

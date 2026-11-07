@@ -204,3 +204,21 @@
     transition: none;
   }
 }
+
+/* Without a connection: one quiet line at the bottom of the page, above the tabs, saying the page
+   shows what this device kept. It never covers the settings in the corner. */
+.offline {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: 2;
+  width: fit-content;
+  max-width: calc(100% - 2 * var(--gutter));
+  margin: var(--space-4) auto var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}

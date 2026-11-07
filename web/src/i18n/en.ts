@@ -33,6 +33,7 @@ export const en: Messages = {
   yesDelete: 'Yes, delete',
   signingOut: 'Signing out…',
   signOut: 'Sign out',
+  offlineNote: "No connection. Showing what's saved on this device.",
   signOutQuestion: 'Sign out of the app?',
   signOutNote: "To come back, you'll need to enter your email and password again.",
   stay: 'Stay',

@@ -1,4 +1,5 @@
-import { createReadStream, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
@@ -50,8 +51,49 @@ function ocrAssets(): Plugin {
   };
 }
 
+/**
+ * The service worker keeps the app on the device (ADR 0060). After each build, `public/sw.js` in
+ * the output gets the list of files to keep (the page, its code, styles, fonts, all six languages,
+ * icons, manifests) and a version from their contents, so a new build installs fresh and the old
+ * one's files are dropped. Photo reading (/ocr/, about 10 MB) and audio are not kept up front.
+ */
+function serviceWorker(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'service-worker',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    writeBundle(_options, bundle) {
+      const built = Object.keys(bundle).filter((name) => !name.startsWith('ocr/') && !name.endsWith('.map'));
+      const copied = readdirSync(join(outDir, 'icons')).map((name) => `icons/${name}`);
+      const shell = [
+        '/',
+        ...[...built, ...copied, 'favicon.svg']
+          .filter((name) => name !== 'index.html' && name !== 'sw.js')
+          .map((name) => `/${name}`),
+        ...readdirSync(outDir)
+          .filter((name) => name.endsWith('.webmanifest'))
+          .map((name) => `/${name}`),
+      ].sort();
+      const version = createHash('sha256')
+        .update(shell.join('\n'))
+        .update(readFileSync(join(outDir, 'index.html')))
+        .digest('hex')
+        .slice(0, 12);
+      const file = join(outDir, 'sw.js');
+      const source = readFileSync(file, 'utf8')
+        .replace("const VERSION = 'dev';", `const VERSION = '${version}';`)
+        .replace('const SHELL = [];', `const SHELL = ${JSON.stringify(shell)};`);
+      if (!source.includes(version)) throw new Error('sw.js: the version line was not found');
+      writeFileSync(file, source);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), ocrAssets()],
+  plugins: [react(), ocrAssets(), serviceWorker()],
   server: { port: 5173, strictPort: true, proxy },
   preview: { port: 4173, strictPort: true, proxy },
 });

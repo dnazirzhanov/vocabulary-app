@@ -182,6 +182,8 @@ export interface Progress {
 // Mirrors backend/app/schemas/me.py.
 
 export interface Me {
+  /** This account: what this device keeps is stored under it (offline store). */
+  id: string;
   /** Shown in every group I am in (ADR 0057); null until the first run asks it. */
   name: string | null;
   /** Null until the learner has chosen a pace. */

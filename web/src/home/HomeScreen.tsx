@@ -1,3 +1,5 @@
+import { withSnapshot } from '../local/session.ts';
+import { setOffline } from '../local/online.ts';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { deadlineLeft, localToday } from '../lib/deadline.ts';
@@ -34,8 +36,16 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nameField = useRef<HTMLInputElement>(null);
 
+  // Without a connection, the list as this device last saw it (offline store).
   const load = useCallback(
-    () => api.library().then(setLibrary, (caught: unknown) => setLoadError(describeError(caught))),
+    () =>
+      withSnapshot('library', () => api.library()).then(
+        ({ value, offline }) => {
+          setLibrary(value);
+          if (offline) setOffline(true);
+        },
+        (caught: unknown) => setLoadError(describeError(caught)),
+      ),
     [],
   );
   useEffect(() => {

@@ -32,6 +32,7 @@ export const kk: Messages = {
   yesDelete: 'Иә, жою',
   signingOut: 'Шығуда…',
   signOut: 'Шығу',
+  offlineNote: 'Байланыс жоқ. Осы құрылғыда сақталғаны көрсетілген.',
   signOutQuestion: 'Қолданбадан шығасыз ба?',
   signOutNote: 'Қайта кіру үшін пошта мен құпиясөзді қайта енгізу керек болады.',
   stay: 'Қалу',

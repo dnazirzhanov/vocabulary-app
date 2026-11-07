@@ -3,6 +3,7 @@ import { AccountSection, type AccountProps } from '../account/AccountSection.tsx
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ChartIcon, GearIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
+import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -23,6 +24,7 @@ interface NavShellProps {
  */
 export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavShellProps) {
   const [settings, setSettings] = useState(false);
+  const offline = useOffline();
   const items = [
     { tab: 'today', label: t.today, Icon: HomeIcon },
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
@@ -33,6 +35,11 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
     <div className={styles.shell}>
       <div className={styles.content}>
         {children}
+        {offline && (
+          <p className={styles.offline} role="status">
+            {t.offlineNote}
+          </p>
+        )}
         <div className={styles.corner}>
           {onSignOut && (
             <SignOutConfirm onSignOut={onSignOut}>

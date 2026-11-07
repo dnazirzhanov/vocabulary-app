@@ -1,5 +1,8 @@
 import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
+import { bindAccount, closeLocal, deleteLocal, openLocal, withSnapshot } from './local/session.ts';
+import { saveSnapshot } from './local/db.ts';
+import { setOffline } from './local/online.ts';
 import { AuthScreen, NewPasswordScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
 import { DeckScreen } from './decks/DeckScreen.tsx';
@@ -88,13 +91,15 @@ type Account =
   | { status: 'loading' }
   | { status: 'signedOut' }
   // A recovery code was accepted: signed in, but a new password comes before anything else.
-  | { status: 'newPassword'; email: string | null }
-  | { status: 'signedIn'; email: string | null };
+  | { status: 'newPassword'; email: string | null; subject: string }
+  // `subject` is the sign-in's own id (Supabase's user id, `dev` without sign-in): it finds this
+  // device's kept data before the server answers.
+  | { status: 'signedIn'; email: string | null; subject: string };
 
 /** Development builds have no sign-in; production builds wait for a Supabase session. */
 function useAccount() {
   const [account, setAccount] = useState<Account>(
-    authMode === 'dev' ? { status: 'signedIn', email: null } : { status: 'loading' },
+    authMode === 'dev' ? { status: 'signedIn', email: null, subject: 'dev' } : { status: 'loading' },
   );
   useEffect(() => {
     if (!supabase) return;
@@ -102,9 +107,9 @@ function useAccount() {
       setAccount((current) => {
         if (!session) return { status: 'signedOut' };
         const email = session.user.email ?? null;
-        if (event === 'PASSWORD_RECOVERY') return { status: 'newPassword', email };
+        if (event === 'PASSWORD_RECOVERY') return { status: 'newPassword', email, subject: session.user.id };
         // Token refreshes and returning to the tab must not skip the new password.
-        return current.status === 'newPassword' ? current : { status: 'signedIn', email };
+        return current.status === 'newPassword' ? current : { status: 'signedIn', email, subject: session.user.id };
       });
     void supabase.auth.getSession().then(({ data }) => apply(null, data.session));
     const { data } = supabase.auth.onAuthStateChange(apply);
@@ -113,7 +118,9 @@ function useAccount() {
   const passwordSaved = useCallback(
     () =>
       setAccount((current) =>
-        current.status === 'newPassword' ? { status: 'signedIn', email: current.email } : current,
+        current.status === 'newPassword'
+          ? { status: 'signedIn', email: current.email, subject: current.subject }
+          : current,
       ),
     [],
   );
@@ -124,6 +131,8 @@ function useAccount() {
 async function signOutHere() {
   forgetRunningTest();
   await forgetDevice().catch(() => undefined);
+  // What this device kept for the account stays, closed, for its next sign-in; no one else opens it.
+  closeLocal();
   await supabase?.auth.signOut({ scope: 'local' });
 }
 
@@ -133,27 +142,46 @@ export function App() {
   if (account.status === 'signedOut') return <AuthScreen invited={pendingInvite() !== null} />;
   if (account.status === 'newPassword') return <NewPasswordScreen onDone={passwordSaved} />;
   // Keyed by account, so signing in as someone else starts from a fresh home screen.
-  return <Learning key={account.email ?? 'dev'} email={account.email} />;
+  return <Learning key={account.subject} email={account.email} subject={account.subject} />;
 }
 
 type Profile = { me: Me; decks: Deck[] };
 
+/**
+ * The learner's settings and the course levels; without a connection, the last ones this device
+ * kept, so the app still opens. Null when the page reloads into another device's chosen language.
+ */
+async function loadProfile(subject: string): Promise<Profile | null> {
+  await openLocal(subject);
+  const [me, decks] = await Promise.all([
+    withSnapshot('me', () => api.me()),
+    withSnapshot('courseDecks', () => api.listDecks()),
+  ]);
+  const offline = me.offline || decks.offline;
+  setOffline(offline);
+  if (!offline) {
+    // The server named the account: this device's store is its own (another account's never
+    // opens), and keeps this answer for the next time there is no connection.
+    const db = await bindAccount(subject, me.value.id);
+    if (db) await Promise.all([saveSnapshot(db, 'me', me.value), saveSnapshot(db, 'courseDecks', decks.value)]);
+    // Another device chose: follow it. A new account takes what this device shows.
+    if (me.value.ui_language === null) void api.updateMe({ ui_language: uiLanguage }).catch(() => null);
+    else if (me.value.ui_language !== uiLanguage && switchLanguage(me.value.ui_language)) return null;
+  }
+  return { me: me.value, decks: decks.value };
+}
+
 /** The learner's settings and the decks, which decide whether the first-run screens come first. */
-function useProfile() {
+function useProfile(subject: string) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(
     () =>
-      Promise.all([api.me(), api.listDecks()]).then(
-        ([me, decks]) => {
-          // Another device chose: follow it. A new account takes what this device shows.
-          if (me.ui_language === null) void api.updateMe({ ui_language: uiLanguage }).catch(() => null);
-          else if (me.ui_language !== uiLanguage && switchLanguage(me.ui_language)) return;
-          setProfile({ me, decks });
-        },
+      loadProfile(subject).then(
+        (loaded) => loaded && setProfile(loaded),
         (caught: unknown) => setError(describeError(caught)),
       ),
-    [],
+    [subject],
   );
   useEffect(() => {
     void load();
@@ -166,8 +194,8 @@ function useProfile() {
 }
 
 /** A few screens and no router: all state that matters lives on the server, so home can always reload it. */
-function Learning({ email }: { email: string | null }) {
-  const { profile, setProfile, error, retry } = useProfile();
+function Learning({ email, subject }: { email: string | null; subject: string }) {
+  const { profile, setProfile, error, retry } = useProfile(subject);
   const [screen, setScreen] = useState<Screen>(startScreen);
   // The deck a study session was started for, so «Дальше» keeps to it and leaving returns to its
   // page; and where that page was opened from, for its «Назад».
@@ -285,8 +313,8 @@ function Learning({ email }: { email: string | null }) {
         email,
         onSignOut: supabase ? signOutHere : undefined,
         onAccountDeleted: () => {
-          if (supabase) void signOutHere();
-          else goHome();
+          // The account is gone, and with it everything this device kept of it.
+          void deleteLocal().then(() => (supabase ? signOutHere() : goHome()));
         },
       }}
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}

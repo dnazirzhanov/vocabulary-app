@@ -32,6 +32,7 @@ export const uz: Messages = {
   yesDelete: 'Ha, o‘chirish',
   signingOut: 'Chiqilmoqda…',
   signOut: 'Chiqish',
+  offlineNote: 'Aloqa yo‘q. Shu qurilmada saqlangani ko‘rsatilmoqda.',
   signOutQuestion: 'Ilovadan chiqasizmi?',
   signOutNote: 'Qaytish uchun pochta va parolni qayta kiritishingiz kerak bo‘ladi.',
   stay: 'Qolish',

@@ -16,6 +16,7 @@ from app.services.scheduling import local_date
 
 def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut:
     return MeOut(
+        id=user.id,
         name=user.name,
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
