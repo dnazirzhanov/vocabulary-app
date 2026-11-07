@@ -134,6 +134,8 @@ export const api = {
   glossary: () => request<Record<string, GlossaryEntry>>('GET', '/glossary'),
   me: () => request<Me>('GET', '/me'),
   updateMe: (changes: MeUpdate) => request<Me>('PATCH', '/me', changes),
+  /** Bad wording in the app's text, told by someone who reads this language (ADR 0055). */
+  reportWording: (text: string) => request<void>('POST', '/me/wording-reports', { text }),
   /** The weekdays I promise, from tomorrow (ADR 0039). */
   setPromise: (weekdays: number[]) => request<PromiseInfo>('PUT', '/me/promise', { weekdays }),
   /** Pause the promise from tomorrow until a date (at most 31 days); `endPause` drops it. */
@@ -244,6 +246,7 @@ const MESSAGES: Record<string, string> = {
   nickname_taken: t.thatNameIsAlreadyTakenIn,
   invalid_nickname: t.thatNameWonTWorkOnly,
   invalid_group_name: t.name2To40CharactersNo,
+  too_many_wording_reports: t.tooManyAttemptsWaitAMinute,
   too_many_groups: t.youCanBeInAtMost,
   group_full: t.thisGroupAlreadyHas50Members,
   rate_limited: t.tooManyAttemptsWaitAMinute,

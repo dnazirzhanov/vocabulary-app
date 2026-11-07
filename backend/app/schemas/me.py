@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 # One day of a member's promise (ADR 0039): done; missed (promised, over, nothing finished); today,
 # still open; later (promised, to come); off (not promised, or paused).
@@ -86,6 +86,12 @@ class MeUpdate(BaseModel):
     notify_report: bool | None = None
     notify_deadline: bool | None = None
     ui_language: UiLanguage | None = None
+
+
+class WordingReportIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
 class SuggestionOut(BaseModel):

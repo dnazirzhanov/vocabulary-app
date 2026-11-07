@@ -37,6 +37,15 @@ test('the language is changed in settings, stays after a reload and follows the 
   await other.close();
 });
 
+test('bad wording can be reported from settings', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Настройки' }).first().click();
+  await page.getByRole('button', { name: 'Ошибка в переводе?' }).click();
+  await page.getByLabel('Что написано неверно и как правильно?').fill('На кнопке опечатка');
+  await page.getByRole('button', { name: 'Отправить' }).click();
+  await expect(page.getByText('Спасибо! Мы исправим.')).toBeVisible();
+});
+
 for (const language of ['ru', 'uz', 'kk', 'ky', 'tg', 'en']) {
   test(`${language}: nothing runs off a small phone's screen`, async ({ page, context }) => {
     await page.setViewportSize({ width: 320, height: 568 });

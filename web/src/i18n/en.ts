@@ -632,6 +632,10 @@ export const en: Messages = {
   nothingFound: 'Nothing found.',
   reviewLower: 'review',
   appLanguage: 'App language',
+  wordingQuestion: 'Mistake in the wording?',
+  wordingHint: 'What is wrong, and how should it read?',
+  wordingSend: 'Send',
+  wordingThanks: "Thank you! We'll fix it.",
   monthNames: [
     'January',
     'February',

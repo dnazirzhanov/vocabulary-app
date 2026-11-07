@@ -5,6 +5,7 @@ import { checkPassword } from '../lib/auth.ts';
 import { setSoundsOn, soundsOn } from '../lib/sounds.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { ReportWording } from './ReportWording.tsx';
 import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
 import { switchLanguage, t } from '../i18n/index.ts';
@@ -75,6 +76,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
             />
           </div>
           <Reminders />
+          <ReportWording />
         </>
       )}
       {confirming ? (

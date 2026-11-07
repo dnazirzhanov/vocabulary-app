@@ -57,6 +57,21 @@ class DeletedLogin(Base):
     deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class WordingReport(Base):
+    """Someone who reads a language says a line of the app's text is wrong (ADR 0055): the
+    translations weren't reviewed by native speakers. Goes with the account."""
+
+    __tablename__ = "wording_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    ui_language: Mapped[str | None] = mapped_column(String(2))
+    text: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class PaceDismissal(Base):
     """A pace suggestion the learner said no to; the same kind stays quiet for a week."""
 
