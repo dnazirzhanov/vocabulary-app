@@ -35,7 +35,7 @@ class UserWordProgress(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True, index=True)
     introduced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     correct_count: Mapped[int] = mapped_column(server_default=text("0"))
@@ -68,7 +68,7 @@ class SpellingProgress(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True, index=True)
     # 0 hard (misspelled), 1 and 2 on the way, 3 «умеет писать».
     rung: Mapped[int] = mapped_column(SmallInteger)
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -159,7 +159,7 @@ class ReviewAttempt(Base):
         ForeignKey("learning_sessions.id", ondelete="CASCADE")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"))
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), index=True)
     exercise_id: Mapped[str] = mapped_column(String(8))
     exercise_type: Mapped[str] = mapped_column(String(24))
     # Typed text is evaluated and discarded; only the outcome is kept (privacy requirement).

@@ -77,7 +77,7 @@ class DeckWord(Base):
     deck_id: Mapped[str] = mapped_column(
         ForeignKey("decks.id", ondelete="CASCADE"), primary_key=True
     )
-    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id"), primary_key=True, index=True)
     position: Mapped[int]
 
 
