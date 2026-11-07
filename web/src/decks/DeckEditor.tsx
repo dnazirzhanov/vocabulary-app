@@ -98,10 +98,15 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     setTitle(loaded.title);
     setLanguage(loaded.language);
   }, []);
-  const load = useCallback(
-    () => api.teacherDeck(deckId).then(show, (caught: unknown) => setLoadError(describeError(caught))),
-    [deckId, show],
-  );
+  // Only the latest load counts: an older answer arriving late must not undo what was typed since.
+  const loads = useRef(0);
+  const load = useCallback(() => {
+    const mine = ++loads.current;
+    return api.teacherDeck(deckId).then(
+      (loaded) => mine === loads.current && show(loaded),
+      (caught: unknown) => mine === loads.current && setLoadError(describeError(caught)),
+    );
+  }, [deckId, show]);
   useEffect(() => {
     void load();
   }, [load]);
