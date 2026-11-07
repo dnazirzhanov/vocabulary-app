@@ -1,5 +1,6 @@
 import { PROMISE_PRESETS, sameDays, WEEKDAY_NAMES } from '../lib/promise.ts';
 import styles from './WeekdayPicker.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * The weekdays a learner promises (ADR 0039): seven toggles, at least one on, and two presets for
@@ -13,7 +14,7 @@ export function WeekdayPicker({ value, onChange }: { value: number[]; onChange: 
   };
   return (
     <div className={styles.picker}>
-      <div className={styles.days} role="group" aria-label="Дни недели">
+      <div className={styles.days} role="group" aria-label={t.daysOfTheWeek}>
         {WEEKDAY_NAMES.map((name, weekday) => (
           <button key={name} type="button" aria-pressed={value.includes(weekday)} onClick={() => toggle(weekday)}>
             {name}

@@ -35,6 +35,7 @@ import type {
   Library,
   SuggestedCard,
 } from './types.ts';
+import { t } from '../i18n/index.ts';
 
 /** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
 export class ApiError extends Error {
@@ -237,47 +238,47 @@ export const api = {
 
 // Errors the learner can act on, by the server's error code.
 const MESSAGES: Record<string, string> = {
-  server_busy: 'Сейчас занимается очень много учеников. Попробуйте ещё раз через минуту.',
-  account_delete_failed: 'Не удалось удалить аккаунт, ничего не изменилось. Попробуйте ещё раз через минуту.',
-  reauth_required: 'Введите пароль ещё раз, чтобы удалить аккаунт.',
-  nickname_taken: 'Это имя уже занято в группе — выберите другое.',
-  invalid_nickname: 'Такое имя не подойдёт: только буквы, цифры, пробел и дефис.',
-  invalid_group_name: 'Название: от 2 до 40 символов, без ссылок.',
-  too_many_groups: 'Можно состоять не больше чем в 5 группах.',
-  group_full: 'В этой группе уже 50 участников.',
-  rate_limited: 'Слишком много попыток. Подождите минуту.',
-  no_words: 'В этом тесте пока нет слов.',
-  too_many_words: 'В колоде меньше слов, чем выбрано.',
-  test_closed: 'Тест сейчас закрыт.',
-  already_taken: 'Этот тест вы уже прошли.',
-  test_running: 'Сначала закончите тест.',
-  nothing_to_study: 'В этой колоде сейчас нечего учить: новые слова уже встречены, а повторений пока нет.',
-  reviews_first: 'Сначала повторите слова, которые ждут, — новые вернутся сразу после этого.',
-  word_in_deck: 'Это слово уже есть в наборе.',
-  deck_full: 'В колоде может быть не больше 500 слов.',
-  deck_empty: 'Сначала добавьте хотя бы одно слово.',
-  course_word: 'Это слово из курса: его перевод и пример менять нельзя.',
-  not_group_owner: 'Давать слова группе может только её владелец.',
-  not_owner: 'Это может сделать только владелец группы.',
-  not_allowed: 'В этой группе вам это не разрешено.',
-  already_owner: 'Выберите другого участника.',
-  generation_limit: 'На сегодня подбор слов исчерпан (20 раз в день). Попробуйте завтра.',
-  generation_unavailable: 'Подбор слов пока не настроен на сервере.',
-  generation_busy: 'Сервис подбора слов сейчас занят. Попробуйте через минуту.',
-  generation_failed: 'Сервис подбора слов не ответил. Попробуйте ещё раз.',
-  generation_too_long: 'Текст оказался слишком большим за один раз. Вставьте часть текста или выберите меньше слов.',
-  generation_no_credits: 'На счёте сервиса подбора слов закончились средства.',
-  generation_refused: 'Из этого текста не получилось составить карточки. Попробуйте другой отрывок.',
+  server_busy: t.aLotOfStudentsAreStudying,
+  account_delete_failed: t.couldnTDeleteTheAccountAnd,
+  reauth_required: t.enterYourPasswordAgainToDelete,
+  nickname_taken: t.thatNameIsAlreadyTakenIn,
+  invalid_nickname: t.thatNameWonTWorkOnly,
+  invalid_group_name: t.name2To40CharactersNo,
+  too_many_groups: t.youCanBeInAtMost,
+  group_full: t.thisGroupAlreadyHas50Members,
+  rate_limited: t.tooManyAttemptsWaitAMinute,
+  no_words: t.thisTestHasNoWordsYet,
+  too_many_words: t.theDeckHasFewerWordsThan,
+  test_closed: t.theTestIsClosedRightNow,
+  already_taken: t.youVeAlreadyTakenThisTest,
+  test_running: t.finishTheTestFirst,
+  nothing_to_study: t.nothingToStudyInThisDeck,
+  reviews_first: t.firstReviewTheWordsThatAre,
+  word_in_deck: t.thisWordIsAlreadyInThe,
+  deck_full: t.aDeckCanHaveAtMost,
+  deck_empty: t.firstAddAtLeastOneWord,
+  course_word: t.thisWordIsFromTheCourse,
+  not_group_owner: t.onlyTheGroupSOwnerCan,
+  not_owner: t.onlyOwnerCanDoThat,
+  not_allowed: t.youArenTAllowedToDo,
+  already_owner: t.chooseAnotherMember,
+  generation_limit: t.wordPickingIsUsedUpFor,
+  generation_unavailable: t.wordPickingIsnTSetUp,
+  generation_busy: t.theWordPickingServiceIsBusy,
+  generation_failed: t.theWordPickingServiceDidnT,
+  generation_too_long: t.theTextIsTooLongFor,
+  generation_no_credits: t.theWordPickingServiceHasRun,
+  generation_refused: t.couldnTMakeCardsFromThis,
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */
 export function describeError(error: unknown): string {
   if (error instanceof ApiError && MESSAGES[error.code]) return MESSAGES[error.code];
   if (error instanceof ApiError && error.kind === 'network') {
-    return 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.';
+    return t.noConnectionToTheServerCheck;
   }
   if (error instanceof ApiError && error.status >= 500) {
-    return 'Сервер сейчас не отвечает. Попробуйте ещё раз через минуту.';
+    return t.theServerIsnTRespondingTry;
   }
-  return 'Что-то пошло не так. Попробуйте ещё раз.';
+  return t.somethingWentWrongTryAgain;
 }

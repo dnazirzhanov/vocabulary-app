@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { rich } from '../i18n/rich.tsx';
 import { api, describeError } from '../lib/api.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { deckStages } from '../lib/deckStages.ts';
@@ -14,6 +15,7 @@ import { GiveDialog } from './GiveDialog.tsx';
 import { BackIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 type Loaded = {
   stats: DeckStats;
@@ -90,7 +92,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
       <main className="message-screen">
         <p role="alert">{loadError}</p>
         <PrimaryButton type="button" onClick={() => (setLoadError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -98,7 +100,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
   if (!loaded) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -113,12 +115,12 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
   // Today's pace done but words left: a bonus lesson is still there to take (ADR 0010).
   const bonus = stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (pace?.bonus ?? false);
   const fresh = bonus ? Math.min(pace?.next_lesson_size ?? 0, left) : stats.new_today;
-  const label = resumeHere ? 'Продолжить урок' : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
+  const label = resumeHere ? t.continueLesson : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
   // Where the deck comes from: nothing to say for my own; for the others, who gave it or the level.
   const source = stats.is_mine
     ? null
     : stats.author
-      ? `от ${stats.author} · ${stats.group_name}`
+      ? t.from(stats.author, stats.group_name ?? '')
       : (stats.group_name ?? stats.level);
   // Spelling (ADR 0026): the main button takes due hard words and words never spelled; the other
   // sets are one tap further, under «Другие режимы».
@@ -127,10 +129,10 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
   const unwritten = Math.max(0, spelling.ready - spelling.due);
   const spellingNote =
     spelling.due > 0 && unwritten > 0
-      ? `${spelling.due} на повторение и ${unwritten} новых`
+      ? t.toReviewAndNew(spelling.due, unwritten)
       : spelling.due > 0
-        ? `${wordsLabel(spelling.due)} на повторение`
-        : 'Слова, которые вы ещё не писали';
+        ? t.toReview(wordsLabel(spelling.due))
+        : t.wordsYouHavenTWrittenYet;
   // Extra words today: there are words left to meet, and nothing else comes first.
   const canAddWords = left > 0 && !stats.locked && !blocked && !resumeHere && pace !== null;
   const startWith = async (extra: number) => {
@@ -170,7 +172,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 }}
               >
                 <label className="visually-hidden" htmlFor="deck-name">
-                  Название колоды
+                  {t.deckName}
                 </label>
                 <input
                   id="deck-name"
@@ -182,10 +184,10 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 />
                 <div className={styles.renameButtons}>
                   <button type="submit" className={styles.renameSave} disabled={busy || name.trim().length < 2}>
-                    Сохранить
+                    {t.save}
                   </button>
                   <button type="button" className={styles.renameCancel} onClick={() => setRenaming(false)}>
-                    Отмена
+                    {t.cancel}
                   </button>
                 </div>
               </form>
@@ -200,8 +202,8 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                       type="button"
                       className={styles.renameButton}
                       onClick={() => (setName(stats.title), setRenaming(true))}
-                      aria-label="Переименовать колоду"
-                      title="Переименовать"
+                      aria-label={t.renameDeck}
+                      title={t.rename}
                     >
                       <PencilIcon aria-hidden="true" />
                     </button>
@@ -219,16 +221,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
 
           <section className={styles.progress} aria-labelledby="deck-progress">
             <h2 id="deck-progress" className="visually-hidden">
-              Прогресс по колоде
+              {t.deckProgress}
             </h2>
             {/* The same words as «Прогресс» (ADR 0034): знаю inside учу, the rest впереди. */}
             <p className={styles.figure}>
-              <strong>{stats.introduced_count}</strong> из {wordsLabel(stats.word_count)}
+              {rich(t.startedOfWords(wordsLabel(stats.word_count)), <strong>{stats.introduced_count}</strong>)}
             </p>
             <div
               className={styles.bar}
               role="progressbar"
-              aria-label="Слов начато"
+              aria-label={t.wordsStarted}
               aria-valuetext={stages}
               aria-valuemin={0}
               aria-valuemax={stats.word_count}
@@ -242,7 +244,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
 
           {/* What the day holds is on the button below; only the daily number is shown here. */}
           {pace && !stats.locked && left + pace.new_words_today > 0 && (
-            <section className={styles.today} aria-label="Темп">
+            <section className={styles.today} aria-label={t.pace}>
               <DailyPace pace={pace} onSaved={() => void load()} />
             </section>
           )}
@@ -262,20 +264,20 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
             />
           )}
 
-          <nav className={styles.links} aria-label="Ещё по колоде">
+          <nav className={styles.links} aria-label={t.moreForThisDeck}>
             {canAddWords && (
               <button
                 type="button"
                 className={styles.link}
                 onClick={() => setExtraOpen(true)}
-                aria-label="Ещё слов сегодня"
+                aria-label={t.moreWordsToday}
                 aria-haspopup="dialog"
                 aria-describedby="extra-note"
               >
                 <PlusIcon aria-hidden="true" />
                 <span>
-                  <strong>Ещё слов сегодня</strong>
-                  <small id="extra-note">Сколько хотите — только на сегодня</small>
+                  <strong>{t.moreWordsToday}</strong>
+                  <small id="extra-note">{t.asManyAsYouLikeJust}</small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
@@ -295,13 +297,13 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 className={styles.link}
                 disabled={busy}
                 onClick={() => run(async () => onSession(await api.startSpellingSession(), deckId))}
-                aria-label={`Правописание · ${wordsLabel(spelling.ready)}`}
+                aria-label={t.spelling(wordsLabel(spelling.ready))}
                 aria-describedby="spelling-note"
               >
                 <PencilIcon aria-hidden="true" />
                 <span>
-                  <strong>Правописание · {wordsLabel(spelling.ready)}</strong>
-                  <small id="spelling-note">{spellingNote} — из любой колоды</small>
+                  <strong>{t.spellingWords(wordsLabel(spelling.ready))}</strong>
+                  <small id="spelling-note">{t.fromAnyDeck(spellingNote)}</small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
@@ -312,7 +314,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 type="button"
                 className={styles.link}
                 onClick={() => setModesOpen(true)}
-                aria-label={mainSpelling ? 'Правописание: другие режимы' : 'Правописание'}
+                aria-label={mainSpelling ? t.spellingOtherModes : t.spellingTitle}
                 aria-describedby="spelling-modes-note"
                 aria-haspopup="dialog"
               >
@@ -320,13 +322,13 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 {spelling.ready === 0 && !spelling.paused && <PencilIcon aria-hidden="true" />}
                 {spelling.ready > 0 && !spelling.paused && <span className={styles.iconSpace} />}
                 <span>
-                  <strong>{mainSpelling ? 'Правописание: другие режимы' : 'Правописание'}</strong>
+                  <strong>{mainSpelling ? t.spellingOtherModes : t.spellingTitle}</strong>
                   <small id="spelling-modes-note">
                     {mainSpelling
-                      ? 'Сегодняшние, трудные или вразброс'
+                      ? t.todaySHardOrShuffled
                       : spelling.hard > 0
-                        ? `Трудных слов: ${spelling.hard} · сегодняшние, трудные или вразброс`
-                        : 'На сегодня всё написано · сегодняшние, трудные или вразброс'}
+                        ? t.hardWordsTodaySHardOr(spelling.hard)
+                        : t.allWrittenForTodayTodayS}
                   </small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
@@ -334,8 +336,8 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
             )}
             <button type="button" className={styles.link} onClick={() => onWords(deckId, stats.title, stats.is_mine)}>
               <span>
-                <strong>Все слова колоды</strong>
-                <small>{stats.is_mine ? 'С прогрессом · добавить и поправить' : 'С вашим прогрессом по каждому'}</small>
+                <strong>{t.allTheDeckSWords}</strong>
+                <small>{stats.is_mine ? t.withProgressAddAndCorrect : t.withYourProgressOnEach}</small>
               </span>
               <ForwardIcon className={styles.chevron} aria-hidden="true" />
             </button>
@@ -384,7 +386,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 )
               }
             >
-              {busy ? 'Загружаем…' : (label ?? 'На сегодня всё')}
+              {busy ? t.loading : (label ?? t.thatSAllForToday)}
             </PrimaryButton>
           }
         </div>

@@ -4,10 +4,10 @@ import { deadlineLeft, localToday } from '../lib/deadline.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { weeksWord } from '../i18n/plural.ts';
 import { FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './HomeScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 interface HomeScreenProps {
   /** A deck's page: its stats and its own «Учить» (ADR 0020). */
@@ -60,7 +60,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
       <main className="message-screen">
         <p role="alert">{loadError}</p>
         <PrimaryButton type="button" onClick={() => (setLoadError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -68,7 +68,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   if (!library) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -91,7 +91,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           {streak !== null && streak > 0 && (
             <>
               <FlameIcon aria-hidden="true" />
-              {`${streak}\u00a0${weeksWord(streak)} подряд`}
+              {t.weeksInARow(streak)}
             </>
           )}
         </span>
@@ -100,28 +100,28 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
         <div className={styles.column}>
           <div className={styles.head}>
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              Мои колоды
+              {t.myDecks}
             </h1>
           </div>
 
           {naming ? (
             <form className={styles.newDeck} onSubmit={create}>
               <label className={styles.field}>
-                <span>Название новой колоды</span>
+                <span>{t.newDeckSName}</span>
                 <input
                   ref={nameField}
                   value={title}
                   maxLength={80}
-                  placeholder="Например, Путешествия"
+                  placeholder={t.forExampleTravel}
                   onChange={(event) => setTitle(event.target.value)}
                 />
               </label>
               <div className={styles.newDeckActions}>
                 <PrimaryButton type="submit" disabled={busy || title.trim().length < 2}>
-                  Создать
+                  {t.create}
                 </PrimaryButton>
                 <button type="button" className={styles.linkButton} onClick={() => setNaming(false)}>
-                  Отмена
+                  {t.cancel}
                 </button>
               </div>
             </form>
@@ -131,8 +131,8 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
                 <PlusIcon />
               </span>
               <span className={styles.createText}>
-                <strong>Создать колоду</strong>
-                <span>Слова вручную или карточки с ИИ — по слову или по тексту</span>
+                <strong>{t.createADeck}</strong>
+                <span>{t.wordsByHandOrCardsWith}</span>
               </span>
             </button>
           )}
@@ -147,10 +147,10 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
             {/* No visible heading: the decks under «Создать колоду» are the learner's own. It stays
                 for screen readers, which name the section by it. */}
             <h2 id="mine-title" className="visually-hidden">
-              Созданные мной
+              {t.createdByMe}
             </h2>
             {library.mine.length === 0 ? (
-              <p className={styles.empty}>Своих колод пока нет — начните с «Создать колоду».</p>
+              <p className={styles.empty}>{t.noDecksOfYourOwnYet}</p>
             ) : (
               <ul className={styles.list}>
                 {library.mine.map((deck) => (
@@ -163,7 +163,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
                       type="button"
                       className={styles.edit}
                       onClick={() => onOpenDeck(deck.id)}
-                      aria-label={`Изменить «${deck.title}»`}
+                      aria-label={t.editDeckNamed(deck.title)}
                     >
                       <PencilIcon aria-hidden="true" />
                     </button>
@@ -176,7 +176,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           {library.from_groups.length > 0 && (
             <section aria-labelledby="groups-title" className={styles.section}>
               <h2 id="groups-title" className={styles.sectionTitle}>
-                Из моих групп
+                {t.fromMyGroups}
               </h2>
               <ul className={styles.list}>
                 {library.from_groups.map((deck) => (
@@ -184,7 +184,9 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
                     <button type="button" className={styles.study} disabled={busy} onClick={() => open(deck, false)}>
                       <DeckText
                         deck={deck}
-                        source={deck.author ? `от ${deck.author} · ${deck.group_name}` : `группа ${deck.group_name}`}
+                        source={
+                          deck.author ? t.from(deck.author, deck.group_name ?? '') : t.group(deck.group_name ?? '')
+                        }
                       />
                       <ForwardIcon className={styles.chevron} aria-hidden="true" />
                     </button>
@@ -197,13 +199,11 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           {/* The course, level by level: offered, one tap away (ADR 0021). */}
           <section className={styles.course} aria-labelledby="course-title">
             <h2 id="course-title" className={styles.courseTitle}>
-              Английский по уровням
+              {t.englishByLevels}
             </h2>
-            <p className={styles.courseText}>
-              Готовый курс: самые нужные слова английского — от простых к сложным, по нескольку в день, в вашем темпе.
-            </p>
+            <p className={styles.courseText}>{t.aReadyMadeCourseTheMost}</p>
             <button type="button" className={styles.outlineButton} onClick={onOpenCourse}>
-              Открыть курс
+              {t.openTheCourse}
               <ForwardIcon aria-hidden="true" />
             </button>
           </section>
@@ -214,7 +214,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
 }
 
 const sharedLine = (deck: LibraryDeck) =>
-  deck.groups.length ? `в группе ${deck.groups.map((group) => group.name).join(', ')}` : null;
+  deck.groups.length ? t.inGroupNamed(deck.groups.map((group) => group.name).join(', ')) : null;
 
 /** Name and size; today's counts are on the deck's own page, not here (ADR 0037). */
 function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }) {
@@ -223,10 +223,10 @@ function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }
       <strong>{deck.title}</strong>
       <span className={styles.meta}>
         {deck.word_count === 0 ? (
-          'пусто — добавьте слова'
+          t.emptyAddSomeWords
         ) : (
           <>
-            {wordsLabel(deck.word_count)} · <span className={styles.nowrap}>встречено {deck.introduced_count}</span>
+            {wordsLabel(deck.word_count)} · <span className={styles.nowrap}>{t.metCount(deck.introduced_count)}</span>
           </>
         )}
         {source && ` · ${source}`}

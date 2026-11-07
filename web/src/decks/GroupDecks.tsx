@@ -7,6 +7,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './GroupDecks.module.css';
+import { t } from '../i18n/index.ts';
 
 interface GroupDecksProps {
   board: Board;
@@ -25,16 +26,12 @@ export function GroupDecks({ board, onOpenDeck, onChanged }: GroupDecksProps) {
   const { run, busy, error } = useAsyncAction();
   if (board.assignments.length === 0) {
     if (!owner) return null;
-    return (
-      <p className={styles.hint}>
-        Колод пока нет. Создайте колоду в «Мои колоды» и нажмите в ней «Дать группе» — участники найдут её у себя.
-      </p>
-    );
+    return <p className={styles.hint}>{t.noDecksYetCreateOneIn}</p>;
   }
   return (
     <section className={styles.section} aria-labelledby="group-decks-title">
       <h3 id="group-decks-title" className={styles.title}>
-        Колоды группы
+        {t.theGroupSDecks}
       </h3>
       <ul className={styles.list}>
         {board.assignments.map((assignment) => (
@@ -44,23 +41,23 @@ export function GroupDecks({ board, onOpenDeck, onChanged }: GroupDecksProps) {
               <span className={styles.meta}>
                 {' '}
                 · {wordsLabel(assignment.word_count)}
-                {assignment.due_on && ` · к ${dueLabel(assignment.due_on)}`}
+                {assignment.due_on && t.byDate(dueLabel(assignment.due_on))}
               </span>
             </span>
             <span className={styles.actions}>
               {assignment.is_mine && (
                 <button type="button" className={styles.linkButton} onClick={() => onOpenDeck(assignment.deck_id)}>
-                  Изменить
+                  {t.edit}
                 </button>
               )}
               {owner && (
                 <button
                   type="button"
                   className={styles.linkButton}
-                  aria-label={`Убрать «${assignment.title}» из группы`}
+                  aria-label={t.removeFromTheGroup(assignment.title)}
                   onClick={() => setRemoving(assignment)}
                 >
-                  Убрать
+                  {t.removeAction}
                 </button>
               )}
             </span>
@@ -68,9 +65,13 @@ export function GroupDecks({ board, onOpenDeck, onChanged }: GroupDecksProps) {
         ))}
       </ul>
       {/* Asked here, unlike in the giving window: gone from this list, it can't be undone in place. */}
-      <Dialog open={removing !== null} onClose={() => setRemoving(null)} title={`Убрать «${removing?.title}»?`}>
+      <Dialog
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title={t.removeQuestion(removing?.title ?? '')}
+      >
         <div className={styles.confirm}>
-          <p>Участники больше не увидят её в группе. Что они выучили, останется у них.</p>
+          <p>{t.membersWonTSeeItIn}</p>
           {error && (
             <p className={styles.problem} role="alert">
               {error}
@@ -88,10 +89,10 @@ export function GroupDecks({ board, onOpenDeck, onChanged }: GroupDecksProps) {
               })
             }
           >
-            Убрать из группы
+            {t.removeDeckFromGroup}
           </PrimaryButton>
           <button type="button" className={styles.linkButton} data-autofocus onClick={() => setRemoving(null)}>
-            Отмена
+            {t.cancel}
           </button>
         </div>
       </Dialog>

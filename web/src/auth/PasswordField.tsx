@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import styles from './AuthScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 interface PasswordFieldProps {
   label: string;
@@ -32,7 +33,7 @@ export function PasswordField({ label, value, onChange, autoComplete, hint, prob
           maxLength={72}
         />
         <button type="button" className={styles.reveal} onClick={() => setShown(!shown)}>
-          {shown ? 'Скрыть' : 'Показать'}
+          {shown ? t.hide : t.show}
         </button>
       </div>
       {hint && <small>{hint}</small>}
@@ -61,6 +62,6 @@ export function useRepeatedPassword() {
     },
     onLeave: () => setLeft(true),
     matches: password === repeat,
-    mismatch: repeat !== '' && repeat !== password && finished ? 'Пароли не совпадают.' : null,
+    mismatch: repeat !== '' && repeat !== password && finished ? t.thePasswordsDonTMatch : null,
   };
 }

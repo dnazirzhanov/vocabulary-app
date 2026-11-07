@@ -1,9 +1,11 @@
+import { foldText } from '../i18n/fold.ts';
+
 /**
  * A deck's topics (ADR 0019): when is a typed topic one the deck already has, and when is it new
  * enough to offer a deck of its own? Case, «ё» and spacing don't count, and a topic that contains
  * an earlier one, or is contained in it, is the same topic («изменение климата» and «климат»).
  */
-const normal = (topic: string) => topic.toLowerCase().replaceAll('ё', 'е').split(/\s+/).filter(Boolean).join(' ');
+const normal = (topic: string) => foldText(topic).split(/\s+/).filter(Boolean).join(' ');
 
 export function sameTopic(one: string, other: string): boolean {
   const a = normal(one);

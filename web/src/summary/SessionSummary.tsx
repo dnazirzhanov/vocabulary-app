@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { plural } from '../i18n/plural.ts';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
 import { wordsLabel } from '../lib/pace.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
@@ -11,6 +10,7 @@ import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { Celebration } from '../ui/Celebration.tsx';
 import { CompletionBadge } from './CompletionBadge.tsx';
 import styles from './SessionSummary.module.css';
+import { t } from '../i18n/index.ts';
 
 interface SessionSummaryProps {
   summary: Summary;
@@ -23,7 +23,7 @@ interface SessionSummaryProps {
 
 type Entry = SummaryWord;
 
-const words = (n: number) => `${n}\u00a0${plural(n, { one: 'слово', few: 'слова', many: 'слов' })}`;
+const words = (n: number) => t.wordsCount(n);
 
 /** Words that needed help this time: rated «Снова» or «Трудно» at least once. */
 export const isHard = (entry: Entry) => entry.lowest_rating <= 2;
@@ -33,24 +33,24 @@ function describe(summary: Summary, hard: Entry[]) {
   if (summary.kind === 'spelling' && summary.spelling) {
     const { words: count, first_try, needs_practice } = summary.spelling;
     return {
-      title: needs_practice === 0 ? 'Без единой ошибки!' : 'Правописание готово',
+      title: needs_practice === 0 ? t.notASingleMistake : t.spellingDone,
       // A misspelled word is hard on the spelling ladder: it comes back the next day (ADR 0026).
-      lead: `${words(count)} · ${first_try} верно с первого раза${needs_practice ? ` · ${needs_practice} с ошибкой. Слова с ошибкой вернутся завтра` : ''}.`,
+      lead: t.spellingLead(count, first_try, needs_practice),
     };
   }
   if (summary.kind === 'hard') {
     return {
-      title: 'Тренировка пройдена',
-      lead: `Вы ещё раз прошли ${words(summary.words.length)}. Расписание повторений не меняется.`,
+      title: t.practiceFinished,
+      lead: t.youWentThroughAgainTheReview(words(summary.words.length)),
     };
   }
   const parts: string[] = [];
-  if (summary.new_words > 0) parts.push(`новых — ${words(summary.new_words)}`);
-  if (summary.reviewed_words > 0) parts.push(`повторили — ${words(summary.reviewed_words)}`);
+  if (summary.new_words > 0) parts.push(t.newCountPart(words(summary.new_words)));
+  if (summary.reviewed_words > 0) parts.push(t.reviewed(words(summary.reviewed_words)));
   const next = summary.words.map((entry) => entry.next_review_at).sort()[0];
   return {
-    title: hard.length === 0 ? 'Отличная память!' : 'Готово!',
-    lead: `${parts.join(', ').replace(/^./, (c) => c.toUpperCase())}.${next ? ` Следующее повторение — ${relativeDay(next)}.` : ''}`,
+    title: hard.length === 0 ? t.greatMemory : t.doneExclaimed,
+    lead: t.lessonLead(parts, next ? relativeDay(next) : null),
   };
 }
 
@@ -88,7 +88,7 @@ function WordGroup({ title, entries, status, showNextReview }: WordGroupProps) {
             </span>
             {showNextReview && (
               <span className={styles.nextReview}>
-                <span className="visually-hidden">Следующее повторение </span>
+                <span className="visually-hidden">{t.nextReview} </span>
                 {relativeDay(next_review_at)}
               </span>
             )}
@@ -115,15 +115,15 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const next =
     summary.kind === 'spelling'
       ? spelling.ready > 0
-        ? { label: `Ещё ${wordsLabel(spelling.ready)}`, run: onSpelling }
+        ? { label: t.moreWords(wordsLabel(spelling.ready)), run: onSpelling }
         : null
       : summary.kind === 'study' && spelling.paused
-        ? { label: `Продолжить правописание · ещё ${spelling.paused.total - spelling.paused.spelled}`, run: onSpelling }
+        ? { label: t.continueSpellingMore(spelling.paused.total - spelling.paused.spelled), run: onSpelling }
         : summary.kind === 'study' && spelling.today_left > 0
-          ? { label: `Правописание · ${wordsLabel(spelling.ready)}`, run: onSpelling }
+          ? { label: t.spelling(wordsLabel(spelling.ready)), run: onSpelling }
           : perfect || summary.kind === 'hard'
-            ? { label: 'Продолжить', run: onNext }
-            : { label: 'Повторить трудные', run: onPractice };
+            ? { label: t.continue, run: onNext }
+            : { label: t.reviewTheHardOnes, run: onPractice };
 
   // Announce the result: focus lands on the heading, not on a button.
   useEffect(() => headingRef.current?.focus(), []);
@@ -145,8 +145,8 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
           </div>
 
           <div className={styles.recap}>
-            {hard.length > 0 && <WordGroup title="Трудные сейчас" entries={hard} status="missed" showNextReview />}
-            {easy.length > 0 && <WordGroup title="Запомнились" entries={easy} status="clean" showNextReview />}
+            {hard.length > 0 && <WordGroup title={t.hardRightNow} entries={hard} status="missed" showNextReview />}
+            {easy.length > 0 && <WordGroup title={t.remembered} entries={easy} status="clean" showNextReview />}
           </div>
         </div>
       </main>
@@ -160,13 +160,13 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
         <div className={styles.actionsInner}>
           {next?.run === onSpelling && summary.kind === 'study' && !perfect && (
             <button type="button" className={styles.practiceLink} disabled={busy} onClick={() => run(onPractice)}>
-              Повторить трудные
+              {t.reviewTheHardOnes}
             </button>
           )}
           {next ? (
             <>
               <SecondaryButton type="button" className={`${styles.action} ${styles.secondary}`} onClick={onHome}>
-                На главную
+                {t.home}
               </SecondaryButton>
               <PrimaryButton
                 type="button"
@@ -175,13 +175,13 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
                 aria-busy={busy}
                 onClick={() => run(next.run)}
               >
-                {busy ? 'Загружаем…' : next.label}
+                {busy ? t.loading : next.label}
               </PrimaryButton>
             </>
           ) : (
             // Everything spelled for now: home is the only step left.
             <PrimaryButton type="button" className={styles.action} onClick={onHome}>
-              На главную
+              {t.home}
             </PrimaryButton>
           )}
         </div>

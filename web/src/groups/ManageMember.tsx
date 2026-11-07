@@ -5,6 +5,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * What the group's managers may do with one person, in that person's window (ADR 0040): hand the
@@ -27,28 +28,24 @@ export function ManageMember({ group, row, onDone }: { group: Group; row: BoardR
   return (
     <section aria-labelledby="manage-title" className={styles.manageMember}>
       <h3 id="manage-title" className={styles.blockTitle}>
-        Управление
+        {t.manage}
       </h3>
       {ask === null ? (
         <div className={styles.manageActions}>
           {canHandOver && (
             <button type="button" className={shared.linkButton} onClick={() => setAsk('owner')}>
-              Сделать владельцем
+              {t.makeOwner}
             </button>
           )}
           {canRemove && (
             <button type="button" className={styles.dangerLink} onClick={() => setAsk('remove')}>
-              Удалить из группы
+              {t.removeMember}
             </button>
           )}
         </div>
       ) : (
         <div className={styles.manageConfirm}>
-          <p>
-            {ask === 'owner'
-              ? `Передать группу «${row.nickname}»? Вы станете обычным участником.`
-              : `Удалить «${row.nickname}» из группы? Вернуться можно будет по ссылке-приглашению.`}
-          </p>
+          <p>{ask === 'owner' ? t.handTheGroupOverToYou(row.nickname) : t.removeFromTheGroupTheyCan(row.nickname)}</p>
           <span className={shared.confirm}>
             <button
               type="button"
@@ -62,7 +59,7 @@ export function ManageMember({ group, row, onDone }: { group: Group; row: BoardR
                 )
               }
             >
-              {ask === 'owner' ? 'Да, передать' : 'Да, удалить'}
+              {ask === 'owner' ? t.yesHandOver : t.yesDelete}
             </button>
             <SecondaryButton
               type="button"
@@ -70,7 +67,7 @@ export function ManageMember({ group, row, onDone }: { group: Group; row: BoardR
               onClick={() => setAsk(null)}
               data-autofocus
             >
-              Отмена
+              {t.cancel}
             </SecondaryButton>
           </span>
         </div>

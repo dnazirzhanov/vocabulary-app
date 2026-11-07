@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { plural } from '../i18n/plural.ts';
+import { foldText } from '../i18n/fold.ts';
 import { api, describeError } from '../lib/api.ts';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
@@ -8,17 +8,18 @@ import type { DeckWord, WordStatus } from '../lib/types.ts';
 import { BackIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './WordsScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 const STATUS_LABEL: Record<WordStatus, string> = {
-  not_started: 'Впереди',
-  new: 'Новое',
-  learning: 'Учу',
-  well_learned: 'Помню хорошо',
+  not_started: t.aheadCapital,
+  new: t.newWord,
+  learning: t.learningNow,
+  well_learned: t.rememberedCapital,
 };
 const FILTERS: (WordStatus | 'all')[] = ['all', 'not_started', 'new', 'learning', 'well_learned'];
 
 // Search ignores case and ё/е, so "еще" finds "ещё".
-const normalize = (text: string) => text.toLowerCase().replaceAll('ё', 'е').trim();
+const normalize = (text: string) => foldText(text).trim();
 
 interface WordsScreenProps {
   deckId: string;
@@ -63,18 +64,18 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> Назад
+          <BackIcon aria-hidden="true" /> {t.back}
         </button>
       </header>
       <main className={styles.main}>
         <div className={styles.column}>
           <p className={styles.eyebrow}>{deckTitle}</p>
           <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-            Слова колоды
+            {t.deckWords}
           </h1>
           {onEdit && (
             <button type="button" className={styles.edit} onClick={onEdit}>
-              <PencilIcon aria-hidden="true" /> Изменить колоду
+              <PencilIcon aria-hidden="true" /> {t.editTheDeck}
             </button>
           )}
 
@@ -88,29 +89,29 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
                   void load();
                 }}
               >
-                Повторить
+                {t.tryAgain}
               </PrimaryButton>
             </div>
           )}
           {!error && !words && (
             <p className={styles.message} aria-busy="true">
-              Загружаем…
+              {t.loading}
             </p>
           )}
           {words && (
             <>
               <div className={styles.tools}>
                 <label className={styles.search}>
-                  <span className="visually-hidden">Найти слово</span>
+                  <span className="visually-hidden">{t.findAWord}</span>
                   <input
                     type="search"
-                    placeholder="Поиск: house или дом"
+                    placeholder={t.searchHouseOr}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     maxLength={64}
                   />
                 </label>
-                <div className={styles.filters} role="group" aria-label="Показать">
+                <div className={styles.filters} role="group" aria-label={t.show}>
                   {FILTERS.map((option) => (
                     <button
                       key={option}
@@ -119,7 +120,7 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
                       aria-pressed={filter === option}
                       onClick={() => setFilter(option)}
                     >
-                      {option === 'all' ? 'Все' : STATUS_LABEL[option]}
+                      {option === 'all' ? t.all : STATUS_LABEL[option]}
                       <span className={styles.count}>{counts[option]}</span>
                     </button>
                   ))}
@@ -127,9 +128,7 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
               </div>
 
               <p className={styles.resultCount} role="status">
-                {shown.length === 0
-                  ? 'Ничего не нашлось.'
-                  : `${shown.length}\u00a0${plural(shown.length, { one: 'слово', few: 'слова', many: 'слов' })}`}
+                {shown.length === 0 ? t.nothingFound : t.wordsCount(shown.length)}
               </p>
               <ol className={styles.list}>
                 {shown.map((row) => (
@@ -166,7 +165,7 @@ function WordRow({ row }: { row: DeckWord }) {
           type="button"
           className={styles.listen}
           onClick={() => void playAudio('words', word.id, word.headword)}
-          aria-label={`Послушать: ${word.headword}`}
+          aria-label={t.listen(word.headword)}
         >
           <SpeakerIcon />
         </button>
@@ -176,11 +175,13 @@ function WordRow({ row }: { row: DeckWord }) {
           {STATUS_LABEL[status]}
         </span>
         {row.next_review_at && status !== 'not_started' && (
-          <span className={styles.next}>повтор {relativeDay(row.next_review_at)}</span>
+          <span className={styles.next}>
+            {t.reviewLower} {relativeDay(row.next_review_at)}
+          </span>
         )}
       </div>
       <details className={styles.example}>
-        <summary>Пример</summary>
+        <summary>{t.example}</summary>
         <p lang="en">{word.example}</p>
         <p className={styles.exampleRu}>{word.example_ru}</p>
       </details>

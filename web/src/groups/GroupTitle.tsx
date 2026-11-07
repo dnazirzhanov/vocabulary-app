@@ -5,6 +5,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { PencilIcon, PersonPlusIcon } from '../ui/icons.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
+import { t } from '../i18n/index.ts';
 
 interface GroupTitleProps {
   group: Group;
@@ -55,7 +56,7 @@ export function GroupTitle({ group, headingRef, onInvite, onRenamed }: GroupTitl
         }}
       >
         <label className="visually-hidden" htmlFor="group-name">
-          Название группы
+          {t.groupName}
         </label>
         <input
           id="group-name"
@@ -66,10 +67,10 @@ export function GroupTitle({ group, headingRef, onInvite, onRenamed }: GroupTitl
         />
         <div className={styles.renameButtons}>
           <button type="submit" className={styles.renameSave} disabled={busy || name.trim().length < 2}>
-            Сохранить
+            {t.save}
           </button>
           <button type="button" className={styles.renameCancel} onClick={stop}>
-            Отмена
+            {t.cancel}
           </button>
         </div>
         {error && (
@@ -92,13 +93,13 @@ export function GroupTitle({ group, headingRef, onInvite, onRenamed }: GroupTitl
             type="button"
             className={styles.invite}
             onClick={() => (setName(group.name), setRenaming(true))}
-            aria-label="Переименовать группу"
-            title="Переименовать"
+            aria-label={t.renameGroup}
+            title={t.rename}
           >
             <PencilIcon aria-hidden="true" />
           </button>
         )}
-        <button type="button" className={styles.invite} onClick={onInvite} aria-label="Пригласить" title="Пригласить">
+        <button type="button" className={styles.invite} onClick={onInvite} aria-label={t.invite} title={t.invite}>
           <PersonPlusIcon aria-hidden="true" />
         </button>
       </div>

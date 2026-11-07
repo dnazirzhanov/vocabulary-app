@@ -1,24 +1,24 @@
 import { useState } from 'react';
+import { rich } from '../i18n/rich.tsx';
 import { promiseText, weekdaysOf } from '../lib/promise.ts';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
-import { daysAfterOf, plural } from '../i18n/plural.ts';
 import { buildYear, weekProgress, yearsOf, type Cell, type Level } from '../lib/consistency.ts';
 import type { Progress } from '../lib/types.ts';
 import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
 import styles from './Progress.module.css';
+import { t } from '../i18n/index.ts';
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const LEVEL_NAME: Record<Level, string> = { 0: 'без занятий', 1: 'начато, не закончено', 2: 'день засчитан' };
+const WEEKDAYS = t.weekdays;
+const LEVEL_NAME: Record<Level, string> = { 0: t.noStudy, 1: t.startedNotFinished, 2: t.dayCounted };
 const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
-const dayWord = (n: number) => plural(n, { one: 'день', few: 'дня', many: 'дней' });
+
 const describe = (cell: Cell) => `${dayName.format(Date.parse(`${cell.date}T00:00:00Z`))}: ${LEVEL_NAME[cell.level]}`;
-const cardsWord = (n: number) => plural(n, { one: 'карточка', few: 'карточки', many: 'карточек' });
-const number = new Intl.NumberFormat('ru');
+
 /** One day of the heatmap in words: its date, cards answered, and whether it counts. */
 const dayLine = (cell: Cell) => {
   const date = dayName.format(Date.parse(`${cell.date}T00:00:00Z`));
-  if (cell.cards === 0) return `${date}: без занятий`;
-  return `${date}: ${number.format(cell.cards)} ${cardsWord(cell.cards)}${cell.level === 2 ? ' · день засчитан' : ''}`;
+  if (cell.cards === 0) return t.noStudyOn(date);
+  return t.dayCards(date, cell.cards, cell.level === 2);
 };
 
 /**
@@ -34,7 +34,7 @@ export function WeekDays({ progress, onPromiseChanged }: { progress: Progress; o
   const reachable = week.days.filter((day) => day.future || day.date === today).length >= left;
   return (
     <div className={styles.weekBlock}>
-      <ol className={styles.week} aria-label="Дни этой недели">
+      <ol className={styles.week} aria-label={t.daysOfThisWeek}>
         {week.days.map((day, index) => (
           <li
             key={day.date}
@@ -54,22 +54,22 @@ export function WeekDays({ progress, onPromiseChanged }: { progress: Progress; o
         ))}
       </ol>
       <p className={styles.weekNote}>
-        Обещание:{' '}
-        <strong>{week.target > 0 ? promiseText(weekdaysOf(progress.promised_week)) : 'на этой неделе пауза'}</strong>
+        {t.promise}{' '}
+        <strong>{week.target > 0 ? promiseText(weekdaysOf(progress.promised_week)) : t.pausedThisWeek}</strong>
         <button type="button" className={styles.weekEdit} onClick={() => setEditing(true)}>
-          Изменить
+          {t.edit}
         </button>
       </p>
       {week.target > 0 && (
         <p className={styles.weekNote}>
-          <strong>{week.done}</strong> из {week.target} {daysAfterOf(week.target)} на этой неделе
+          {rich(t.weekDaysDone(week.target), <strong>{week.done}</strong>)}
           {left <= 0 ? (
             <span className={styles.weekDone}>
               {' '}
-              · <CheckIcon aria-hidden="true" /> обещание недели выполнено
+              · <CheckIcon aria-hidden="true" /> {t.thisWeekSPromiseIsKept}
             </span>
           ) : (
-            reachable && ` · ещё ${left} ${dayWord(left)} до цели`
+            reachable && t.daysLeftToGoal(left)
           )}
         </p>
       )}
@@ -102,12 +102,12 @@ export function Heatmap({ progress }: { progress: Progress }) {
     <section aria-labelledby="heat-heading" className={styles.heat}>
       <div className={styles.heatHead}>
         <h2 id="heat-heading" className={styles.heatTitle}>
-          Карточки по дням
+          {t.cardsByDay}
         </h2>
         <div className={styles.yearSwitch}>
           <button
             type="button"
-            aria-label="Предыдущий год"
+            aria-label={t.previousYear}
             disabled={year <= years[0]}
             onClick={() => (setYear(year - 1), setPicked(null))}
           >
@@ -116,7 +116,7 @@ export function Heatmap({ progress }: { progress: Progress }) {
           <span aria-live="polite">{year}</span>
           <button
             type="button"
-            aria-label="Следующий год"
+            aria-label={t.nextYear}
             disabled={year >= years[years.length - 1]}
             onClick={() => (setYear(year + 1), setPicked(null))}
           >
@@ -129,7 +129,7 @@ export function Heatmap({ progress }: { progress: Progress }) {
       <div
         className={styles.year}
         role="img"
-        aria-label={`${year}: ${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями, из них засчитано ${calendar.studiedDays}`}
+        aria-label={t.yearCounted(year, calendar.activeDays, calendar.studiedDays)}
         onPointerOver={(event) => pick(event.target)}
         onPointerLeave={(event) => event.pointerType === 'mouse' && setPicked(null)}
         onClick={(event) => pick(event.target)}
@@ -156,16 +156,14 @@ export function Heatmap({ progress }: { progress: Progress }) {
         ))}
       </div>
       <p className={styles.scale} aria-hidden="true">
-        <span>меньше</span>
+        <span>{t.less}</span>
         {([0, 1, 2, 3, 4] as const).map((shade) => (
           <i key={shade} className={styles.cell} data-shade={shade} />
         ))}
-        <span>больше</span>
+        <span>{t.moreLegend}</span>
       </p>
       <p className={styles.heatCaption} aria-live="polite">
-        {pickedCell
-          ? dayLine(pickedCell)
-          : `${year}: ${calendar.activeDays} ${dayWord(calendar.activeDays)} с занятиями · ${number.format(calendar.cards)} ${cardsWord(calendar.cards)}`}
+        {pickedCell ? dayLine(pickedCell) : t.yearCards(year, calendar.activeDays, calendar.cards)}
       </p>
     </section>
   );

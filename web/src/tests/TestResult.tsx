@@ -8,6 +8,7 @@ import { RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import styles from './TestResult.module.css';
+import { t } from '../i18n/index.ts';
 
 type Result = NonNullable<TestAttempt['result']>;
 type Mistake = Result['mistakes'][number];
@@ -45,29 +46,28 @@ function ScoreRing({ result }: { result: Result }) {
       </svg>
       <span className={styles.score} aria-hidden="true">
         <strong>{result.correct}</strong>
-        <small>из {result.total}</small>
+        <small>{t.ofTotal(result.total)}</small>
       </span>
     </div>
   );
 }
 
 function titleOf(attempt: TestAttempt, result: Result): string {
-  if (result.correct === result.total) return 'Без единой ошибки!';
-  if (attempt.kind === 'practice') return 'Тренировка пройдена';
-  return result.passed ? 'Тест сдан' : 'Пока не сдан';
+  if (result.correct === result.total) return t.notASingleMistake;
+  if (attempt.kind === 'practice') return t.practiceFinished;
+  return result.passed ? t.testPassed : t.notPassedYet;
 }
 
 function leadOf(attempt: TestAttempt, result: Result): string | null {
   const parts: string[] = [];
-  if (result.timed_out) parts.push('Время вышло.');
-  if (result.passed === false && result.pass_percent !== null) parts.push(`Нужно от ${result.pass_percent}%.`);
+  if (result.timed_out) parts.push(t.timeSUp);
+  if (result.passed === false && result.pass_percent !== null) parts.push(t.youNeedAtLeast(result.pass_percent));
   // Only a test's misses go to «Трудные». The words the time ran out on say nothing about the
   // student, so they don't go (ADR 0048).
   const wrong = result.mistakes.some((mistake) => mistake.answer !== null);
   const skipped = result.mistakes.some((mistake) => mistake.skipped);
-  const what =
-    wrong && skipped ? 'Ошибки и пропуски' : wrong ? 'Слова с ошибками' : skipped ? 'Пропущенные слова' : null;
-  if (what && attempt.kind === 'test') parts.push(`${what} ждут вас в «Трудных».`);
+  const what = wrong && skipped ? t.mistakesAndSkips : wrong ? t.wordsWithMistakes : skipped ? t.skippedWords : null;
+  if (what && attempt.kind === 'test') parts.push(t.areWaitingForYouInHard(what));
   return parts.length ? parts.join(' ') : null;
 }
 
@@ -94,7 +94,7 @@ function Group(props: { title: string; words: Mistake[]; icon?: ReactNode }) {
               <span className={summary.translation}>{mistake.translation}</span>
               {mistake.answer !== null && (
                 <span className={styles.written}>
-                  Вы написали:{' '}
+                  {t.youWrote}{' '}
                   <span lang="en">
                     {differences(mistake.answer, mistake.word).map(({ letter, differs }, index) =>
                       differs ? <mark key={index}>{letter}</mark> : <span key={index}>{letter}</span>,
@@ -152,9 +152,9 @@ export function TestResult(props: {
           </div>
           {result.mistakes.length > 0 && (
             <div className={summary.recap}>
-              <Group title="Ошибки" words={wrong} icon={<RepeatIcon />} />
-              <Group title="Пропущено" words={skipped} icon={<RepeatIcon />} />
-              <Group title="Не успели" words={missed} />
+              <Group title={t.mistakes} words={wrong} icon={<RepeatIcon />} />
+              <Group title={t.skipped} words={skipped} icon={<RepeatIcon />} />
+              <Group title={t.notReached} words={missed} />
             </div>
           )}
         </div>
@@ -173,11 +173,11 @@ export function TestResult(props: {
               disabled={busy}
               onClick={onAgain}
             >
-              Ещё раз
+              {t.onceMore}
             </SecondaryButton>
           )}
           <PrimaryButton type="button" className={summary.action} onClick={onDone}>
-            Готово
+            {t.doneAction}
           </PrimaryButton>
         </div>
       </footer>

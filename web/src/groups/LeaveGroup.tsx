@@ -7,6 +7,7 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * «Выйти из группы» (ADR 0040): a quiet link at the bottom of the page for everyone, never folded
@@ -30,9 +31,9 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
     <div className={styles.leave}>
       {step === 'confirm' ? (
         <span className={shared.confirm}>
-          {owner ? 'Вы одни в группе: она будет удалена. Выйти?' : 'Выйти из группы?'}
+          {owner ? t.aloneLeaveQuestion : t.leaveTheGroup}
           <button type="button" className={shared.dangerButton} disabled={busy} onClick={() => void leave()}>
-            Да, выйти
+            {t.yesLeave}
           </button>
           <SecondaryButton
             type="button"
@@ -40,7 +41,7 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
             onClick={() => setStep('idle')}
             data-autofocus
           >
-            Отмена
+            {t.cancel}
           </SecondaryButton>
         </span>
       ) : (
@@ -49,7 +50,7 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
           className={styles.leaveLink}
           onClick={() => setStep(owner && others.length > 0 ? 'successor' : 'confirm')}
         >
-          Выйти из группы
+          {t.leaveGroupAction}
         </button>
       )}
       {error && step !== 'successor' && (
@@ -57,13 +58,10 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
           {error}
         </p>
       )}
-      <Dialog open={step === 'successor'} onClose={() => setStep('idle')} title="Кому передать группу?">
-        <p className={styles.dialogText}>
-          Вы выйдете из группы, а выбранный участник станет её владельцем: он сможет менять название, давать колоды и
-          убирать участников.
-        </p>
+      <Dialog open={step === 'successor'} onClose={() => setStep('idle')} title={t.whoShouldTakeOverTheGroup}>
+        <p className={styles.dialogText}>{t.youLlLeaveTheGroupAnd}</p>
         <fieldset className={styles.successors}>
-          <legend className="visually-hidden">Новый владелец группы</legend>
+          <legend className="visually-hidden">{t.theGroupSNewOwner}</legend>
           {others.map((row) => (
             <label key={row.member_id} className={styles.successor} data-selected={successor === row.member_id}>
               <input
@@ -82,7 +80,7 @@ export function LeaveGroup({ board, onLeft }: { board: Board; onLeft: () => void
           </p>
         )}
         <PrimaryButton type="button" disabled={busy || !successor} onClick={() => successor && void leave(successor)}>
-          Передать и выйти
+          {t.handOverAndLeave}
         </PrimaryButton>
       </Dialog>
     </div>

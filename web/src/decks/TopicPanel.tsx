@@ -5,6 +5,7 @@ import type { GenerateResult } from '../lib/types.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
+import { t } from '../i18n/index.ts';
 
 const COUNTS = [5, 10, 15, 20];
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
@@ -75,12 +76,12 @@ export function TopicPanel({
 
   return (
     <form className={styles.paneForm} onSubmit={submit} aria-labelledby="tab-topic">
-      <p className={styles.note}>Назовите тему — ИИ подберёт нужные для неё слова и составит карточки.</p>
+      <p className={styles.note}>{t.nameATopicAndAIWill}</p>
       <label className={styles.field}>
-        <span>Тема</span>
+        <span>{t.topic}</span>
         <input
           maxLength={80}
-          placeholder="Например: в аэропорту, еда, собеседование"
+          placeholder={t.forExampleAtTheAirportFood}
           value={topic}
           disabled={busy}
           onChange={(event) => {
@@ -91,7 +92,7 @@ export function TopicPanel({
       </label>
       <div className={styles.options}>
         <fieldset className={styles.choice}>
-          <legend>Сколько слов</legend>
+          <legend>{t.howManyWords}</legend>
           <div className={styles.segments}>
             {COUNTS.map((value) => (
               <label key={value} className={styles.segment} data-selected={value === count || undefined}>
@@ -109,7 +110,7 @@ export function TopicPanel({
           </div>
         </fieldset>
         <label className={styles.field}>
-          <span>Уровень</span>
+          <span>{t.level}</span>
           <select value={level} disabled={busy} onChange={(event) => setLevel(event.target.value)}>
             {LEVELS.map((value) => (
               <option key={value}>{value}</option>
@@ -120,27 +121,25 @@ export function TopicPanel({
       {fork ? (
         <div ref={forkRef} className={styles.fork} role="group" aria-labelledby="fork-title">
           <p id="fork-title" className={styles.forkTitle}>
-            Это новая тема. Создать для неё отдельную колоду?
+            {t.thisIsANewTopicCreate}
           </p>
-          <p className={styles.note}>
-            Эта колода — о теме «{topics[0]}». Отдельные колоды проще учить и показывать группе.
-          </p>
+          <p className={styles.note}>{t.deckIsAboutTopic(topics[0])}</p>
           <div className={styles.forkActions}>
             <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => void draft('new')}>
-              {busy ? 'Создаём…' : `Создать колоду «${deckTitleFor(topic)}»`}
+              {busy ? t.creating : t.createTheDeck(deckTitleFor(topic))}
             </PrimaryButton>
             <button type="button" className={styles.linkButton} disabled={busy} onClick={() => void draft('here')}>
-              Всё равно добавить сюда
+              {t.addItHereAnyway}
             </button>
           </div>
         </div>
       ) : (
         <PrimaryButton type="submit" disabled={busy || !ready} aria-busy={busy}>
-          {busy ? 'Подбираем слова…' : `Составить карточки · ${count}`}
+          {busy ? t.pickingWords : t.makeCards(count)}
         </PrimaryButton>
       )}
       <div role="status" className={styles.generateStatus}>
-        {busy && <p className={styles.note}>Подбираем слова по теме — обычно несколько секунд.</p>}
+        {busy && <p className={styles.note}>{t.pickingWordsForTheTopicIt}</p>}
         {!busy && last && <DraftResult result={last} />}
       </div>
       {error && (

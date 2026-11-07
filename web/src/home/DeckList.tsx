@@ -1,6 +1,7 @@
 import type { Deck } from '../lib/types.ts';
 import { ForwardIcon, LockIcon } from '../ui/icons.tsx';
 import styles from './CourseScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * The course's levels as Anki's deck list: per deck, today's new words, cards in learning steps
@@ -19,17 +20,17 @@ export function DeckList({
     <section className={styles.decks} aria-labelledby="decks-title">
       <div className={styles.deckGrid}>
         <h2 id="decks-title" className={styles.sectionTitle}>
-          Уровни
+          {t.levels}
         </h2>
         {/* Anki's short column names; each number repeats its full name for screen readers. */}
         <span className={`${styles.colHead} ${styles.fresh}`} aria-hidden="true">
-          Нов.
+          {t.new}
         </span>
         <span className={`${styles.colHead} ${styles.learning}`} aria-hidden="true">
-          Изуч.
+          {t.lrn}
         </span>
         <span className={`${styles.colHead} ${styles.review}`} aria-hidden="true">
-          Повт.
+          {t.rev}
         </span>
       </div>
       <ul className={styles.deckList}>
@@ -47,22 +48,22 @@ export function DeckList({
                 <span className={styles.deckMeta}>
                   {deck.level && `${deck.level} · `}
                   {deck.locked && index > 0 ? (
-                    `после уровня «${decks[index - 1].title}»`
+                    t.afterTheLevel(decks[index - 1].title)
                   ) : (
-                    <span className={styles.nowrap}>{`${deck.introduced_count} из ${deck.word_count}`}</span>
+                    <span className={styles.nowrap}>{t.of(deck.introduced_count, deck.word_count)}</span>
                   )}
                 </span>
               </span>
               {deck.locked ? (
                 <span className={styles.locked}>
                   <LockIcon aria-hidden="true" />
-                  <span className="visually-hidden">закрыта</span>
+                  <span className="visually-hidden">{t.locked}</span>
                 </span>
               ) : (
                 <>
-                  <Count value={deck.new_today} className={styles.fresh} name="новых" />
-                  <Count value={deck.learning_count} className={styles.learning} name="изучаемых" />
-                  <Count value={deck.review_count} className={styles.review} name="к повторению" />
+                  <Count value={deck.new_today} className={styles.fresh} name={t.newWords} />
+                  <Count value={deck.learning_count} className={styles.learning} name={t.inLearning} />
+                  <Count value={deck.review_count} className={styles.review} name={t.toReviewLabel} />
                 </>
               )}
               {!deck.locked && <ForwardIcon className={styles.chevron} aria-hidden="true" />}

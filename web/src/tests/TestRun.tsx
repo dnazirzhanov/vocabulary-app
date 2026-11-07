@@ -12,6 +12,7 @@ import shared from '../groups/Groups.module.css';
 import { TestResult } from './TestResult.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
+import { t } from '../i18n/index.ts';
 
 // The server may still be a moment short of the deadline when the device reaches it.
 const ASK_AGAIN_MS = 1000;
@@ -100,9 +101,9 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   if (gone) {
     return (
       <main className="message-screen">
-        <p role="alert">Тест изменился. Начните заново.</p>
+        <p role="alert">{t.theTestHasChangedStartAgain}</p>
         <PrimaryButton type="button" onClick={onDone}>
-          Назад
+          {t.back}
         </PrimaryButton>
       </main>
     );
@@ -110,10 +111,10 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   if (!attempt) {
     return (
       <main className="message-screen" aria-busy={!error}>
-        {error ? <p role="alert">{error}</p> : <p>Загружаем…</p>}
+        {error ? <p role="alert">{error}</p> : <p>{t.loading}</p>}
         {error && (
           <PrimaryButton type="button" onClick={() => (setError(null), void load())}>
-            Повторить
+            {t.tryAgain}
           </PrimaryButton>
         )}
       </main>
@@ -140,7 +141,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
           <button
             type="button"
             className={lesson.exit}
-            aria-label={timed ? 'Выйти из теста' : 'Выйти из тренировки'}
+            aria-label={timed ? t.exitTheTest : t.exitPractice}
             onClick={() => (timed ? setLeaving(true) : onDone())}
           >
             <CloseIcon />
@@ -161,8 +162,8 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
               storageKey={`test:${attempt.id}:${question.id}`}
               busy={busy || timeUp}
               result={null}
-              eyebrow={attempt.returning ? 'Пропущенное слово' : timed ? 'Тест' : 'Тренировка'}
-              submitLabel="Дальше"
+              eyebrow={attempt.returning ? t.skippedWord : timed ? t.test : t.practice}
+              submitLabel={t.next}
               onDraft={setDraft}
               onSubmit={(answer) => void call(() => api.answerTest(attempt.id, question.id, answer))}
               onSkip={() => void call(() => api.skipTest(attempt.id, question.id, attempt.returning))}
@@ -175,7 +176,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
                 </p>
                 {timeUp && (
                   <button type="button" className={shared.smallButton} onClick={() => setError(null)}>
-                    Повторить
+                    {t.tryAgain}
                   </button>
                 )}
               </div>
@@ -183,14 +184,14 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
           </div>
         )}
       </main>
-      <Dialog open={leaving} onClose={() => setLeaving(false)} title="Выйти из теста?">
+      <Dialog open={leaving} onClose={() => setLeaving(false)} title={t.exitTestQuestion}>
         <div className={styles.setup}>
-          <p>Время продолжает идти.</p>
+          <p>{t.theTimeKeepsRunning}</p>
           <button type="button" className={shared.smallButton} data-autofocus onClick={() => setLeaving(false)}>
-            Продолжить тест
+            {t.continueTheTest}
           </button>
           <button type="button" className={shared.linkButton} onClick={onDone}>
-            Выйти
+            {t.signOut}
           </button>
         </div>
       </Dialog>

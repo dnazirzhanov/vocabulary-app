@@ -1,4 +1,5 @@
 import styles from './LessonProgress.module.css';
+import { t } from '../i18n/index.ts';
 
 interface LessonProgressProps {
   answered: number;
@@ -11,11 +12,11 @@ export function LessonProgress({ answered, total }: LessonProgressProps) {
       <div
         className={styles.track}
         role="progressbar"
-        aria-label="Прогресс урока"
+        aria-label={t.lessonProgress}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={answered}
-        aria-valuetext={`${answered} из ${total}`}
+        aria-valuetext={t.of(answered, total)}
       >
         <div className={styles.fill} style={{ width: `${(answered / total) * 100}%` }} />
       </div>

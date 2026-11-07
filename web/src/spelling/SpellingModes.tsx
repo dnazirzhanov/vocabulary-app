@@ -5,6 +5,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingModes.module.css';
+import { t } from '../i18n/index.ts';
 
 type Choice = Exclude<SpellingMode, 'mix'>;
 
@@ -13,20 +14,20 @@ function modes(state: SpellingState): { id: Choice; title: string; note: string;
   return [
     {
       id: 'today',
-      title: 'Сегодняшние',
-      note: state.today ? `${wordsLabel(state.today)}, выученных сегодня` : 'Сегодня новых слов ещё не было',
+      title: t.todayS,
+      note: state.today ? t.learnedToday(wordsLabel(state.today)) : t.noNewWordsTodayYet,
       count: state.today,
     },
     {
       id: 'hard',
-      title: 'Трудные',
-      note: state.hard ? `${wordsLabel(state.hard)} с ошибкой в прошлый раз` : 'Трудных слов нет',
+      title: t.hardMode,
+      note: state.hard ? t.withAMistakeLastTime(wordsLabel(state.hard)) : t.noHardWords,
       count: state.hard,
     },
     {
       id: 'random',
-      title: 'Вразброс',
-      note: `Из ${wordsLabel(state.met)}, которые вы встречали`,
+      title: t.shuffled,
+      note: t.fromTheYouVeMet(wordsLabel(state.met)),
       count: state.met,
     },
   ];
@@ -55,9 +56,9 @@ export function SpellingModes({
   const chosen = options.find((option) => option.id === mode)!;
 
   return (
-    <Dialog open={open} onClose={onClose} title="Правописание">
+    <Dialog open={open} onClose={onClose} title={t.spellingTitle}>
       <fieldset className={styles.modes}>
-        <legend className="visually-hidden">Какие слова</legend>
+        <legend className="visually-hidden">{t.whichWords}</legend>
         {options.map((option) => (
           <label key={option.id} className={styles.mode} data-disabled={option.count === 0 || undefined}>
             <input
@@ -76,7 +77,7 @@ export function SpellingModes({
         ))}
       </fieldset>
       <p className={styles.label} id="spelling-size">
-        Сколько слов
+        {t.howManyWords}
       </p>
       <div className={styles.sizes} role="group" aria-labelledby="spelling-size">
         {SPELLING_SIZES.map((option) => (
@@ -85,7 +86,7 @@ export function SpellingModes({
           </button>
         ))}
       </div>
-      {state.paused && <p className={styles.note}>Незаконченное правописание закроется, написанное сохранится.</p>}
+      {state.paused && <p className={styles.note}>{t.theUnfinishedSpellingWillCloseWhat}</p>}
       {error && (
         <p className={styles.error} role="alert">
           {error}
@@ -97,7 +98,7 @@ export function SpellingModes({
         aria-busy={busy}
         onClick={() => run(() => onStart(mode, size))}
       >
-        {busy ? 'Загружаем…' : `Начать · ${wordsLabel(Math.min(size, chosen.count))}`}
+        {busy ? t.loading : t.start(wordsLabel(Math.min(size, chosen.count)))}
       </PrimaryButton>
     </Dialog>
   );

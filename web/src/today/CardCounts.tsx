@@ -1,10 +1,11 @@
 import type { Counts } from '../lib/today.ts';
 import styles from './CardCounts.module.css';
+import { t } from '../i18n/index.ts';
 
 const KINDS = [
-  { key: 'fresh', label: 'Новые', className: styles.fresh },
-  { key: 'learning', label: 'Изучаемые', className: styles.learning },
-  { key: 'review', label: 'К повторению', className: styles.review },
+  { key: 'fresh', label: t.newCardsLabel, className: styles.fresh },
+  { key: 'learning', label: t.learningCards, className: styles.learning },
+  { key: 'review', label: t.toReviewNow, className: styles.review },
 ] as const;
 
 /** Anki's three numbers, each in its colour and always with its name; a zero steps back in grey. */

@@ -7,6 +7,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckPace.module.css';
+import { t } from '../i18n/index.ts';
 
 const PACE_CHOICES = [5, 10, 15, 20, 30];
 const EXTRA_CHOICES = [5, 10, 20, 50, 100];
@@ -28,25 +29,25 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
       <div className={styles.line}>
         {/* The number the learner chose (ADR 0028, 0035); today's count is on the button. */}
         <p>
-          В день: <strong>{newWords(pace.target)}</strong>
-          {pace.ramp_week != null && <span className={styles.muted}> · пока {pace.effective_target}, разогрев</span>}
-          {pace.course && <span className={styles.muted}> · для всего курса</span>}
+          {t.perDay} <strong>{newWords(pace.target)}</strong>
+          {pace.ramp_week != null && <span className={styles.muted}>{t.warmupForNow(pace.effective_target)}</span>}
+          {pace.course && <span className={styles.muted}>{t.forTheWholeCourse}</span>}
         </p>
         {!editing && (
           <button
             type="button"
             className={styles.change}
             onClick={() => (setValue(pace.target), setEditing(true))}
-            aria-label="Изменить число новых слов в день"
+            aria-label={t.changeTheNumberOfNewWords}
           >
-            Изменить
+            {t.edit}
           </button>
         )}
       </div>
       {editing && (
         <form
           className={styles.editor}
-          aria-label="Новых слов в день"
+          aria-label={t.newWordsADay}
           onSubmit={(event) => {
             event.preventDefault();
             run(async () => {
@@ -58,7 +59,7 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
           <div className={styles.stepper}>
             <button
               type="button"
-              aria-label="Меньше"
+              aria-label={t.fewer}
               disabled={value <= MIN_TARGET}
               onClick={() => setValue(value - 1)}
             >
@@ -70,20 +71,20 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
               min={MIN_TARGET}
               max={MAX_TARGET}
               value={value}
-              aria-label="Слов в день"
+              aria-label={t.wordsADay}
               onChange={(event) => setValue(clamp(Number(event.target.value) || MIN_TARGET, MIN_TARGET, MAX_TARGET))}
               data-autofocus
             />
             <button
               type="button"
-              aria-label="Больше"
+              aria-label={t.more}
               disabled={value >= MAX_TARGET}
               onClick={() => setValue(value + 1)}
             >
               +
             </button>
           </div>
-          <div className={styles.chips} role="group" aria-label="Быстрый выбор">
+          <div className={styles.chips} role="group" aria-label={t.quickChoice}>
             {PACE_CHOICES.map((choice) => (
               <button key={choice} type="button" aria-pressed={choice === value} onClick={() => setValue(choice)}>
                 {choice}
@@ -91,9 +92,7 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
             ))}
           </div>
           {pace.deadline && pace.deadline_share > value && (
-            <p className={styles.muted}>
-              До срока сегодня всё равно {wordsLabel(pace.deadline_share)}: так колода будет выучена вовремя.
-            </p>
+            <p className={styles.muted}>{t.deadlineShareNote(wordsLabel(pace.deadline_share))}</p>
           )}
           {error && (
             <p className={styles.error} role="alert">
@@ -102,10 +101,10 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
           )}
           <div className={styles.buttons}>
             <button type="submit" className={styles.save} disabled={busy}>
-              Сохранить
+              {t.save}
             </button>
             <button type="button" className={styles.cancel} onClick={() => setEditing(false)}>
-              Отмена
+              {t.cancel}
             </button>
           </div>
         </form>
@@ -136,12 +135,9 @@ export function ExtraWords({
   const given = Math.min(words, left);
   const { run, busy, error } = useAsyncAction();
   return (
-    <Dialog open={open} onClose={onClose} title="Ещё слов сегодня">
-      <p className={styles.muted}>
-        Только на сегодня — следующие слова колоды. Завтра снова {wordsLabel(pace.target)} в день, с того места, где вы
-        остановились.
-      </p>
-      <div className={styles.chips} role="group" aria-label="Сколько слов">
+    <Dialog open={open} onClose={onClose} title={t.moreWordsToday}>
+      <p className={styles.muted}>{t.moreTodayNote(wordsLabel(pace.target))}</p>
+      <div className={styles.chips} role="group" aria-label={t.howManyWords}>
         {EXTRA_CHOICES.map((choice) => (
           <button key={choice} type="button" aria-pressed={choice === words} onClick={() => setWords(choice)}>
             {choice}
@@ -149,7 +145,7 @@ export function ExtraWords({
         ))}
       </div>
       <label className={styles.own}>
-        <span>Своё число</span>
+        <span>{t.yourOwnNumber}</span>
         <input
           type="number"
           inputMode="numeric"
@@ -161,7 +157,7 @@ export function ExtraWords({
       </label>
       {words > left && (
         <p className={styles.muted} role="status">
-          В колоде осталось {wordsLabel(left)} — вы получите все.
+          {t.deckLeftNote(wordsLabel(left))}
         </p>
       )}
       {error && (
@@ -170,7 +166,7 @@ export function ExtraWords({
         </p>
       )}
       <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => run(() => onStart(words))}>
-        {busy ? 'Загружаем…' : `Начать · ${wordsLabel(given)}`}
+        {busy ? t.loading : t.start(wordsLabel(given))}
       </PrimaryButton>
     </Dialog>
   );

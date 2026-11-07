@@ -6,6 +6,7 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { CheckIcon, CloseIcon } from '../ui/icons.tsx';
 import styles from './GiveDialog.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * «Дать группе» in a window (ADR 0036, 0049): one list of my groups, each saying whether it has the
@@ -52,17 +53,17 @@ export function GiveDialog({
     run(async () => show(await api.setDeckDue(groupId, deckId, due)));
 
   return (
-    <Dialog open onClose={onClose} title="Дать группе">
+    <Dialog open onClose={onClose} title={t.giveToAGroup}>
       {loadError ? (
         <p className={styles.problem} role="alert">
           {loadError}
         </p>
       ) : !deck || !owned ? (
         <p className={styles.note} aria-busy="true">
-          Загружаем…
+          {t.loading}
         </p>
       ) : owned.length === 0 ? (
-        <p className={styles.note}>Сначала создайте группу во вкладке «Друзья».</p>
+        <p className={styles.note}>{t.firstCreateAGroupInThe}</p>
       ) : (
         <ul className={styles.groups}>
           {owned.map((group) => {
@@ -88,7 +89,7 @@ export function GiveDialog({
                     type="button"
                     className={styles.toggle}
                     disabled={busy}
-                    aria-label={`Отменить для группы «${group.name}»`}
+                    aria-label={t.undoForTheGroup(group.name)}
                     onClick={() =>
                       run(async () => {
                         await api.takeBackDeck(group.id, deckId);
@@ -96,17 +97,17 @@ export function GiveDialog({
                       })
                     }
                   >
-                    Отменить
+                    {t.undo}
                   </button>
                 ) : (
                   <button
                     type="button"
                     className={styles.toggle}
                     disabled={busy}
-                    aria-label={`Дать группе «${group.name}»`}
+                    aria-label={t.giveToTheGroup(group.name)}
                     onClick={() => run(async () => show(await api.giveDeck(deckId, group.id, null)))}
                   >
-                    Дать
+                    {t.give}
                   </button>
                 )}
               </li>
@@ -145,10 +146,10 @@ function DueDate(props: {
   return (
     <div className={styles.due}>
       <label className={styles.dueLine} data-set={due ? '' : undefined}>
-        {due ? `К ${dueLabel(due)}` : 'Указать срок'}
+        {due ? t.by(dueLabel(due)) : t.setADeadline}
         <input
           type="date"
-          aria-label={`Срок для группы «${groupName}»`}
+          aria-label={t.deadlineForTheGroup(groupName)}
           min={localToday()}
           value={due ?? ''}
           disabled={disabled}
@@ -161,7 +162,7 @@ function DueDate(props: {
           type="button"
           className={styles.clearDue}
           disabled={disabled}
-          aria-label={`Убрать срок для группы «${groupName}»`}
+          aria-label={t.removeTheDeadlineForTheGroup(groupName)}
           onClick={() => onChange(null)}
         >
           <CloseIcon aria-hidden="true" />

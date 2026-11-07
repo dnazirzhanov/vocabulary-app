@@ -18,6 +18,20 @@ export default defineConfig(
     extends: [reactHooks.configs.flat.recommended],
   },
   {
+    // All text lives in src/i18n (ADR 0055): a Russian string anywhere else would stay Russian for everyone.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/i18n/**', 'src/**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...['Literal', 'JSXText', 'TemplateElement[value.raw]'].map((node) => ({
+          selector: `${node.split('[')[0]}[${node === 'TemplateElement[value.raw]' ? 'value.raw' : 'raw'}=/[\\u0400-\\u04FF]/]`,
+          message: 'Text belongs in src/i18n/ru.ts, read through `t`.',
+        })),
+      ],
+    },
+  },
+  {
     // End-to-end tests and their config run in Node.
     files: ['e2e/**', 'playwright.config.ts'],
     languageOptions: { globals: globals.node },

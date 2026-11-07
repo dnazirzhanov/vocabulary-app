@@ -9,6 +9,7 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import shared from './Groups.module.css';
 import styles from './Friends.module.css';
+import { t } from '../i18n/index.ts';
 
 interface GroupsScreenProps {
   /** `created`: the group was just made, so its invitation is the next thing to show. */
@@ -38,16 +39,12 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
       <main className={shared.main}>
         <div className={shared.column}>
           <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
-            Друзья
+            {t.friends}
           </h1>
-          <p className={styles.lead}>
-            {empty
-              ? 'Учиться вместе веселее. Создайте группу с друзьями или классом — или войдите по коду приглашения. Только имена в приложении, без e-mail и переписки.'
-              : 'Ваши группы: кто уже выполнил сегодняшнее обещание.'}
-          </p>
+          <p className={styles.lead}>{empty ? t.learningTogetherIsMoreFunCreate : t.yourGroupsWhoHasAlreadyKept}</p>
 
           {loadError && <p role="alert">{loadError}</p>}
-          {!groups && !loadError && <p aria-busy="true">Загружаем…</p>}
+          {!groups && !loadError && <p aria-busy="true">{t.loading}</p>}
           {groups && groups.length > 0 && (
             <ul className={styles.list}>
               {groups.map((group) => (
@@ -61,23 +58,23 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
           <div className={styles.actions} data-empty={empty || undefined}>
             {empty ? (
               <PrimaryButton type="button" onClick={() => setDialog('create')}>
-                <PlusIcon aria-hidden="true" /> Создать группу
+                <PlusIcon aria-hidden="true" /> {t.createAGroup}
               </PrimaryButton>
             ) : (
               <button type="button" className={shared.secondaryAction} onClick={() => setDialog('create')}>
-                <PlusIcon aria-hidden="true" /> Создать группу
+                <PlusIcon aria-hidden="true" /> {t.createAGroup}
               </button>
             )}
             <button type="button" className={shared.secondaryAction} onClick={() => setDialog('join')}>
-              Ввести код приглашения
+              {t.enterAnInviteCode}
             </button>
           </div>
         </div>
       </main>
-      <Dialog open={dialog === 'create'} onClose={() => setDialog(null)} title="Новая группа">
+      <Dialog open={dialog === 'create'} onClose={() => setDialog(null)} title={t.newGroup}>
         <CreateGroupForm onCreated={(groupId) => onOpen(groupId, true)} />
       </Dialog>
-      <Dialog open={dialog === 'join'} onClose={() => setDialog(null)} title="Войти по коду">
+      <Dialog open={dialog === 'join'} onClose={() => setDialog(null)} title={t.joinWithACode}>
         <JoinCodeForm onJoinCode={onJoinCode} />
       </Dialog>
     </div>
@@ -100,16 +97,16 @@ function GroupRow({ group, onOpen }: { group: GroupSummary; onOpen: () => void }
 }
 
 const MINE: Record<GroupSummary['my_today'], string> = {
-  done: 'вы ✓',
-  pending: 'вы ещё нет',
-  off: 'у вас выходной',
+  done: t.youDoneMark,
+  pending: t.youLowerNotYet,
+  off: t.yourDayOff,
 };
 
 /** «сегодня по обещанию 5 из 7 · вы ✓» */
 const todayLine = (group: GroupSummary) =>
   group.today_promised === 0
-    ? 'сегодня ни у кого нет занятия по обещанию'
-    : `сегодня по обещанию ${group.today_done} из ${group.today_promised} · ${MINE[group.my_today]}`;
+    ? t.nobodyHasAPromisedLessonToday
+    : t.todayByThePromiseOf(group.today_done, group.today_promised, MINE[group.my_today]);
 
 function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }) {
   const [name, setName] = useState('');
@@ -122,12 +119,12 @@ function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }
   return (
     <form className={styles.form} onSubmit={submit}>
       <label className={shared.field}>
-        <span>Название</span>
+        <span>{t.name}</span>
         <input
           type="text"
           value={name}
           maxLength={40}
-          placeholder="например, 7Б английский"
+          placeholder={t.forExample7BEnglish}
           onChange={(event) => setName(event.target.value)}
           data-autofocus
         />
@@ -139,7 +136,7 @@ function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }
         </p>
       )}
       <PrimaryButton type="submit" disabled={busy || name.trim().length < 2 || !nicknameReady(nickname)}>
-        Создать и пригласить
+        {t.createAndInvite}
       </PrimaryButton>
     </form>
   );
@@ -157,7 +154,7 @@ function JoinCodeForm({ onJoinCode }: { onJoinCode: (code: string) => void }) {
       }}
     >
       <label className={shared.field}>
-        <span>Код из 8 символов</span>
+        <span>{t.an8CharacterCode}</span>
         <input
           type="text"
           value={code}
@@ -170,7 +167,7 @@ function JoinCodeForm({ onJoinCode }: { onJoinCode: (code: string) => void }) {
         />
       </label>
       <PrimaryButton type="submit" disabled={clean.length !== 8}>
-        Найти группу
+        {t.findTheGroup}
       </PrimaryButton>
     </form>
   );

@@ -6,12 +6,13 @@ import { RepeatIcon } from '../ui/icons.tsx';
 import { Frog } from './Frog.tsx';
 import { StoneMark } from './StoneMark.tsx';
 import styles from './PathView.module.css';
+import { t } from '../i18n/index.ts';
 
 const STATUS: Record<string, string> = {
-  not_started: 'впереди',
-  new: 'новое',
-  learning: 'учу',
-  well_learned: 'помню хорошо',
+  not_started: t.ahead,
+  new: t.newWordLower,
+  learning: t.learning,
+  well_learned: t.rememberedWell,
 };
 const HOP_MS = 600;
 const BANNER_MS = 2600;
@@ -25,16 +26,16 @@ const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function caption(stone: Stone): string {
-  if (stone.state === 'current') return `${stone.met} из ${stone.words.length}`;
-  if (stone.state === 'firm') return 'помните хорошо';
-  if (stone.state === 'done') return 'пройден';
+  if (stone.state === 'current') return t.of(stone.met, stone.words.length);
+  if (stone.state === 'firm') return t.youRememberWell;
+  if (stone.state === 'done') return t.stageDone;
   return wordsLabel(stone.words.length);
 }
 
 function stoneLabel(stone: Stone, total: number): string {
-  const where = stone.state === 'current' ? ', вы здесь' : '';
-  const due = stone.due > 0 ? `, ${stone.due} к повторению` : '';
-  return `Камень ${stone.number} из ${total}, этап ${stone.level}: ${caption(stone)}${where}${due}. Показать слова`;
+  const where = stone.state === 'current' ? t.youAreHere : '';
+  const due = stone.due > 0 ? t.toReviewAt(stone.due) : '';
+  return t.stoneOfStageShowTheWords(stone.number, total, stone.level, caption(stone), where, due);
 }
 
 interface PathViewProps {
@@ -96,7 +97,7 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
     }
     // Announced after this frame: a live region only speaks changes made after it is on the page.
     const frame = requestAnimationFrame(() =>
-      setAnnouncement(`Вы перешли на камень ${current}.${finishedLevel ? ` Этап ${finishedLevel} пройден!` : ''}`),
+      setAnnouncement(t.movedToStone(current) + (finishedLevel ? ` ${t.stageFinished(finishedLevel)}` : '')),
     );
     if (reducedMotion()) {
       place(current);
@@ -154,7 +155,7 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
   return (
     <section className={styles.scene} aria-labelledby="path-title">
       <h2 id="path-title" className="visually-hidden">
-        Путь по колоде
+        {t.pathThroughTheDeck}
       </h2>
       <div ref={trackRef} className={styles.track}>
         <ol className={styles.levels}>
@@ -167,8 +168,8 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
             return (
               <li key={level.number} className={styles.level}>
                 <p className={styles.levelMark} data-state={state}>
-                  <span>Этап {level.number}</span>
-                  <small>{state === 'done' ? 'пройден' : state === 'current' ? 'сейчас' : 'впереди'}</small>
+                  <span>{t.stageNumber(level.number)}</span>
+                  <small>{state === 'done' ? t.stageDone : state === 'current' ? t.now : t.ahead}</small>
                 </p>
                 <ol className={styles.stones}>
                   {level.stones.map((stone) => {
@@ -213,7 +214,7 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
                             className={styles.popover}
                             onKeyDown={(event) => event.key === 'Escape' && setOpen(null)}
                           >
-                            <p className={styles.popoverTitle}>Камень {stone.number}</p>
+                            <p className={styles.popoverTitle}>{t.stoneNumber(stone.number)}</p>
                             <ul>
                               {stone.words.map((row) => (
                                 <li key={row.word.id}>
@@ -252,7 +253,7 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
               strokeLinejoin="round"
             />
           </svg>
-          <p className={styles.finishTitle}>Финиш колоды · {wordsLabel(deckWords)}</p>
+          <p className={styles.finishTitle}>{t.deckFinish(wordsLabel(deckWords))}</p>
           {finishNote && <p className={styles.finishNote}>{finishNote}</p>}
         </div>
         {current !== null && (
@@ -264,7 +265,7 @@ export function PathView({ path, deckWords, finishNote, follow = true }: PathVie
       {banner !== null && (
         <div className={styles.banner} aria-hidden="true">
           <span className={styles.splash} />
-          Этап {banner} пройден!
+          {t.stageFinished(banner)}
         </div>
       )}
       <p className="visually-hidden" aria-live="polite">

@@ -6,6 +6,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { CheckIcon } from '../ui/icons.tsx';
 import styles from './Groups.module.css';
+import { t } from '../i18n/index.ts';
 
 const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 const isLocal = typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -30,7 +31,7 @@ interface InviteDialogProps {
  */
 export function InviteDialog({ code, groupName, open, onClose, reset }: InviteDialogProps) {
   return (
-    <Dialog open={open} onClose={onClose} title="Пригласить друзей">
+    <Dialog open={open} onClose={onClose} title={t.inviteFriends}>
       <InviteContent code={code} groupName={groupName} reset={reset} />
     </Dialog>
   );
@@ -44,7 +45,7 @@ function NewLink({ groupId, onReset }: ResetLink) {
     <div className={styles.newLink}>
       {asking ? (
         <>
-          <p className={styles.hint}>Старая ссылка и QR-код перестанут работать. Те, кто уже в группе, останутся.</p>
+          <p className={styles.hint}>{t.theOldLinkAndQRCode}</p>
           <span className={styles.confirm}>
             <button
               type="button"
@@ -57,16 +58,16 @@ function NewLink({ groupId, onReset }: ResetLink) {
                 })
               }
             >
-              Да, создать
+              {t.yesCreate}
             </button>
             <SecondaryButton type="button" className={styles.smallSecondary} onClick={() => setAsking(false)}>
-              Отмена
+              {t.cancel}
             </SecondaryButton>
           </span>
         </>
       ) : (
         <button type="button" className={styles.linkButton} onClick={() => setAsking(true)}>
-          Новая ссылка
+          {t.newLink}
         </button>
       )}
       {error && (
@@ -99,20 +100,20 @@ function InviteContent({ code, groupName, reset }: { code: string; groupName: st
 
   return (
     <>
-      <p className={styles.hint}>Пусть друзья откроют ссылку или наведут камеру на QR-код.</p>
-      {qr && <img className={styles.qr} src={qr} alt={`QR-код для вступления в группу «${groupName}»`} />}
+      <p className={styles.hint}>{t.haveFriendsOpenTheLinkOr}</p>
+      {qr && <img className={styles.qr} src={qr} alt={t.qrCodeToJoinTheGroup(groupName)} />}
       <p className={styles.code}>
-        Код: <strong>{code.replace(/(.{4})/, '$1 ')}</strong>
+        {t.code} <strong>{code.replace(/(.{4})/, '$1 ')}</strong>
       </p>
       <div className={styles.linkRow}>
-        <input className={styles.linkInput} readOnly value={link} aria-label="Ссылка-приглашение" />
+        <input className={styles.linkInput} readOnly value={link} aria-label={t.inviteLink} />
         <button type="button" className={styles.smallButton} onClick={() => void copy()}>
           {copied ? (
             <>
-              <CheckIcon aria-hidden="true" /> Скопировано
+              <CheckIcon aria-hidden="true" /> {t.copied}
             </>
           ) : (
-            'Копировать'
+            t.copy
           )}
         </button>
       </div>
@@ -123,25 +124,21 @@ function InviteContent({ code, groupName, reset }: { code: string; groupName: st
             className={styles.smallButton}
             onClick={() =>
               void navigator
-                .share({ title: groupName, text: 'Учим английский вместе!', url: link })
+                .share({ title: groupName, text: t.letSLearnEnglishTogether, url: link })
                 .catch(() => undefined)
             }
           >
-            Поделиться
+            {t.share}
           </button>
         )}
         {qr && (
           <a className={styles.smallButton} href={qr} download={`priglashenie-${code}.png`}>
-            Скачать QR-код
+            {t.downloadTheQRCode}
           </a>
         )}
       </div>
       {reset && <NewLink {...reset} />}
-      {isLocal && (
-        <p className={styles.note}>
-          Сейчас приложение работает только на этом компьютере: ссылка заработает у друзей, когда его опубликуют.
-        </p>
-      )}
+      {isLocal && <p className={styles.note}>{t.theAppOnlyRunsOnThis}</p>}
     </>
   );
 }

@@ -1,5 +1,6 @@
 /** A group's spelling tests (ADR 0046): what the screens say about them, and the running clock. */
 import type { TestScore } from './types.ts';
+import { t } from '../i18n/index.ts';
 
 /** Whole seconds until a deadline, never below zero. */
 export function secondsLeft(deadline: string, now: Date): number {
@@ -11,9 +12,9 @@ export function clockText(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-export const scoreText = (score: Pick<TestScore, 'correct' | 'total'>): string => `${score.correct} из ${score.total}`;
+export const scoreText = (score: Pick<TestScore, 'correct' | 'total'>): string => t.of(score.correct, score.total);
 
-export const verdictText = (passed: boolean): string => (passed ? 'Сдано' : 'Не сдано');
+export const verdictText = (passed: boolean): string => (passed ? t.passed : t.notPassed);
 
 export interface RunningTest {
   groupId: string;

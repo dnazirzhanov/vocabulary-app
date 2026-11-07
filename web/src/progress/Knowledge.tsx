@@ -3,6 +3,7 @@ import { ForwardIcon } from '../ui/icons.tsx';
 import { WeekDays } from './Consistency.tsx';
 import { WordCount, WordStages } from './WordStages.tsx';
 import styles from './Knowledge.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * The answer at a glance (ADR 0034): how many words I know — recalled a day or more after meeting
@@ -21,25 +22,25 @@ export function Summary({
   return (
     <section aria-labelledby="summary-heading" className={styles.summary}>
       <h2 id="summary-heading" className="visually-hidden">
-        Итог
+        {t.summary}
       </h2>
       {data.learned > 0 ? (
         <p className={styles.hero}>
           {/* «Слов: N» is plural whatever the number; «21 слов» would be wrong Russian. */}
-          Вы знаете слов: <strong>{data.learned}</strong>
+          {t.wordsYouKnow} <strong>{data.learned}</strong>
         </p>
       ) : (
-        <p className={styles.hero}>{learning > 0 ? `Вы учите слов: ${learning}` : 'Начните первую колоду'}</p>
+        <p className={styles.hero}>{learning > 0 ? t.wordsYouReLearning(learning) : t.startYourFirstDeck}</p>
       )}
       <p className={styles.sub}>
         {data.learned > 0
           ? [
-              data.learned_this_week > 0 && `+${data.learned_this_week} за эту неделю`,
-              learning > 0 && `ещё ${learning} учите`,
+              data.learned_this_week > 0 && t.thisWeek(data.learned_this_week),
+              learning > 0 && t.moreInLearning(learning),
             ]
               .filter(Boolean)
               .join(' · ')
-          : 'Слово становится знакомым, когда вы вспомните его на повторении — через день или позже.'}
+          : t.aWordCountsAsKnownWhen}
       </p>
       <WeekDays progress={progress} onPromiseChanged={onPromiseChanged} />
     </section>
@@ -52,7 +53,7 @@ export function Decks({ data, onOpenDeck }: { data: KnowledgeData; onOpenDeck: (
   return (
     <section aria-labelledby="decks-heading" className={styles.section}>
       <h2 id="decks-heading" className={styles.sectionTitle}>
-        Колоды
+        {t.decks}
       </h2>
       <ul className={styles.list}>
         {data.decks.map((deck) => (

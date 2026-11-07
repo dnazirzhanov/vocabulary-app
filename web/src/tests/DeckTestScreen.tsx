@@ -13,6 +13,7 @@ import report from '../groups/Group.module.css';
 import { TestSetup } from './TestSetup.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
+import { t } from '../i18n/index.ts';
 
 // Results arrive as students finish, and a closed test opens: everyone in the room sees it soon.
 const REFRESH_MS = 30_000;
@@ -69,7 +70,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
       <main className="message-screen">
         <p role="alert">{loadError}</p>
         <PrimaryButton type="button" onClick={() => (setLoadError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -77,7 +78,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   if (!detail) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -92,15 +93,16 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   if (!test) {
     main = manager ? (
       <PrimaryButton type="button" onClick={() => setSetting(true)}>
-        Настроить тест
+        {t.setUpTheTest}
       </PrimaryButton>
     ) : (
-      <p className={styles.state}>Тест ещё не готов</p>
+      <p className={styles.state}>{t.theTestIsnTReadyYet}</p>
     );
   } else if (running) {
     main = (
       <PrimaryButton type="button" disabled={busy} onClick={() => void start('test')}>
-        Продолжить тест{left !== null && ` · ${clockText(left)}`}
+        {t.continueTheTest}
+        {left !== null && ` · ${clockText(left)}`}
       </PrimaryButton>
     );
   } else if (mine.can_start) {
@@ -108,11 +110,11 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
       <>
         {mine.score && (
           <p className={shared.note}>
-            Прошлый раз: {scoreText(mine.score)} · {verdictText(mine.score.passed)}
+            {t.lastTime} {scoreText(mine.score)} · {verdictText(mine.score.passed)}
           </p>
         )}
         <PrimaryButton type="button" disabled={busy} onClick={() => setStarting(true)}>
-          Начать тест
+          {t.startTheTest}
         </PrimaryButton>
       </>
     );
@@ -125,11 +127,11 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   } else if (manager) {
     main = (
       <PrimaryButton type="button" disabled={busy} onClick={() => void setOpen(true)}>
-        Открыть тест
+        {t.openTheTest}
       </PrimaryButton>
     );
   } else {
-    main = <p className={styles.state}>Тест ещё не открыт</p>;
+    main = <p className={styles.state}>{t.theTestIsnTOpenYet}</p>;
   }
   const openIsMain = Boolean(test && !test.is_open && manager && !running && !mine.score);
 
@@ -137,7 +139,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
     <div className={shared.screen}>
       <header className={shared.topbar}>
         <button type="button" className={shared.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> Тесты
+          <BackIcon aria-hidden="true" /> {t.tests}
         </button>
       </header>
       <main className={shared.main}>
@@ -147,9 +149,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
               {detail.title}
             </h1>
             {test && (
-              <p className={shared.note}>
-                {wordsLabel(test.words)} · {test.minutes} мин · сдать от {test.pass_percent}%
-              </p>
+              <p className={shared.note}>{t.testInfo(wordsLabel(test.words), test.minutes, test.pass_percent)}</p>
             )}
           </div>
 
@@ -164,13 +164,13 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
                     disabled={busy}
                     onClick={() => void setOpen(!test.is_open)}
                   >
-                    {test.is_open ? 'Закрыть тест' : 'Открыть тест'}
+                    {test.is_open ? t.closeTheTest : t.openTheTest}
                   </button>
                 )}
                 {/* Closed first: other words erase results, which is no thing to do mid-test. */}
                 {manager && !test.is_open && (
                   <button type="button" className={shared.linkButton} onClick={() => setSetting(true)}>
-                    Настроить тест
+                    {t.setUpTheTest}
                   </button>
                 )}
                 <button
@@ -179,7 +179,7 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
                   disabled={busy}
                   onClick={() => void start('practice')}
                 >
-                  {mine.practice_attempt_id ? 'Продолжить тренировку' : 'Тренировка'}
+                  {mine.practice_attempt_id ? t.continuePractice : t.practice}
                 </button>
               </div>
             )}
@@ -190,15 +190,15 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
             )}
           </div>
 
-          <Results title="Сдали" state="done" rows={detail.passed} />
-          <Results title="Не сдали" state="missed" rows={detail.failed} />
+          <Results title={t.passedIt} state="done" rows={detail.passed} />
+          <Results title={t.didnTPass} state="missed" rows={detail.failed} />
           {/* Nobody is behind on a test that has never been open. */}
           {(test?.is_open || detail.passed.length + detail.failed.length > 0) && <NotTaken rows={detail.not_taken} />}
         </div>
       </main>
-      <Dialog open={starting} onClose={() => setStarting(false)} title="Начать тест?">
+      <Dialog open={starting} onClose={() => setStarting(false)} title={t.startTestQuestion}>
         <div className={styles.setup}>
-          <p>Время пойдёт сразу. Попытка одна.</p>
+          <p>{t.theTimeStartsAtOnceYou}</p>
           <PrimaryButton
             type="button"
             onClick={() => {
@@ -206,10 +206,10 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
               void start('test');
             }}
           >
-            Начать
+            {t.startPlain}
           </PrimaryButton>
           <button type="button" className={shared.linkButton} data-autofocus onClick={() => setStarting(false)}>
-            Отмена
+            {t.cancel}
           </button>
         </div>
       </Dialog>
@@ -257,7 +257,7 @@ function Results(props: { title: string; state: 'done' | 'missed'; rows: TestRes
 /** No score to line up, so names run on in one card: a whole class waiting stays short. */
 function NotTaken({ rows }: { rows: TestResultRow[] }) {
   if (rows.length === 0) return null;
-  const title = 'Ещё не проходили';
+  const title = t.havenTTakenIt;
   return (
     <section aria-label={title} className={styles.results}>
       <ResultsTitle title={title} state="off" count={rows.length} />
@@ -285,7 +285,7 @@ function Name({ row }: { row: TestResultRow }) {
   return (
     <span className={styles.name}>
       {row.nickname}
-      {row.is_me && <span className={report.me}>вы</span>}
+      {row.is_me && <span className={report.me}>{t.you}</span>}
     </span>
   );
 }

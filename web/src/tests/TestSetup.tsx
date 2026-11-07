@@ -6,6 +6,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
 import styles from './Tests.module.css';
+import { t } from '../i18n/index.ts';
 
 const DEFAULT_COUNT = 10;
 
@@ -59,13 +60,13 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
   // Why «Сохранить» is off, so a grey button is never a puzzle.
   const problem =
     pool === 0
-      ? 'Оставьте хотя бы одно слово.'
+      ? t.keepAtLeastOneWord
       : random && !within(whole(count), 1, pool)
-        ? `Случайных слов: от 1 до ${pool}.`
+        ? t.randomWords1To(pool)
         : !within(whole(minutes), 1, 180)
-          ? 'Время: от 1 до 180 минут.'
+          ? t.time1To180Minutes
           : !within(whole(percent), 1, 100)
-            ? 'Сдать от: от 1 до 100%.'
+            ? t.passFrom1To100
             : null;
   const valid = problem === null;
 
@@ -94,26 +95,26 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
     });
 
   return (
-    <Dialog open onClose={onClose} title={confirming ? 'Другие слова — новый тест' : 'Настройка теста'}>
+    <Dialog open onClose={onClose} title={confirming ? t.otherWordsMeanANewTest : t.testSetup}>
       {loadError && (
         <p className={shared.problem} role="alert">
           {loadError}
         </p>
       )}
-      {!setup && !loadError && <p aria-busy="true">Загружаем…</p>}
+      {!setup && !loadError && <p aria-busy="true">{t.loading}</p>}
       {setup && confirming && (
         <div className={styles.setup}>
-          <p>Результаты теста будут удалены: {setup.results}. Все пройдут его заново.</p>
+          <p>{t.testResultsWillBeDeleted(setup.results)}</p>
           {error && (
             <p className={shared.problem} role="alert">
               {error}
             </p>
           )}
           <button ref={cancelRef} type="button" className={shared.smallButton} onClick={() => setConfirming(false)}>
-            Отмена
+            {t.cancel}
           </button>
           <button type="button" className={shared.linkButton} disabled={busy} onClick={() => void save(true)}>
-            Удалить результаты и сохранить
+            {t.deleteResultsAndSave}
           </button>
         </div>
       )}
@@ -126,18 +127,18 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
           }}
         >
           <fieldset className={styles.choice}>
-            <legend>Слова</legend>
+            <legend>{t.words}</legend>
             <label>
               <input type="radio" name="test-words" checked={!random} onChange={() => setRandom(false)} />
-              Все ({pool})
+              {t.allWithCount(pool)}
             </label>
             <label>
               <input type="radio" name="test-words" checked={random} onChange={() => setRandom(true)} />
-              Случайные
+              {t.random}
               {random && (
                 <input
                   className={styles.count}
-                  aria-label="Сколько случайных слов"
+                  aria-label={t.howManyRandomWords}
                   inputMode="numeric"
                   value={count}
                   onChange={(event) => setCount(event.target.value)}
@@ -148,11 +149,11 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
 
           <div className={styles.numbers}>
             <label className={shared.field}>
-              Время, мин
+              {t.timeMin}
               <input inputMode="numeric" value={minutes} onChange={(event) => setMinutes(event.target.value)} />
             </label>
             <label className={shared.field}>
-              Сдать от, %
+              {t.passFrom}
               <input inputMode="numeric" value={percent} onChange={(event) => setPercent(event.target.value)} />
             </label>
           </div>
@@ -163,7 +164,7 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
             aria-expanded={choosing}
             onClick={() => setChoosing(!choosing)}
           >
-            {excluded.size > 0 ? `Убраны: ${excluded.size}` : 'Убрать слова'}
+            {excluded.size > 0 ? t.removed(excluded.size) : t.removeWords}
           </button>
           {choosing && (
             <ul className={styles.wordChoices}>
@@ -185,7 +186,7 @@ export function TestSetup(props: { groupId: string; deckId: string; onClose: () 
             </p>
           )}
           <PrimaryButton type="submit" disabled={busy || !valid} aria-busy={busy}>
-            Сохранить
+            {t.save}
           </PrimaryButton>
         </form>
       )}

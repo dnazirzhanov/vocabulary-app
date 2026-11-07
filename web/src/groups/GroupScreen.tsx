@@ -16,6 +16,7 @@ import { LeaveGroup } from './LeaveGroup.tsx';
 import { ManageMember } from './ManageMember.tsx';
 import shared from './Groups.module.css';
 import styles from './Group.module.css';
+import { t } from '../i18n/index.ts';
 
 const number = new Intl.NumberFormat('ru');
 
@@ -76,7 +77,7 @@ export function GroupScreen({
       <main className="message-screen">
         <p role="alert">{error}</p>
         <PrimaryButton type="button" onClick={() => (setError(null), void load())}>
-          Повторить
+          {t.tryAgain}
         </PrimaryButton>
       </main>
     );
@@ -84,7 +85,7 @@ export function GroupScreen({
   if (!board) {
     return (
       <main className="message-screen" aria-busy="true">
-        <p>Загружаем…</p>
+        <p>{t.loading}</p>
       </main>
     );
   }
@@ -98,7 +99,7 @@ export function GroupScreen({
     <div className={shared.screen}>
       <header className={shared.topbar}>
         <button type="button" className={shared.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> Друзья
+          <BackIcon aria-hidden="true" /> {t.friends}
         </button>
       </header>
       <main className={shared.main}>
@@ -113,10 +114,10 @@ export function GroupScreen({
           {(board.has_tests || (board.assignments.length > 0 && group.can.includes('manage_tests'))) && (
             <button type="button" className={styles.testsRow} onClick={onTests}>
               <span>
-                <strong>Тесты</strong>
+                <strong>{t.tests}</strong>
                 {board.latest_test && (
                   <small>
-                    Сдали {board.latest_test.passed} из {board.latest_test.students} · {board.latest_test.title}
+                    {t.passedOfStudents(board.latest_test.passed, board.latest_test.students, board.latest_test.title)}
                   </small>
                 )}
               </span>
@@ -127,10 +128,10 @@ export function GroupScreen({
           <section aria-labelledby="today-title" className={styles.section}>
             <div className={styles.sectionHead}>
               <h2 id="today-title" className={styles.sectionTitle}>
-                Сегодня по обещанию
+                {t.todayByThePromise}
               </h2>
               <button type="button" className={shared.linkButton} onClick={() => setRules(true)}>
-                Как это считается?
+                {t.howIsThisCounted}
               </button>
             </div>
             <Today me={me} onStudy={onStudy} onPromise={() => setPromising(true)} />
@@ -139,7 +140,7 @@ export function GroupScreen({
 
           {showFold && (
             <details className={styles.manage}>
-              <summary>Управление группой</summary>
+              <summary>{t.groupSettings}</summary>
               <div className={styles.manageBody}>
                 <GroupDecks board={board} onOpenDeck={onOpenDeck} onChanged={() => void load()} />
                 <DeleteGroup group={group} onDeleted={onLeft} />
@@ -164,15 +165,9 @@ export function GroupScreen({
             : undefined
         }
       />
-      <Dialog open={rules} onClose={() => setRules(false)} title="Как это считается">
-        <p className={styles.dialogText}>
-          Каждый обещает заниматься в выбранные дни недели. День засчитан, если закончен хотя бы один урок. Пропуск —
-          день по обещанию, который кончился без урока. Изменение обещания начинается с завтра, на паузе пропусков нет.
-        </p>
-        <p className={styles.dialogText}>
-          Число пропусков начинается заново первого числа каждого месяца. Дни считаются по времени группы. Мест и очков
-          нет: важно только, держит ли каждый своё слово.
-        </p>
+      <Dialog open={rules} onClose={() => setRules(false)} title={t.howThisIsCounted}>
+        <p className={styles.dialogText}>{t.everyonePromisesToStudyOnThe}</p>
+        <p className={styles.dialogText}>{t.theNumberOfMissesStartsOver}</p>
       </Dialog>
       {person && (
         <MemberWindow
@@ -206,25 +201,25 @@ function Today(props: { me: BoardRow | undefined; onStudy: () => void; onPromise
       <div className={styles.mine}>
         {me.promise_today === 'done' && (
           <p className={styles.mineState} data-done="">
-            <CheckIcon aria-hidden="true" /> Вы: сделано
+            <CheckIcon aria-hidden="true" /> {t.youDone}
           </p>
         )}
         {me.promise_today === 'pending' && (
           <>
-            <p className={styles.mineState}>Вы: ещё нет</p>
+            <p className={styles.mineState}>{t.youNotYet}</p>
             <button type="button" className={shared.smallButton} onClick={onStudy}>
-              Заниматься
+              {t.studyNow}
             </button>
           </>
         )}
         {me.promise_today === 'off' && (
-          <p className={styles.mineState}>{me.paused ? 'Вы на паузе' : 'Сегодня у вас выходной'}</p>
+          <p className={styles.mineState}>{me.paused ? t.youReOnAPause : t.todayIsYourDayOff}</p>
         )}
       </div>
       <p className={styles.promiseLine}>
-        Моё обещание: <strong>{promiseText(me.promise_weekdays)}</strong>
+        {t.myPromise} <strong>{promiseText(me.promise_weekdays)}</strong>
         <button type="button" className={shared.linkButton} onClick={onPromise}>
-          Изменить
+          {t.edit}
         </button>
       </p>
     </div>
@@ -255,7 +250,7 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
           </ul>
         </section>
       ))}
-      {rows.length === 1 && <p className={styles.empty}>Пока вы одни в группе. Пригласите друзей кнопкой вверху.</p>}
+      {rows.length === 1 && <p className={styles.empty}>{t.youReAloneInTheGroup}</p>}
     </>
   );
 }
@@ -270,7 +265,7 @@ function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
         <span className={styles.friendHead}>
           <span className={styles.nick}>
             {row.nickname}
-            {row.is_me && <span className={styles.me}>вы</span>}
+            {row.is_me && <span className={styles.me}>{t.you}</span>}
           </span>
           {progress && <WordCount met={progress.met} total={progress.total} />}
         </span>
@@ -293,19 +288,19 @@ function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
 function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void; onChanged: () => void }) {
   const { row, group, onClose, onChanged } = props;
   return (
-    <Dialog open onClose={onClose} title={row.is_me ? `${row.nickname} (вы)` : row.nickname}>
+    <Dialog open onClose={onClose} title={row.is_me ? t.youSuffix(row.nickname) : row.nickname}>
       <section aria-labelledby="schedule-title" className={styles.block}>
         <h3 id="schedule-title" className={styles.blockTitle}>
-          Обещанные дни
+          {t.promisedDays}
         </h3>
         <DayDots states={row.week_states} />
       </section>
       <p className={styles.missed}>
-        Пропущено дней в этом месяце: <strong>{number.format(row.month_misses)}</strong>
+        {t.daysMissedThisMonth} <strong>{number.format(row.month_misses)}</strong>
       </p>
       <section aria-labelledby="words-title" className={styles.wordsBlock}>
         <h3 id="words-title" className={styles.blockTitle}>
-          Слова
+          {t.words}
         </h3>
         {row.decks.length > 0 ? (
           row.decks.map((deck) => (
@@ -320,7 +315,7 @@ function MemberWindow(props: { row: BoardRow; group: Group; onClose: () => void;
         ) : row.known + row.learning > 0 ? (
           <DeckBar met={row.known + row.learning} learned={row.known} total={row.known + row.learning} />
         ) : (
-          <p className={styles.legend}>Слов пока нет.</p>
+          <p className={styles.legend}>{t.noWordsYet}</p>
         )}
       </section>
       <ManageMember group={group} row={row} onDone={onChanged} />

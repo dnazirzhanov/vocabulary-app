@@ -1,5 +1,6 @@
 import { wordsLabel } from './pace.ts';
 import type { Deck } from './types.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * What there is to do today, the way Anki counts it (ADR 0014): new words still allowed by today's
@@ -34,13 +35,12 @@ export function studyLabel({
   started: boolean;
   bonus: boolean;
 }): string | null {
-  if (due > 0 && fresh > 0) return `Учить · ${due} повт. + ${fresh} нов.`;
-  if (due > 0) return `Повторить · ${wordsLabel(due)}`;
+  if (due > 0 && fresh > 0) return t.studyRevNew(due, fresh);
+  if (due > 0) return t.review(wordsLabel(due));
   if (fresh === 0) return null;
-  if (!started) return `Начать урок · ${wordsLabel(fresh)}`;
-  return bonus ? `Ещё ${wordsLabel(fresh)}` : `Новые слова · ${wordsLabel(fresh)}`;
+  if (!started) return t.startLesson(wordsLabel(fresh));
+  return bonus ? t.moreWords(wordsLabel(fresh)) : t.newWordsLabel(wordsLabel(fresh));
 }
 
 /** «1 новое слово», «3 новых слова», «5 новых слов». */
-export const newWords = (n: number) =>
-  `${n}\u00a0${n % 10 === 1 && n % 100 !== 11 ? 'новое слово' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'новых слова' : 'новых слов'}`;
+export const newWords = (n: number) => t.newWordsCount(n);

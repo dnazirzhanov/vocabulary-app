@@ -48,7 +48,8 @@ CODE_LENGTH = 8
 MAX_GROUPS_PER_USER = 5
 MAX_MEMBERS = 50
 
-_NICKNAME = re.compile(r"[A-Za-zА-Яа-яЁё0-9 -]{2,20}")
+# Letters and digits of any language (ң, ө, ҷ, ʻ…), with a space, hyphen or apostrophe (O'g'il).
+_NICKNAME = re.compile(r"(?:[^\W_]|[ '’-]){2,20}")
 _LINK_LIKE = re.compile(r"(https?|www)", re.IGNORECASE)
 
 
@@ -66,7 +67,7 @@ def clean_nickname(raw: str) -> str:
     if not _NICKNAME.fullmatch(nickname):
         raise ApiError(422, "invalid_nickname", "Use 2–20 letters, digits, spaces or hyphens")
     digits = sum(character.isdigit() for character in nickname)
-    if digits >= 5 or digits == len(nickname.replace(" ", "").replace("-", "")):
+    if digits >= 5 or digits == len(re.sub(r"[ '’-]", "", nickname)):
         raise ApiError(422, "invalid_nickname", "A nickname cannot be a number")
     if _LINK_LIKE.search(nickname):
         raise ApiError(422, "invalid_nickname", "A nickname cannot contain a link")

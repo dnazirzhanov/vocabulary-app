@@ -1,4 +1,4 @@
-import { plural } from '../i18n/plural.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * Photos of lesson material (ADR 0029): up to 4 at a time, 8 per deck in all. The text is read
@@ -9,7 +9,7 @@ export const MAX_PHOTOS_PER_DECK = 8;
 /** Less text than this from a photo is likely nothing readable. */
 export const MIN_PHOTO_TEXT = 20;
 
-const photosOf = (n: number) => `${n}\u00a0${plural(n, { one: 'фото', few: 'фото', many: 'фото' })}`;
+const photosOf = (n: number) => t.photosCount(n);
 
 /**
  * How many of the chosen photos to read: no more than 4 in one draft, counting those already
@@ -24,14 +24,14 @@ export function takePhotos(chosen: number, inDraft: number, deckLeft: number): {
       take,
       note:
         deckLeft - inDraft <= 0
-          ? `В эту колоду больше нельзя добавить фото: их уже ${MAX_PHOTOS_PER_DECK}. Вставьте текст вручную.`
-          : `За один раз — не больше ${photosOf(MAX_PHOTOS_PER_DRAFT)}. Подберите слова, потом добавьте ещё.`,
+          ? t.noMorePhotosCanBeAdded(MAX_PHOTOS_PER_DECK)
+          : t.atMostAtATimePick(photosOf(MAX_PHOTOS_PER_DRAFT)),
     };
   const limit =
     room < MAX_PHOTOS_PER_DRAFT - inDraft
-      ? `для этой колоды осталось ${photosOf(deckLeft - inDraft)}`
-      : `за один раз — не больше ${photosOf(MAX_PHOTOS_PER_DRAFT)}`;
-  return { take, note: `Взяли первые ${photosOf(take)}: ${limit}.` };
+      ? t.leftForThisDeck(photosOf(deckLeft - inDraft))
+      : t.atMostAtATime(photosOf(MAX_PHOTOS_PER_DRAFT));
+  return { take, note: t.tookTheFirst(photosOf(take), limit) };
 }
 
 /** Text read from a photo, tidied: words split across lines joined, blank runs shortened. */

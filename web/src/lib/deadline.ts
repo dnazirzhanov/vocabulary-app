@@ -1,5 +1,5 @@
-import { plural } from '../i18n/plural.ts';
 import { wordsLabel } from './pace.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * A teacher's «Выучить к» on a deck (ADR 0028), in words. Dates are local calendar days
@@ -22,10 +22,10 @@ export const dueLabel = (day: string) => dayName.format(toTime(day));
 /** A deck from a group in «Мои колоды»: «до срока 2 дня, осталось 6 слов». */
 export function deadlineLeft(deadline: string, today: string, left: number): string {
   const days = Math.round((toTime(deadline) - toTime(today)) / DAY_MS);
-  if (left <= 0) return `к ${dueLabel(deadline)}: все слова встречены`;
-  const rest = `осталось ${wordsLabel(left)}`;
-  if (days < 0) return `срок прошёл, ${rest}`;
-  if (days === 0) return `срок сегодня, ${rest}`;
-  if (days === 1) return `срок завтра, ${rest}`;
-  return `до срока ${days}\u00a0${plural(days, { one: 'день', few: 'дня', many: 'дней' })}, ${rest}`;
+  if (left <= 0) return t.byAllWordsMet(dueLabel(deadline));
+  const rest = t.left(wordsLabel(left));
+  if (days < 0) return t.deadlinePassed(rest);
+  if (days === 0) return t.deadlineToday(rest);
+  if (days === 1) return t.deadlineTomorrow(rest);
+  return t.deadlineInDays(days, rest);
 }

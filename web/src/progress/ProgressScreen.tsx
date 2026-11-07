@@ -5,6 +5,7 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { Heatmap } from './Consistency.tsx';
 import { Decks, Summary } from './Knowledge.tsx';
 import styles from './ProgressScreen.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * «Прогресс» (ADR 0034), read top to bottom: the answer at a glance — words I know, this week's
@@ -41,7 +42,7 @@ export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) =>
               void load();
             }}
           >
-            Повторить
+            {t.tryAgain}
           </PrimaryButton>
         </main>
       </div>
@@ -51,7 +52,7 @@ export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) =>
     return (
       <div className={styles.screen}>
         <main className={styles.message} aria-busy="true">
-          <p>Загружаем…</p>
+          <p>{t.loading}</p>
         </main>
       </div>
     );
@@ -62,7 +63,7 @@ export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) =>
       <main className={styles.main}>
         <div className={styles.head}>
           <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-            Прогресс
+            {t.progress}
           </h1>
         </div>
         <Summary data={loaded.knowledge} progress={loaded.progress} onPromiseChanged={() => void load()} />

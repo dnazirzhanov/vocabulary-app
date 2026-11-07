@@ -1,15 +1,16 @@
 import type { BoardRow, DayState, TodayState } from './types.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * The promise in words (ADR 0039): which weekdays a learner promised to study, and how the report
  * names a day. Weekdays are 0 (Monday) to 6 (Sunday).
  */
-export const WEEKDAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+export const WEEKDAY_NAMES = t.weekdays;
 
 /** «каждый день», «Пн–Пт», «Пн Ср Пт», «Пн–Ср Пт»: runs of three or more days are collapsed. */
 export function promiseText(weekdays: number[]): string {
   const days = [...new Set(weekdays)].sort((a, b) => a - b);
-  if (days.length === 7) return 'каждый день';
+  if (days.length === 7) return t.everyDay;
   const parts: string[] = [];
   let index = 0;
   while (index < days.length) {
@@ -27,24 +28,24 @@ export const weekdaysOf = (flags: boolean[]): number[] =>
   flags.flatMap((promised, weekday) => (promised ? [weekday] : []));
 
 export const PROMISE_PRESETS: { label: string; weekdays: number[] }[] = [
-  { label: 'Каждый день', weekdays: [0, 1, 2, 3, 4, 5, 6] },
-  { label: 'Пн–Пт', weekdays: [0, 1, 2, 3, 4] },
+  { label: t.everyDayCapital, weekdays: [0, 1, 2, 3, 4, 5, 6] },
+  { label: t.monFri, weekdays: [0, 1, 2, 3, 4] },
 ];
 
 /** A day of the report, for screen readers (the dots are drawn, not written). */
 export const DAY_STATE_TEXT: Record<DayState, string> = {
-  done: 'сделано',
-  missed: 'пропущено',
-  today: 'сегодня, ещё нет',
-  later: 'впереди',
-  off: 'не по обещанию',
+  done: t.done,
+  missed: t.missed,
+  today: t.todayNotYet,
+  later: t.ahead,
+  off: t.notPromised,
 };
 
 export const dotsLabel = (states: DayState[]) =>
-  `Неделя: ${states.map((state, weekday) => `${WEEKDAY_NAMES[weekday]} — ${DAY_STATE_TEXT[state]}`).join(', ')}`;
+  t.weekSummary(states.map((state, weekday) => t.dayAndState(WEEKDAY_NAMES[weekday], DAY_STATE_TEXT[state])));
 
 /** «пропусков: 2» for a member's month. */
-export const missesText = (n: number) => `пропусков: ${n}`;
+export const missesText = (n: number) => t.misses(n);
 
 /** A calendar day (YYYY-MM-DD) some days later. */
 export const plusDays = (day: string, days: number) =>
@@ -61,9 +62,9 @@ export interface TodayList {
 }
 
 const TODAY_TITLES: Record<TodayState, string> = {
-  done: 'Сделали сегодня',
-  pending: 'Не сделали',
-  off: 'Сегодня выходной',
+  done: t.didItToday,
+  pending: t.didnTDoIt,
+  off: t.dayOffToday,
 };
 
 /** The rows keep the board's order (me, then alphabetical); a list with nobody in it is left out. */
@@ -92,8 +93,8 @@ export function wordsProgress(row: BoardRow): WordsProgress | null {
 export function wordsCaption(rows: BoardRow[]): string | null {
   const decks = rows[0]?.decks ?? [];
   if (!rows.some((row) => wordsProgress(row))) return null;
-  return decks.length === 1 ? `Слова из «${decks[0].title}»` : 'Слова из колод группы';
+  return decks.length === 1 ? t.wordsFrom(decks[0].title) : t.wordsFromTheGroupSDecks;
 }
 
 /** Without a deck there is no total to measure against: just the words they know in all. */
-export const knownLine = (row: BoardRow): string => (row.known > 0 ? `выучено слов: ${row.known}` : '');
+export const knownLine = (row: BoardRow): string => (row.known > 0 ? t.wordsLearned(row.known) : '');

@@ -1,7 +1,7 @@
-import { plural } from '../i18n/plural.ts';
 import type { SpellingState } from '../lib/types.ts';
 import { ForwardIcon, PencilIcon } from '../ui/icons.tsx';
 import styles from './PausedSpelling.module.css';
+import { t } from '../i18n/index.ts';
 
 /**
  * A spelling session left unfinished (ADR 0026): how far it got, and a way back to the next
@@ -25,21 +25,19 @@ export function PausedSpelling({
       className={styles.card}
       disabled={disabled}
       onClick={onResume}
-      aria-label="Продолжить правописание"
+      aria-label={t.continueSpelling}
       aria-describedby="paused-spelling-note"
     >
       <PencilIcon className={styles.icon} aria-hidden="true" />
       <span className={styles.text}>
-        <strong>Правописание не закончено</strong>
+        <strong>{t.spellingNotFinished}</strong>
         <span id="paused-spelling-note" className={styles.note}>
-          Написано {spelled} из {total}
-          {spelled > 0 && ` (верно ${right}${missed ? `, с ошибкой ${missed}` : ''})`} · осталось {left}{' '}
-          {plural(left, { one: 'слово', few: 'слова', many: 'слов' })}
+          {t.pausedProgress(spelled, total, right, missed, left)}
         </span>
         <span
           className={styles.bar}
           role="progressbar"
-          aria-label="Написано слов"
+          aria-label={t.wordsWritten}
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={spelled}
@@ -49,7 +47,7 @@ export function PausedSpelling({
         </span>
       </span>
       <span className={styles.resume}>
-        Продолжить <ForwardIcon aria-hidden="true" />
+        {t.continue} <ForwardIcon aria-hidden="true" />
       </span>
     </button>
   );
