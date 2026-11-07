@@ -23,6 +23,8 @@ export default defineConfig({
   forbidOnly: ci,
   reporter: ci ? 'github' : 'list',
   use: {
+    // A new visitor sees the device's language (ADR 0055); these tests read Russian.
+    locale: 'ru-RU',
     // Playwright's own Chromium everywhere (CI gets it from Playwright's image; locally run
     // `npx playwright install chromium` once). The system Chrome sometimes hung opening a context.
     trace: 'retain-on-failure',

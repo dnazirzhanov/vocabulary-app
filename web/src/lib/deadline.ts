@@ -7,7 +7,6 @@ import { t } from '../i18n/index.ts';
  */
 
 const DAY_MS = 86_400_000;
-const dayName = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const toTime = (day: string) => Date.parse(`${day}T00:00:00Z`);
 
 /** Today's local date as YYYY-MM-DD. */
@@ -17,7 +16,10 @@ export function localToday(now: Date = new Date()): string {
 }
 
 /** «7 ноября». */
-export const dueLabel = (day: string) => dayName.format(toTime(day));
+export const dueLabel = (day: string) => {
+  const date = new Date(toTime(day));
+  return t.dayMonth(date.getUTCDate(), date.getUTCMonth());
+};
 
 /** A deck from a group in «Мои колоды»: «до срока 2 дня, осталось 6 слов». */
 export function deadlineLeft(deadline: string, today: string, left: number): string {

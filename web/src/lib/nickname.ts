@@ -22,9 +22,9 @@ export function nicknameProblem(raw: string): string | null {
   const nickname = raw.trim().replace(/\s+/g, ' ');
   if (nickname.length < 2) return t.atLeast2Characters;
   if (nickname.length > 20) return t.atMost20Characters;
-  if (!/^[\p{L}\p{Nd} '’-]+$/u.test(nickname)) return t.onlyLettersDigitsSpacesAndHyphens;
+  if (!/^[\p{L}\p{Nd} '‘’-]+$/u.test(nickname)) return t.onlyLettersDigitsSpacesAndHyphens;
   const digits = (nickname.match(/\d/g) ?? []).length;
-  if (digits >= 5 || digits === nickname.replace(/[ '’-]/g, '').length) return t.aNameCanTBeA;
+  if (digits >= 5 || digits === nickname.replace(/[ '‘’-]/g, '').length) return t.aNameCanTBeA;
   if (/https?|www/i.test(nickname)) return t.noLinks;
   return null;
 }

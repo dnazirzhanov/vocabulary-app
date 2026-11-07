@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # One day of a member's promise (ADR 0039): done; missed (promised, over, nothing finished); today,
 # still open; later (promised, to come); off (not promised, or paused).
+# The languages the app's text comes in (ADR 0055).
+UiLanguage = Literal["ru", "uz", "kk", "ky", "tg", "en"]
+
 DayState = Literal["done", "missed", "today", "later", "off"]
 # Today for one member: done (a session finished), pending (promised, not yet), off.
 TodayState = Literal["done", "pending", "off"]
@@ -57,6 +60,8 @@ class MeOut(BaseModel):
     daily_target_words: int | None
     study_days_per_week: int
     ramp_enabled: bool
+    # The app's language; null until this account has one (ADR 0055).
+    ui_language: UiLanguage | None
     # Which notifications the learner wants (ADR 0042).
     notify_morning: bool
     notify_afternoon: bool
@@ -80,6 +85,7 @@ class MeUpdate(BaseModel):
     notify_afternoon: bool | None = None
     notify_report: bool | None = None
     notify_deadline: bool | None = None
+    ui_language: UiLanguage | None = None
 
 
 class SuggestionOut(BaseModel):

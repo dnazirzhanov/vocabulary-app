@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts';
 import type { StudyDay } from './types.ts';
 
 /**
@@ -95,8 +96,6 @@ export interface YearCalendar {
   cards: number;
 }
 
-const monthName = new Intl.DateTimeFormat('ru', { month: 'long', timeZone: 'UTC' });
-
 /**
  * Shades relative to the learner's own busy days (the 90th percentile, so one marathon day does
  * not wash out the rest): a beginner's and a heavy learner's calendars both use the whole scale.
@@ -131,7 +130,11 @@ export function buildYear(activity: StudyDay[], today: string, year: number): Ye
   const months = Array.from({ length: 12 }, (_, month) => {
     const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
     const days = cells.filter((cell) => cell.date.startsWith(prefix));
-    return { label: monthName.format(toTime(days[0].date)), offset: weekdayIndex(days[0].date), days };
+    return {
+      label: t.monthNames[new Date(toTime(days[0].date)).getUTCMonth()],
+      offset: weekdayIndex(days[0].date),
+      days,
+    };
   });
   return {
     year,

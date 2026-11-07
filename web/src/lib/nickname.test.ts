@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { nicknameProblem, suggestNicknames } from './nickname.ts';
+import { en } from '../i18n/en.ts';
+import { kk } from '../i18n/kk.ts';
+import { ky } from '../i18n/ky.ts';
+import { tg } from '../i18n/tg.ts';
+import { uz } from '../i18n/uz.ts';
 
 test('generated nicknames agree and pass the rules', () => {
   let seed = 0;
@@ -19,8 +24,19 @@ test('typed nicknames follow the server rules', () => {
 });
 
 test("a nickname may be in any of the app's languages", () => {
-  for (const name of ['Айгүл', 'Қанат', 'Ҷамшед', 'Gʻayrat', "O'g'il", 'Анна-Мария']) {
+  for (const name of ['Айгүл', 'Қанат', 'Ҷамшед', 'G‘ayrat', 'Gʻayrat', "O'g'il", 'Анна-Мария']) {
     assert.equal(nicknameProblem(name), null, name);
   }
   assert.notEqual(nicknameProblem('a@b.c'), null);
+});
+
+test('every generated nickname, in every language, passes the rules', () => {
+  for (const messages of [en, uz, kk, ky, tg]) {
+    for (const adjective of messages.nicknameAdjectives) {
+      for (const animal of messages.nicknameAnimals) {
+        const name = `${adjective} ${animal}`;
+        if (name.length <= 20) assert.equal(nicknameProblem(name), null, name);
+      }
+    }
+  }
 });

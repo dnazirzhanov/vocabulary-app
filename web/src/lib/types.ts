@@ -1,3 +1,4 @@
+import type { UiLanguage } from '../i18n/languages.ts';
 // Mirrors backend/app/schemas/learning.py. Answer keys are absent until a result comes back.
 
 export interface Word {
@@ -188,6 +189,8 @@ export interface Me {
   notify_afternoon: boolean;
   notify_report: boolean;
   notify_deadline: boolean;
+  /** The app's language; null until this account has one. */
+  ui_language: UiLanguage | null;
   onboarded: boolean;
   /** When the pace was first chosen: the ramp's weeks count from here. */
   onboarded_at: string | null;
@@ -210,7 +213,7 @@ export type TodayState = 'done' | 'pending' | 'off';
 export type NotificationChoice = 'notify_morning' | 'notify_afternoon' | 'notify_report' | 'notify_deadline';
 
 export type MeUpdate = Partial<
-  Pick<Me, 'daily_target_words' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice>
+  Pick<Me, 'daily_target_words' | 'ui_language' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice>
 >;
 
 export interface PaceSuggestion {

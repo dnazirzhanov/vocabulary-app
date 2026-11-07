@@ -431,7 +431,7 @@ def test_a_word_counts_as_learned_in_the_period_it_was_first_recalled(client: Te
 
 
 def test_a_nickname_may_be_in_any_of_the_apps_languages(client: TestClient) -> None:
-    for name in ("Айгүл", "Қанат", "Ҷамшед", "Gʻayrat", "O'g'il"):
+    for name in ("Айгүл", "Қанат", "Ҷамшед", "G‘ayrat", "Gʻayrat", "O'g'il"):
         response = client.post(
             "/api/groups",
             json={"name": "Группа", "nickname": name},

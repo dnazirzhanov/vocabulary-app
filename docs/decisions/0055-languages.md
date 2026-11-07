@@ -18,5 +18,12 @@ The app was Russian-only: about 900 strings in 65 files, Russian grammar in code
 - **A sentence with something in it is one function,** so each language can order it and apply its own grammar. Sentences are never glued from pieces. `{0}` marks markup, for `rich`.
 - **A Russian string outside `src/i18n` fails lint,** so a new screen can't forget.
 
+- **Dates and "tomorrow" come from our own files, not `Intl`:** a browser without Tajik would silently use another language.
+- **The language loads before the app's code, and changing it reloads the page,** so nothing built at import time can stay in the old language. Russian is always bundled, as the fallback.
+- **Which language at the start:** saved choice, then the device's language, then Russian. After sign-in the account's language wins.
+- **The control is first on the sign-in page and shows no words,** because someone who can't read the page has to find it.
+- **Uzbek writes `o‘`, `g‘` and `’`** rather than `ʻ` and `ʼ`: in the app's font `ʻ` is twice as wide and splits words visibly. Typed names accept all of them.
+- **Tests look at what the compiler can't:** every argument kept, no line left in Russian, every letter from the right alphabet.
+
 ## Consequences
 - Adding a line means adding it in every language, or the build fails. That is the point.

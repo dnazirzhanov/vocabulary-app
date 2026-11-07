@@ -24,7 +24,7 @@ import type { Deck, Me, Session, Summary, TestAttempt } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
-import { t } from './i18n/index.ts';
+import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 
 type Screen =
   | { name: 'home' }
@@ -146,7 +146,12 @@ function useProfile() {
   const load = useCallback(
     () =>
       Promise.all([api.me(), api.listDecks()]).then(
-        ([me, decks]) => setProfile({ me, decks }),
+        ([me, decks]) => {
+          // Another device chose: follow it. A new account takes what this device shows.
+          if (me.ui_language === null) void api.updateMe({ ui_language: uiLanguage }).catch(() => null);
+          else if (me.ui_language !== uiLanguage && switchLanguage(me.ui_language)) return;
+          setProfile({ me, decks });
+        },
         (caught: unknown) => setError(describeError(caught)),
       ),
     [],

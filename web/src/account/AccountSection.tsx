@@ -7,7 +7,8 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
-import { t } from '../i18n/index.ts';
+import { switchLanguage, t } from '../i18n/index.ts';
+import { LanguageSelect } from '../ui/LanguageSelect.tsx';
 
 export interface AccountProps {
   email: string | null;
@@ -63,6 +64,16 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               <small>{t.aShortChimeForACorrect}</small>
             </span>
           </label>
+          <div className={styles.language}>
+            <LanguageSelect
+              onChoose={(language) => {
+                void run(async () => {
+                  await api.updateMe({ ui_language: language });
+                  switchLanguage(language);
+                });
+              }}
+            />
+          </div>
           <Reminders />
         </>
       )}
