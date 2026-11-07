@@ -60,3 +60,4 @@ One file per decision that is costly to reverse or easy to second-guess. Format:
 | [0055](0055-languages.md) | Learn English in your own language: separate translation and app languages, the translation language chosen where cards are made, the course stays Russian-only, every line typed against the Russian one | Accepted |
 | [0056](0056-spelling-per-deck.md) | Each deck's spelling is its own words: a session names its deck, counts and an unfinished spelling are the deck's, one ladder per word | Accepted |
 | [0057](0057-one-name-per-person.md) | One name per person, asked after the language on the first run and changed in ⚙, shown in every group instead of a nickname per group; no age | Accepted |
+| [0058](0058-no-data-api.md) | FastAPI is the only way to the data: RLS on every table with no policies, no privileges for Supabase's `anon`/`authenticated`, the Data API turned off, a test that fails on any open table | Accepted |

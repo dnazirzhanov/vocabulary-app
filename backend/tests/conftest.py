@@ -35,6 +35,21 @@ from tests.support import Play, Ratings, Spellings, at, finish, spell_today
 BACKEND = Path(__file__).resolve().parents[1]
 CONTENT = BACKEND.parent / "content"
 LEVELS = ("a1-a2", "b1-b2", "c1")
+# Supabase's Data API roles, granted everything new in `public` as a new Supabase project does, so
+# the migrations are proven to shut them out (ADR 0058; tests/test_no_public_access.py).
+SUPABASE_API_ROLES = """
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+END $$;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
+"""
 
 
 @pytest.fixture(scope="session")
@@ -47,6 +62,8 @@ def starter_content() -> DeckContent:
 def database(starter_content: DeckContent) -> None:
     """Fresh schema once per run. Downgrading first also proves every migration reverses."""
     config = Config(str(BACKEND / "alembic.ini"))
+    with get_engine().begin() as connection:
+        connection.execute(text(SUPABASE_API_ROLES))
     command.downgrade(config, "base")
     command.upgrade(config, "head")
     with get_sessionmaker()() as db:
