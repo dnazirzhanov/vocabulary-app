@@ -10,7 +10,7 @@ import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
 import { switchLanguage, t, uiLanguage } from '../i18n/index.ts';
 import { CARD_LANGUAGES, UI_LANGUAGES, type CardLanguage } from '../i18n/languages.ts';
-import { LanguageSelect } from '../ui/LanguageSelect.tsx';
+import { LanguageRow } from './LanguageRow.tsx';
 
 export interface AccountProps {
   email: string | null;
@@ -74,7 +74,8 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
             </span>
           </label>
           <div className={styles.language}>
-            <LanguageSelect
+            <LanguageRow
+              disabled={busy}
               label={t.appLanguage}
               value={uiLanguage}
               options={UI_LANGUAGES}
@@ -86,7 +87,8 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               }}
             />
             {cardLanguage && (
-              <LanguageSelect
+              <LanguageRow
+                disabled={busy}
                 label={t.translationLanguage}
                 value={cardLanguage}
                 options={CARD_LANGUAGES}

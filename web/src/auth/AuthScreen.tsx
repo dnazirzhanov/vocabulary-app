@@ -51,13 +51,7 @@ function AuthLayout({ children, onSubmit }: { children: ReactNode; onSubmit: (ev
       <div className={styles.layout}>
         {/* First, and needing no reading: someone who can't read this page has to find it. */}
         <div className={styles.language}>
-          <LanguageSelect
-            compact
-            label={t.appLanguage}
-            value={uiLanguage}
-            options={UI_LANGUAGES}
-            onChoose={switchLanguage}
-          />
+          <LanguageSelect label={t.appLanguage} value={uiLanguage} options={UI_LANGUAGES} onChoose={switchLanguage} />
         </div>
         <div className={styles.stage} aria-hidden="true">
           <Illustration id="key" className={styles.art} />

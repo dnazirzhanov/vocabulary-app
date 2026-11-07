@@ -172,21 +172,18 @@ export const api = {
   myDecks: () => request<TeacherDeck[]>('GET', '/decks/mine'),
   /** A new deck, mine until I give it to a group I own (ADR 0019). */
   createDeck: (title: string, language?: CardLanguage) => request<TeacherDeck>('POST', '/decks', { title, language }),
-  /** What a deck is translated into, while it has no words (ADR 0055). */
-  setDeckLanguage: (deckId: string, language: CardLanguage) =>
-    request<TeacherDeck>('PUT', `/decks/${deckId}/language`, { language }),
   library: () => request<Library>('GET', '/decks/library'),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
   deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
   /** Full cards from the words named, saved to the deck. */
-  fillWords: (deckId: string, words: string[], level: string) =>
-    request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level }, 120_000),
+  fillWords: (deckId: string, words: string[], level: string, language: CardLanguage) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/fill`, { words, level, language }, 120_000),
   /** Cards for a topic: the AI chooses the words a learner needs for it (ADR 0019). */
-  topicWords: (deckId: string, topic: string, count: number, level: string) =>
-    request<GenerateResult>('POST', `/decks/${deckId}/words/topic`, { topic, count, level }, 120_000),
+  topicWords: (deckId: string, topic: string, count: number, level: string, language: CardLanguage) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/words/topic`, { topic, count, level, language }, 120_000),
   /** One card filled in for the manual form, not saved. */
-  suggestWord: (deckId: string, headword: string, level: string) =>
-    request<SuggestedCard>('POST', `/decks/${deckId}/words/suggest`, { headword, level }, 60_000),
+  suggestWord: (deckId: string, headword: string, level: string, language: CardLanguage) =>
+    request<SuggestedCard>('POST', `/decks/${deckId}/words/suggest`, { headword, level, language }, 60_000),
   teacherDeck: (deckId: string) => request<TeacherDeck>('GET', `/decks/${deckId}/edit`),
   renameDeck: (deckId: string, title: string) => request<TeacherDeck>('PATCH', `/decks/${deckId}`, { title }),
   addDeckWord: (deckId: string, word: DeckWordInput) => request<TeacherDeck>('POST', `/decks/${deckId}/words`, word),
@@ -196,8 +193,8 @@ export const api = {
     request<TeacherDeck>('DELETE', `/decks/${deckId}/words/${wordId}`),
   /** Drafts cards from a teacher's text into the deck (ADR 0018); a model call can take a minute. */
   /** `photos`: how many photos the text was read from (ADR 0029). Fifty cards can take minutes. */
-  generateDeck: (deckId: string, text: string, count: number, level: string, photos = 0) =>
-    request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level, photos }, 240_000),
+  generateDeck: (deckId: string, text: string, count: number, level: string, language: CardLanguage, photos = 0) =>
+    request<GenerateResult>('POST', `/decks/${deckId}/generate`, { text, count, level, language, photos }, 240_000),
   /** Publish and give to a group I own; safe to repeat. */
   giveDeck: (deckId: string, groupId: string, dueOn: string | null = null) =>
     request<TeacherDeck>('POST', `/decks/${deckId}/publish`, { group_id: groupId, due_on: dueOn }),

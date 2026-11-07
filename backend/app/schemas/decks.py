@@ -47,12 +47,8 @@ class NewDeckIn(_Input):
     """Every deck starts as its author's own; giving it to a group is a separate step (ADR 0019)."""
 
     title: Title
-    # What it is translated into; the author's own language unless named (ADR 0055).
+    # The translation language it starts with; the author's own unless named (ADR 0055).
     language: CardLanguage | None = None
-
-
-class DeckLanguageIn(_Input):
-    language: CardLanguage
 
 
 class RenameDeckIn(_Input):
@@ -66,6 +62,8 @@ class DeckWordIn(_Input):
     example: Sentence
     # The example's Russian translation; optional, shown under the example when present.
     example_translation: Translation = ""
+    # What the translations are written in; the deck's last choice unless named (ADR 0055).
+    language: CardLanguage | None = None
 
 
 class PublishIn(_Input):
@@ -86,6 +84,7 @@ class GenerateIn(_Input):
     level: Literal["A1", "A2", "B1", "B2", "C1"] = "B1"
     # Photos the text was read from in the browser (ADR 0029): up to 4 at a time, 8 per deck.
     photos: Annotated[int, Field(ge=0, le=4)] = 0
+    language: CardLanguage | None = None
 
 
 Level = Literal["A1", "A2", "B1", "B2", "C1"]
@@ -99,6 +98,7 @@ class FillIn(_Input):
         Field(min_length=1, max_length=20),
     ]
     level: Level = "B1"
+    language: CardLanguage | None = None
 
 
 class TopicIn(_Input):
@@ -107,11 +107,13 @@ class TopicIn(_Input):
     topic: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
     count: Literal[5, 10, 15, 20] = 10
     level: Level = "B1"
+    language: CardLanguage | None = None
 
 
 class SuggestIn(_Input):
     headword: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
     level: Level = "B1"
+    language: CardLanguage | None = None
 
 
 class SuggestOut(BaseModel):
@@ -153,7 +155,7 @@ class TeacherDeckOut(BaseModel):
     groups: list[AssignedGroupOut]
     # Topics it has been grown with, the latest first (ADR 0019).
     topics: list[str] = []
-    # What its words are translated into (ADR 0055).
+    # The translation language last chosen for it, which the next card starts from (ADR 0055).
     language: CardLanguage
     # Photos it can still be drafted from (ADR 0029).
     photos_left: int = 0

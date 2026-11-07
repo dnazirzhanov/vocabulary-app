@@ -74,9 +74,10 @@ function TappableSentence({
 }
 
 /** The card itself: the word on the front; translation, picture and example on the back. */
-function Card(props: { card: CardExercise; revealed: boolean; glossary: boolean; onTap: (t: Tapped) => void }) {
-  const { card, revealed, glossary, onTap } = props;
+function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean; onTap: (t: Tapped) => void }) {
   const { word } = card;
+  // The glossary is in Russian: on any other card a tap would show the wrong language.
+  const glossary = word.language === 'ru';
   return (
     <article className={styles.card} data-revealed={revealed || undefined} data-card={card.id}>
       <div className={styles.wordRow}>
@@ -94,7 +95,6 @@ function Card(props: { card: CardExercise; revealed: boolean; glossary: boolean;
           <div className={styles.example}>
             <p lang="en" className={styles.exampleEn}>
               <span>
-                {/* The glossary is in Russian: elsewhere a tap would show the wrong language. */}
                 {glossary ? (
                   <TappableSentence sentence={word.example} headword={word.headword} onTap={onTap} />
                 ) : (
@@ -260,7 +260,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       <main ref={mainRef} className={styles.main}>
         <div key={exercise.id} className={styles.cardWrap}>
           {exercise.type === 'card' ? (
-            <Card card={exercise} revealed={revealed} glossary={session.glossary} onTap={setTapped} />
+            <Card card={exercise} revealed={revealed} onTap={setTapped} />
           ) : (
             <SpellingExercise
               exercise={exercise}

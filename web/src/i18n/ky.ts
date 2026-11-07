@@ -635,7 +635,6 @@ export const ky: Messages = {
   appLanguage: 'Колдонмонун тили',
   translationLanguage: 'Котормо тили',
   firstLanguageQuestion: 'Англис тилин кайсы тилде үйрөнгүңүз келет?',
-  translationIn: (a: Arg) => `Котормо: ${a}`,
   wordingQuestion: 'Котормодо ката барбы?',
   wordingHint: 'Эмне туура эмес жана кантип туура?',
   wordingSend: 'Жөнөтүү',

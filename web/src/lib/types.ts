@@ -8,6 +8,8 @@ export interface Word {
   translation: string;
   example: string;
   example_translation: string;
+  /** What its translations are written in (ADR 0055). */
+  language: CardLanguage;
   illustration: string | null;
 }
 
@@ -122,8 +124,6 @@ export interface Session {
   id: string;
   kind: SessionKind;
   deck_id: string;
-  /** Whether an example's words can be tapped for their meaning (ADR 0055). */
-  glossary: boolean;
   completed: boolean;
   exercises: Exercise[];
   results: AttemptResult[];
@@ -389,6 +389,7 @@ export interface DeckWordInput {
   translation: string;
   example: string;
   example_translation: string;
+  language?: CardLanguage;
 }
 
 export type WordFlag = 'translation_wrong_language' | 'example_without_word' | 'example_long';
@@ -477,7 +478,7 @@ export interface Library {
 export interface TeacherDeck {
   id: string;
   title: string;
-  /** What its words are translated into (ADR 0055). */
+  /** The translation language last chosen for it, which the next card starts from (ADR 0055). */
   language: CardLanguage;
   status: 'draft' | 'published';
   created_at: string;

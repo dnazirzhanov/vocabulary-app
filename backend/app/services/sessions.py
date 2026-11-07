@@ -101,6 +101,7 @@ def _word_out(word: Word) -> WordOut:
         translation=word.translation,
         example=word.example,
         example_translation=word.example_translation,
+        language=word.language,
         illustration=word.illustration,
     )
 
@@ -245,12 +246,6 @@ def _result_out(
     )
 
 
-def _has_glossary(db: Session, session: LearningSession) -> bool:
-    """Tapping a word of an example shows the glossary's meaning, which is Russian (ADR 0055)."""
-    deck = db.get(Deck, session.deck_id) if session.deck_id else None
-    return deck is not None and deck.explanation_language == decks.COURSE_LANGUAGE
-
-
 def present_session(db: Session, user: User, session: LearningSession, now: datetime) -> SessionOut:
     plan = _plan(session)
     word_ids = [step.word_id for step in plan]
@@ -262,7 +257,6 @@ def present_session(db: Session, user: User, session: LearningSession, now: date
         id=session.id,
         kind=session.kind,
         deck_id=session.deck_id,
-        glossary=_has_glossary(db, session),
         completed=session.completed_at is not None,
         exercises=[
             _exercise_out(step, words[step.word_id], progress.get(step.word_id), now, zone)

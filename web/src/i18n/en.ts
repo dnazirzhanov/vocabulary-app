@@ -634,7 +634,6 @@ export const en: Messages = {
   appLanguage: 'App language',
   translationLanguage: 'Translation language',
   firstLanguageQuestion: 'Which language do you want to learn English in?',
-  translationIn: (a: Arg) => `Translation: ${a}`,
   wordingQuestion: 'Mistake in the wording?',
   wordingHint: 'What is wrong, and how should it read?',
   wordingSend: 'Send',

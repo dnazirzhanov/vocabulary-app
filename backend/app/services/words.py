@@ -45,6 +45,7 @@ def deck_words(db: Session, user: User, deck_id: str) -> list[DeckWordOut]:
                 translation=word.translation,
                 example=word.example,
                 example_translation=word.example_translation,
+                language=word.language,
                 illustration=word.illustration,
             ),
             status=_status(progress),
