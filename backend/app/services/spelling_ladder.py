@@ -6,6 +6,9 @@ on the first try when it is due, it climbs: due again in 3 days, then 7, and on 
 it is «умеет писать» and leaves the rotation. A right answer before the word is due changes
 nothing, so climbing always takes separate days. Days are the scheduler's: from 4 AM local time.
 
+Spelling is one deck's (ADR 0056): every set below is drawn from the words of the deck whose page
+the learner is on, never from their other decks. A word in two decks is on one ladder.
+
 A spelling session takes one of four sets of words, at most `size` of them:
 - `mix` (the main button): hard and climbing words that are due, then today's new words not yet
   spelled, then older words never spelled;
@@ -24,7 +27,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import ReviewAttempt, SpellingProgress, User, UserWordProgress
+from app.models import DeckWord, ReviewAttempt, SpellingProgress, User, UserWordProgress
 from app.services.progress import INTRODUCTION, local_day_bounds
 from app.services.scheduling import day_start, local_date, study_day
 
@@ -148,11 +151,13 @@ def overview(words: Words, now: datetime) -> Overview:
 # --- database --------------------------------------------------------------------------------
 
 
-def load(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Words:
+def load(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> Words:
+    """What the learner has to spell from in one deck (ADR 0056)."""
     start, end = local_day_bounds(local_date(now, time_zone), time_zone)
+    in_deck = select(DeckWord.word_id).where(DeckWord.deck_id == deck_id)
     met = db.scalars(
         select(UserWordProgress.word_id)
-        .where(UserWordProgress.user_id == user.id)
+        .where(UserWordProgress.user_id == user.id, UserWordProgress.word_id.in_(in_deck))
         .order_by(UserWordProgress.introduced_at, UserWordProgress.word_id)
     ).all()
     # Answers are stored in the order given, so the first answer's id is the learning order.
@@ -161,6 +166,7 @@ def load(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Words:
         select(ReviewAttempt.word_id)
         .where(
             ReviewAttempt.user_id == user.id,
+            ReviewAttempt.word_id.in_(in_deck),
             INTRODUCTION,
             ReviewAttempt.answered_at >= start,
             ReviewAttempt.answered_at < end,
@@ -170,7 +176,11 @@ def load(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Words:
     ).all()
     ladder = {
         row.word_id: Spelled(row.rung, row.due_at, row.last_spelled_at)
-        for row in db.scalars(select(SpellingProgress).where(SpellingProgress.user_id == user.id))
+        for row in db.scalars(
+            select(SpellingProgress).where(
+                SpellingProgress.user_id == user.id, SpellingProgress.word_id.in_(in_deck)
+            )
+        )
     }
     return Words(met=met, today=today, ladder=ladder, today_start=start)
 

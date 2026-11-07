@@ -14,7 +14,7 @@ from tests.support import Play, at, cards, finish, headword_of, spell, spell_tod
 
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)
 STUDY = {"kind": "study", "deck_id": "a1-a2"}
-SPELLING = {"kind": "spelling"}
+SPELLING = {"kind": "spelling", "deck_id": "a1-a2"}
 
 
 def start_spelling(client: TestClient, moment: datetime = DAY0) -> Any:
@@ -91,7 +91,8 @@ def test_a_card_takes_a_rating_and_spelling_takes_letters(client: TestClient, pl
 
 
 def spelling_state(client: TestClient, moment: datetime = DAY0) -> dict[str, Any]:
-    state: dict[str, Any] = client.get("/api/progress", headers=at(moment)).json()["spelling_today"]
+    stats = client.get("/api/decks/a1-a2/stats", headers=at(moment)).json()
+    state: dict[str, Any] = stats["spelling_today"]
     return state
 
 
@@ -107,7 +108,7 @@ def test_spelling_is_tracked_and_offered_after_a_lesson(client: TestClient, play
     report = progress(client)
     # The finished lesson keeps the day (ADR 0027); spelling waits for the learner.
     assert report["today"]["studied"] is True
-    assert report["spelling_today"] | {"met": 5} == {
+    assert spelling_state(client) | {"met": 5} == {
         "ready": 5,
         "due": 0,
         "today": 5,
@@ -117,7 +118,7 @@ def test_spelling_is_tracked_and_offered_after_a_lesson(client: TestClient, play
         "met": 5,
         "paused": None,
     }
-    spell_today(client, at(DAY0), {"water": "wtaer"})
+    spell_today(client, at(DAY0), "a1-a2", {"water": "wtaer"})
     # Spelled: nothing more for the main button today; the miss is a hard word.
     assert spelling_state(client) | {"met": 5} == {
         "ready": 0,
@@ -138,14 +139,15 @@ def test_todays_words_can_be_spelled_again_and_extra_practice_changes_nothing(
 ) -> None:
     play(STUDY, DAY0)  # the lesson and its spelling
     before = progress(client)
-    today = {"kind": "spelling", "mode": "today"}
-    again = spell_today(client, at(DAY0 + timedelta(minutes=5)), start=today)
+    today = {**SPELLING, "mode": "today"}
+    again = spell_today(client, at(DAY0 + timedelta(minutes=5)), "a1-a2", start=today)
     assert again is not None and again["spelling"]["words"] == 5
     after = progress(client)
     # The heatmap counts the extra cards as the day's work.
     assert after["today"]["cards"] == before["today"]["cards"] + 5
     # Right again the same day, before it is due: no word climbs twice in a day.
-    assert (after["spelling_today"]["known"], after["spelling_today"]["hard"]) == (0, 0)
+    state = spelling_state(client)
+    assert (state["known"], state["hard"]) == (0, 0)
 
 
 def test_a_big_day_is_spelled_ten_words_at_a_time(client: TestClient, play: Play) -> None:
@@ -159,9 +161,9 @@ def test_a_big_day_is_spelled_ten_words_at_a_time(client: TestClient, play: Play
     finish_active(client, later)
     assert spelling_state(client, later)["ready"] == 5
     # The size can be chosen: 5, 10, 20 or 30.
-    rest = spell_today(client, at(later), start={"kind": "spelling", "size": 20})
+    rest = spell_today(client, at(later), "a1-a2", start={**SPELLING, "size": 20})
     assert rest is not None and rest["spelling"]["words"] == 5
-    refused = client.post("/api/sessions", json={"kind": "spelling", "size": 7}, headers=at(later))
+    refused = client.post("/api/sessions", json={**SPELLING, "size": 7}, headers=at(later))
     assert refused.status_code == 422
 
 
@@ -180,7 +182,7 @@ def test_a_misspelled_word_comes_back_until_it_is_spelled_on_three_days(
     play(STUDY, DAY0, spellings={"water": "wtaer"})
     assert spelling_state(client)["hard"] == 1
     # «Трудные» holds it at once; right again the same day, it is still hard (not due yet).
-    assert spelled_words(client, {"kind": "spelling", "mode": "hard"}, DAY0) == ["water"]
+    assert spelled_words(client, {**SPELLING, "mode": "hard"}, DAY0) == ["water"]
     finish_active(client, DAY0)
     assert spelling_state(client)["hard"] == 1
     # The next morning it is due: the main set is water alone (the rest wait, none is new).
@@ -188,20 +190,20 @@ def test_a_misspelled_word_comes_back_until_it_is_spelled_on_three_days(
     assert spelling_state(client, day1)["due"] == 1
     assert spelled_words(client, SPELLING, day1) == ["water"]
     finish_active(client, day1)  # right: rung 1
-    hard = client.post("/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=at(day1))
+    hard = client.post("/api/sessions", json={**SPELLING, "mode": "hard"}, headers=at(day1))
     assert hard.status_code == 409  # no hard words left
     # The other four (spelled right on day 0, rung 1) are due on day 3; water on day 4.
     day3, day4 = DAY0 + timedelta(days=3), DAY0 + timedelta(days=4)
     assert spelling_state(client, day3)["due"] == 4
-    spell_today(client, at(day3))
+    spell_today(client, at(day3), "a1-a2")
     assert spelling_state(client, day3)["due"] == 0
     assert spelling_state(client, day4)["due"] == 1
-    spell_today(client, at(day4))  # water: rung 2, due a week later
+    spell_today(client, at(day4), "a1-a2")  # water: rung 2, due a week later
     day10 = DAY0 + timedelta(days=10)
-    spell_today(client, at(day10))  # the four: rung 3
+    spell_today(client, at(day10), "a1-a2")  # the four: rung 3
     assert spelling_state(client, day10)["known"] == 4
     day11 = DAY0 + timedelta(days=11)
-    spell_today(client, at(day11))  # water too
+    spell_today(client, at(day11), "a1-a2")  # water too
     state = spelling_state(client, day11)
     assert (state["known"], state["hard"], state["ready"]) == (5, 0, 0)
 
@@ -242,10 +244,10 @@ def test_random_draws_from_every_word_met(client: TestClient, play: Play) -> Non
     play(STUDY, DAY0)
     play(STUDY, DAY0 + timedelta(days=1), spell=False)
     later = DAY0 + timedelta(days=1, hours=1)
-    words = spelled_words(client, {"kind": "spelling", "mode": "random", "size": 5}, later)
+    words = spelled_words(client, {**SPELLING, "mode": "random", "size": 5}, later)
     assert len(words) == len(set(words)) == 5
     finish_active(client, later)
-    everything = spelled_words(client, {"kind": "spelling", "mode": "random", "size": 30}, later)
+    everything = spelled_words(client, {**SPELLING, "mode": "random", "size": 30}, later)
     assert sorted(everything) == sorted(set(everything)) and len(everything) == 10  # each once
 
 
@@ -311,7 +313,7 @@ def test_a_paused_spelling_keeps_its_place_and_never_blocks_a_lesson(
         == (lesson["id"])
     )
     # The main button resumes the paused one, with its two answers.
-    resumed = client.post("/api/sessions", json={"kind": "spelling"}, headers=at(later)).json()
+    resumed = client.post("/api/sessions", json=SPELLING, headers=at(later)).json()
     assert resumed["id"] == session["id"] and len(resumed["results"]) == 2
     finish(client, resumed, at(later))
     client.post(f"/api/sessions/{session['id']}/complete", headers=at(later))
@@ -328,9 +330,7 @@ def test_choosing_another_set_replaces_a_paused_spelling_and_keeps_its_answers(
     answer(client, paused, paused["exercises"][0]["id"], "house")
     answer(client, paused, paused["exercises"][1]["id"], "wtaer")
 
-    hard = client.post(
-        "/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=at(DAY0)
-    ).json()
+    hard = client.post("/api/sessions", json={**SPELLING, "mode": "hard"}, headers=at(DAY0)).json()
     assert hard["id"] != paused["id"] and hard["results"] == []
     assert spelling_state(client)["paused"] == {"spelled": 0, "right": 0, "total": 1}
     assert spelling_state(client)["hard"] == 1  # «wtaer» still counts
@@ -343,9 +343,69 @@ def test_a_set_with_no_words_leaves_a_paused_spelling_alone(client: TestClient, 
     paused = start_spelling(client).json()
     answer(client, paused, paused["exercises"][0]["id"], "house")
 
-    empty = client.post(
-        "/api/sessions", json={"kind": "spelling", "mode": "hard"}, headers=at(DAY0)
-    )
+    empty = client.post("/api/sessions", json={**SPELLING, "mode": "hard"}, headers=at(DAY0))
     assert (empty.status_code, empty.json()["error"]["code"]) == (409, "nothing_to_spell")
     assert spelling_state(client)["paused"] == {"spelled": 1, "right": 1, "total": 5}
     assert start_spelling(client).json()["id"] == paused["id"]
+
+
+def own_deck(client: TestClient, headwords: list[str]) -> str:
+    """A deck of the learner's own with these words, all met today in one lesson."""
+    deck: str = client.post("/api/decks", json={"title": "Свои"}, headers=at(DAY0)).json()["id"]
+    for headword in headwords:
+        client.post(
+            f"/api/decks/{deck}/words",
+            json={
+                "headword": headword,
+                "pos": "noun",
+                "translation": f"перевод {headword[::-1]}",
+                "example": f"An example with {headword}.",
+            },
+            headers=at(DAY0),
+        )
+    return deck
+
+
+def test_each_deck_spells_only_its_own_words(client: TestClient, play: Play) -> None:
+    """ADR 0056: words met today in another deck never reach this deck's spelling."""
+    client.patch("/api/me", json={"daily_target_words": 5})
+    play(STUDY, DAY0, spell=False)  # five course words
+    mine = own_deck(client, ["kettle", "ladder"])
+    play({"kind": "study", "deck_id": mine}, DAY0, spell=False)
+
+    course = {"kind": "spelling", "deck_id": "a1-a2", "size": 30}
+    for mode in ("mix", "today", "random"):
+        words = spelled_words(client, {**course, "mode": mode}, DAY0)
+        assert len(words) == 5 and not {"kettle", "ladder"} & set(words), mode
+    for mode in ("mix", "today", "random"):
+        own = {"kind": "spelling", "deck_id": mine, "mode": mode, "size": 30}
+        assert sorted(spelled_words(client, own, DAY0)) == ["kettle", "ladder"], mode
+
+    stats = client.get(f"/api/decks/{mine}/stats", headers=at(DAY0)).json()["spelling_today"]
+    assert (stats["met"], stats["today"]) == (2, 2)
+    assert spelling_state(client)["met"] == 5
+
+    # A miss in one deck is hard there only.
+    spell_today(client, at(DAY0), mine, {"kettle": "ketle"}, start={"mode": "today"})
+    assert spelling_state(client)["hard"] == 0
+    hard = {"kind": "spelling", "deck_id": mine, "mode": "hard"}
+    assert spelled_words(client, hard, DAY0) == ["kettle"]
+
+
+def test_a_spelling_paused_in_one_deck_is_not_another_decks(client: TestClient, play: Play) -> None:
+    """ADR 0056: the other deck neither shows it nor resumes it; starting there sets it aside,
+    as a lesson in another deck is (ADR 0035), and its answers stay."""
+    play(STUDY, DAY0, spell=False)
+    mine = own_deck(client, ["kettle", "ladder"])
+    play({"kind": "study", "deck_id": mine}, DAY0, spell=False)
+    paused = start_spelling(client).json()
+    answer(client, paused, paused["exercises"][0]["id"], "house")
+
+    stats = client.get(f"/api/decks/{mine}/stats", headers=at(DAY0)).json()["spelling_today"]
+    assert stats["paused"] is None
+    own = client.post(
+        "/api/sessions", json={"kind": "spelling", "deck_id": mine}, headers=at(DAY0)
+    ).json()
+    assert own["id"] != paused["id"] and own["deck_id"] == mine
+    assert sorted(headword_of(own["id"], e["id"]) for e in own["exercises"]) == ["kettle", "ladder"]
+    assert spelling_state(client)["paused"] is None  # set aside, not resumed

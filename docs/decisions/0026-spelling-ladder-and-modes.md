@@ -1,6 +1,6 @@
 # 0026 — Spelling: a ladder per word, ten words at a time, and modes
 
-**Status:** Accepted. Refines 0016 (which words a spelling session takes). A group's test can put words on the ladder before a lesson meets them (ADR 0048).
+**Status:** Accepted. Refines 0016 (which words a spelling session takes). A group's test can put words on the ladder before a lesson meets them (ADR 0048). Every set is drawn from one deck's words (ADR 0056).
 
 ## Context
 A spelling session held a card for every word learned that day. A learner who took many bonus

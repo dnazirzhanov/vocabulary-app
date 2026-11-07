@@ -15,7 +15,7 @@ from tests.support import Play, at, rate
 MONDAY = date(2026, 11, 2)
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)  # Monday
 STUDY = {"kind": "study", "deck_id": "a1-a2"}
-SPELLING = {"kind": "spelling"}
+SPELLING = {"kind": "spelling", "deck_id": "a1-a2"}
 UTC_ZONE = ZoneInfo("UTC")
 
 

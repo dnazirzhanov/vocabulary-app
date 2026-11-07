@@ -443,7 +443,7 @@ def deck_stats(
         new_today=new_today,
         next_due_at=upcoming,
         locked=locked,
-        spelling_today=progress_view.spelling_today(db, user, now, time_zone),
+        spelling_today=progress_view.spelling_today(db, user, deck.id, now, time_zone),
     )
 
 
@@ -546,27 +546,19 @@ def _study_plan(
 
 def _spelling_plan(
     db: Session, user: User, request: StartSpellingSession, now: datetime, time_zone: ZoneInfo
-) -> tuple[str | None, list[PlannedExercise], int]:
-    """A spelling card for each word of the chosen set (ADR 0026); also how many of them are
-    today's new words."""
-    words = spelling_ladder.load(db, user, now, time_zone)
+) -> tuple[str, list[PlannedExercise], int]:
+    """A spelling card for each word of the chosen set in the deck (ADR 0026, 0056); also how
+    many of them are today's new words."""
+    deck = decks.visible_deck(db, user, request.deck_id)
+    words = spelling_ladder.load(db, user, deck.id, now, time_zone)
     # Seeded, so «Вразброс» draws the same words if the request is repeated at the same moment.
     rng = random.Random(f"{user.id}:{now.isoformat()}:spelling")  # noqa: S311
     chosen = spelling_ladder.pick(request.mode, request.size, words, now, rng)
     if not chosen:
         raise ApiError(409, "nothing_to_spell", "No words to spell in this set")
-    # The session is about words from any deck; it names one the learner can see: a course
-    # level when the word is in one (a teacher may have linked it into someone else's deck).
-    deck = db.scalar(
-        select(DeckWord.deck_id)
-        .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(DeckWord.word_id == chosen[0])
-        .order_by((Deck.kind == "course").desc(), DeckWord.deck_id)
-        .limit(1)
-    )
     today = set(words.today)
     return (
-        deck,
+        deck.id,
         plan_spelling(chosen, _tile_maker(db, user, now)),
         sum(1 for word in chosen if word in today),
     )
@@ -613,12 +605,13 @@ def start_session(
     """Start a session, or return the learner's unfinished one of that kind (a lesson, or
     spelling) so it can be resumed. A lesson open in another deck is set aside instead: the
     learner chose this deck now, and its answers are already saved (ADR 0035). So is a spelling
-    when the learner names another set of words; the main button (`mix`) resumes it (ADR 0050)."""
+    when the learner names another set of words or is in another deck; the main button (`mix`)
+    in its own deck resumes it (ADR 0050, 0056)."""
     spelling_kind = isinstance(request, StartSpellingSession)
     existing = _open_session(db, user, spelling_kind)
     if existing is not None:
         chose_another = (
-            request.mode != "mix"
+            request.mode != "mix" or existing.deck_id != request.deck_id
             if isinstance(request, StartSpellingSession)
             else request.deck_id is not None and existing.deck_id != request.deck_id
         )
@@ -929,7 +922,11 @@ def complete_session(
         new_words=sum(1 for step in cards if step.new),
         reviewed_words=len({attempt.word_id for attempt in rated if attempt.was_review}),
         ratings=RatingCounts(again=counts[0], hard=counts[1], good=counts[2], easy=counts[3]),
-        spelling_today=progress_view.spelling_today(db, user, now, time_zone),
+        spelling_today=(
+            None
+            if session.deck_id is None
+            else progress_view.spelling_today(db, user, session.deck_id, now, time_zone)
+        ),
         spelling=_spelling_summary(plan, attempts),
     )
 

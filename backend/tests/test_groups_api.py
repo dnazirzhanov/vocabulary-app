@@ -180,7 +180,7 @@ def play_as(
     """Rates every card «Хорошо», extra showings included, then spells today's words right."""
     finish(client, session, as_(user, moment, zone))
     client.post(f"/api/sessions/{session['id']}/complete", headers=as_(user, moment, zone))
-    spell_today(client, as_(user, moment, zone))
+    spell_today(client, as_(user, moment, zone), session["deck_id"])
 
 
 def test_the_days_of_the_report_are_the_groups(client: TestClient) -> None:

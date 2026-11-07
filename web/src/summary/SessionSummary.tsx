@@ -114,12 +114,12 @@ export function SessionSummary({ summary, onPractice, onNext, onSpelling, onHome
   const spelling = summary.spelling_today;
   const next =
     summary.kind === 'spelling'
-      ? spelling.ready > 0
+      ? spelling && spelling.ready > 0
         ? { label: t.moreWords(wordsLabel(spelling.ready)), run: onSpelling }
         : null
-      : summary.kind === 'study' && spelling.paused
+      : summary.kind === 'study' && spelling?.paused
         ? { label: t.continueSpellingMore(spelling.paused.total - spelling.paused.spelled), run: onSpelling }
-        : summary.kind === 'study' && spelling.today_left > 0
+        : summary.kind === 'study' && spelling && spelling.today_left > 0
           ? { label: t.spelling(wordsLabel(spelling.ready)), run: onSpelling }
           : perfect || summary.kind === 'hard'
             ? { label: t.continue, run: onNext }

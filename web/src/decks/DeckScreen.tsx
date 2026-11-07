@@ -287,7 +287,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 <PausedSpelling
                   paused={spelling.paused}
                   disabled={busy}
-                  onResume={() => run(async () => onSession(await api.startSpellingSession(), deckId))}
+                  onResume={() => run(async () => onSession(await api.startSpellingSession(deckId), deckId))}
                 />
               </div>
             )}
@@ -296,7 +296,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 type="button"
                 className={styles.link}
                 disabled={busy}
-                onClick={() => run(async () => onSession(await api.startSpellingSession(), deckId))}
+                onClick={() => run(async () => onSession(await api.startSpellingSession(deckId), deckId))}
                 aria-label={t.spelling(wordsLabel(spelling.ready))}
                 aria-describedby="spelling-note"
               >
@@ -357,7 +357,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
               open
               state={spelling}
               onClose={() => setModesOpen(false)}
-              onStart={async (mode, size) => onSession(await api.startSpellingSession(mode, size), deckId)}
+              onStart={async (mode, size) => onSession(await api.startSpellingSession(deckId, mode, size), deckId)}
             />
           )}
         </div>
