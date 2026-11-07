@@ -6,6 +6,7 @@ import { setSoundsOn, soundsOn } from '../lib/sounds.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
 import { ReportWording } from './ReportWording.tsx';
+import { SignOutConfirm } from './SignOutConfirm.tsx';
 import { Reminders } from './Reminders.tsx';
 import styles from './AccountSection.module.css';
 import { switchLanguage, t, uiLanguage } from '../i18n/index.ts';
@@ -36,7 +37,6 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
       () => null,
     );
   }, []);
-  const signOut = useAsyncAction();
   const problem = wrongPassword ?? error;
 
   const deleteAccount = () =>
@@ -147,14 +147,13 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
       ) : (
         <div className={styles.accountActions}>
           {onSignOut && (
-            <SecondaryButton
-              type="button"
-              disabled={signOut.busy}
-              aria-busy={signOut.busy}
-              onClick={() => void signOut.run(onSignOut)}
-            >
-              {signOut.busy ? t.signingOut : t.signOut}
-            </SecondaryButton>
+            <SignOutConfirm onSignOut={onSignOut}>
+              {(ask) => (
+                <SecondaryButton type="button" onClick={ask}>
+                  {t.signOut}
+                </SecondaryButton>
+              )}
+            </SignOutConfirm>
           )}
           <button type="button" className={styles.dangerLink} onClick={() => setConfirming(true)}>
             {t.deleteAccount}

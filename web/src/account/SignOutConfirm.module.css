@@ -1,0 +1,15 @@
+.note {
+  color: var(--color-text-muted);
+}
+
+.problem {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}
+
+/* «Остаться» first and full width, «Выйти» below it: leaving takes a deliberate second look. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

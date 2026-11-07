@@ -33,6 +33,9 @@ export const en: Messages = {
   yesDelete: 'Yes, delete',
   signingOut: 'Signing out…',
   signOut: 'Sign out',
+  signOutQuestion: 'Sign out of the app?',
+  signOutNote: "To come back, you'll need to enter your email and password again.",
+  stay: 'Stay',
   deleteAccount: 'Delete account',
   onIPhoneNotificationsOnlyArriveIf:
     'On iPhone, notifications only arrive if the app is on the Home Screen: tap Share → Add to Home Screen, and open it from there.',
@@ -344,7 +347,7 @@ export const en: Messages = {
   fromMyGroups: 'From my groups',
   group: (a: Arg) => `group ${a}`,
   aReadyMadeCourseTheMost:
-    'A ready-made course: the most useful English words, from simple to hard, a few a day, at your pace.',
+    'A ready-made English–Russian course: the most useful English words, from simple to hard, a few a day, at your pace.',
   openTheCourse: 'Open the course',
   inGroupNamed: (a: Arg) => `in the group ${a}`,
   emptyAddSomeWords: 'empty, add some words',
