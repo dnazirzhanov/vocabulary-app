@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request, type Route } from '@playwright/test';
 import { openSettings } from './learner.ts';
 
 const SUPABASE = 'http://localhost:54321';
@@ -400,4 +400,20 @@ test('when deleting fails, the learner stays signed in and is told nothing chang
   await page.getByRole('button', { name: 'Да, удалить' }).click();
   await expect(page.getByRole('alert')).toContainText('ничего не изменилось');
   await expect(page.getByRole('dialog', { name: 'Настройки' })).toBeVisible();
+});
+
+test('on a computer the picture is beside the form, whole, with the language in the corner', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const form = await box(page.locator('form'));
+  const picture = await box(page.locator('main svg').first());
+  const language = await box(page.getByRole('combobox'));
+  expect(picture.x + picture.width).toBeLessThanOrEqual(form.x); // to its left
+  expect(form.y + form.height).toBeLessThanOrEqual(800); // all of it on the screen
+  expect(picture.y).toBeLessThan(form.y + form.height);
+  expect(form.y).toBeLessThan(picture.y + picture.height); // on the same level
+  expect(language.x + language.width).toBeGreaterThan(1200); // the corner
+  expect(language.y).toBeLessThan(40);
+  expect(language.y + language.height).toBeLessThanOrEqual(form.y);
 });
