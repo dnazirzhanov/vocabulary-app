@@ -1,4 +1,5 @@
-"""Sync of personal decks (ADR 0061): what was deleted, and which operations were applied."""
+"""Sync of personal decks (ADR 0061): what was deleted, and which operations were applied; and the
+devices that study (ADR 0062)."""
 
 import uuid
 from datetime import datetime
@@ -44,3 +45,16 @@ class SyncOp(Base):
     op_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     result: Mapped[dict[str, Any]] = mapped_column(JSONB)
     applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class SyncDevice(Base):
+    """A device that studies offline (ADR 0062), and when the server last saw it: answers it sends
+    may not be dated before that, so days the server has seen can't be filled in afterwards."""
+
+    __tablename__ = "sync_devices"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    device_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    last_contact_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -85,14 +85,18 @@ class LearningSession(Base):
         ),
         CheckConstraint("day_target BETWEEN 0 AND 100", name="day_target_range"),
         CheckConstraint("promised_days BETWEEN 1 AND 7", name="promised_days_range"),
-        # A learner has at most one open lesson and one open spelling (ADR 0026); starting again
-        # in the same deck resumes it, in another deck sets it aside (ADR 0035).
+        CheckConstraint("origin IN ('server', 'device')", name="origin"),
+        # A learner has at most one open lesson and one open spelling planned by the server (ADR
+        # 0026); starting again in the same deck resumes it, in another deck sets it aside (ADR
+        # 0035). Lessons planned on a device are each that device's own (ADR 0062).
         Index(
             "uq_learning_sessions_open_per_user",
             "user_id",
             text("(kind = 'spelling')"),
             unique=True,
-            postgresql_where=text("completed_at IS NULL AND set_aside_at IS NULL"),
+            postgresql_where=text(
+                "completed_at IS NULL AND set_aside_at IS NULL AND origin = 'server'"
+            ),
         ),
         # Finished lessons whose plan and answers are still to be removed (ADR 0044).
         Index(
@@ -124,6 +128,9 @@ class LearningSession(Base):
     # A study session: the reviews still due when it was finished (ADR 0022). No longer recorded
     # or read since days count by any finished session (ADR 0027); kept for old rows.
     reviews_left: Mapped[int | None] = mapped_column(SmallInteger)
+    # Where it was planned (ADR 0062): 'server' (the per-card routes) or 'device' (made from the
+    # answers a device sent, with its id; its plan holds the exercises answered, in order).
+    origin: Mapped[str] = mapped_column(String(8), server_default=text("'server'"))
 
 
 class StudyDayTotal(Base):

@@ -191,7 +191,10 @@ def record(
     """Move a word on the ladder after its first try in a spelling session."""
     row = db.get(SpellingProgress, (user.id, word_id))
     before = Spelled(row.rung, row.due_at, row.last_spelled_at) if row else None
-    after = after_spelling(before, right, now, time_zone)
+    # A try sent late from another device, earlier than one already recorded, moves the word as
+    # of that later try (ADR 0062).
+    moment = max(now, before.last_spelled_at) if before else now
+    after = after_spelling(before, right, moment, time_zone)
     if row is None:
         row = SpellingProgress(user_id=user.id, word_id=word_id, misses=0)
         db.add(row)

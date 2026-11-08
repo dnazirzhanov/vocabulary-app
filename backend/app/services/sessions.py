@@ -121,11 +121,11 @@ def _words_by_id(db: Session, ids: Iterable[str]) -> dict[str, Word]:
     return {word.id: word for word in db.scalars(select(Word).where(Word.id.in_(set(ids))))}
 
 
-def _plan(session: LearningSession) -> list[PlannedExercise]:
+def plan_of(session: LearningSession) -> list[PlannedExercise]:
     return [PlannedExercise.from_json(step) for step in session.plan]
 
 
-def _attempts(db: Session, session_id: UUID) -> dict[str, ReviewAttempt]:
+def attempts_of(db: Session, session_id: UUID) -> dict[str, ReviewAttempt]:
     attempts = db.scalars(select(ReviewAttempt).where(ReviewAttempt.session_id == session_id))
     return {attempt.exercise_id: attempt for attempt in attempts}
 
@@ -153,10 +153,13 @@ def _card_state(progress: UserWordProgress | None) -> CardState | None:
 
 
 def _owned_session(db: Session, user: User, session_id: UUID) -> LearningSession:
-    # Someone else's session is indistinguishable from a missing one (no id probing).
+    # Someone else's session is indistinguishable from a missing one (no id probing). So is a
+    # lesson planned on a device: its answers come only through sync (ADR 0062).
     session = db.scalar(
         select(LearningSession).where(
-            LearningSession.id == session_id, LearningSession.user_id == user.id
+            LearningSession.id == session_id,
+            LearningSession.user_id == user.id,
+            LearningSession.origin == "server",
         )
     )
     if session is None:
@@ -166,11 +169,13 @@ def _owned_session(db: Session, user: User, session_id: UUID) -> LearningSession
 
 def _open_session(db: Session, user: User, spelling: bool = False) -> LearningSession | None:
     """The learner's unfinished lesson (flashcards), or with `spelling` their unfinished spelling:
-    one of each may be open at once, so a paused spelling never blocks a lesson (ADR 0026)."""
+    one of each may be open at once, so a paused spelling never blocks a lesson (ADR 0026). A
+    device's lessons are its own to resume (ADR 0062)."""
     kind = LearningSession.kind == SPELLING_KIND
     return db.scalar(
         select(LearningSession).where(
             LearningSession.user_id == user.id,
+            LearningSession.origin == "server",
             LearningSession.completed_at.is_(None),
             LearningSession.set_aside_at.is_(None),
             kind if spelling else ~kind,
@@ -247,11 +252,11 @@ def _result_out(
 
 
 def present_session(db: Session, user: User, session: LearningSession, now: datetime) -> SessionOut:
-    plan = _plan(session)
+    plan = plan_of(session)
     word_ids = [step.word_id for step in plan]
     words = _words_by_id(db, word_ids)
     progress = _progress(db, user, word_ids)
-    attempts = _attempts(db, session.id)
+    attempts = attempts_of(db, session.id)
     zone = zone_of(user)
     return SessionOut(
         id=session.id,
@@ -712,14 +717,14 @@ def submit_attempt(
     time_zone: ZoneInfo,
 ) -> AttemptResultOut:
     session = _owned_session(db, user, session_id)
-    plan = _plan(session)
+    plan = plan_of(session)
     position = {step.id: index for index, step in enumerate(plan)}
     if attempt.exercise_id not in position:
         raise ApiError(404, "exercise_not_found", "Exercise not found in this session")
     step = plan[position[attempt.exercise_id]]
     word = db.get_one(Word, step.word_id)
 
-    attempts = _attempts(db, session.id)
+    attempts = attempts_of(db, session.id)
     if step.id in attempts:
         # Retry, double tap or second device: the first answer stands.
         return _result_out(attempts[step.id], word.headword)
@@ -733,21 +738,23 @@ def submit_attempt(
 
     try:
         if isinstance(response, SpellingResponse):
-            stored = _spell(db, user, session, step, word, response, now)
+            stored = spell_word(db, user, session, step, word, response, now)
             inserted: list[InsertedExercise] = []
         else:
-            stored, inserted = _rate(db, user, session, plan, step, word, response, attempts, now)
+            stored, inserted = rate_card(
+                db, user, session, plan, step, word, response, attempts, now
+            )
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = _attempts(db, session.id).get(step.id)
+        existing = attempts_of(db, session.id).get(step.id)
         if existing is None:
             raise
         return _result_out(existing, word.headword)
     return _result_out(stored, word.headword, inserted)
 
 
-def _rate(
+def rate_card(
     db: Session,
     user: User,
     session: LearningSession,
@@ -757,10 +764,17 @@ def _rate(
     response: RatingResponse,
     attempts: dict[str, ReviewAttempt],
     now: datetime,
+    requeue_cards: bool = True,
 ) -> tuple[ReviewAttempt, list[InsertedExercise]]:
+    """Rate a card answered at `now`. With `requeue_cards` off (a device's lesson, ADR 0062), the
+    device has already shown a forgotten card again: its showings come as answers of their own."""
     rating = response.rating
     progress = _progress(db, user, [step.word_id]).get(step.word_id)
     before = _card_state(progress)
+    # Answers of one word normally arrive in time order. One given offline on another device
+    # earlier than an answer already applied is scheduled from that answer's time (ADR 0062); it
+    # still counts for the moment it was given.
+    scheduled_at = max(now, before.last_reviewed_at) if before and before.last_reviewed_at else now
     # Only a card's first showing in a session counts as a review (points, recall rate); the
     # extra showings of a forgotten card are part of relearning it. Spelling does not count.
     repeat = any(
@@ -769,7 +783,7 @@ def _rate(
     )
     was_review = before is not None and before.is_review and not repeat
     practice = session.kind == "hard"
-    after = before if practice and before else review(before, rating, now, zone_of(user))
+    after = before if practice and before else review(before, rating, scheduled_at, zone_of(user))
     assert after is not None
     stored = ReviewAttempt(
         session_id=session.id,
@@ -794,14 +808,14 @@ def _rate(
     if was_review and rating >= 2 and progress and progress.first_recalled_at is None:
         progress.first_recalled_at = now
     if not practice:
-        _save_schedule(db, user, step.word_id, progress, after, rating, now)
+        _save_schedule(db, user, step.word_id, progress, after, rating, scheduled_at)
     # Due again within minutes (learning steps): show it again later in this session. A review
     # due at 4 AM is not one, even when answered at 3:55. In practice the schedule stands still,
     # so only a forgotten card comes round again.
     soon = after.state != REVIEW and (after.due_at - now) <= timedelta(
         seconds=REQUEUE_WITHIN_SECONDS
     )
-    if (rating == AGAIN) if practice else soon:
+    if requeue_cards and ((rating == AGAIN) if practice else soon):
         requeued = requeue(plan, plan.index(step), step.word_id)
         if requeued:
             new_plan, again = requeued
@@ -817,7 +831,7 @@ def _rate(
     return stored, inserted
 
 
-def _spell(
+def spell_word(
     db: Session,
     user: User,
     session: LearningSession,
@@ -854,7 +868,7 @@ def give_hint(db: Session, user: User, session_id: UUID, exercise_id: str, hint:
     the same slot returns the same letter, any other slot is refused, so a word can never be
     drawn out letter by letter. Not once the card is answered."""
     session = _owned_session(db, user, session_id)
-    plan = _plan(session)
+    plan = plan_of(session)
     step = next((planned for planned in plan if planned.id == exercise_id), None)
     if step is None or not step.spelling:
         raise ApiError(404, "exercise_not_found", "No spelling card with this id in this session")
@@ -863,7 +877,7 @@ def give_hint(db: Session, user: User, session_id: UUID, exercise_id: str, hint:
         if step.hint != hint.position:
             raise ApiError(409, "hint_used", "This card's hint has already been used")
         return HintOut(position=step.hint, letter=letters[step.hint])
-    if session.completed_at is not None or step.id in _attempts(db, session.id):
+    if session.completed_at is not None or step.id in attempts_of(db, session.id):
         raise ApiError(409, "already_answered", "This card is already answered")
     if hint.position >= len(letters):
         raise ApiError(422, "no_such_letter", "The word has no letter there")
@@ -884,8 +898,8 @@ def complete_session(
     db: Session, user: User, session_id: UUID, now: datetime, time_zone: ZoneInfo
 ) -> SummaryOut:
     session = _owned_session(db, user, session_id)
-    plan = _plan(session)
-    attempts = _attempts(db, session.id)
+    plan = plan_of(session)
+    attempts = attempts_of(db, session.id)
     if len(attempts) < len(plan):
         raise ApiError(409, "session_incomplete", "Some cards have not been rated")
     if session.completed_at is None:

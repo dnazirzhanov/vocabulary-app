@@ -1,4 +1,5 @@
-"""Sync of personal decks and settings (ADR 0061): what a device sends, and what it gets back."""
+"""Sync of personal decks and settings (ADR 0061) and of studying on the device (ADR 0062): what a
+device sends, and what it gets back."""
 
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -7,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.decks import DeckWordIn, Title
+from app.schemas.learning import RatingResponse, SpellingResponse
 from app.schemas.me import CardLanguage, MeUpdate, UiLanguage
 
 _UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -104,8 +106,49 @@ class SettingsChange(_Op):
     base: SettingsBase
 
 
+class StudyAnswer(_Op):
+    """One answer in a lesson planned on the device (ADR 0062): re-applied by the server with the
+    same rules, at the moment it was given. The first answer of a session creates it."""
+
+    kind: Literal["study.answer"]
+    # The device that studied: its answers may not be dated before its last contact.
+    device_id: UUID
+    session_id: UUID
+    session_kind: Literal["study", "hard", "spelling"]
+    deck_id: AnyId
+    # As the device planned it (c1, c2… for cards, s1… for spelling; a card shown again gets the
+    # next number): unique within the session.
+    exercise_id: Annotated[str, StringConstraints(pattern=r"^[cs][0-9]{1,6}$")]
+    word_id: AnyId
+    # The word's first showing ever: it is introduced, not recalled.
+    new: bool = False
+    # Spelling: the slot whose letter was given as a hint, if one was.
+    hint: Annotated[int, Field(ge=0, le=63)] | None = None
+    response: Annotated[RatingResponse | SpellingResponse, Field(discriminator="kind")]
+    # On the server's clock (the device corrects its own by the offset it last measured).
+    answered_at: datetime
+
+
+class StudyFinish(_Op):
+    """The end of a device's lesson: finished, or left for another one (set aside)."""
+
+    kind: Literal["study.finish"]
+    device_id: UUID
+    session_id: UUID
+    set_aside: bool = False
+    finished_at: datetime
+
+
 Op = Annotated[
-    DeckCreate | DeckRename | DeckDelete | CardCreate | CardUpdate | CardDelete | SettingsChange,
+    DeckCreate
+    | DeckRename
+    | DeckDelete
+    | CardCreate
+    | CardUpdate
+    | CardDelete
+    | SettingsChange
+    | StudyAnswer
+    | StudyFinish,
     Field(discriminator="kind"),
 ]
 MAX_OPS = 200
