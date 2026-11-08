@@ -38,7 +38,7 @@ def test_simultaneous_answers_to_one_exercise_count_once(
     ).json()
 
     # The second device read the attempts before the first one committed.
-    monkeypatch.setattr(sessions, "_attempts", stale_once(sessions._attempts, {}))
+    monkeypatch.setattr(sessions, "attempts_of", stale_once(sessions.attempts_of, {}))
     user = db.scalars(select(User)).one()
     second = sessions.submit_attempt(
         db,

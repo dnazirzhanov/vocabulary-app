@@ -23,7 +23,7 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
-from app.models.sync import SyncOp, SyncTombstone
+from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     DeckPace,
     DeletedLogin,
@@ -57,6 +57,7 @@ __all__ = [
     "ReviewAttempt",
     "SpellingProgress",
     "StudyDayTotal",
+    "SyncDevice",
     "SyncOp",
     "SyncTombstone",
     "User",

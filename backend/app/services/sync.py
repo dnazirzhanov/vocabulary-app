@@ -1,4 +1,5 @@
-"""Sync of personal decks and settings (ADR 0061).
+"""Sync of personal decks and settings (ADR 0061), and of answers given on the device (ADR 0062,
+`study_sync`).
 
 A device changes its own decks, cards and settings without a connection and sends the changes
 later as operations. Each operation is applied once: its id is recorded with its result in the
@@ -36,10 +37,12 @@ from app.schemas.sync import (
     PushIn,
     PushOut,
     SettingsChange,
+    StudyAnswer,
+    StudyFinish,
     SyncCardOut,
     SyncDeckOut,
 )
-from app.services import decks, me
+from app.services import decks, me, study_sync
 
 # How long deletions and applied operations are remembered (`cleanup`).
 KEPT = timedelta(days=90)
@@ -211,6 +214,10 @@ def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) 
         return _update_card(db, user, op, now)
     if isinstance(op, CardDelete):
         return _delete_card(db, user, op, now)
+    if isinstance(op, StudyAnswer):
+        return study_sync.apply_answer(db, user, op, now)
+    if isinstance(op, StudyFinish):
+        return study_sync.apply_finish(db, user, op, now)
     return _change_settings(db, user, op, now, time_zone)
 
 

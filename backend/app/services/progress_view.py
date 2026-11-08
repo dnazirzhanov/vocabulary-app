@@ -93,10 +93,12 @@ def spelling_today(
 
 
 def _paused_spelling(db: Session, user: User, deck_id: str) -> SpellingPausedOut | None:
-    """The deck's unfinished spelling session: how far it got (ADR 0026, 0056)."""
+    """The deck's unfinished spelling session: how far it got (ADR 0026, 0056). A device keeps
+    its own (ADR 0062)."""
     session = db.scalar(
         select(LearningSession).where(
             LearningSession.user_id == user.id,
+            LearningSession.origin == "server",
             LearningSession.deck_id == deck_id,
             LearningSession.kind == "spelling",
             LearningSession.completed_at.is_(None),

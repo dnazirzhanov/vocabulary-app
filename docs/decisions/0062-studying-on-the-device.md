@@ -1,6 +1,6 @@
 # 0062 — Studying on the device: lessons planned, scheduled and checked on the phone, answers re-applied by the server
 
-**Status:** Accepted (the owner's decisions, 8 November 2026). Built in steps: the engine (this record's first PR), the server's events, the lessons on the device, a capacity recheck.
+**Status:** Accepted (the owner's decisions, 8 November 2026). Built in steps: the engine (#78), the server's side (below), the lessons on the device, a capacity recheck.
 
 ## Context
 Every card was a request: the server planned the lesson, scheduled each card with FSRS, checked each spelling, and stamped everything with its own clock. Without a connection nothing could be studied, each card waited on the network, and those requests were most of the server's load (about 0.3 a second per student in a lesson, against a ceiling of about 5 on the free instance; `docs/research/capacity-2026-11.md`).
@@ -17,6 +17,34 @@ Every card was a request: the server planned the lesson, scheduled each card wit
 - **Late answers count for the day they were given** (owner), with a guard. The device's clock is corrected by the server's. No answer may be dated before that device's last contact with the server, so days the server has already seen can't be filled in afterwards. Nothing later than a few minutes ahead, nothing older than 30 days.
 - **Audio kept ahead** (owner): recordings for words due in the next 7 days and the next new words of decks in use.
 - **Unchanged and online only:** group tests (server clock, ADR 0046), AI drafting, giving decks to groups.
+
+## The server's side (step 2)
+- **Two sync operations** (`schemas/sync.py`, applied in `services/study_sync.py`), in the outbox with the deck changes and applied in the order sent, each once (ADR 0061):
+  - `study.answer`: one answer, with its device, its lesson (an id the device made), the deck, the exercise (`c1`, `s1`…), the word, the rating or the built word (and whether it was heard or hinted), and `answered_at` on the server's clock.
+  - `study.finish`: the lesson finished, or set aside for another.
+- **A device's lesson is made from its answers.**
+  - The first answer creates it: `learning_sessions.origin = 'device'`, `started_at` = that answer's moment, and for a lesson the day's plan as it stood then.
+  - Each answer adds its exercise to the plan, so the plan is what was answered, in order.
+  - `study.finish` sets `completed_at` (never before the lesson's own last answer) or `set_aside_at`.
+  - "One open lesson per learner" now holds for the server's lessons only. The per-card routes and «continue» never see a device's lesson.
+- **The same functions, at the answer's moment.** `sessions.rate_card` and `sessions.spell_word` are the per-card routes' own code, called with `answered_at` as now. Points, introductions, first recall, the spelling ladder, studied days, promises and answering speed all follow from it. A card shown again was already shown again on the device, so the server doesn't insert it.
+  - A test plays four days of lessons and spelling online, sends the same answers from another learner's device a week later, and finds every schedule, answer, point, rung and finished day identical.
+- **Out of order for one word** (two devices offline): an answer earlier than one already applied is scheduled, and moves the ladder, as of that later answer. It still counts for its own moment. Only the first answer heard introduces the word. Rare, and never sends a schedule back in time.
+- **The guard** (a refusal comes back as `rejected` with a code):
+  - `in_future`: more than 5 minutes ahead of the server.
+  - `too_old`: older than 30 days. Lessons are cleaned up at 35 (ADR 0044), so no late answer can reach a day already summed up.
+  - `unknown_device`: a device studies from a pack, and fetching one registers it (`sync_devices`).
+  - `before_last_contact`: more than 5 minutes before the device's last pack. The slack covers another tab answering while the pack was on its way.
+- **Which words:** a lesson starts in a deck I may study. Every answered word must be in that deck, and hard words and spelling must be of words met. Later answers stand if the deck stops being mine meanwhile (I left the group), as an open lesson's do online. The course's level lock is not checked here: the device follows it, and it guides the learner rather than guarding anything.
+- **The pack** (`GET /api/study/pack?device_id=…`), tagged with its content (`304` when unchanged). Fetching it is the device's contact, and it remembers the device's zone, the one its answers will be counted in. It holds:
+  - every deck I study (the course's levels in order, my own, my groups') with its words in order;
+  - those words;
+  - my progress on every word I have met (so the review brake counts all of it);
+  - my spelling ladder;
+  - each deck's pace inputs: daily new words, deadline, today's extra words;
+  - the new words met today and yesterday per pace.
+
+  The glossary keeps its own tagged route. Measured on the dev data: a learner with 8 decks, 373 words and 105 met gets 125 KB, 30 KB gzipped.
 
 ## Consequences
 - Two schedulers to keep equal; the cases are the guard, and the server's result wins if they ever disagree.
