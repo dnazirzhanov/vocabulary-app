@@ -4,3 +4,4 @@ package-lock.json
 dist-auth
 dist-offline
 public/audio
+src/study/vectors.json
