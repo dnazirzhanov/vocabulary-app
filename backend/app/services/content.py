@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckWord, GlossaryForm, Word
+from app.services import words
 
 # Must match the registry in web/src/illustrations/index.tsx.
 ILLUSTRATIONS = ("umbrella", "kettle", "lighthouse", "backpack", "key")
@@ -263,4 +264,5 @@ def import_glossary(db: Session, glossary: dict[str, GlossaryEntry]) -> int:
         for form, entry in glossary.items()
     )
     db.commit()
+    words.forget_glossary()
     return len(glossary)

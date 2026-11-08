@@ -8,6 +8,9 @@ from typing import Any
 
 from fastapi import Request, Response
 
+from app.core.config import get_settings
+from app.core.db import QueryCount, query_count
+
 logger = logging.getLogger("app")
 
 
@@ -41,9 +44,18 @@ def configure_logging(level: int = logging.INFO) -> None:
 async def log_requests(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
-    """One line per request: method, path, status, duration. Never bodies or headers."""
+    """One line per request: method, path, status, duration, and the SQL it ran (statements and
+    their time). Never bodies or headers."""
     started = time.perf_counter()
-    response = await call_next(request)
+    counter = QueryCount()
+    token = query_count.set(counter)
+    try:
+        response = await call_next(request)
+    finally:
+        query_count.reset(token)
+    if get_settings().environment != "production":
+        # For measuring screens and for tests; production keeps it in the log only.
+        response.headers["X-Query-Count"] = str(counter.queries)
     logger.info(
         "request",
         extra={
@@ -52,6 +64,8 @@ async def log_requests(
                 "path": request.url.path,
                 "status": response.status_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+                "queries": counter.queries,
+                "sql_ms": round(counter.seconds * 1000, 1),
             }
         },
     )

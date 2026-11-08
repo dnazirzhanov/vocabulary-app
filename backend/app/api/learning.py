@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Path, Response
+from fastapi import APIRouter, Body, Depends, Path, Request, Response
 
 from app.core.auth import CurrentUser, DbSession, require_recent_sign_in
 from app.core.clock import Now, SentTimeZone, TimeZone
@@ -128,7 +128,12 @@ def deck_words(deck_id: str, user: CurrentUser, db: DbSession) -> list[DeckWordO
     return words.deck_words(db, user, deck_id)
 
 
-@router.get("/glossary")
-def glossary(user: CurrentUser, db: DbSession) -> dict[str, GlossaryEntryOut]:
-    """Every word form used in example sentences, for tap-a-word (small: one request per visit)."""
-    return words.glossary(db)
+@router.get("/glossary", response_model=dict[str, GlossaryEntryOut])
+def glossary(request: Request, user: CurrentUser, db: DbSession) -> Response:
+    """Every word form used in example sentences, for tap-a-word. Tagged with its content, so a
+    browser that has it gets «not modified» and nothing else."""
+    sent = words.glossary_file(db)
+    headers = {"ETag": sent.etag, "Cache-Control": "private, no-cache"}
+    if request.headers.get("if-none-match") == sent.etag:
+        return Response(status_code=304, headers=headers)
+    return Response(sent.body, media_type="application/json", headers=headers)

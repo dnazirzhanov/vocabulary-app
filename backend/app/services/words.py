@@ -1,6 +1,9 @@
 """The deck's word list with the learner's status on each word. Nothing is hidden: learners may
 browse every word, met or not (product decision, M7)."""
 
+import hashlib
+import json
+from dataclasses import dataclass
 from typing import Literal
 
 from sqlalchemy import select
@@ -60,3 +63,32 @@ def glossary(db: Session) -> dict[str, GlossaryEntryOut]:
         row.form: GlossaryEntryOut(ru=row.ru, lemma=row.lemma, note=row.note)
         for row in db.scalars(select(GlossaryForm).order_by(GlossaryForm.form))
     }
+
+
+@dataclass(frozen=True)
+class GlossaryFile:
+    body: bytes
+    etag: str
+
+
+_glossary_file: GlossaryFile | None = None
+
+
+def glossary_file(db: Session) -> GlossaryFile:
+    """The glossary as sent, and a tag of its content. It changes only when course content is
+    loaded (`app.cli load-content`, before the server starts), so it is built once per process."""
+    global _glossary_file
+    if _glossary_file is None:
+        body = json.dumps(
+            {form: entry.model_dump() for form, entry in glossary(db).items()},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode()
+        _glossary_file = GlossaryFile(body, f'"{hashlib.sha256(body).hexdigest()[:20]}"')
+    return _glossary_file
+
+
+def forget_glossary() -> None:
+    """After loading content in this process (tests, the CLI): the next request rebuilds it."""
+    global _glossary_file
+    _glossary_file = None
