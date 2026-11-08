@@ -122,7 +122,8 @@ function openMeta() {
 }
 
 export function openAccountDb(accountId: string): Promise<AccountDb> {
-  return openDB<AccountSchema>(accountDbName(accountId), LOCAL_VERSION, {
+  let opened: AccountDb | undefined;
+  const db = openDB<AccountSchema>(accountDbName(accountId), LOCAL_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) db.createObjectStore('snapshots', { keyPath: 'key' });
       if (oldVersion < 2) {
@@ -134,11 +135,14 @@ export function openAccountDb(accountId: string): Promise<AccountDb> {
         db.createObjectStore('sync', { keyPath: 'key' });
       }
     },
-    // Another tab holds an older version open: it closes, and reloads into this one's code.
-    blocking() {
-      location.reload();
+    // Another tab wants a newer version: this one reloads into that code. Deleted (the account
+    // was): this connection just closes, so the deletion goes through and nothing reloads.
+    blocking(_current, wanted) {
+      if (wanted === null) opened?.close();
+      else location.reload();
     },
   });
+  return db.then((ready) => (opened = ready));
 }
 
 /** The account a sign-in was last seen as, or null if this device has never seen it online. */

@@ -1,6 +1,6 @@
 import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { bindAccount, closeLocal, deleteLocal, openLocal, withSnapshot } from './local/session.ts';
+import { bindAccount, closeLocal, localForgetter, openLocal, withSnapshot } from './local/session.ts';
 import { saveSnapshot } from './local/db.ts';
 import { syncNow } from './local/sync.ts';
 import { setOffline } from './local/online.ts';
@@ -321,8 +321,10 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         email,
         onSignOut: supabase ? signOutHere : undefined,
         onAccountDeleted: () => {
-          // The account is gone, and with it everything this device kept of it.
-          void deleteLocal().then(() => (supabase ? signOutHere() : goHome()));
+          // The account is gone, and with it everything this device kept of it: signed out
+          // first, so nothing on the page reaches for it while it is deleted.
+          const forget = localForgetter();
+          void (supabase ? signOutHere() : Promise.resolve(goHome())).then(forget);
         },
       }}
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
