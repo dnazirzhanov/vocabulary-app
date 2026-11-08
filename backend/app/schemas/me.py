@@ -2,6 +2,7 @@
 
 from datetime import date, datetime
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
@@ -58,6 +59,8 @@ class PauseIn(BaseModel):
 
 
 class MeOut(BaseModel):
+    # This account, so a device keeps each account's own data apart (offline store).
+    id: UUID
     # Shown in every group I am in (ADR 0057); null until the first run asks it.
     name: str | None
     # Null until the learner has chosen a pace (first-run screens).

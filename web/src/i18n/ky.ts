@@ -32,6 +32,7 @@ export const ky: Messages = {
   yesDelete: 'Ооба, өчүрүү',
   signingOut: 'Чыгууда…',
   signOut: 'Чыгуу',
+  offlineNote: 'Байланыш жок. Ушул түзмөктө сакталганы көрсөтүлдү.',
   signOutQuestion: 'Колдонмодон чыгасызбы?',
   signOutNote: 'Кайра кирүү үчүн почта менен сырсөздү кайра терүү керек болот.',
   stay: 'Калуу',
