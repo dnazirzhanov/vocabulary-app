@@ -41,6 +41,28 @@ test('the language is changed in settings, stays after a reload and follows the 
 test.describe('a new learner who knows only Kyrgyz', () => {
   test.use({ onboarded: false, languageChosen: false, named: null, locale: 'ru-RU' });
 
+  // The app saves the device's language for a new account; on a slow network that save once
+  // landed after the learner's own choice and turned the app back to Russian.
+  test('a quick first choice is kept, however slowly the app saves its own', async ({ page }) => {
+    await page.route('**/api/me', async (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown> | null;
+      if (route.request().method() === 'PATCH' && body && Object.keys(body).join() === 'ui_language') {
+        // Reaches the server late, even if the page has moved on meanwhile.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const late = await route.fetch();
+        return route.fulfill({ response: late }).catch(() => undefined);
+      }
+      await route.continue();
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Кыргызча' }).click();
+    await expect(page.getByRole('heading', { name: 'Атыңыз ким?' })).toBeVisible();
+    await page.waitForTimeout(2000); // past any save still on its way
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Атыңыз ким?' })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ky');
+  });
+
   test('chooses it first, then studies a whole deck without a Russian word', async ({ page }) => {
     await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: null } }));
     await page.goto('/');

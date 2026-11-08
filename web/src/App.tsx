@@ -167,9 +167,14 @@ async function loadProfile(subject: string): Promise<Profile | null> {
     if (db) await Promise.all([saveSnapshot(db, 'me', me.value), saveSnapshot(db, 'courseDecks', decks.value)]);
     // Changes made here while offline go now; my decks come up to date (ADR 0061).
     void syncNow();
-    // Another device chose: follow it. A new account takes what this device shows.
-    if (me.value.ui_language === null) void api.updateMe({ ui_language: uiLanguage }).catch(() => null);
-    else if (me.value.ui_language !== uiLanguage && switchLanguage(me.value.ui_language)) return null;
+    // Another device chose: follow it. A new account takes what this device shows, saved before
+    // anything is shown: sent in the background, it could land after the learner's own first
+    // choice of language and undo it.
+    if (me.value.ui_language === null) {
+      const saved = await api.updateMe({ ui_language: uiLanguage }).catch(() => null);
+      return { me: saved ?? me.value, decks: decks.value };
+    }
+    if (me.value.ui_language !== uiLanguage && switchLanguage(me.value.ui_language)) return null;
   }
   return { me: me.value, decks: decks.value };
 }
