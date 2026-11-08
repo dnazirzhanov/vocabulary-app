@@ -1,4 +1,4 @@
-import { button, expect, finishSession, named, openDeck, test } from './learner.ts';
+import { button, expect, finishSession, named, openDeck, setUp, test } from './learner.ts';
 
 // A Monday: the server clock is fixed so "today" is a promised day (Пн–Сб by default).
 const MONDAY = '2026-11-02T09:00:00Z';
@@ -65,7 +65,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   const friendContext = await browser.newContext({
     extraHTTPHeaders: { 'X-Dev-User': `e2e-friend-${Date.now()}`, 'X-Dev-Now': MONDAY },
   });
-  await friendContext.request.patch('/api/me', { data: { daily_target_words: 3 } });
+  await setUp(friendContext.request, { daily_target_words: 3 });
   const friend = await friendContext.newPage();
   await friend.goto(new URL(link).pathname);
   // Someone who began before names were asked says theirs once, then the invitation opens.
