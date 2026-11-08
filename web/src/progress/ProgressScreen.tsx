@@ -28,7 +28,14 @@ export function ProgressScreen({ onOpenDeck }: { onOpenDeck: (deckId: string) =>
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => headingRef.current?.focus(), [loaded]);
+  // Focus goes to the heading once, as on a new page: moving it again on a later load (a retry,
+  // development's double load) scrolled the page under the pointer and lost the day being read.
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!loaded || focused.current) return;
+    focused.current = true;
+    headingRef.current?.focus();
+  }, [loaded]);
 
   if (error) {
     return (
