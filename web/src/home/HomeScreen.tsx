@@ -1,5 +1,10 @@
-import { withSnapshot } from '../local/session.ts';
-import { setOffline } from '../local/online.ts';
+import { localDb, withSnapshot } from '../local/session.ts';
+import { setOffline, useOffline } from '../local/online.ts';
+import { readSnapshot } from '../local/db.ts';
+import { mergeMine, type KeptDeck } from '../local/library.ts';
+import { createDeck, deckCards, myDecks, syncState, takeNotices } from '../local/myDecks.ts';
+import { syncNow, useLocalVersion } from '../local/sync.ts';
+import type { Me } from '../lib/types.ts';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
 import { deadlineLeft, localToday } from '../lib/deadline.ts';
@@ -33,6 +38,25 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   const [naming, setNaming] = useState(false);
   const [title, setTitle] = useState('');
   const { run, busy, error } = useAsyncAction();
+  // My decks as this device has them: made, renamed or deleted here, maybe not sent yet (ADR 0061).
+  const [kept, setKept] = useState<{ decks: KeptDeck[]; pulled: boolean } | null>(null);
+  // Changes lost because their deck or card was deleted on another device: said once.
+  const [lost, setLost] = useState(0);
+  const localVersion = useLocalVersion();
+  const offline = useOffline();
+  useEffect(() => {
+    const db = localDb();
+    if (!db) return;
+    void (async () => {
+      const decks = await myDecks(db);
+      const counted = await Promise.all(
+        decks.map(async (deck) => ({ deck, cards: (await deckCards(db, deck.id)).length })),
+      );
+      setKept({ decks: counted, pulled: (await syncState(db)).pulledAt !== null });
+      const newlyLost = await takeNotices(db);
+      if (newlyLost > 0) setLost((before) => before + newlyLost);
+    })().catch(() => null);
+  }, [localVersion]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nameField = useRef<HTMLInputElement>(null);
 
@@ -87,11 +111,26 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
     event.preventDefault();
     const clean = title.trim();
     if (clean.length < 2) return;
-    run(async () => onOpenDeck((await api.createDeck(clean)).id));
+    run(async () => {
+      const db = localDb();
+      if (!db) return onOpenDeck((await api.createDeck(clean)).id);
+      // Made on this device at once, sent when there is a connection (ADR 0061).
+      const me = (await readSnapshot<Me>(db, 'me'))?.value;
+      const deck = await createDeck(db, clean, me?.language ?? 'ru');
+      // Online, it is on the server before the editor opens, so AI can add to it at once;
+      // offline this returns straight away and the deck waits on this device.
+      await syncNow();
+      onOpenDeck(deck.id);
+    });
   };
-  // An empty deck has nothing to study yet: it opens for adding words.
-  const open = (deck: LibraryDeck, mine: boolean) =>
-    mine && deck.word_count === 0 ? onOpenDeck(deck.id) : onOpenPage(deck.id);
+  const mine = mergeMine(library.mine, kept?.decks ?? null, kept?.pulled ?? false);
+  const onlyHere = new Set(
+    mine.filter((deck) => !library.mine.some((item) => item.id === deck.id)).map((deck) => deck.id),
+  );
+  // An empty deck has nothing to study yet: it opens for adding words. So does one of mine
+  // without a connection, or not yet on the server: its page needs the server.
+  const open = (deck: LibraryDeck, isMine: boolean) =>
+    isMine && (deck.word_count === 0 || offline || onlyHere.has(deck.id)) ? onOpenDeck(deck.id) : onOpenPage(deck.id);
 
   return (
     <div className={styles.screen}>
@@ -108,6 +147,11 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
       </header>
       <main className={styles.main}>
         <div className={styles.column}>
+          {lost > 0 && (
+            <p className={styles.lost} role="status">
+              {t.lostChanges(lost)}
+            </p>
+          )}
           <div className={styles.head}>
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
               {t.myDecks}
@@ -159,11 +203,11 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
             <h2 id="mine-title" className="visually-hidden">
               {t.createdByMe}
             </h2>
-            {library.mine.length === 0 ? (
+            {mine.length === 0 ? (
               <p className={styles.empty}>{t.noDecksOfYourOwnYet}</p>
             ) : (
               <ul className={styles.list}>
-                {library.mine.map((deck) => (
+                {mine.map((deck) => (
                   <li key={deck.id} className={styles.row}>
                     <button type="button" className={styles.study} disabled={busy} onClick={() => open(deck, true)}>
                       <DeckText deck={deck} source={sharedLine(deck)} />

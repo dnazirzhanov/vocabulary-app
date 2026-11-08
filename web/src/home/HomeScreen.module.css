@@ -343,3 +343,9 @@
 .courseText {
   color: var(--color-text-muted);
 }
+
+/* Changes this device couldn't send because what they changed was deleted elsewhere. */
+.lost {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}

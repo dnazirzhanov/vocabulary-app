@@ -1,3 +1,4 @@
+import type { OpResult, Pulled } from '../local/myDecks.ts';
 import { setOffline } from '../local/online.ts';
 import type { CardLanguage } from '../i18n/languages.ts';
 import { accessToken, dropSession } from './auth.ts';
@@ -154,6 +155,17 @@ export const api = {
   /** More new words in a deck, today only. */
   addExtraWords: (deckId: string, words: number) =>
     request<Pace>('POST', `/decks/${encodeURIComponent(deckId)}/pace/extra`, { words }),
+  /** My changes made on this device, in order; each applied once however often sent (ADR 0061). */
+  syncPush: (ops: Record<string, unknown>[], pulledAt: string | null) =>
+    request<{ results: OpResult[] }>('POST', '/sync/push', { ops, pulled_at: pulledAt }, 30_000),
+  /** My decks changed since `cursor` (all of them from 0), and the deleted ones. */
+  syncPull: (cursor: number, pulledAt: string | null) =>
+    request<Pulled>(
+      'GET',
+      `/sync/decks?cursor=${cursor}${pulledAt ? `&pulled_at=${encodeURIComponent(pulledAt)}` : ''}`,
+      undefined,
+      30_000,
+    ),
   groups: () => request<GroupSummary[]>('GET', '/groups'),
   createGroup: (name: string) => request<Group>('POST', '/groups', { name }),
   previewInvite: (code: string) => request<GroupPreview>('GET', `/groups/join/${encodeURIComponent(code)}`),
@@ -261,6 +273,8 @@ const MESSAGES: Record<string, string> = {
   test_running: t.finishTheTestFirst,
   nothing_to_study: t.nothingToStudyInThisDeck,
   reviews_first: t.firstReviewTheWordsThatAre,
+  too_many_decks: t.tooManyDecks,
+  invalid_request: t.checkTheCard,
   word_in_deck: t.thisWordIsAlreadyInThe,
   deck_full: t.aDeckCanHaveAtMost,
   deck_empty: t.firstAddAtLeastOneWord,
@@ -280,7 +294,9 @@ const MESSAGES: Record<string, string> = {
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */
 export function describeError(error: unknown): string {
-  if (error instanceof ApiError && MESSAGES[error.code]) return MESSAGES[error.code];
+  // The server's refusals, and the same ones made on this device first (local/myDecks.ts).
+  const code = error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : null;
+  if (code && MESSAGES[code]) return MESSAGES[code];
   if (error instanceof ApiError && error.kind === 'network') {
     return t.noConnectionToTheServerCheck;
   }

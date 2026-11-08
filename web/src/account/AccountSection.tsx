@@ -1,3 +1,5 @@
+import { withSnapshot } from '../local/session.ts';
+import { saveMe } from '../local/settings.ts';
 import { useEffect, useState } from 'react';
 import { PasswordField } from '../auth/PasswordField.tsx';
 import { api } from '../lib/api.ts';
@@ -34,13 +36,16 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
   const [cardLanguage, setCardLanguage] = useState<CardLanguage | null>(null);
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
-    void api.me().then(
-      (me) => {
-        setCardLanguage(me.language ?? 'ru');
-        setName(me.name);
-      },
-      () => null,
-    );
+    // Without a connection, the settings as last saved on this device.
+    void withSnapshot('me', () => api.me())
+      .then(({ value: me }) => me)
+      .then(
+        (me) => {
+          setCardLanguage(me.language ?? 'ru');
+          setName(me.name);
+        },
+        () => null,
+      );
   }, []);
   const problem = wrongPassword ?? error;
 
@@ -87,7 +92,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               options={UI_LANGUAGES}
               onChoose={(language) => {
                 void run(async () => {
-                  await api.updateMe({ ui_language: language });
+                  await saveMe({ ui_language: language });
                   switchLanguage(language);
                 });
               }}
@@ -100,7 +105,7 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
                 options={CARD_LANGUAGES}
                 onChoose={(language) => {
                   void run(async () => {
-                    await api.updateMe({ language });
+                    await saveMe({ language });
                     location.reload(); // The course opens or closes with it.
                   });
                 }}

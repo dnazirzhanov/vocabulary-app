@@ -1,3 +1,6 @@
+import type { CardLanguage } from '../i18n/languages.ts';
+import { deckCards } from '../local/myDecks.ts';
+import { localDb, withSnapshot } from '../local/session.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { foldText } from '../i18n/fold.ts';
 import { api, describeError } from '../lib/api.ts';
@@ -37,9 +40,10 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
   const [query, setQuery] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const load = () => api.deckWords(deckId).then(setWords, (caught: unknown) => setError(describeError(caught)));
+  // Without a connection: the list as last seen, or my deck's cards on this device (ADR 0060, 0061).
+  const load = () => wordsOf(deckId).then(setWords, (caught: unknown) => setError(describeError(caught)));
   useEffect(() => {
-    void api.deckWords(deckId).then(setWords, (caught: unknown) => setError(describeError(caught)));
+    void wordsOf(deckId).then(setWords, (caught: unknown) => setError(describeError(caught)));
   }, [deckId]);
   useEffect(() => headingRef.current?.focus(), []);
 
@@ -187,4 +191,30 @@ function WordRow({ row }: { row: DeckWord }) {
       </details>
     </li>
   );
+}
+
+async function wordsOf(deckId: string): Promise<DeckWord[]> {
+  try {
+    return (await withSnapshot(`deckWords:${deckId}`, () => api.deckWords(deckId))).value;
+  } catch (error) {
+    const db = localDb();
+    const cards = db ? await deckCards(db, deckId) : [];
+    if (cards.length === 0) throw error;
+    // Never seen online: every card as not started yet.
+    return cards.map((card, index) => ({
+      position: index,
+      word: {
+        id: card.id,
+        headword: card.headword,
+        pos: card.pos,
+        translation: card.translation,
+        example: card.example,
+        example_translation: card.example_translation,
+        language: card.language as CardLanguage,
+        illustration: null,
+      },
+      status: 'not_started',
+      next_review_at: null,
+    }));
+  }
 }

@@ -33,8 +33,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'app', testIgnore: ['auth.spec.ts', 'offline.spec.ts'], use: { baseURL: webUrl } },
-    { name: 'offline', testMatch: 'offline.spec.ts', use: { baseURL: offlineUrl } },
+    { name: 'app', testIgnore: ['auth.spec.ts', /offline.*\.spec\.ts/], use: { baseURL: webUrl } },
+    { name: 'offline', testMatch: /offline.*\.spec\.ts/, use: { baseURL: offlineUrl } },
     { name: 'auth', testMatch: 'auth.spec.ts', use: { baseURL: authUrl } },
   ],
   webServer: [

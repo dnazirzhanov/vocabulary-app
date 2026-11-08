@@ -9,8 +9,9 @@ import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from 'idb';
  *
  * Version history (each step is an upgrade below; never edit an old step, add a new one):
  *  1. snapshots: the last answer of a few screens, for opening them offline.
+ *  2. my decks and cards, the outbox of changes not yet sent, and the sync's own state (ADR 0061).
  */
-export const LOCAL_VERSION = 1;
+export const LOCAL_VERSION = 2;
 
 /** A screen's last answer from the server, kept to show it without a connection. */
 export interface Snapshot<T = unknown> {
@@ -19,8 +20,84 @@ export interface Snapshot<T = unknown> {
   savedAt: string;
 }
 
+/** What went wrong with a change the server didn't take as it was, shown on the deck or card. */
+export interface Problem {
+  status: 'conflict' | 'rejected' | 'gone';
+  /** rejected: the API's code (word_in_deck, deck_full…). */
+  code?: string;
+  /** conflict: each field changed elsewhere, with both values. */
+  conflicts?: Record<string, { mine: unknown; server: unknown }>;
+}
+
+/** One of my decks as this device has it. */
+export interface LocalDeck {
+  id: string;
+  title: string;
+  language: string;
+  status: string;
+  version: number;
+  createdAt: string;
+  problem?: Problem;
+}
+
+/** A card of one of my decks; `fromCourse`: a course word linked in, not this deck's to edit. */
+export interface LocalCard {
+  id: string;
+  deckId: string;
+  headword: string;
+  pos: string;
+  translation: string;
+  example: string;
+  example_translation: string;
+  language: string;
+  version: number;
+  position: number;
+  fromCourse: boolean;
+  problem?: Problem;
+}
+
+export type OpKind =
+  'deck.create' | 'deck.rename' | 'deck.delete' | 'card.create' | 'card.update' | 'card.delete' | 'me.update';
+
+/**
+ * A change made on this device, waiting for the server. `seq` keeps them in the order made;
+ * `opId` is sent with every retry, so the server applies it once.
+ */
+export interface OutboxOp {
+  seq?: number;
+  opId: string;
+  kind: OpKind;
+  /** The deck it belongs to (none for settings): deleting a deck drops its unsent changes. */
+  deckId?: string;
+  /** The card it changes. */
+  wordId?: string;
+  /** The operation as the server takes it, without `op_id`. */
+  payload: Record<string, unknown>;
+  createdAt: string;
+  /** pending: may still be merged with later changes; sending: in a request, left as it is. */
+  status: 'pending' | 'sending';
+  attempts: number;
+  lastError?: string;
+}
+
+export interface SyncState {
+  key: 'decks';
+  cursor: number;
+  pulledAt: string | null;
+}
+
+/** Changes lost to deletions made elsewhere, not yet said (deletion wins, never in silence). */
+export interface LostChanges {
+  key: 'notices';
+  lost: number;
+}
+
 export interface AccountSchema extends DBSchema {
   snapshots: { key: string; value: Snapshot };
+  decks: { key: string; value: LocalDeck };
+  cards: { key: string; value: LocalCard; indexes: { byDeck: string } };
+  outbox: { key: number; value: OutboxOp; indexes: { byDeck: string; byWord: string } };
+  sync: { key: string; value: SyncState | LostChanges };
 }
 
 interface MetaSchema extends DBSchema {
@@ -49,6 +126,14 @@ export function openAccountDb(accountId: string): Promise<AccountDb> {
   const db = openDB<AccountSchema>(accountDbName(accountId), LOCAL_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) db.createObjectStore('snapshots', { keyPath: 'key' });
+      if (oldVersion < 2) {
+        db.createObjectStore('decks', { keyPath: 'id' });
+        db.createObjectStore('cards', { keyPath: 'id' }).createIndex('byDeck', 'deckId');
+        const outbox = db.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true });
+        outbox.createIndex('byDeck', 'deckId');
+        outbox.createIndex('byWord', 'wordId');
+        db.createObjectStore('sync', { keyPath: 'key' });
+      }
     },
     // Another tab wants a newer version: this one reloads into that code. Deleted (the account
     // was): this connection just closes, so the deletion goes through and nothing reloads.

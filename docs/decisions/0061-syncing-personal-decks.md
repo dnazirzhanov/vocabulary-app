@@ -1,6 +1,6 @@
 # 0061 — Personal decks and settings sync through FastAPI: operations applied once, conflicts never overwritten
 
-**Status:** Accepted (7 November 2026). The server side; the device side follows in the web PR.
+**Status:** Accepted (7 November 2026).
 
 ## Context
 A learner must be able to make and change their own decks and settings without a connection (ADR 0060 keeps the app on the device). The changes reach the server later, maybe twice (a lost answer, a closed app), maybe after another device changed the same thing.
@@ -27,3 +27,25 @@ A learner must be able to make and change their own decks and settings without a
 - A card made offline that is a course word becomes the course word on arrival, as it does online; the device is told the word's id.
 - Conflicts need a choice on the device (keep mine / take the server's), which the web shows on the card.
 - Every new write path to a personal deck must call `decks.mark_deck`, or devices won't see the change. The sync tests check the app's own rename is pulled.
+
+## On the device
+- My decks and cards live in IndexedDB (`local/myDecks.ts`). Each change is one transaction: the row and its outbox entry. The UI updates from it at once, with no connection needed.
+- **Checked here first, against the server's rules:** the word pattern, lengths, duplicates in a deck, 500 cards, 100 decks.
+- **Unsent changes are merged only where that can't change the outcome:**
+  - several edits of one card become one edit, keeping what the card was before the first;
+  - a card made and then changed is sent as made-and-changed;
+  - a card or deck made and deleted before anything went is never sent.
+
+  A change already on its way is never touched.
+- **The sync** (`local/sync.ts`) runs on start, on reconnection, when the app is looked at again, and a second after a change. One tab at a time (a browser lock). Batches of 200.
+  - A failed send leaves the changes waiting.
+  - `resync_required` pulls everything, then sends.
+  - A card that turned out to be a course word takes that word's id, in waiting changes too.
+- **Kept online only:** AI, giving to a group and studying sync first, so a deck made offline reaches the server before they need it.
+- **What the person sees:**
+  - «Ждёт отправки» on unsent cards.
+  - A conflict shows the other device's value, with «Оставить моё» (sent again against it) and «Взять оттуда».
+  - Changes lost because their deck or card was deleted elsewhere are counted and said once on home.
+  - The sign-out window says how many changes are unsent; they stay on the device for the next sign-in.
+- **Settings** saved without a connection go into the same outbox with the values they replaced (`local/settings.ts`).
+

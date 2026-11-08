@@ -1,5 +1,5 @@
+import { saveMe } from '../local/settings.ts';
 import { useId, useState, type FormEvent } from 'react';
-import { api } from '../lib/api.ts';
 import { NAME_MAX, nameProblem } from '../lib/name.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { ForwardIcon } from '../ui/icons.tsx';
@@ -19,7 +19,7 @@ export function NameRow({ name, onSaved }: { name: string; onSaved: (name: strin
   const save = (event: FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      const me = await api.updateMe({ name: draft });
+      const me = await saveMe({ name: draft });
       onSaved(me.name ?? draft);
       setOpen(false);
     });

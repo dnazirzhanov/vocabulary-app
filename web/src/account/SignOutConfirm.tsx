@@ -3,6 +3,8 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { SecondaryButton } from '../ui/SecondaryButton.tsx';
+import { waiting } from '../local/myDecks.ts';
+import { localDb } from '../local/session.ts';
 import styles from './SignOutConfirm.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -19,13 +21,21 @@ export function SignOutConfirm({
   children: (ask: () => void) => ReactNode;
 }) {
   const [asking, setAsking] = useState(false);
+  // Changes made on this device and not sent: said, so nobody signs out unaware (ADR 0061).
+  const [unsent, setUnsent] = useState(0);
   const { run, busy, error } = useAsyncAction();
+  const ask = () => {
+    setAsking(true);
+    const db = localDb();
+    if (db) void waiting(db).then(setUnsent, () => setUnsent(0));
+  };
 
   return (
     <>
-      {children(() => setAsking(true))}
+      {children(ask)}
       <Dialog open={asking} onClose={() => setAsking(false)} title={t.signOutQuestion}>
         <p className={styles.note}>{t.signOutNote}</p>
+        {unsent > 0 && <p className={styles.problem}>{t.unsentOnSignOut(unsent)}</p>}
         {error && (
           <p className={styles.problem} role="alert">
             {error}

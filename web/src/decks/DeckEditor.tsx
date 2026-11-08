@@ -7,6 +7,21 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { AlertIcon, BackIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
+import { deckView, type DeckView } from '../local/deckView.ts';
+import {
+  addCard,
+  deleteDeck,
+  editCard,
+  keepMine,
+  rememberServerDeck,
+  removeCard,
+  renameDeck,
+  takeServer,
+  type ServerDeck,
+} from '../local/myDecks.ts';
+import type { Problem } from '../local/db.ts';
+import { localDb, withSnapshot } from '../local/session.ts';
+import { syncNow, syncSoon, useLocalVersion } from '../local/sync.ts';
 import { GeneratePanel } from './GeneratePanel.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
@@ -64,10 +79,11 @@ interface DeckEditorProps {
 export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOpenDeck }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [title, setTitle] = useState('');
+  // What is being typed as the title; otherwise the deck's own.
+  const [draftTitle, setDraftTitle] = useState<string | null>(null);
   const [form, setForm] = useState<DeckWordInput>(EMPTY);
   // Shared by every way of adding cards, so a choice made on one tab holds on the next (ADR 0055).
-  const [language, setLanguage] = useState<CardLanguage>('ru');
+  const [chosenLanguage, setLanguage] = useState<CardLanguage | null>(null);
   const [editing, setEditing] = useState<string | null>(null); // a word id
   // The composer's way of adding cards: from words (the fast default), from a text, or by hand.
   const [mode, setMode] = useState<ComposerMode>('words');
@@ -82,34 +98,85 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { run, busy, error } = useAsyncAction();
+  // Its own, so a title typed while a card is being removed is never dropped for being "busy".
+  const renaming = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstField = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLElement>(null);
   const composerRef = useRef<HTMLElement>(null);
-  const [cardsAdded, setCardsAdded] = useState(0);
-  // New cards go on top of the list: bring its heading up so the first of them shows whole. Measured
-  // only once they are on the screen: scheduled any earlier, a slow phone measured the old layout.
+  // Cards drafted with AI: once the list shows them (it may come a moment later, from this
+  // device's copy), bring the first into view. Measured only once they are on the screen: scheduled
+  // any earlier, a slow phone measured the old layout.
+  const revealAt = useRef<number | null>(null);
+  const shownCount = deck?.words.length ?? 0;
   useEffect(() => {
-    if (cardsAdded > 0) revealFirstCard(listRef.current);
-  }, [cardsAdded]);
+    if (revealAt.current === null || shownCount <= revealAt.current) return;
+    revealAt.current = null;
+    revealFirstCard(listRef.current);
+  }, [shownCount]);
 
+  // The server's view of the deck (its cards' warnings, groups, topics), kept for offline; the
+  // deck itself comes from this device when it has it (ADR 0061), so changes need no connection.
+  const [server, setServer] = useState<TeacherDeck | null>(null);
+  const [view, setView] = useState<DeckView | null>(null);
+  // Whether the server has answered (or can't be reached): what only it knows (topics, groups,
+  // warnings) is in before the editor is used, as it was when it always came from there.
+  const [settled, setSettled] = useState(false);
+  const localVersion = useLocalVersion();
+  // Shown from the server only while this device doesn't have the deck.
+  const fromDevice = useRef(false);
   const show = useCallback((loaded: TeacherDeck) => {
-    setDeck(loaded);
-    setTitle(loaded.title);
-    setLanguage(loaded.language);
+    setServer(loaded);
+    if (!fromDevice.current) setDeck(loaded);
   }, []);
   // Only the latest load counts: an older answer arriving late must not undo what was typed since.
   const loads = useRef(0);
   const load = useCallback(() => {
     const mine = ++loads.current;
-    return api.teacherDeck(deckId).then(
-      (loaded) => mine === loads.current && show(loaded),
-      (caught: unknown) => mine === loads.current && setLoadError(describeError(caught)),
+    return withSnapshot(`edit:${deckId}`, () => api.teacherDeck(deckId)).then(
+      ({ value }) => {
+        if (mine !== loads.current) return;
+        show(value);
+        setSettled(true);
+      },
+      async (caught: unknown) => {
+        // Made on this device and not sent yet, or no connection: this device's copy is enough.
+        const db = localDb();
+        if (mine !== loads.current) return;
+        if (db && (await db.get('decks', deckId))) setSettled(true);
+        else setLoadError(describeError(caught));
+      },
     );
   }, [deckId, show]);
   useEffect(() => {
     void load();
+    // Anything made here while offline goes first, so the server's own tools (AI, groups) find it.
+    void syncNow();
   }, [load]);
+  useEffect(() => {
+    const db = localDb();
+    if (!db || !settled) return;
+    void deckView(db, deckId, server).then((found) => {
+      fromDevice.current = found !== null;
+      setView(found);
+      if (found) setDeck(found.deck);
+    });
+  }, [deckId, server, settled, localVersion]);
+  const title = draftTitle ?? deck?.title ?? '';
+  // The deck's last language until one is chosen here (ADR 0055).
+  const language: CardLanguage = chosenLanguage ?? deck?.language ?? 'ru';
+  /** My deck is changed on this device when it has it; otherwise on the server, as before. */
+  const local = view ? localDb() : null;
+  const changed = (updated?: TeacherDeck) => {
+    if (updated) {
+      show(updated);
+      // Changed on the server (AI, giving to a group): this device keeps it at once.
+      const db = localDb();
+      if (db) void rememberServerDeck(db, asServerDeck(updated)).then(() => syncSoon());
+      return;
+    }
+    syncSoon();
+  };
   useEffect(() => {
     api.groups().then(
       (groups) => setCanGive(groups.some((group) => group.can.includes('give_decks'))),
@@ -149,8 +216,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
 
   const saveTitle = () => {
     const clean = title.trim();
-    if (clean.length < 2 || clean === deck.title) return setTitle(deck.title);
-    run(async () => show(await api.renameDeck(deck.id, clean)));
+    setDraftTitle(null);
+    if (clean.length < 2 || clean === deck.title) return;
+    void renaming.run(async () => {
+      if (!local) return changed(await api.renameDeck(deck.id, clean));
+      await renameDeck(local, deck.id, clean);
+      changed();
+    });
   };
   // The rest of the card from the typed word, for review before adding (nothing is saved).
   const suggest = async () => {
@@ -190,7 +262,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     setSaving(true);
     setFormError(null);
     try {
-      show(editing ? await api.editDeckWord(deck.id, editing, word) : await api.addDeckWord(deck.id, word));
+      if (!local)
+        changed(editing ? await api.editDeckWord(deck.id, editing, word) : await api.addDeckWord(deck.id, word));
+      else {
+        if (editing) await editCard(local, editing, word);
+        else await addCard(local, deck.id, word);
+        changed();
+      }
       resetForm();
       firstField.current?.focus();
     } catch (caught) {
@@ -201,8 +279,8 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   };
   // New cards are listed first, under the composer: bring them into view if they're below it.
   const drafted = (result: GenerateResult) => {
-    show(result.deck);
-    if (result.added > 0) setCardsAdded((times) => times + 1);
+    changed(result.deck);
+    if (result.added > 0) revealAt.current = deck?.words.length ?? 0;
   };
   const startEdit = (id: string) => {
     const entry = deck.words.find((item) => item.word.id === id);
@@ -236,15 +314,21 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             <label className={styles.titleField}>
               <span className="visually-hidden">{t.deckName}</span>
               <input
+                id="deck-title-field"
                 value={title}
                 maxLength={80}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => setDraftTitle(event.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
               />
               {/* The title is edited right here; the pencil says so (ADR 0035). */}
               <PencilIcon className={styles.titlePencil} aria-hidden="true" />
             </label>
+            {renaming.error && (
+              <p className={styles.problem} role="alert">
+                {renaming.error}
+              </p>
+            )}
           </div>
 
           {/* The screen's main job: making cards. One way at a time, chosen by tabs. */}
@@ -446,6 +530,14 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                           {t.checkColon} {flags.map((flag) => FLAGS[flag]).join(', ')}
                         </p>
                       )}
+                      {view?.waiting.has(word.id) && <p className={styles.waiting}>{t.waitingToSend}</p>}
+                      {local && view?.problems.get(word.id) && (
+                        <CardProblem
+                          problem={view.problems.get(word.id)!}
+                          onKeepMine={() => run(async () => (await keepMine(local, word.id), changed()))}
+                          onTakeTheOther={() => run(async () => (await takeServer(local, word.id), changed()))}
+                        />
+                      )}
                     </div>
                     <div className={styles.rowActions}>
                       {!from_course && (
@@ -460,7 +552,9 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                         onClick={() =>
                           run(async () => {
                             if (editing === word.id) resetForm();
-                            show(await api.removeDeckWord(deck.id, word.id));
+                            if (!local) return changed(await api.removeDeckWord(deck.id, word.id));
+                            await removeCard(local, word.id);
+                            changed();
                           })
                         }
                         aria-label={t.remove(word.headword)}
@@ -498,7 +592,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             className={styles.study}
             disabled={busy || count === 0}
             aria-busy={busy}
-            onClick={() => run(async () => onStudy(await api.startStudySession(deck.id)))}
+            onClick={() =>
+              run(async () => {
+                // Studying is the server's: what was made here goes first.
+                await syncNow();
+                onStudy(await api.startStudySession(deck.id));
+              })
+            }
           >
             {count === 0 ? t.study : t.studyWords(wordsLabel(count))}
           </button>
@@ -531,7 +631,10 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
               aria-busy={busy}
               onClick={() =>
                 run(async () => {
-                  await api.deleteDeck(deck.id);
+                  if (local) {
+                    await deleteDeck(local, deck.id);
+                    syncSoon();
+                  } else await api.deleteDeck(deck.id);
                   setConfirmDelete(false);
                   onDeleted();
                 })
@@ -547,8 +650,68 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
           )}
         </div>
       </Dialog>
-      {giving && <GiveDialog deckId={deck.id} onClose={() => setGiving(false)} onChanged={show} />}
+      {giving && <GiveDialog deckId={deck.id} onClose={() => setGiving(false)} onChanged={(given) => changed(given)} />}
     </div>
+  );
+}
+
+/** The editor's deck from the server, as sync names it (cards in order). */
+function asServerDeck(deck: TeacherDeck): ServerDeck {
+  return {
+    id: deck.id,
+    title: deck.title,
+    language: deck.language,
+    status: deck.status,
+    version: 1,
+    created_at: deck.created_at,
+    cards: deck.words.map(({ word, from_course }, index) => ({
+      ...word,
+      version: 1,
+      position: index + 1,
+      from_course,
+    })),
+  };
+}
+
+/**
+ * A change the server didn't take as it was (ADR 0061): changed on another device meanwhile (a
+ * choice between the two), or refused (its reason; the card can be corrected or removed).
+ */
+function CardProblem({
+  problem,
+  onKeepMine,
+  onTakeTheOther,
+}: {
+  problem: Problem;
+  onKeepMine: () => void;
+  onTakeTheOther: () => void;
+}) {
+  if (problem.status === 'conflict') {
+    const theirs = Object.values(problem.conflicts ?? {})
+      .map((value) => String(value.server))
+      .join(' · ');
+    return (
+      <div className={styles.problemBox} role="group" aria-label={t.changedOnAnotherDevice(theirs)}>
+        <p className={styles.flag}>
+          <AlertIcon aria-hidden="true" />
+          {t.changedOnAnotherDevice(theirs)}
+        </p>
+        <div className={styles.problemActions}>
+          <button type="button" className={styles.linkButton} onClick={onKeepMine}>
+            {t.keepMine}
+          </button>
+          <button type="button" className={styles.linkButton} onClick={onTakeTheOther}>
+            {t.takeTheOther}
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <p className={styles.flag}>
+      <AlertIcon aria-hidden="true" />
+      {t.notSaved(describeError(Object.assign(new Error(), { code: problem.code ?? '' })))}
+    </p>
   );
 }
 

@@ -2,6 +2,7 @@ import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase
 import { useCallback, useEffect, useState } from 'react';
 import { bindAccount, closeLocal, localForgetter, openLocal, withSnapshot } from './local/session.ts';
 import { saveSnapshot } from './local/db.ts';
+import { syncNow } from './local/sync.ts';
 import { setOffline } from './local/online.ts';
 import { AuthScreen, NewPasswordScreen } from './auth/AuthScreen.tsx';
 import { DeckEditor } from './decks/DeckEditor.tsx';
@@ -164,6 +165,8 @@ async function loadProfile(subject: string): Promise<Profile | null> {
     // opens), and keeps this answer for the next time there is no connection.
     const db = await bindAccount(subject, me.value.id);
     if (db) await Promise.all([saveSnapshot(db, 'me', me.value), saveSnapshot(db, 'courseDecks', decks.value)]);
+    // Changes made here while offline go now; my decks come up to date (ADR 0061).
+    void syncNow();
     // Another device chose: follow it. A new account takes what this device shows, saved before
     // anything is shown: sent in the background, it could land after the learner's own first
     // choice of language and undo it.
