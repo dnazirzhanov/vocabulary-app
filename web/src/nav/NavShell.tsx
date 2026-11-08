@@ -35,11 +35,6 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
     <div className={styles.shell}>
       <div className={styles.content}>
         {children}
-        {offline && (
-          <p className={styles.offline} role="status">
-            {t.offlineNote}
-          </p>
-        )}
         <div className={styles.corner}>
           {onSignOut && (
             <SignOutConfirm onSignOut={onSignOut}>
@@ -61,6 +56,12 @@ export function NavShell({ tab, onNavigate, account, onSignOut, children }: NavS
           </button>
         </div>
       </div>
+      {/* Its own row, outside the scrolling page: it never covers a screen's own bottom bar. */}
+      {offline && (
+        <p className={styles.offline} role="status">
+          {t.offlineNote}
+        </p>
+      )}
       <nav className={styles.nav} aria-label={t.sections}>
         <p className={styles.brand} aria-hidden="true">
           {t.slovar}
