@@ -56,6 +56,8 @@ def tiles(target: str, rng: random.Random) -> list[str]:
     count = max(MIN_TILES, len(word) + MIN_DISTRACTORS)
     bank = sorted(word + rng.sample(absent, count - len(word)))
     spelled = "".join(word)
+    if len(word) <= 1:
+        return bank  # one letter ("a", "i") is always "spelled" by its own tile: nothing to hide
     for _ in range(100):  # a passing order is found at once in practice
         if spelled not in "".join(bank):
             return bank

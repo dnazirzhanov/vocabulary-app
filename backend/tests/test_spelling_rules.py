@@ -68,3 +68,11 @@ def test_one_spelling_card_per_word_in_the_order_learned() -> None:
         ("s3", "spelling", "water"),
     ]
     assert PlannedExercise.from_json(steps[0].to_json()) == steps[0]
+
+
+def test_a_one_letter_word_can_be_spelled() -> None:
+    """«a» and «i» can be typed into a deck of one's own; their bank used to fail (ADR 0062
+    found it: no order of tiles can hide a single letter)."""
+    for word in ("a", "i"):
+        bank = tiles(word, random.Random(0))
+        assert word in bank and len(bank) == 15
