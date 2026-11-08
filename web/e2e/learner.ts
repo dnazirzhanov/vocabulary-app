@@ -1,4 +1,4 @@
-import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test as base, expect, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 
 interface Learner {
   /** Moves the server clock (development only) so "come back tomorrow" needs no waiting. */
@@ -30,11 +30,9 @@ export const test = base.extend<{
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
-    if (languageChosen) await context.request.patch('/api/me', { data: { language: 'ru' } });
-    if (named) await context.request.patch('/api/me', { data: { name: named } });
-    if (onboarded) {
-      await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
-    }
+    if (languageChosen) await setUp(context.request, { language: 'ru' });
+    if (named) await setUp(context.request, { name: named });
+    if (onboarded) await setUp(context.request, { daily_target_words: 5, study_days_per_week: 6 });
     await use(context);
   },
   learner: async ({ context }, use) => {
@@ -52,8 +50,24 @@ export { expect };
 
 /** Gives the learner of `context` a name, which joining or starting a group needs (ADR 0057). */
 export async function named(context: BrowserContext, name: string) {
-  expect((await context.request.patch('/api/me', { data: { name } })).ok()).toBe(true);
+  await setUp(context.request, { name });
   return context;
+}
+
+/**
+ * A learner's settings saved before a test, as the app saves them: a server busy with other tests
+ * refuses at once (ADR 0044) and is asked again, as `lib/api.ts` does; any other answer fails here,
+ * not later as a puzzling screen.
+ */
+export async function setUp(request: APIRequestContext, data: Record<string, unknown>) {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await request.patch('/api/me', { data });
+    if (response.status() !== 503 || attempt >= 5) {
+      expect(response.ok(), await response.text()).toBe(true);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
+  }
 }
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
