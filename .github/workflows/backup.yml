@@ -67,4 +67,4 @@ jobs:
           if-no-files-found: error
       - name: Prove it restores
         if: steps.ready.outputs.ok == 'true'
-        run: scripts/restore-check.sh backup/app-*.dump.enc postgresql://scratch:scratch@localhost:5432/scratch
+        run: scripts/restore-check.sh backup/app-*.dump.enc postgresql://scratch:scratch@localhost:5432/scratch backup/manifest-*.txt.enc
