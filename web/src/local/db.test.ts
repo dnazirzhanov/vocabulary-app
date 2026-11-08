@@ -46,3 +46,14 @@ test('a deleted account leaves nothing on the device', async () => {
   assert.equal(await readSnapshot(reopened, 'me'), null);
   reopened.close();
 });
+
+test('deleting an account goes through even with its store still open somewhere', async () => {
+  await rememberAccount('subject-e', 'account-e');
+  const left = await openAccountDb('account-e');
+  await saveSnapshot(left, 'me', { name: 'Анна' });
+  // No reload (there is no page here to reload): the open connection closes and the deletion ends.
+  await forgetAccount('subject-e', 'account-e');
+  const reopened = await openAccountDb('account-e');
+  assert.equal(await readSnapshot(reopened, 'me'), null);
+  reopened.close();
+});

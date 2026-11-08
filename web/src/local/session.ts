@@ -14,18 +14,22 @@ import {
  * The signed-in account's store on this device, open while that account is. Opened from the last
  * account this sign-in was seen as, so it works offline; confirmed (or switched) by /api/me.
  */
-let open: { subject: string; accountId: string; db: AccountDb } | null = null;
+let open: { subject: string; accountId: string; db: Promise<AccountDb | null> } | null = null;
 
-async function openFor(subject: string, accountId: string): Promise<AccountDb | null> {
+/**
+ * The account's store, opened once: callers at the same moment (the app loading twice, a retry)
+ * share one connection, so none is left open behind the app's back.
+ */
+function openFor(subject: string, accountId: string): Promise<AccountDb | null> {
   if (open?.subject === subject && open.accountId === accountId) return open.db;
   closeLocal();
-  try {
-    const db = await openAccountDb(accountId);
-    open = { subject, accountId, db };
-    return db;
-  } catch {
-    return null; // private browsing, storage turned off: the app works online only
-  }
+  // Private browsing, storage turned off: null, and the app works online only.
+  const db = openAccountDb(accountId).catch(() => null);
+  open = { subject, accountId, db };
+  void db.then((opened) => {
+    if (open?.db === db) current = opened;
+  });
+  return db;
 }
 
 /** Opens what this device kept for a sign-in, if it has ever been online with it. */
@@ -46,19 +50,25 @@ export async function bindAccount(subject: string, accountId: string): Promise<A
 
 /** Signing out: closed, never deleted, so nothing unsent is lost; it reopens at the next sign-in. */
 export function closeLocal() {
-  open?.db.close();
+  void open?.db.then((db) => db?.close());
   open = null;
+  current = null;
 }
 
-/** The account is gone: so is everything this device kept of it. */
-export async function deleteLocal() {
-  if (!open) return;
-  const { subject, accountId } = open;
-  closeLocal();
-  await forgetAccount(subject, accountId).catch(() => null);
+/**
+ * The account is gone: a way to delete everything this device kept of it, taken before signing
+ * out (which closes the store), and run after, once nothing on the page can use it.
+ */
+export function localForgetter(): () => Promise<void> {
+  const gone = open && { subject: open.subject, accountId: open.accountId };
+  return async () => {
+    if (gone) await forgetAccount(gone.subject, gone.accountId).catch(() => null);
+  };
 }
 
-export const localDb = () => open?.db ?? null;
+// The open store once its opening is done, for code that needs it at once.
+let current: AccountDb | null = null;
+export const localDb = () => current;
 
 /** A screen's data and whether it came from this device because the server couldn't be reached. */
 export interface Loaded<T> {
