@@ -284,7 +284,7 @@ function ResultsTitle(props: { title: string; state: 'done' | 'missed' | 'off'; 
 function Name({ row }: { row: TestResultRow }) {
   return (
     <span className={styles.name}>
-      {row.nickname}
+      {row.name}
       {row.is_me && <span className={report.me}>{t.you}</span>}
     </span>
   );

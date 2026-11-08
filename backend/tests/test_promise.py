@@ -22,7 +22,7 @@ from app.services.promise import (
     weekdays_of,
 )
 from app.services.study_days import StudyDay
-from tests.support import at, finish
+from tests.support import at, finish, named
 
 MONDAY = date(2026, 11, 2)
 DAY0 = datetime(2026, 11, 2, 9, 0, tzinfo=UTC)  # Monday
@@ -209,10 +209,10 @@ def group_of_two(client: TestClient) -> dict[str, Any]:
     for name in ("olga", "pavel"):
         client.put("/api/me/promise", json={"weekdays": [0, 1, 2, 3, 4]}, headers=as_(name))
     group: dict[str, Any] = client.post(
-        "/api/groups", json={"name": "7Б", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
-        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("pavel"), "Павел")
     )
     return group
 
@@ -234,7 +234,7 @@ def test_the_report_says_who_kept_the_promise(client: TestClient) -> None:
 
     board = report(client, group, midday)
     olga, pavel = board["rows"]  # me first, then the others alphabetically
-    assert (olga["nickname"], olga["is_me"]) == ("Ольга", True)
+    assert (olga["name"], olga["is_me"]) == ("Ольга", True)
     assert olga["week_states"] == ["off", "done", "done", "today", "later", "off", "off"]
     assert pavel["week_states"] == ["off", "done", "missed", "today", "later", "off", "off"]
     assert (olga["month_misses"], pavel["month_misses"]) == (0, 1)

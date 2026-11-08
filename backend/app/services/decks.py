@@ -179,7 +179,7 @@ class GivenDeck:
 
     deck: Deck
     group_name: str
-    # The author's nickname in that group; None once they left it or deleted their account.
+    # The author's name (ADR 0057); None once they left the group or deleted their account.
     author: str | None
     is_mine: bool
     # The earliest «Выучить к» among my groups that were given it (ADR 0028).
@@ -191,11 +191,13 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
     give a deck names it)."""
     given = _active_assignments(user).subquery()
     author = aliased(GroupMember)
+    author_user = aliased(User)
     rows = db.execute(
-        select(Deck, Group.name, author.nickname, given.c.due_on)
+        select(Deck, Group.name, author_user.name, given.c.due_on)
         .join(given, given.c.deck_id == Deck.id)
         .join(Group, Group.id == given.c.group_id)
         .outerjoin(author, and_(author.group_id == Group.id, author.user_id == Deck.owner_id))
+        .outerjoin(author_user, author_user.id == author.user_id)
         .order_by(given.c.assigned_at, Deck.id)
     ).all()
     soonest: dict[str, date] = {}
@@ -203,13 +205,13 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
         if due_on is not None and (deck.id not in soonest or due_on < soonest[deck.id]):
             soonest[deck.id] = due_on
     seen: dict[str, GivenDeck] = {}
-    for deck, group_name, nickname, _ in rows:
+    for deck, group_name, author_name, _ in rows:
         seen.setdefault(
             deck.id,
             GivenDeck(
                 deck,
                 group_name,
-                nickname,
+                author_name,
                 is_mine=deck.owner_id == user.id,
                 due_on=soonest.get(deck.id),
             ),
@@ -895,7 +897,13 @@ def board_assignments(
             .group_by(DeckWord.deck_id, UserWordProgress.user_id)
         ).all()
     }
-    nicknames = {member.user_id: member.nickname for member in members}
+    names = dict(
+        db.execute(
+            select(User.id, User.name).where(User.id.in_([member.user_id for member in members]))
+        )
+        .tuples()
+        .all()
+    )
 
     def out(assignment: DeckAssignment, deck: Deck) -> AssignmentOut:
         size = int(sizes.get(deck.id, 0))
@@ -909,7 +917,7 @@ def board_assignments(
             my_standing=standing(each[me.user_id], size, given_on, due_on, today)
             if due_on is not None
             else None,
-            author=nicknames.get(deck.owner_id) if deck.owner_id else None,
+            author=names.get(deck.owner_id) if deck.owner_id else None,
             is_mine=deck.owner_id == me.user_id,
             word_count=size,
             assigned_at=assignment.assigned_at,

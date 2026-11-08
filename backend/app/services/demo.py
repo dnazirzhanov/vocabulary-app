@@ -29,9 +29,9 @@ DEMO_GROUP = "Демо-группа"
 DEMO_DECK = "demo-unit-4"
 DEMO_DECK_WORDS = 30
 ZONE = ZoneInfo("Asia/Bishkek")
-# Nickname and new words per day, Monday to Sunday (None: no study that day).
+# Name and new words per day, Monday to Sunday (None: no study that day).
 CLASSMATES: list[tuple[str, int, int, list[int | None]]] = [
-    # (nickname, words a day, days a week promised, new words met each day Monday to Sunday)
+    # (name, words a day, days a week promised, new words met each day Monday to Sunday)
     ("Парвиз", 20, 4, [20, 25, None, 20, None, None, None]),
     ("Искандер", 3, 5, [3, 3, 3, 3, 3, None, None]),
     ("Ахмед", 5, 3, [5, None, 5, 5, None, None, None]),
@@ -48,6 +48,8 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
         owner = User(auth_subject=owner_subject)
         db.add(owner)
         db.flush()
+    if owner.name is None:
+        owner.name = "Мудрый Филин"
     db.execute(delete(User).where(User.auth_subject.like("dev|classmate-%")))
     db.execute(delete(Deck).where(Deck.id == DEMO_DECK))
     old = db.scalars(
@@ -66,7 +68,6 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
         GroupMember(
             group_id=group.id,
             user_id=owner.id,
-            nickname="Мудрый Филин",
             role="owner",
             joined_at=joined,
         )
@@ -99,9 +100,10 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
         )
     )
     days = week_of(local_date(now, ZONE))
-    for number, (nickname, target, promised, daily) in enumerate(CLASSMATES, start=1):
+    for number, (name, target, promised, daily) in enumerate(CLASSMATES, start=1):
         classmate = User(
             auth_subject=f"dev|classmate-{number}",
+            name=name,
             time_zone=ZONE.key,
             daily_target_words=target,
             study_days_per_week=promised,
@@ -112,7 +114,6 @@ def seed_classmates(db: Session, owner_subject: str, now: datetime) -> str:
             GroupMember(
                 group_id=group.id,
                 user_id=classmate.id,
-                nickname=nickname,
                 role="member",
                 joined_at=joined,
             )

@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Deck, DeckAssignment, User, UserWordProgress, Word
-from tests.support import at, cards, finish
+from tests.support import at, cards, finish, named
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 CONTINUE = {"kind": "study"}  # no deck: every level's reviews, then the current level's words
@@ -38,13 +38,12 @@ def as_(name: str) -> dict[str, str]:
 def class_group(client: TestClient) -> dict[str, Any]:
     """Olga's class, with Pavel and Ivan in it."""
     group: dict[str, Any] = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б английский"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
-    for user, nickname in (("pavel", "Павел"), ("ivan", "Иван")):
+    for user, name in (("pavel", "Павел"), ("ivan", "Иван")):
         client.post(
             f"/api/groups/join/{group['invite_code']}",
-            json={"nickname": nickname},
-            headers=as_(user),
+            headers=named(client, as_(user), name),
         )
     return group
 
@@ -253,9 +252,9 @@ def test_the_board_shows_given_decks_and_the_owner_sees_everyones_count(
     owner = client.get(f"/api/groups/{group['id']}/board", headers=as_("olga")).json()
     (given,) = owner["assignments"]
     assert given["mine"] == 0 and given["is_mine"]  # she learns it too, and hasn't started
-    nicknames = {row["member_id"]: row["nickname"] for row in owner["rows"]}
+    names = {row["member_id"]: row["name"] for row in owner["rows"]}
     # Places are the board's own rule: Pavel answered this week, so he alone has one.
-    pavel = next(row for row in owner["rows"] if nicknames[row["member_id"]] == "Павел")
+    pavel = next(row for row in owner["rows"] if names[row["member_id"]] == "Павел")
     assert pavel["rank"] == 1
 
 
@@ -277,7 +276,7 @@ def test_every_member_sees_how_many_words_each_friend_learned_from_the_deck(
             f"/api/groups/{group['id']}/board",
             headers={"X-Dev-User": viewer} | later,
         ).json()
-        decks = {row["nickname"]: row["decks"] for row in board["rows"]}
+        decks = {row["name"]: row["decks"] for row in board["rows"]}
         assert decks["Павел"] == [
             {"deck_id": deck["id"], "title": "Unit 4", "word_count": 3, "met": 3, "learned": 3}
         ]
@@ -309,7 +308,7 @@ def test_deleting_a_group_keeps_its_decks_and_what_was_learned(
     assert db.scalar(pavels.where(User.auth_subject == "dev|pavel")) == 3
     # The author can give it to another group.
     other = client.post(
-        "/api/groups", json={"name": "8А", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "8А"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     assert give(client, deck, other["id"])["status"] == "published"
 
@@ -398,12 +397,11 @@ def test_a_deck_someone_learned_stays_even_after_its_group_is_gone(
     """Olga's group is gone with her, and with it the assignment, but Pavel learned those words:
     deleting the deck would take his progress, or fail on it."""
     group = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б английский"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
         f"/api/groups/join/{group['invite_code']}",
-        json={"nickname": "Павел"},
-        headers=as_("pavel"),
+        headers=named(client, as_("pavel"), "Павел"),
     )
     deck = write_deck(client, group["id"], [SETBACK, CARRY_OUT])
     give(client, deck, group["id"])

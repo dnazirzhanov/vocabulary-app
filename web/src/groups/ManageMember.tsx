@@ -45,7 +45,7 @@ export function ManageMember({ group, row, onDone }: { group: Group; row: BoardR
         </div>
       ) : (
         <div className={styles.manageConfirm}>
-          <p>{ask === 'owner' ? t.handTheGroupOverToYou(row.nickname) : t.removeFromTheGroupTheyCan(row.nickname)}</p>
+          <p>{ask === 'owner' ? t.handTheGroupOverToYou(row.name) : t.removeFromTheGroupTheyCan(row.name)}</p>
           <span className={shared.confirm}>
             <button
               type="button"

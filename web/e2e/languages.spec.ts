@@ -1,4 +1,4 @@
-import { expect, learnerHeaders, test } from './learner.ts';
+import { expect, learnerHeaders, test, named } from './learner.ts';
 
 test.describe('a new visitor', () => {
   test.use({ locale: 'ky-KG' });
@@ -39,7 +39,7 @@ test('the language is changed in settings, stays after a reload and follows the 
 });
 
 test.describe('a new learner who knows only Kyrgyz', () => {
-  test.use({ onboarded: false, languageChosen: false, locale: 'ru-RU' });
+  test.use({ onboarded: false, languageChosen: false, named: null, locale: 'ru-RU' });
 
   test('chooses it first, then studies a whole deck without a Russian word', async ({ page }) => {
     await page.route('**/api/push/key', (route) => route.fulfill({ json: { public_key: null } }));
@@ -48,8 +48,13 @@ test.describe('a new learner who knows only Kyrgyz', () => {
     await expect(page.getByRole('main').getByRole('button')).toHaveCount(5);
     await page.getByRole('button', { name: 'Кыргызча' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Күнүнө канча жаңы сөз?' })).toBeVisible();
+    // Then the name, already in the language chosen (ADR 0057).
+    await expect(page.getByRole('heading', { name: 'Атыңыз ким?' })).toBeFocused();
     await expect(page.locator('html')).toHaveAttribute('lang', 'ky');
+    await page.getByLabel('Ат', { exact: true }).fill('Айгүл');
+    await page.getByRole('button', { name: 'Кийинки' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Күнүнө канча жаңы сөз?' })).toBeFocused();
     await page.getByRole('button', { name: /^5\sсөз$/ }).click();
     await page.getByRole('button', { name: 'Баштоо', exact: true }).click();
 
@@ -131,7 +136,9 @@ for (const language of ['ru', 'uz', 'kk', 'ky', 'tg', 'en']) {
     await context.request.post(`/api/decks/${deck.id}/words`, {
       data: { headword: 'luggage', translation: 'багаж', pos: 'noun', example: 'My luggage is heavy.' },
     });
-    const group = await (await context.request.post('/api/groups', { data: { name: '7B', nickname: 'Anna' } })).json();
+    const group = await (
+      await (await named(context, 'Anna')).request.post('/api/groups', { data: { name: '7B' } })
+    ).json();
 
     const fits = async (where: string) => {
       await page.waitForLoadState('networkidle');

@@ -73,7 +73,10 @@ async function mockSupabase(page: Page, { confirming = false } = {}) {
     return json(404, { message: 'not mocked' });
   });
   // Past the first-run screens (e2e/goal.spec.ts covers them).
-  await page.request.patch('/api/me', { data: { daily_target_words: 5 }, headers: { 'x-dev-user': learner } });
+  await page.request.patch('/api/me', {
+    data: { daily_target_words: 5, name: 'Тест' },
+    headers: { 'x-dev-user': learner },
+  });
   await page.route('**/api/**', async (route) => {
     apiRequests.push(route.request());
     await route.continue({ headers: { ...route.request().headers(), 'x-dev-user': learner } });
@@ -259,10 +262,9 @@ test('a group invite survives signing up with a code', async ({ page, browser })
   const teacher = await browser.newContext({
     extraHTTPHeaders: { 'X-Dev-User': `auth-teacher-${Date.now().toString(36)}` },
   });
+  await teacher.request.patch('http://localhost:8000/api/me', { data: { name: 'Ольга' } });
   const group = await (
-    await teacher.request.post('http://localhost:8000/api/groups', {
-      data: { name: '7Б английский', nickname: 'Ольга' },
-    })
+    await teacher.request.post('http://localhost:8000/api/groups', { data: { name: '7Б английский' } })
   ).json();
   await teacher.close();
 

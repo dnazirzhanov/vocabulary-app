@@ -1,4 +1,4 @@
-import { button, expect, finishSession, openDeck, test } from './learner.ts';
+import { button, expect, finishSession, named, openDeck, test } from './learner.ts';
 
 // A Monday: the server clock is fixed so "today" is a promised day (Пн–Сб by default).
 const MONDAY = '2026-11-02T09:00:00Z';
@@ -9,6 +9,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   learner,
 }) => {
   await learner.travelTo(new Date(MONDAY));
+  await named(page.context(), 'Ёжик');
   await page.goto('/');
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
@@ -21,7 +22,6 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await page.getByRole('button', { name: 'Создать группу' }).click();
   const creating = page.getByRole('dialog', { name: 'Новая группа' });
   await creating.getByLabel('Название').fill('7Б английский');
-  await creating.getByLabel('Или своё').fill('Ёжик');
   await creating.getByRole('button', { name: 'Создать и пригласить' }).click();
 
   await expect(page.getByRole('heading', { name: '7Б английский' })).toBeVisible();
@@ -68,13 +68,13 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await friendContext.request.patch('/api/me', { data: { daily_target_words: 3 } });
   const friend = await friendContext.newPage();
   await friend.goto(new URL(link).pathname);
+  // Someone who began before names were asked says theirs once, then the invitation opens.
+  await expect(friend.getByRole('heading', { name: 'Как вас зовут?' })).toBeFocused();
+  await friend.getByLabel('Имя').fill('Лис');
+  await friend.getByRole('button', { name: 'Дальше' }).click();
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
   await expect(friend.getByText('1 участник')).toBeVisible();
   await expect(friend).toHaveURL(/\/$/);
-  await friend.getByLabel('Или своё').fill('ёжик');
-  await friend.getByRole('button', { name: 'Вступить', exact: true }).click();
-  await expect(friend.getByRole('alert')).toHaveText('Это имя уже занято в группе — выберите другое.');
-  await friend.getByLabel('Или своё').fill('Лис');
   await friend.getByRole('button', { name: 'Вступить', exact: true }).click();
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();

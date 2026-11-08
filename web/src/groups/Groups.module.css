@@ -134,69 +134,6 @@
   font-weight: var(--weight-strong);
 }
 
-.nickname {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: var(--border-control) solid var(--color-option-edge);
-  border-radius: 22px;
-  background: var(--color-surface);
-  font-weight: var(--weight-strong);
-  cursor: pointer;
-}
-
-.chip[data-selected='true'] {
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary-tint);
-}
-
-.chip:has(.chipInput:focus-visible) {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
-.chipInput {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
-.reroll {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: 22px;
-  background: transparent;
-  color: var(--color-primary-strong);
-  font-weight: var(--weight-strong);
-  cursor: pointer;
-}
-
-.reroll svg {
-  width: 18px;
-  height: 18px;
-}
-
-.reroll:hover,
 .linkButton:hover {
   background: var(--color-primary-tint);
 }

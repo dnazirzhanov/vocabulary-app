@@ -182,6 +182,8 @@ export interface Progress {
 // Mirrors backend/app/schemas/me.py.
 
 export interface Me {
+  /** Shown in every group I am in (ADR 0057); null until the first run asks it. */
+  name: string | null;
   /** Null until the learner has chosen a pace. */
   daily_target_words: number | null;
   study_days_per_week: number;
@@ -218,7 +220,13 @@ export type NotificationChoice = 'notify_morning' | 'notify_afternoon' | 'notify
 export type MeUpdate = Partial<
   Pick<
     Me,
-    'daily_target_words' | 'ui_language' | 'language' | 'study_days_per_week' | 'ramp_enabled' | NotificationChoice
+    | 'name'
+    | 'daily_target_words'
+    | 'ui_language'
+    | 'language'
+    | 'study_days_per_week'
+    | 'ramp_enabled'
+    | NotificationChoice
   >
 >;
 
@@ -263,7 +271,7 @@ export interface DeckWord {
   next_review_at: string | null;
 }
 
-// Mirrors backend/app/schemas/groups.py: members are nicknames and member ids, nothing more.
+// Mirrors backend/app/schemas/groups.py: members are names and member ids, nothing more (ADR 0057).
 
 /** What a role may do in a group (ADR 0040); the server says which ones I may. */
 export type GroupAction =
@@ -275,7 +283,6 @@ export interface Group {
   invite_code: string;
   member_count: number;
   role: 'owner' | 'member';
-  nickname: string;
   /** The actions my role allows here: the web never repeats the table of rights. */
   can: GroupAction[];
 }
@@ -291,7 +298,7 @@ export type Period = 'week' | 'month' | 'all';
 
 export interface BoardRow {
   member_id: string;
-  nickname: string;
+  name: string;
   role: 'owner' | 'member';
   is_me: boolean;
   /** Over the period: words learned (recalled in a later review), days studied, cards answered. */
@@ -337,7 +344,7 @@ export interface GroupSummary extends Group {
   today_promised: number;
   today_done: number;
   my_today: TodayState;
-  members: { nickname: string; is_me: boolean; studied_today: boolean }[];
+  members: { name: string; is_me: boolean; studied_today: boolean }[];
 }
 
 export interface Board {
@@ -366,7 +373,7 @@ export interface Board {
 export interface Assignment {
   deck_id: string;
   title: string;
-  /** Its author's nickname in the group (null once they left), and whether that is me. */
+  /** Its author's name (null once they left the group), and whether that is me. */
   author: string | null;
   is_mine: boolean;
   word_count: number;
@@ -462,7 +469,7 @@ export interface LibraryDeck {
   next_due_at: string | null;
   /** A teacher's «Выучить к» for a deck from a group. */
   due_on?: string | null;
-  /** Mine: the groups it is given to. From a group: that group and its author's nickname. */
+  /** Mine: the groups it is given to. From a group: that group and its author's name. */
   groups: AssignedGroup[];
   group_name: string | null;
   author: string | null;
@@ -557,7 +564,7 @@ export interface GroupTests {
 
 export interface TestResultRow {
   member_id: string;
-  nickname: string;
+  name: string;
   is_me: boolean;
   score: TestScore | null;
 }

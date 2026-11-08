@@ -13,17 +13,25 @@ export const DEMO = { 'X-Dev-Generation': 'demo' };
 export const learnerHeaders = (context: BrowserContext) => ({ 'X-Dev-User': learnerId.get(context)!, ...DEMO });
 
 /** Every test is a brand-new learner, so tests never share progress and can run in parallel. */
-export const test = base.extend<{ learner: Learner; onboarded: boolean; languageChosen: boolean }>({
+export const test = base.extend<{
+  learner: Learner;
+  onboarded: boolean;
+  languageChosen: boolean;
+  named: string | null;
+}>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
   // `test.use({ languageChosen: false })` starts at the first question of all (ADR 0055).
   languageChosen: [true, { option: true }],
-  context: async ({ context, onboarded, languageChosen }, use) => {
+  // The learner's name (ADR 0057); `test.use({ named: null })` starts as one not asked it yet.
+  named: ['Тест', { option: true }],
+  context: async ({ context, onboarded, languageChosen, named }, use) => {
     const id = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
     if (languageChosen) await context.request.patch('/api/me', { data: { language: 'ru' } });
+    if (named) await context.request.patch('/api/me', { data: { name: named } });
     if (onboarded) {
       await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
     }
@@ -41,6 +49,12 @@ export const test = base.extend<{ learner: Learner; onboarded: boolean; language
   },
 });
 export { expect };
+
+/** Gives the learner of `context` a name, which joining or starting a group needs (ADR 0057). */
+export async function named(context: BrowserContext, name: string) {
+  expect((await context.request.patch('/api/me', { data: { name } })).ok()).toBe(true);
+  return context;
+}
 
 export const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 

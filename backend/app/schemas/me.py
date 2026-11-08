@@ -58,6 +58,8 @@ class PauseIn(BaseModel):
 
 
 class MeOut(BaseModel):
+    # Shown in every group I am in (ADR 0057); null until the first run asks it.
+    name: str | None
     # Null until the learner has chosen a pace (first-run screens).
     daily_target_words: int | None
     study_days_per_week: int
@@ -91,6 +93,8 @@ class MeUpdate(BaseModel):
     notify_deadline: bool | None = None
     ui_language: UiLanguage | None = None
     language: CardLanguage | None = None
+    # Checked by `names.clean_name`; the limit here only keeps a long body out.
+    name: Annotated[str, StringConstraints(max_length=60)] | None = None
 
 
 class WordingReportIn(BaseModel):

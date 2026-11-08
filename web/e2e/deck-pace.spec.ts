@@ -1,4 +1,4 @@
-import { button, DEMO, expect, finishSession, openDeck, test } from './learner.ts';
+import { button, DEMO, expect, finishSession, openDeck, test, named } from './learner.ts';
 
 // New words a day per deck, more words today, and a teacher's deadline (ADR 0028).
 
@@ -31,7 +31,7 @@ test('a deck’s new words a day change in place, and extra words are for today 
 
 test('a teacher’s «Выучить к» spreads a deck over the days before it', async ({ page, context, browser }) => {
   const group = await (
-    await context.request.post('/api/groups', { data: { name: '7Б английский', nickname: 'Ольга' } })
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б английский' } })
   ).json();
   const deck = await (await context.request.post('/api/decks', { data: { title: 'Unit 5' } })).json();
   for (const headword of ['quill', 'anvil', 'lantern', 'harbor']) {
@@ -44,7 +44,7 @@ test('a teacher’s «Выучить к» spreads a deck over the days before it
   });
   // A slow pace: one new word a day would not be in time.
   await student.request.patch('/api/me', { data: { daily_target_words: 1, study_days_per_week: 6 } });
-  await student.request.post(`/api/groups/join/${group.invite_code}`, { data: { nickname: 'Анна' } });
+  await (await named(student, 'Анна')).request.post(`/api/groups/join/${group.invite_code}`);
 
   // The teacher gives it with a deadline two days ahead.
   const due = new Date();

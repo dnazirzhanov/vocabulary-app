@@ -27,7 +27,8 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     # Identity from the auth provider ("dev|<name>" in development). Never a client-supplied id.
     auth_subject: Mapped[str] = mapped_column(String(255), unique=True)
-    display_name: Mapped[str | None] = mapped_column(String(80))
+    # Shown to the people in the learner's groups (ADR 0057); null until the first run asks it.
+    name: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Pace (ADR 0010). The target is a plan, not a cap; null until the learner has chosen one.
     daily_target_words: Mapped[int | None] = mapped_column(SmallInteger)

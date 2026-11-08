@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.services.decks import standing
 from app.services.pace import deadline_share, plan_day
-from tests.support import at, cards, finish
+from tests.support import at, cards, finish, named
 
 THURSDAY = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 FRIDAY = THURSDAY + timedelta(days=1)
@@ -166,10 +166,10 @@ def test_a_teacher_s_deadline_gives_even_shares_and_re_spreads_what_is_left(
     client: TestClient,
 ) -> None:
     group = client.post(
-        "/api/groups", json={"name": "7Б", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
-        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("pavel"), "Павел")
     )
     deck = a_deck(client, "olga")
     saturday = date(2026, 11, 7)

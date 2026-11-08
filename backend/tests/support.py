@@ -19,6 +19,13 @@ def at(moment: datetime, time_zone: str = "UTC") -> dict[str, str]:
     return {"X-Dev-Now": moment.isoformat(), "X-Time-Zone": time_zone}
 
 
+def named(client: TestClient, headers: dict[str, str], name: str) -> dict[str, str]:
+    """Gives the learner of `headers` a name (ADR 0057), which joining a group needs; returns
+    the headers, so a request can be sent as them next."""
+    assert client.patch("/api/me", json={"name": name}, headers=headers).status_code == 200
+    return headers
+
+
 def rate(rating: int = 3) -> dict[str, object]:
     """A flashcard rating: 1 Снова, 2 Трудно, 3 Хорошо, 4 Легко."""
     return {"kind": "rating", "rating": rating}

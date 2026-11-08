@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, describeError } from '../lib/api.ts';
-import { suggestNicknames } from '../lib/nickname.ts';
 import type { GroupSummary } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { ForwardIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import shared from './Groups.module.css';
 import styles from './Friends.module.css';
 import { t } from '../i18n/index.ts';
@@ -110,11 +108,10 @@ const todayLine = (group: GroupSummary) =>
 
 function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }) {
   const [name, setName] = useState('');
-  const [nickname, setNickname] = useState(() => suggestNicknames(1)[0]);
   const { run, busy, error } = useAsyncAction();
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => onCreated((await api.createGroup(name, nickname)).id));
+    void run(async () => onCreated((await api.createGroup(name)).id));
   };
   return (
     <form className={styles.form} onSubmit={submit}>
@@ -129,13 +126,12 @@ function CreateGroupForm({ onCreated }: { onCreated: (groupId: string) => void }
           data-autofocus
         />
       </label>
-      <NicknamePicker value={nickname} onChange={setNickname} />
       {error && (
         <p className={shared.problem} role="alert">
           {error}
         </p>
       )}
-      <PrimaryButton type="submit" disabled={busy || name.trim().length < 2 || !nicknameReady(nickname)}>
+      <PrimaryButton type="submit" disabled={busy || name.trim().length < 2}>
         {t.createAndInvite}
       </PrimaryButton>
     </form>

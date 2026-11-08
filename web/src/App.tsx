@@ -203,7 +203,8 @@ function Learning({ email }: { email: string | null }) {
   }
   if (!profile) return null;
   const { me, decks } = profile;
-  if (!me.onboarded) {
+  // A name is asked of everyone once, those who started before it was too (ADR 0057).
+  if (!me.onboarded || me.name === null) {
     return (
       <GoalScreen
         me={me}

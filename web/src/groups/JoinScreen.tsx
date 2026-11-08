@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, describeError } from '../lib/api.ts';
-import { suggestNicknames } from '../lib/nickname.ts';
 import type { GroupPreview } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { NicknamePicker, nicknameReady } from './NicknamePicker.tsx';
 import styles from './Groups.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -17,11 +15,10 @@ interface JoinScreenProps {
   onCancel: () => void;
 }
 
-/** Arriving from an invite link, QR code or typed code: see the group, pick a nickname, join. */
+/** Arriving from an invite link, QR code or typed code: see the group and join, under my name (ADR 0057). */
 export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
   const [preview, setPreview] = useState<GroupPreview | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [nickname, setNickname] = useState(() => suggestNicknames(1)[0]);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -66,24 +63,18 @@ export function JoinScreen({ code, onJoined, onCancel }: JoinScreenProps) {
               </h1>
               <p className={styles.meta}>{members(preview.member_count)}</p>
               <p className={styles.lead}>{t.theGroupOnlySeesYourName}</p>
-              {preview.already_member ? (
-                <p className={styles.lead}>{t.youReAlreadyInThisGroup}</p>
-              ) : (
-                <div className={styles.card}>
-                  <NicknamePicker value={nickname} onChange={setNickname} />
-                  {error && (
-                    <p className={styles.problem} role="alert">
-                      {error}
-                    </p>
-                  )}
-                </div>
+              {preview.already_member && <p className={styles.lead}>{t.youReAlreadyInThisGroup}</p>}
+              {error && (
+                <p className={styles.problem} role="alert">
+                  {error}
+                </p>
               )}
               <PrimaryButton
                 type="button"
                 className={styles.wide}
-                disabled={busy || (!preview.already_member && !nicknameReady(nickname))}
+                disabled={busy}
                 aria-busy={busy}
-                onClick={() => run(async () => onJoined((await api.joinGroup(code, nickname)).id))}
+                onClick={() => run(async () => onJoined((await api.joinGroup(code)).id))}
               >
                 {preview.already_member ? t.openTheGroup : busy ? t.joining : t.join}
               </PrimaryButton>

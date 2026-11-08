@@ -31,8 +31,8 @@ const deck = (title: string, learned: number, word_count: number): MemberDeck =>
   met: learned,
   learned,
 });
-const friend = (nickname: string, values: Partial<BoardRow> = {}): BoardRow =>
-  ({ nickname, member_id: nickname, promise_today: 'pending', known: 0, decks: [], ...values }) as BoardRow;
+const friend = (name: string, values: Partial<BoardRow> = {}): BoardRow =>
+  ({ name, member_id: name, promise_today: 'pending', known: 0, decks: [], ...values }) as BoardRow;
 
 test("today's names are listed by who did it, who has not yet, and who has the day off", () => {
   const rows = [
@@ -42,7 +42,7 @@ test("today's names are listed by who did it, who has not yet, and who has the d
     friend('Вика', { promise_today: 'done' }),
   ];
   assert.deepEqual(
-    todayLists(rows).map((list) => [list.title, list.rows.map((row) => row.nickname)]),
+    todayLists(rows).map((list) => [list.title, list.rows.map((row) => row.name)]),
     [
       ['Сделали сегодня', ['Али', 'Вика']],
       ['Не сделали', ['Я']],

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.decks import get_provider
 from app.models import DeckWord, UserWordProgress
 from app.services.generation import DraftCard
-from tests.support import at, cards, finish
+from tests.support import at, cards, finish, named
 
 MOMENT = datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
 APPLE = {"headword": "apple", "pos": "noun", "translation": "яблоко", "example": "An apple a day."}
@@ -65,10 +65,10 @@ def test_anyone_writes_a_deck_and_studies_it_by_opening_it(client: TestClient) -
 
 def test_the_library_lists_my_decks_and_my_groups_decks(client: TestClient) -> None:
     group = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б английский"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
-        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("pavel"), "Павел")
     )
     given = personal_deck(client, "olga", "Unit 4")
     add(client, given, KETTLE, "olga")
@@ -164,10 +164,10 @@ def test_deleting_a_deck_takes_its_cards_and_their_progress(
     client: TestClient, db: Session
 ) -> None:
     group = client.post(
-        "/api/groups", json={"name": "7Б английский", "nickname": "Ольга"}, headers=as_("olga")
+        "/api/groups", json={"name": "7Б английский"}, headers=named(client, as_("olga"), "Ольга")
     ).json()
     client.post(
-        f"/api/groups/join/{group['invite_code']}", json={"nickname": "Павел"}, headers=as_("pavel")
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("pavel"), "Павел")
     )
     deck = personal_deck(client, "olga", "Unit 4")
     add(client, deck, KETTLE, "olga")

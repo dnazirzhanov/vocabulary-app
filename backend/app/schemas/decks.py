@@ -189,7 +189,7 @@ class LibraryDeckOut(BaseModel):
     next_due_at: datetime | None
     # A teacher's «Выучить к» for a deck from a group.
     due_on: date | None = None
-    # Mine: the groups it is given to. From a group: that group and the author's nickname there.
+    # Mine: the groups it is given to. From a group: that group and the author's name.
     groups: list[AssignedGroupOut]
     group_name: str | None = None
     author: str | None = None
