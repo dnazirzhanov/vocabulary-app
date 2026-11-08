@@ -1,0 +1,173 @@
+"""Sync of personal decks and settings (ADR 0061): what a device sends, and what it gets back."""
+
+from datetime import datetime
+from typing import Annotated, Any, Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from app.schemas.decks import DeckWordIn, Title
+from app.schemas.me import CardLanguage, MeUpdate, UiLanguage
+
+_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+# Ids a device makes for what it creates: never guessable, never another's (checked on the server).
+NewDeckId = Annotated[str, StringConstraints(pattern=rf"^g-{_UUID}$")]
+NewWordId = Annotated[str, StringConstraints(pattern=rf"^t-{_UUID}$")]
+# Any existing deck or card: older ones have shorter ids, course words their slug.
+AnyId = Annotated[str, StringConstraints(min_length=1, max_length=64)]
+Short = Annotated[str, StringConstraints(max_length=300)]
+
+
+class _Op(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Made by the device once and sent with every retry: the same answer, nothing done twice.
+    op_id: UUID
+
+
+class DeckCreate(_Op):
+    kind: Literal["deck.create"]
+    deck_id: NewDeckId
+    title: Title
+    language: CardLanguage | None = None
+
+
+class DeckRename(_Op):
+    kind: Literal["deck.rename"]
+    deck_id: AnyId
+    title: Title
+    # The title the device had when it was changed there: anything else on the server is
+    # someone else's change, never overwritten.
+    base_title: Short
+
+
+class DeckDelete(_Op):
+    kind: Literal["deck.delete"]
+    deck_id: AnyId
+
+
+class CardCreate(_Op):
+    kind: Literal["card.create"]
+    deck_id: AnyId
+    word_id: NewWordId
+    card: DeckWordIn
+
+
+class CardFields(BaseModel):
+    """The fields changed, each optional; checked whole once merged with the rest of the card."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    headword: Short | None = None
+    pos: Short | None = None
+    translation: Short | None = None
+    example: Short | None = None
+    example_translation: Short | None = None
+    language: CardLanguage | None = None
+
+
+class CardUpdate(_Op):
+    kind: Literal["card.update"]
+    deck_id: AnyId
+    word_id: AnyId
+    fields: CardFields
+    # Each changed field as the device had it before the change.
+    base: CardFields
+
+
+class CardDelete(_Op):
+    kind: Literal["card.delete"]
+    deck_id: AnyId
+    word_id: AnyId
+
+
+class SettingsBase(BaseModel):
+    """Settings as the device had them before the change (any of them)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    ui_language: UiLanguage | None = None
+    language: CardLanguage | None = None
+    daily_target_words: int | None = None
+    ramp_enabled: bool | None = None
+    notify_morning: bool | None = None
+    notify_afternoon: bool | None = None
+    notify_report: bool | None = None
+    notify_deadline: bool | None = None
+
+
+class SettingsChange(_Op):
+    kind: Literal["me.update"]
+    # The promise and its pause stay online only: "from tomorrow" is the server's day (ADR 0039).
+    fields: MeUpdate
+    base: SettingsBase
+
+
+Op = Annotated[
+    DeckCreate | DeckRename | DeckDelete | CardCreate | CardUpdate | CardDelete | SettingsChange,
+    Field(discriminator="kind"),
+]
+MAX_OPS = 200
+
+
+class PushIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ops: Annotated[list[Op], Field(min_length=1, max_length=MAX_OPS)]
+    # When this device last pulled: past the tombstone window (90 days) it must pull everything
+    # again before its changes are accepted.
+    pulled_at: datetime | None
+
+
+Status = Literal["applied", "duplicate", "conflict", "gone", "rejected"]
+
+
+class OpResult(BaseModel):
+    op_id: UUID
+    status: Status
+    # rejected: why (the API's error code, e.g. word_in_deck, deck_full, invalid_name).
+    code: str | None = None
+    # conflict: each field changed elsewhere since the device's copy, with both values; the
+    # other fields of the op were applied.
+    conflicts: dict[str, dict[str, Any]] | None = None
+    # card.create: the word the card is, when it differs from the device's id (a course word,
+    # linked rather than copied, ADR 0019).
+    word_id: str | None = None
+
+
+class PushOut(BaseModel):
+    results: list[OpResult]
+
+
+class SyncCardOut(BaseModel):
+    id: str
+    headword: str
+    pos: str
+    translation: str
+    example: str
+    example_translation: str
+    language: str
+    version: int
+    position: int
+    from_course: bool
+
+
+class SyncDeckOut(BaseModel):
+    id: str
+    title: str
+    language: str
+    status: str
+    version: int
+    created_at: datetime
+    cards: list[SyncCardOut]
+
+
+class PullOut(BaseModel):
+    # Send it back next time: only what changed after it comes.
+    cursor: int
+    # Every deck of mine, not only the changed ones: the device replaces what it has.
+    full: bool
+    decks: list[SyncDeckOut]
+    deleted_decks: list[str]
+    pulled_at: datetime

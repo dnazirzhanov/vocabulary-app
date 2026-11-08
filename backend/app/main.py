@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import Response
 
-from app.api import decks, group_tests, groups, health, learning, me, push
+from app.api import decks, group_tests, groups, health, learning, me, push, sync
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging, log_requests
@@ -46,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(group_tests.router, prefix="/api")
     app.include_router(decks.router, prefix="/api")
     app.include_router(push.router, prefix="/api")
+    app.include_router(sync.router, prefix="/api")
     if settings.web_dist:
         _serve_web_app(app, Path(settings.web_dist))
     return app

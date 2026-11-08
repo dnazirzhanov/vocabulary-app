@@ -14,7 +14,7 @@ import math
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -34,6 +34,7 @@ from app.models import (
     LearningSession,
     ReviewAttempt,
     SpellingProgress,
+    SyncTombstone,
     User,
     UserWordProgress,
     Word,
@@ -292,17 +293,51 @@ def _teacher_word(deck: Deck, word: Word) -> TeacherWordOut:
     )
 
 
-def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> TeacherDeckOut:
-    """Anyone makes a deck; it is theirs until they give it to a group they own (ADR 0019)."""
+# --- sync (ADR 0061) -------------------------------------------------------------------------
+# Every change to someone's own decks goes through these, from the REST routes or from sync.
+
+
+def lock_owner(db: Session, owner_id: UUID) -> None:
+    """One writer of someone's decks at a time, and a device's pull waits for it: a change can't
+    commit with a number below what a pull has already handed out."""
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(str(owner_id), 0))))
+
+
+def mark_deck(db: Session, deck: Deck, now: datetime) -> None:
+    """The deck or one of its cards changed: a new change number, so devices pull it again."""
+    if deck.owner_id is not None:
+        lock_owner(db, deck.owner_id)
+    deck.change_seq = db.scalar(select(func.nextval("sync_change_seq"))) or 0
+    deck.updated_at = now
+
+
+def bury(
+    db: Session, entity: str, entity_id: str, owner_id: UUID, deck_id: str | None, now: datetime
+) -> None:
+    """A deleted deck or card: devices drop it, and its id is never taken again."""
+    db.execute(
+        insert(SyncTombstone)
+        .values(
+            entity=entity, entity_id=entity_id, owner_id=owner_id, deck_id=deck_id, deleted_at=now
+        )
+        .on_conflict_do_nothing()
+    )
+
+
+def new_deck(
+    db: Session, user: User, deck_id: str, title: str, language: str | None, now: datetime
+) -> Deck:
+    """A deck of the learner's own (ADR 0019); the caller commits."""
+    lock_owner(db, user.id)
     count = db.scalar(select(func.count()).where(Deck.owner_id == user.id))
     if (count or 0) >= MAX_DECKS_PER_USER:
         raise ApiError(409, "too_many_decks", "Too many decks")
     deck = Deck(
-        id=_new_id("g"),
-        title=body.title,
+        id=deck_id,
+        title=title,
         description="",
         learning_language="en",
-        explanation_language=body.language or user.language or COURSE_LANGUAGE,
+        explanation_language=language or user.language or COURSE_LANGUAGE,
         status="draft",
         content_version=1,
         level=None,
@@ -310,8 +345,16 @@ def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> Teac
         kind="user",
         owner_id=user.id,
         created_at=now,
+        updated_at=now,
     )
     db.add(deck)
+    db.flush()
+    return deck
+
+
+def create_deck(db: Session, user: User, body: NewDeckIn, now: datetime) -> TeacherDeckOut:
+    """Anyone makes a deck; it is theirs until they give it to a group they own (ADR 0019)."""
+    deck = new_deck(db, user, _new_id("g"), body.title, body.language, now)
     db.commit()
     return _deck_out(db, deck)
 
@@ -329,9 +372,15 @@ def get_deck(db: Session, user: User, deck_id: str) -> TeacherDeckOut:
     return _deck_out(db, _owned_deck(db, user, deck_id))
 
 
-def rename(db: Session, user: User, deck_id: str, title: str) -> TeacherDeckOut:
-    deck = _owned_deck(db, user, deck_id)
+def retitle(db: Session, deck: Deck, title: str, now: datetime) -> None:
     deck.title = title
+    deck.version += 1
+    mark_deck(db, deck, now)
+
+
+def rename(db: Session, user: User, deck_id: str, title: str, now: datetime) -> TeacherDeckOut:
+    deck = _owned_deck(db, user, deck_id)
+    retitle(db, deck, title, now)
     db.commit()
     return _deck_out(db, deck)
 
@@ -377,15 +426,22 @@ def _same_headword(db: Session, deck_id: str, headword: str, but: str | None = N
     return db.scalar(query.limit(1)) is not None
 
 
-def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | None = None) -> None:
+def _append(
+    db: Session,
+    deck: Deck,
+    body: DeckWordIn,
+    source_sentence: str | None = None,
+    word_id: str | None = None,
+) -> Word:
     """A word at the end of the deck: the course's own when it has it, else a new word of the
-    deck. The caller checks for room and duplicates and commits."""
+    deck (with `word_id` when a device chose it). The caller checks for room and duplicates and
+    commits."""
     # The course's meanings are Russian: a card in another language writes its own.
     language = body.language or deck.explanation_language
     word = _course_word(db, body.headword, body.pos) if language == COURSE_LANGUAGE else None
     if word is None:
         word = Word(
-            id=_new_id("t"),
+            id=word_id or _new_id("t"),
             headword=body.headword,
             pos=body.pos,
             translation=body.translation,
@@ -403,6 +459,7 @@ def _append(db: Session, deck: Deck, body: DeckWordIn, source_sentence: str | No
     db.add(DeckWord(deck_id=deck.id, word_id=word.id, position=(last or 0) + 1))
     _remember(db, deck, word.headword)
     db.flush()
+    return word
 
 
 def _remember(db: Session, deck: Deck, headword: str) -> None:
@@ -422,14 +479,24 @@ def _seen(db: Session, deck: Deck) -> dict[str, str]:
     return {key: headword for key, headword in rows}
 
 
-def add_word(db: Session, user: User, deck_id: str, body: DeckWordIn) -> TeacherDeckOut:
-    deck = _owned_deck(db, user, deck_id)
+def add_card(
+    db: Session, deck: Deck, body: DeckWordIn, now: datetime, word_id: str | None = None
+) -> Word:
+    """A card typed into the deck; the caller commits."""
     _use_language(deck, body.language)
+    mark_deck(db, deck, now)
     if len(_deck_word_ids(db, deck.id)) >= MAX_WORDS_PER_DECK:
         raise ApiError(409, "deck_full", f"A deck holds at most {MAX_WORDS_PER_DECK} words")
     if _same_headword(db, deck.id, body.headword):
         raise ApiError(409, "word_in_deck", "This word is already in the deck")
-    _append(db, deck, body)
+    return _append(db, deck, body, word_id=word_id)
+
+
+def add_word(
+    db: Session, user: User, deck_id: str, body: DeckWordIn, now: datetime
+) -> TeacherDeckOut:
+    deck = _owned_deck(db, user, deck_id)
+    add_card(db, deck, body, now)
     db.commit()
     return _deck_out(db, deck)
 
@@ -482,6 +549,7 @@ def _save_drafts(
     added, the unusable ones (reported, never dropped in silence) and the words skipped because the
     deck has had them (`taken`: word keys, updated here). Cards past `wanted` are the over-ask's
     spare: unused, unreported."""
+    mark_deck(db, deck, datetime.now(UTC))
     added = 0
     skipped: list[SkippedOut] = []
     repeats: list[str] = []
@@ -625,32 +693,54 @@ def _deck_word(db: Session, deck: Deck, word_id: str) -> Word:
 
 
 def edit_word(
-    db: Session, user: User, deck_id: str, word_id: str, body: DeckWordIn
+    db: Session, user: User, deck_id: str, word_id: str, body: DeckWordIn, now: datetime
 ) -> TeacherDeckOut:
     """Corrections are allowed after publishing: learners see the corrected word at its next
     showing, and their schedule is untouched."""
     deck = _owned_deck(db, user, deck_id)
     word = _deck_word(db, deck, word_id)
-    if word.owner_deck_id != deck.id:
-        raise ApiError(409, "course_word", "A course word is not edited here")
-    if _same_headword(db, deck.id, body.headword, but=word.id):
-        raise ApiError(409, "word_in_deck", "This word is already in the deck")
-    word.headword = body.headword
-    word.pos = body.pos
-    word.translation = body.translation
-    word.example = body.example
-    word.example_translation = body.example_translation
-    if body.language:
-        word.language = body.language
+    fields = body.model_dump(exclude={"language"}) | (
+        {"language": body.language} if body.language else {}
+    )
+    change_card(db, deck, word, fields, now)
     db.commit()
     return _deck_out(db, deck)
 
 
-def remove_word(db: Session, user: User, deck_id: str, word_id: str) -> TeacherDeckOut:
+EDITABLE = ("headword", "pos", "translation", "example", "example_translation", "language")
+
+
+def change_card(db: Session, deck: Deck, word: Word, fields: dict[str, str], now: datetime) -> None:
+    """A deck's own card, corrected; the caller has validated the fields and commits."""
+    if word.owner_deck_id != deck.id:
+        raise ApiError(409, "course_word", "A course word is not edited here")
+    headword = fields.get("headword", word.headword)
+    if _same_headword(db, deck.id, headword, but=word.id):
+        raise ApiError(409, "word_in_deck", "This word is already in the deck")
+    for field, value in fields.items():
+        if field in EDITABLE:
+            setattr(word, field, value)
+    word.version += 1
+    word.updated_at = now
+    mark_deck(db, deck, now)
+
+
+def remove_word(
+    db: Session, user: User, deck_id: str, word_id: str, now: datetime
+) -> TeacherDeckOut:
     """Out of the deck: no longer introduced. A deck's own word nobody has met yet is deleted;
     one somebody met stays, so they keep reviewing it (a personal deck is studied as a draft)."""
     deck = _owned_deck(db, user, deck_id)
-    word = _deck_word(db, deck, word_id)
+    take_out(db, deck, _deck_word(db, deck, word_id), now)
+    db.commit()
+    return _deck_out(db, deck)
+
+
+def take_out(db: Session, deck: Deck, word: Word, now: datetime) -> None:
+    """A card out of the deck; the caller commits."""
+    mark_deck(db, deck, now)
+    if deck.owner_id is not None:
+        bury(db, "word", word.id, deck.owner_id, deck.id, now)
     db.execute(delete(DeckWord).where(DeckWord.deck_id == deck.id, DeckWord.word_id == word.id))
     met = db.scalar(select(UserWordProgress.word_id).where(UserWordProgress.word_id == word.id))
     # A group's test can put a word on someone's ladder before any lesson meets it (ADR 0048).
@@ -659,16 +749,22 @@ def remove_word(db: Session, user: User, deck_id: str, word_id: str) -> TeacherD
     )
     if word.owner_deck_id == deck.id and met is None and on_ladder is None:
         db.delete(word)
-    db.commit()
-    return _deck_out(db, deck)
 
 
-def delete_deck(db: Session, user: User, deck_id: str) -> None:
+def delete_deck(db: Session, user: User, deck_id: str, now: datetime) -> None:
     """Deletes my deck for good (ADR 0019): its own words and everyone's progress and answers on
     them, its unfinished lessons, and its assignments to groups. Finished lessons stay as history
     (their deck becomes null), so answers on a course word linked into it keep counting. One
     transaction."""
-    deck = _owned_deck(db, user, deck_id)
+    drop_deck(db, _owned_deck(db, user, deck_id), now)
+    db.commit()
+
+
+def drop_deck(db: Session, deck: Deck, now: datetime) -> None:
+    """The deck and everything only it had; the caller commits."""
+    if deck.owner_id is not None:
+        lock_owner(db, deck.owner_id)
+        bury(db, "deck", deck.id, deck.owner_id, None, now)
     own = select(Word.id).where(Word.owner_deck_id == deck.id)
     words = list(db.scalars(own))
     # Unfinished lessons of this deck, or that would still show one of its words (spelling covers
@@ -690,7 +786,6 @@ def delete_deck(db: Session, user: User, deck_id: str) -> None:
     db.execute(delete(SpellingProgress).where(SpellingProgress.word_id.in_(own)))
     # The deck's rows in deck_words, its assignments and its own words go with it (cascade).
     db.delete(deck)
-    db.commit()
 
 
 # --- giving a deck to a group ---------------------------------------------------------------
@@ -751,6 +846,7 @@ def publish(
         if taken_back and taken_back >= local_date(now, ZoneInfo(group.time_zone)):
             due_on = taken_back
     deck.status = "published"
+    mark_deck(db, deck, now)
     db.execute(
         insert(DeckAssignment)
         .values(

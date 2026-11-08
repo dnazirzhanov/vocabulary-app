@@ -2,4 +2,5 @@ dist
 screenshots
 package-lock.json
 dist-auth
+dist-offline
 public/audio
