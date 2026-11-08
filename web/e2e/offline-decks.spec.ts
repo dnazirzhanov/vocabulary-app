@@ -189,3 +189,19 @@ test('a setting changed offline is kept and sent later', async ({ page, context 
     })
     .toBe('Офлайн');
 });
+
+test.describe('on a small phone', () => {
+  test.use({ viewport: { width: 320, height: 568 } });
+
+  test('the offline line covers nothing, the study bar included', async ({ page, context }) => {
+    await visitOnline(page);
+    await context.setOffline(true);
+    await makeDeck(page, 'Малый');
+    await addByHand(page, 'apple', 'яблоко');
+    const line = await page.getByRole('status').boundingBox();
+    const study = await page.getByRole('button', { name: /^Учить/ }).boundingBox();
+    expect(line && study).toBeTruthy();
+    const apart = line!.y >= study!.y + study!.height || study!.y >= line!.y + line!.height;
+    expect(apart).toBe(true);
+  });
+});
