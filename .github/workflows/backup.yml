@@ -1,0 +1,70 @@
+name: Backup
+
+# Every night: the production database, encrypted, kept 30 days as this run's artifact, and
+# restored into a scratch database to prove it can be (docs/backups.md). Never writes to
+# production: the restore target is a throwaway Postgres inside the runner.
+on:
+  schedule:
+    - cron: "30 1 * * *" # 01:30 UTC, after the night's cleanup (docs/deploy.md step 3)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      scratch:
+        image: postgres:17
+        env:
+          POSTGRES_USER: scratch
+          POSTGRES_PASSWORD: scratch
+          POSTGRES_DB: scratch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Secrets present
+        id: ready
+        run: |
+          if [ -z "$BACKUP_DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::No backup made: add the BACKUP_DATABASE_URL and BACKUP_PASSPHRASE secrets (docs/backups.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - name: Postgres 17 tools (as new as the server)
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Back up
+        if: steps.ready.outputs.ok == 'true'
+        run: scripts/backup.sh "$BACKUP_DATABASE_URL" backup
+      - name: Keep it 30 days
+        if: steps.ready.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Prove it restores
+        if: steps.ready.outputs.ok == 'true'
+        run: scripts/restore-check.sh backup/app-*.dump.enc postgresql://scratch:scratch@localhost:5432/scratch backup/manifest-*.txt.enc
