@@ -104,25 +104,71 @@ test('a lesson studied offline, reloaded midway, comes out on the server exactly
   expect(server).toEqual(new Map([...predicted].map(([wordId, due]) => [wordId, new Date(due!).toISOString()])));
 });
 
-test("answers dated before the device's last contact are not counted, and home says so", async ({ page, context }) => {
+for (const [shift, why] of [
+  [-3, 'set back three days: dated before its last contact'],
+  [1, 'a day ahead: dated in the future'],
+] as const) {
+  test(`answers given with the phone's clock ${why} are not counted, and home says so`, async ({ page, context }) => {
+    await visitOnline(page);
+    await openDeck(page);
+    await button(page, 'Начать урок · 5 слов').click();
+    await expect(page.locator('[data-card]')).toBeVisible();
+
+    // The phone's clock moves while there is no connection.
+    await context.setOffline(true);
+    await page.evaluate((days) => localStorage.setItem('server-clock-offset', String(days * 86_400_000)), shift);
+    await page.reload();
+    await openDeck(page);
+    await button(page, 'Продолжить урок').click();
+    await study(page, 'Хорошо');
+
+    await reconnect(page);
+    await page.goto('/');
+    await expect(page.getByRole('status')).toContainText(
+      'Не засчитано ответов: 1. На телефоне было неправильное время или ответы старше месяца.',
+    );
+  });
+}
+
+test('while answers cannot be sent, no pack is fetched over them; once they can, each arrives once', async ({
+  page,
+  context,
+}) => {
   await visitOnline(page);
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
   await expect(page.locator('[data-card]')).toBeVisible();
-
-  // The phone's clock goes back three days while there is no connection.
-  await context.setOffline(true);
-  await page.evaluate(() => localStorage.setItem('server-clock-offset', String(-3 * 86_400_000)));
-  await page.reload();
-  await openDeck(page);
-  await button(page, 'Продолжить урок').click();
-  await study(page, 'Хорошо');
-
-  await reconnect(page);
+  const packs: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/study/pack')) packs.push(request.url());
+  });
+  // Sending fails every time. The first time the server does get it and applies it, and only its
+  // answer is lost: the device must send the same answers again, and the server take them once.
+  let pushes = 0;
+  await context.route('**/api/sync/push', async (route) => {
+    pushes += 1;
+    if (pushes === 1) await route.fetch();
+    await route.abort('connectionreset');
+  });
+  const summary = page.getByRole('button', { name: 'На главную' });
+  while (!(await summary.isVisible())) await study(page, 'Хорошо');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(() => pushes).toBeGreaterThan(1);
+  // A deck's page asks for a fresh pack: not while its answers are unsent.
   await page.goto('/');
-  await expect(page.getByRole('status')).toContainText(
-    'Не засчитано ответов: 1. На телефоне было неправильное время или ответы старше месяца.',
-  );
+  await openDeck(page);
+  await expect.poll(() => pushes).toBeGreaterThan(2);
+  expect(packs).toEqual([]);
+  const waiting = await kept(page);
+  expect(waiting.answers.every((item) => !item.acked)).toBe(true);
+
+  await context.unroute('**/api/sync/push');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(async () => (await kept(page)).outbox.length).toBe(0);
+  await expect.poll(() => packs.length).toBeGreaterThan(0);
+  // On the server: every answer once, though the first ones were sent and applied twice.
+  const server = await context.request.get(`/api/decks/a1-a2/stats`);
+  expect((await server.json()).introduced_count).toBe(5);
 });
 
 test('recordings of the words ahead are kept, and play without a connection', async ({ page, context }) => {

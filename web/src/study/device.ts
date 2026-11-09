@@ -29,6 +29,7 @@ import {
   type Response,
 } from './lessons.ts';
 import type { DayPlan, Step } from './plan.ts';
+import { serializer } from './serial.ts';
 import { learnerFrom, type Learner, type LocalAnswer } from './state.ts';
 
 /**
@@ -52,6 +53,11 @@ let cached: { db: AccountDb; learner: Learner; lessons: Map<string, LocalLesson>
 export const studyChanged = () => {
   cached = null;
 };
+
+// Study writes, one at a time (across tabs too); after each, the other tabs drop their copy.
+const serial = serializer('study-writes');
+const others = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('study-changed');
+if (others) others.onmessage = () => studyChanged();
 
 async function deviceId(db: AccountDb): Promise<string> {
   const kept = await db.get('study', 'device');
@@ -99,6 +105,7 @@ export async function refreshPack(db: AccountDb, force = false): Promise<boolean
   for (const kept of await answers.getAll()) if (kept.acked) await answers.delete(kept.seq!);
   await tx.done;
   studyChanged();
+  others?.postMessage('pack');
   return true;
 }
 
@@ -184,6 +191,7 @@ async function save(db: AccountDb, lesson: LocalLesson, extra: { answer?: KeptAn
     throw error;
   }
   cached?.lessons.set(lesson.id, lesson);
+  others?.postMessage(lesson.id);
   // Answers go together, a lesson's end at once (then the pack follows).
   if (extra.ops?.length) syncSoon(extra.ops.some((op) => op.kind === 'study.finish') ? 1000 : ANSWERS_WAIT_MS);
 }
@@ -201,7 +209,11 @@ async function setAside(db: AccountDb, lesson: LocalLesson, at: number) {
   await save(db, left, { ops: left.answers.length ? [await finishOp(db, left, true)] : [] });
 }
 
-async function begin(
+function begin(...args: Parameters<typeof beginNow>): Promise<Session> {
+  return serial(() => beginNow(...args));
+}
+
+async function beginNow(
   deckId: string,
   kind: LocalLesson['kind'],
   plan: (learner: Learner, moment: number) => Step[],
@@ -242,7 +254,11 @@ function currentLevel(learner: Learner): string {
   return deck.id;
 }
 
-async function respond(sessionId: string, exerciseId: string, response: Response): Promise<AttemptResult> {
+function respond(sessionId: string, exerciseId: string, response: Response): Promise<AttemptResult> {
+  return serial(() => respondNow(sessionId, exerciseId, response));
+}
+
+async function respondNow(sessionId: string, exerciseId: string, response: Response): Promise<AttemptResult> {
   const db = localDb()!;
   const { learner, lessons } = await load(db);
   const lesson = lessons.get(sessionId);
@@ -260,6 +276,36 @@ async function respond(sessionId: string, exerciseId: string, response: Response
 function pausedSpelling(lessons: Map<string, LocalLesson>, deckId: string): LocalLesson | null {
   const open = openOf(lessons, true);
   return open && open.deckId === deckId ? open : null;
+}
+
+async function hintNow(sessionId: string, exerciseId: string, position: number): Promise<Hint> {
+  const db = localDb()!;
+  const { learner, lessons } = await load(db);
+  const lesson = lessons.get(sessionId);
+  if (!lesson) throw new ApiError('http', 404, 'session_not_found', 'session_not_found');
+  const given = hintIn(learner, lesson, exerciseId, position);
+  if (given.lesson !== lesson) await save(db, given.lesson);
+  return given.hint;
+}
+
+async function completeNow(sessionId: string): Promise<Summary> {
+  const db = localDb()!;
+  const { learner, lessons } = await load(db);
+  const lesson = lessons.get(sessionId);
+  if (!lesson) throw new ApiError('http', 404, 'session_not_found', 'session_not_found');
+  if (lesson.results.length < lesson.steps.length) {
+    throw new ApiError('http', 409, 'session_incomplete', 'session_incomplete');
+  }
+  const moment = now();
+  let finished = lesson;
+  if (lesson.finishedAt === null) {
+    finished = { ...lesson, finishedAt: moment };
+    await save(db, finished, { ops: [await finishOp(db, finished, false)] });
+    // Online, the lesson reaches the server before the next screen asks it for my progress;
+    // offline this fails at once, and the outbox sends it later.
+    await Promise.race([syncNow(), wait(FINISH_WAIT_MS)]);
+  }
+  return summarize(learner, finished, moment, pausedSpelling(lessons, finished.deckId));
 }
 
 const local = () => localDb() !== null;
@@ -317,34 +363,12 @@ export const study = {
 
   async hint(sessionId: string, exerciseId: string, position: number): Promise<Hint> {
     if (!local()) return api.hint(sessionId, exerciseId, position);
-    const db = localDb()!;
-    const { learner, lessons } = await load(db);
-    const lesson = lessons.get(sessionId);
-    if (!lesson) throw new ApiError('http', 404, 'session_not_found', 'session_not_found');
-    const given = hintIn(learner, lesson, exerciseId, position);
-    if (given.lesson !== lesson) await save(db, given.lesson);
-    return given.hint;
+    return serial(() => hintNow(sessionId, exerciseId, position));
   },
 
   async completeSession(sessionId: string): Promise<Summary> {
     if (!local()) return api.completeSession(sessionId);
-    const db = localDb()!;
-    const { learner, lessons } = await load(db);
-    const lesson = lessons.get(sessionId);
-    if (!lesson) throw new ApiError('http', 404, 'session_not_found', 'session_not_found');
-    if (lesson.results.length < lesson.steps.length) {
-      throw new ApiError('http', 409, 'session_incomplete', 'session_incomplete');
-    }
-    const moment = now();
-    let finished = lesson;
-    if (lesson.finishedAt === null) {
-      finished = { ...lesson, finishedAt: moment };
-      await save(db, finished, { ops: [await finishOp(db, finished, false)] });
-      // Online, the lesson reaches the server before the next screen asks it for my progress;
-      // offline this fails at once, and the outbox sends it later.
-      await Promise.race([syncNow(), wait(FINISH_WAIT_MS)]);
-    }
-    return summarize(learner, finished, moment, pausedSpelling(lessons, finished.deckId));
+    return serial(() => completeNow(sessionId));
   },
 
   async deckStats(deckId: string): Promise<DeckStats> {

@@ -310,3 +310,60 @@ test('a database from before studying on the device keeps its decks and unsent c
   assert.equal(await db.get('study', 'pack'), undefined);
   db.close();
 });
+
+test("the server's answers on study answers: taken ones wait for the pack, refused ones go and are said, unanswered ones stay (ADR 0062)", async () => {
+  const db = await fresh();
+  const studied = (opId: string, exerciseId: string) => ({
+    opId,
+    answer: {
+      opId,
+      sessionId: 'lesson-1',
+      sessionKind: 'study' as const,
+      deckId: 'a1-a2',
+      exerciseId,
+      wordId: exerciseId,
+      new: true,
+      hint: null,
+      rating: 3 as const,
+      answer: null,
+      heard: false,
+      answeredAt: 0,
+    },
+    acked: false,
+  });
+  for (const [opId, exerciseId] of [
+    ['op-1', 'c1'],
+    ['op-2', 'c2'],
+    ['op-3', 'c3'],
+  ]) {
+    await db.add('answers', studied(opId, exerciseId));
+    // As the device puts them: no deck or card in the outbox's indexes.
+    await db.add('outbox', {
+      opId,
+      kind: 'study.answer',
+      payload: { exercise_id: exerciseId },
+      createdAt: 'x',
+      status: 'sending',
+      attempts: 0,
+    });
+  }
+  // The connection broke before the third was answered.
+  await applyResults(db, await ops(db), [
+    { op_id: 'op-1', status: 'applied' },
+    { op_id: 'op-2', status: 'rejected', code: 'before_last_contact' },
+  ]);
+  const kept = await db.getAll('answers');
+  assert.deepEqual(
+    kept.map((item) => [item.opId, item.acked]),
+    [
+      ['op-1', true],
+      ['op-3', false],
+    ],
+  );
+  assert.deepEqual(
+    (await ops(db)).map((item) => item.opId),
+    ['op-3'],
+  );
+  assert.deepEqual(await takeNotices(db), { lost: 0, refused: 1 });
+  db.close();
+});
