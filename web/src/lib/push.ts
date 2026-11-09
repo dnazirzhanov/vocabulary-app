@@ -1,3 +1,4 @@
+import { isApp } from './platform.ts';
 import { api } from './api.ts';
 import { isAppleMobile, keyBytes } from './device.ts';
 
@@ -28,7 +29,8 @@ function installed(): boolean {
   );
 }
 
-const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+// The Android app's web view has no web push: reminders there are the website's (or none).
+const supported = () => !isApp && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
 async function subscription(): Promise<PushSubscription | null> {
   const registration = await navigator.serviceWorker.getRegistration(WORKER);

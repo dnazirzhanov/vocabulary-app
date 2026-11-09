@@ -34,8 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origins,
-            allow_methods=["GET", "POST", "PATCH", "DELETE"],
-            allow_headers=["Content-Type", "Authorization"],
+            # Everything the web app sends: the Android app (Capacitor, https://localhost) is
+            # another origin, so each method and header must be allowed here.
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            allow_headers=["Content-Type", "Authorization", "X-Time-Zone", "If-None-Match"],
             expose_headers=["X-Server-Time", "ETag"],
         )
     register_error_handlers(app)

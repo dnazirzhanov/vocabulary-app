@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { publicUrl } from '../lib/platform.ts';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
@@ -80,7 +81,7 @@ function NewLink({ groupId, onReset }: ResetLink) {
 }
 
 function InviteContent({ code, groupName, reset }: { code: string; groupName: string; reset?: ResetLink }) {
-  const link = `${location.origin}/join/${code}`;
+  const link = `${publicUrl}/join/${code}`;
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
