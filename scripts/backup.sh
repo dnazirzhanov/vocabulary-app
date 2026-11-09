@@ -4,13 +4,10 @@
 # in the clear. Usage: BACKUP_PASSPHRASE=… scripts/backup.sh "<database url>" <output dir>
 set -euo pipefail
 
-url="${1/postgresql+psycopg:/postgresql:}"  # the app's URL works too
+# As pasted into the secret (spaces, quotes, postgres://, the app's own URL), cleaned and checked;
+# a remote database is only spoken to over TLS (scripts/db-url.sh).
+url="$("$(dirname "$0")/db-url.sh" "$1")"
 out="$2"
-# The data travels from the database to here encrypted: a remote database is only spoken to over
-# TLS (Supabase requires it anyway). A local one (CI, a laptop) needs none.
-if [[ "$url" != *sslmode=* && "$url" != *@localhost* && "$url" != *@127.0.0.1* && "$url" != *localhost/* ]]; then
-  [[ "$url" == *\?* ]] && url="$url&sslmode=require" || url="$url?sslmode=require"
-fi
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE is not set}"
 mkdir -p "$out"
 stamp="$(date -u +%Y-%m-%dT%H%MZ)"

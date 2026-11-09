@@ -9,7 +9,7 @@
 set -euo pipefail
 
 dump="$1"
-url="${2/postgresql+psycopg:/postgresql:}"
+url="$("$(dirname "$0")/db-url.sh" "$2")"
 manifest="${3:-}"
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE is not set}"
 

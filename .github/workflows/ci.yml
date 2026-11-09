@@ -55,6 +55,7 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-17
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          scripts/test-db-url.sh
           scripts/backup.sh "$TEST_DATABASE_URL" /tmp/backup
           psql postgresql://vocab:vocab@localhost:5432/vocab_test -c "CREATE DATABASE vocab_restore"
           scripts/restore-check.sh /tmp/backup/app-*.dump.enc postgresql://vocab:vocab@localhost:5432/vocab_restore /tmp/backup/manifest-*.txt.enc
