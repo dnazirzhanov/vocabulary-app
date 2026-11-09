@@ -19,7 +19,17 @@ primary_region = "fra"
   # The Android app's pages come from https://localhost inside it (ADR 0063).
   ALLOWED_ORIGINS = "https://localhost"
 
+# Migrations and the course are brought up to date once per deployment, before the new version
+# starts, in a machine of their own. The app then only starts the web server, so waking after idle
+# takes seconds, not the ~22 s that repeating them on every start took (measured).
+[deploy]
+  release_command = "sh -c 'alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1'"
+
+[processes]
+  app = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
 [http_service]
+  processes = ["app"]
   internal_port = 8000
   force_https = true
   auto_stop_machines = "stop"
@@ -29,8 +39,7 @@ primary_region = "fra"
   [[http_service.checks]]
     method = "GET"
     path = "/api/health/ready"
-    # The first start creates the tables and loads the course.
-    grace_period = "60s"
+    grace_period = "20s"
     interval = "30s"
     timeout = "10s"
 
