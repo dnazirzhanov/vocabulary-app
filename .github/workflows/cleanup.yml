@@ -1,0 +1,34 @@
+name: Cleanup
+
+# Every night: answers older than the window go, their days kept as totals (ADR 0044), so the
+# free database doesn't fill up. Calls production; needs the APP_URL and REMINDERS_TOKEN secrets
+# (docs/deploy.md step 3). A sleeping server wakes for it in seconds.
+on:
+  schedule:
+    - cron: "30 22 * * *" # 04:30 in Bishkek; the backup follows at 01:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ secrets.APP_URL }}
+      REMINDERS_TOKEN: ${{ secrets.REMINDERS_TOKEN }}
+    steps:
+      - name: Clean up
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$REMINDERS_TOKEN" ]; then
+            echo "::warning::No cleanup: add the APP_URL and REMINDERS_TOKEN secrets (docs/deploy.md step 3)."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 120 -X POST \
+            -H "X-Reminders-Token: $REMINDERS_TOKEN" "$APP_URL/api/internal/cleanup"
+          echo

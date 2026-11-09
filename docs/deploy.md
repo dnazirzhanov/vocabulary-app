@@ -40,34 +40,45 @@ To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`, stop `make dev`, and run
 `make dev-supabase`.
 
-## 2. Host the container (Koyeb Frankfurt, or Render)
-Build from the repo `Dockerfile` with build args `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-Runtime variables (secrets in the host's secret store, never in git):
-`DATABASE_URL=postgresql+psycopg://…`, `AUTH_ISSUER=https://<project>.supabase.co/auth/v1`,
-`SUPABASE_SECRET_KEY=…` (the app refuses to start without it; it can manage every login, so it never
-goes anywhere else), and `ALLOWED_ORIGINS=https://localhost` for the Android app, whose pages come from
-inside the app (`docs/android.md`; ADR 0063). Without it every request from the app is refused.
-Health check: `/api/health/ready`. The free host sleeps when idle; the first visit can take a minute.
+## 2. Host the container (Fly.io, Frankfurt)
+Koyeb no longer offers its free plan to new accounts (only Pro, $29 a month), so production runs on
+Fly.io: about $0.50–1.50 a month for a pilot, billed by the second while the machine runs. The repo's
+`fly.toml` holds everything that isn't secret:
+- one 512 MB machine in Frankfurt that stops when idle and starts on the next request (a few seconds);
+- the health check `/api/health/ready`;
+- the public build values (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`);
+- `AUTH_ISSUER`;
+- `ALLOWED_ORIGINS=https://localhost` for the Android app, whose pages come from inside the app (`docs/android.md`; ADR 0063). Without it every request from the app is refused.
+
+**Steps:**
+1. Make an account at fly.io; a card is required. Install the tool (`brew install flyctl`), then `fly auth login`.
+2. `fly apps create slovar-kg`. If the name is taken, choose another and change `app` in `fly.toml` to match.
+3. `scripts/fly-secrets.sh`: it asks, without showing anything, for:
+   - the database URL: Supabase → Connect → **Session pooler** → URI, with the password; the script checks it is production's project;
+   - the Supabase **secret** key;
+   - optionally a DeepSeek key.
+
+   It makes `REMINDERS_TOKEN` itself. The secret key can manage every login, so it lives only in Fly's secrets.
+4. `fly deploy --ha=false`: **one** machine, since rate limits are kept in the process (ADR 0044).
+   - The migrations and the course load run once per deployment, as Fly's `release_command`, before the new version starts.
+   - The machine itself then only starts the web server. Waking after idle takes 6–7.5 s (measured), instead of about 22 s when every start repeated them.
+5. The address is `https://slovar-kg.fly.dev`, and `/api/health/ready` should answer `{"status":"ok","database":"ok"}`.
+
+Each later `fly deploy --ha=false` from an up-to-date `main` replaces the running version; migrations run on start.
 
 ## 3. Nightly cleanup (required; ADR 0044)
-Without it the free database fills up within months. Make a secret once (`openssl rand -hex 32`) and put
-it in the host's secrets as `REMINDERS_TOKEN`. Add the repository secrets `APP_URL` and
-`REMINDERS_TOKEN`, and the file `.github/workflows/cleanup.yml`:
-```yaml
-name: cleanup
-on:
-  schedule: [{ cron: "30 22 * * *" }]   # 04:30 in Bishkek
-  workflow_dispatch:
-jobs:
-  clean:
-    runs-on: ubuntu-latest
-    steps:
-      - run: >
-          curl --fail --silent --show-error --max-time 120 -X POST
-          -H "X-Reminders-Token: ${{ secrets.REMINDERS_TOKEN }}"
-          "${{ secrets.APP_URL }}/api/internal/cleanup"
+Without it the free database fills up within months. `.github/workflows/cleanup.yml` calls production
+every night. It needs two repository secrets (Settings → Secrets and variables → Actions):
+- `APP_URL`: `https://slovar-kg.fly.dev`;
+- `REMINDERS_TOKEN`: the same value as in Fly. `scripts/fly-secrets.sh` made it and can show it once. If it was never copied, make a new one for both (step 3b).
+
+Until both exist, the workflow only warns. The answer says `"finished": false` if it stopped early; the next night carries on.
+
+### 3b. A new REMINDERS_TOKEN (if it was never copied)
+Run this in your own Terminal. It sets a new token in Fly and shows it once, on your screen only, for the GitHub secret:
+```sh
+T="$(openssl rand -hex 32)" && printf 'REMINDERS_TOKEN=%s\n' "$T" | fly secrets import --app slovar-kg && echo "$T"; unset T
 ```
-The answer says `"finished": false` if it stopped early; the next night carries on.
 
 ## 3a. Notifications (optional; ADR 0031, 0042)
 1. Make a key pair once: `cd backend && uv run python -m app.cli vapid-keys`. Add both lines to the
