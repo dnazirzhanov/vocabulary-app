@@ -99,16 +99,22 @@ test('hard words are summarised and can be practised straight away', async ({ pa
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('house');
 });
 
-test('a lost connection keeps the rating and the learner can retry', async ({ page }) => {
+test('a lesson goes on without a connection, and its answers reach the server once it is back', async ({ page }) => {
   await page.goto('/');
   await openDeck(page);
   await button(page, 'Начать урок · 5 слов').click();
-  await page.route('**/attempts', (route) => route.abort('internetdisconnected'));
+  // The connection goes: nothing between cards needs the server (ADR 0062).
+  await page.route('**/api/**', (route) => route.abort('internetdisconnected'));
   await button(page, 'Показать ответ').click();
   await page.getByRole('button', { name: /^Легко/ }).click();
-  await expect(page.getByText('Нет связи с сервером')).toBeVisible();
-
-  await page.unroute('**/attempts');
-  await button(page, 'Повторить').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('water');
+  await expect(page.getByText('Нет связи с сервером')).toHaveCount(0);
+
+  await page.unroute('**/api/**');
+  const pushed = page.waitForRequest((request) => request.url().endsWith('/api/sync/push'));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  const ops = (await pushed).postDataJSON().ops as { kind: string; exercise_id: string; response: unknown }[];
+  expect(ops.filter((op) => op.kind === 'study.answer')).toEqual([
+    expect.objectContaining({ exercise_id: 'c1', response: { kind: 'rating', rating: 4 } }),
+  ]);
 });

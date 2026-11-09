@@ -10,7 +10,7 @@ export type AudioKind = 'words' | 'examples' | 'glossary';
 const players = new Map<string, HTMLAudioElement>();
 let playing: HTMLAudioElement | null = null;
 
-const urlFor = (kind: AudioKind, key: string) =>
+export const urlFor = (kind: AudioKind, key: string) =>
   `/audio/${kind}/${encodeURIComponent(kind === 'glossary' ? glossarySlug(key) : key)}.mp3`;
 
 function player(url: string): HTMLAudioElement {

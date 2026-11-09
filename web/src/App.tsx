@@ -26,6 +26,7 @@ import { forgetDevice } from './lib/push.ts';
 import type { Deck, Me, Session, Summary, TestAttempt } from './lib/types.ts';
 import { ProgressScreen } from './progress/ProgressScreen.tsx';
 import { SessionSummary } from './summary/SessionSummary.tsx';
+import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 
@@ -259,17 +260,17 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     return (
       <SessionSummary
         summary={summary}
-        onPractice={async () => showSession(await api.startHardSession(summary.deck_id))}
+        onPractice={async () => showSession(await study.startHardSession(summary.deck_id))}
         onNext={async () => {
           // Another study session if anything is due or new words remain; otherwise home explains.
           try {
-            showSession(await api.startStudySession(scope));
+            showSession(await study.startStudySession(scope));
           } catch (error) {
             if (error instanceof ApiError && error.status === 409) goHome();
             else throw error;
           }
         }}
-        onSpelling={async () => showSession(await api.startSpellingSession(summary.deck_id))}
+        onSpelling={async () => showSession(await study.startSpellingSession(summary.deck_id))}
         onHome={leave}
       />
     );

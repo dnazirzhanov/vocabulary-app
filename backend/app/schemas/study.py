@@ -42,6 +42,9 @@ class PackDeck(BaseModel):
     title: str
     level: str | None
     level_order: int | None
+    # A group's deck: the group that gave it, and its author (None once they left).
+    group_name: str | None
+    author: str | None
     # In deck order.
     word_ids: list[str]
     pace: PackPace

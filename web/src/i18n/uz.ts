@@ -38,6 +38,8 @@ export const uz: Messages = {
   takeTheOther: 'U yerdagisini olish',
   notSaved: (a: Arg) => `Saqlanmadi: ${a}`,
   lostChanges: (a: Arg) => `Saqlanmagan o‘zgarishlar: ${a}. To‘plam yoki karta boshqa qurilmada o‘chirilgan.`,
+  answersNotCounted: (a: Arg) =>
+    `Hisobga olinmagan javoblar: ${a}. Telefondagi vaqt noto‘g‘ri edi yoki javoblar bir oydan eski.`,
   unsentOnSignOut: (a: Arg) =>
     `Hali yuborilmagan o‘zgarishlar: ${a}. Ular shu qurilmada qoladi va keyingi kirishda yuboriladi.`,
   tooManyDecks: 'To‘plamlar juda ko‘p: keraksizlarini o‘chiring.',

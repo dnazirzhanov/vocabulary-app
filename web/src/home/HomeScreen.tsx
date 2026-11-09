@@ -42,6 +42,8 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   const [kept, setKept] = useState<{ decks: KeptDeck[]; pulled: boolean } | null>(null);
   // Changes lost because their deck or card was deleted on another device: said once.
   const [lost, setLost] = useState(0);
+  // Answers the server didn't count (a phone's clock set back, or a month old): said once.
+  const [refused, setRefused] = useState(0);
   const localVersion = useLocalVersion();
   const offline = useOffline();
   useEffect(() => {
@@ -53,8 +55,9 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
         decks.map(async (deck) => ({ deck, cards: (await deckCards(db, deck.id)).length })),
       );
       setKept({ decks: counted, pulled: (await syncState(db)).pulledAt !== null });
-      const newlyLost = await takeNotices(db);
-      if (newlyLost > 0) setLost((before) => before + newlyLost);
+      const newly = await takeNotices(db);
+      if (newly.lost > 0) setLost((before) => before + newly.lost);
+      if (newly.refused > 0) setRefused((before) => before + newly.refused);
     })().catch(() => null);
   }, [localVersion]);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -150,6 +153,11 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           {lost > 0 && (
             <p className={styles.lost} role="status">
               {t.lostChanges(lost)}
+            </p>
+          )}
+          {refused > 0 && (
+            <p className={styles.lost} role="status">
+              {t.answersNotCounted(refused)}
             </p>
           )}
           <div className={styles.head}>

@@ -1,4 +1,6 @@
 import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from 'idb';
+import type { LocalLesson } from '../study/lessons.ts';
+import type { LocalAnswer, Pack } from '../study/state.ts';
 
 /**
  * What this device keeps (offline store). One database per account, named by the account's id, so
@@ -10,8 +12,9 @@ import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from 'idb';
  * Version history (each step is an upgrade below; never edit an old step, add a new one):
  *  1. snapshots: the last answer of a few screens, for opening them offline.
  *  2. my decks and cards, the outbox of changes not yet sent, and the sync's own state (ADR 0061).
+ *  3. studying on the device (ADR 0062): the study pack, lessons, and answers given since the pack.
  */
-export const LOCAL_VERSION = 2;
+export const LOCAL_VERSION = 3;
 
 /** A screen's last answer from the server, kept to show it without a connection. */
 export interface Snapshot<T = unknown> {
@@ -57,7 +60,15 @@ export interface LocalCard {
 }
 
 export type OpKind =
-  'deck.create' | 'deck.rename' | 'deck.delete' | 'card.create' | 'card.update' | 'card.delete' | 'me.update';
+  | 'deck.create'
+  | 'deck.rename'
+  | 'deck.delete'
+  | 'card.create'
+  | 'card.update'
+  | 'card.delete'
+  | 'me.update'
+  | 'study.answer'
+  | 'study.finish';
 
 /**
  * A change made on this device, waiting for the server. `seq` keeps them in the order made;
@@ -86,10 +97,29 @@ export interface SyncState {
   pulledAt: string | null;
 }
 
-/** Changes lost to deletions made elsewhere, not yet said (deletion wins, never in silence). */
+/**
+ * Changes lost to deletions made elsewhere, and answers the server refused (ADR 0062), not yet
+ * said: never in silence.
+ */
 export interface LostChanges {
   key: 'notices';
   lost: number;
+  refused?: number;
+}
+
+/** The last study pack, with its tag; and this device's id, sent with its answers. */
+export type StudyRecord =
+  { key: 'pack'; pack: Pack; etag: string | null; fetchedAt: string } | { key: 'device'; id: string };
+
+/**
+ * An answer given here, kept until a pack that includes it arrives: until then it is applied on
+ * top of the pack. `acked`: the server took it (the next pack has it).
+ */
+export interface KeptAnswer {
+  opId: string;
+  seq?: number;
+  answer: LocalAnswer;
+  acked: boolean;
 }
 
 export interface AccountSchema extends DBSchema {
@@ -98,6 +128,9 @@ export interface AccountSchema extends DBSchema {
   cards: { key: string; value: LocalCard; indexes: { byDeck: string } };
   outbox: { key: number; value: OutboxOp; indexes: { byDeck: string; byWord: string } };
   sync: { key: string; value: SyncState | LostChanges };
+  study: { key: string; value: StudyRecord };
+  answers: { key: number; value: KeptAnswer; indexes: { byOp: string } };
+  lessons: { key: string; value: LocalLesson };
 }
 
 interface MetaSchema extends DBSchema {
@@ -133,6 +166,13 @@ export function openAccountDb(accountId: string): Promise<AccountDb> {
         outbox.createIndex('byDeck', 'deckId');
         outbox.createIndex('byWord', 'wordId');
         db.createObjectStore('sync', { keyPath: 'key' });
+      }
+      if (oldVersion < 3) {
+        db.createObjectStore('study', { keyPath: 'key' });
+        db.createObjectStore('answers', { keyPath: 'seq', autoIncrement: true }).createIndex('byOp', 'opId', {
+          unique: true,
+        });
+        db.createObjectStore('lessons', { keyPath: 'id' });
       }
     },
     // Another tab wants a newer version: this one reloads into that code. Deleted (the account

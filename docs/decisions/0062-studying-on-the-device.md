@@ -46,6 +46,26 @@ Every card was a request: the server planned the lesson, scheduled each card wit
 
   The glossary keeps its own tagged route. Measured on the dev data: a learner with 8 decks, 373 words and 105 met gets 125 KB, 30 KB gzipped.
 
+## The device's side (step 3)
+- **The screens are unchanged:** lessons, spelling, hints, the finish screen and the deck page take the same shapes as before. `study/device.ts` makes them on the device, with the same calls, instead of asking the server. Where the browser keeps nothing (no IndexedDB), the server's routes are used as before.
+- **What the device studies from:** the last pack, plus the answers given here since, replayed by the same rules (`study/state.ts`). An answer leaves this replay only once a pack that holds it has arrived, so it is never lost and never counted twice. Every lesson (IndexedDB v3: `lessons`) survives a reload.
+- **One transaction per answer:** the lesson, the kept answer and its outbox operation. Study operations name no deck in the outbox's indexes, so deleting a deck never drops an unsent answer.
+- **Answers wait 15 seconds for the next ones;** a finished lesson goes at once. Online, the finish screen waits up to 3 seconds for it, so the next screen's numbers from the server include it.
+- **The pack is fetched only after this device's answers are all sent:** fetching it is the device's contact, and the server refuses answers dated before it. It is fetched:
+  - after a lesson is finished;
+  - for a deck's page when online (waiting at most 2 seconds);
+  - after a change made online that it holds (a deck's pace, extra words);
+  - for a deck it doesn't have yet;
+  - otherwise when it is over 10 minutes old.
+- **The clock:** the server's offset is kept across visits, so an answer given offline is dated by the server's clock as last measured.
+- **Refused answers** are dropped and said once on home («Не засчитано ответов: N…», in all six languages).
+- **Audio kept ahead:** after each sync, recordings (word and example) of course words due in the next 7 days and the next 20 new words of each level are fetched, if the service worker hasn't kept them yet.
+- **Proved:**
+  - A lesson answered offline with a forgotten card shown again, a reload midway and a card known at once: after reconnecting, the server's due date for every word equals the device's own. A wrong time zone planted in the device's rules fails this test.
+  - A phone clock set back three days gives the refusal and the line on home.
+  - Recordings ahead play without a connection.
+  - The course list and a level's page open offline.
+
 ## Consequences
 - Two schedulers to keep equal; the cases are the guard, and the server's result wins if they ever disagree.
 - The per-card routes stay as the tested core of the rules (the backend tests use them); the web stops calling them.

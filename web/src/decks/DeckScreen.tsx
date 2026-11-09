@@ -1,4 +1,5 @@
 import { withSnapshot } from '../local/session.ts';
+import { study } from '../study/device.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
 import { api, describeError } from '../lib/api.ts';
@@ -56,14 +57,30 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
 
   const load = useCallback(
     () =>
-      // Without a connection: the page as last seen (ADR 0060); studying itself needs the server.
+      // Worked out on this device from what it keeps, with or without a connection (ADR 0062); a
+      // deck it can't hold yet comes from the server, or as last seen.
       Promise.all([
-        withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value),
-        withSnapshot('activeSession', () => api.activeSession()).then(({ value }) => value),
+        study
+          .deckStats(deckId)
+          .catch(() => withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value)),
+        study.activeSession(),
       ])
         .then(async ([stats, active]) => {
-          // The pace (its suggestion, the review brake) is secondary: the page works without it.
-          const pace = await api.pace(deckId).catch(() => null);
+          // The pace (its suggestion, the setting) is secondary: the page works without it. Today's
+          // part is the device's, as its next lesson will be planned.
+          const [server, today] = await Promise.all([
+            api.pace(deckId).catch(() => null),
+            study.dayPlan(deckId).catch(() => null),
+          ]);
+          const pace =
+            server && today
+              ? {
+                  ...server,
+                  blocked_by_reviews: today.blockedByReviews,
+                  bonus: today.bonus,
+                  next_lesson_size: today.nextLessonSize,
+                }
+              : server;
           // Giving a deck to a group is for a group's owner (ADR 0036).
           const canGive = stats.is_mine
             ? await api.groups().then(
@@ -142,7 +159,8 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
   const canAddWords = left > 0 && !stats.locked && !blocked && !resumeHere && pace !== null;
   const startWith = async (extra: number) => {
     await api.addExtraWords(deckId, extra);
-    onSession(await api.startStudySession(deckId), deckId);
+    await study.refresh();
+    onSession(await study.startStudySession(deckId), deckId);
   };
   const stages = deckStages({
     word_count: stats.word_count,
@@ -250,7 +268,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
           {/* What the day holds is on the button below; only the daily number is shown here. */}
           {pace && !stats.locked && left + pace.new_words_today > 0 && (
             <section className={styles.today} aria-label={t.pace}>
-              <DailyPace pace={pace} onSaved={() => void load()} />
+              <DailyPace pace={pace} onSaved={() => void study.refresh().then(load, load)} />
             </section>
           )}
 
@@ -292,7 +310,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 <PausedSpelling
                   paused={spelling.paused}
                   disabled={busy}
-                  onResume={() => run(async () => onSession(await api.startSpellingSession(deckId), deckId))}
+                  onResume={() => run(async () => onSession(await study.startSpellingSession(deckId), deckId))}
                 />
               </div>
             )}
@@ -301,7 +319,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 type="button"
                 className={styles.link}
                 disabled={busy}
-                onClick={() => run(async () => onSession(await api.startSpellingSession(deckId), deckId))}
+                onClick={() => run(async () => onSession(await study.startSpellingSession(deckId), deckId))}
                 aria-label={t.spelling(wordsLabel(spelling.ready))}
                 aria-describedby="spelling-note"
               >
@@ -362,7 +380,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
               open
               state={spelling}
               onClose={() => setModesOpen(false)}
-              onStart={async (mode, size) => onSession(await api.startSpellingSession(deckId, mode, size), deckId)}
+              onStart={async (mode, size) => onSession(await study.startSpellingSession(deckId, mode, size), deckId)}
             />
           )}
         </div>
@@ -387,7 +405,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                     ? onSession(active, deckId)
                     : bonus
                       ? startWith(fresh)
-                      : onSession(await api.startStudySession(deckId), deckId),
+                      : onSession(await study.startStudySession(deckId), deckId),
                 )
               }
             >

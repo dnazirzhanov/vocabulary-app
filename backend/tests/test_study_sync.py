@@ -26,6 +26,7 @@ from app.services import spelling_ladder
 from app.services.cleanup import clean_up
 from app.services.study_days import days_by_user
 from tests.support import at, rate, spell
+from tests.test_decks_api import CARRY_OUT, class_group, give, write_deck
 
 ZONE = "Asia/Bishkek"
 BISHKEK = ZoneInfo(ZONE)
@@ -655,3 +656,21 @@ def test_the_pack_is_not_sent_again_while_nothing_changed(client: TestClient, db
 
 def test_the_pack_names_a_device(client: TestClient) -> None:
     assert client.get("/api/study/pack", headers=as_("ben", DAY0)).status_code == 422
+
+
+def test_a_deck_given_to_my_group_comes_with_its_group_and_author(client: TestClient) -> None:
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [CARRY_OUT])
+    give(client, deck, group["id"])
+    pack = fetch_pack(client, "pavel", uuid4(), DAY0).json()
+    [given] = [item for item in pack["decks"] if item["kind"] == "group"]
+    assert (given["id"], given["group_name"], given["author"]) == (
+        deck["id"],
+        "7Б английский",
+        "Ольга",
+    )
+    assert len(given["word_ids"]) == 1
+    # The teacher's own deck is hers, not given to her.
+    olga = fetch_pack(client, "olga", uuid4(), DAY0).json()
+    [own] = [item for item in olga["decks"] if item["id"] == deck["id"]]
+    assert (own["kind"], own["group_name"], own["author"]) == ("mine", None, None)

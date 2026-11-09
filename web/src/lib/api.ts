@@ -1,7 +1,9 @@
 import type { OpResult, Pulled } from '../local/myDecks.ts';
+import type { Pack } from '../study/state.ts';
 import { setOffline } from '../local/online.ts';
 import type { CardLanguage } from '../i18n/languages.ts';
 import { accessToken, dropSession } from './auth.ts';
+import { ApiError } from './apiError.ts';
 import { syncWithServer } from './clock.ts';
 import type {
   AttemptResult,
@@ -40,19 +42,7 @@ import type {
 } from './types.ts';
 import { t } from '../i18n/index.ts';
 
-/** `network`: no response at all (offline, timeout). `http`: the server answered with an error. */
-export class ApiError extends Error {
-  readonly kind: 'network' | 'http';
-  readonly status: number;
-  readonly code: string;
-
-  constructor(kind: 'network' | 'http', status: number, code: string, message: string) {
-    super(message);
-    this.kind = kind;
-    this.status = status;
-    this.code = code;
-  }
-}
+export { ApiError };
 
 const TIMEOUT_MS = 15_000;
 const BUSY_RETRIES = 3;
@@ -62,13 +52,16 @@ const BUSY_RETRIES = 3;
 const TEST_TIMEOUT_MS = 30_000;
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+/** One request with the sign-in, the time zone and a time limit; notes the server's clock. */
+async function send(
+  method: Method,
   path: string,
-  body?: unknown,
-  timeoutMs = TIMEOUT_MS,
-  busyRetries = BUSY_RETRIES,
-): Promise<T> {
+  body: unknown,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<Response> {
   const token = await accessToken();
   let response: Response;
   try {
@@ -78,6 +71,7 @@ async function request<T>(
         'X-Time-Zone': timeZone,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
@@ -88,8 +82,19 @@ async function request<T>(
   }
   setOffline(false);
   syncWithServer(response.headers.get('X-Server-Time'));
-  const data: unknown = await response.json().catch(() => null);
   if (response.status === 401) await dropSession();
+  return response;
+}
+
+async function request<T>(
+  method: Method,
+  path: string,
+  body?: unknown,
+  timeoutMs = TIMEOUT_MS,
+  busyRetries = BUSY_RETRIES,
+): Promise<T> {
+  const response = await send(method, path, body, timeoutMs);
+  const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
     // The server refused it before doing anything (ADR 0044), so any request is safe to send again.
@@ -103,7 +108,25 @@ async function request<T>(
   return data as T;
 }
 
+/**
+ * The study pack (ADR 0062) for this device; null when the one kept (`etag`) is still current.
+ * Fetching it is the device's contact with the server.
+ */
+async function studyPack(deviceId: string, etag: string | null): Promise<{ pack: Pack; etag: string | null } | null> {
+  const response = await send('GET', `/study/pack?device_id=${encodeURIComponent(deviceId)}`, undefined, 30_000, {
+    ...(etag ? { 'If-None-Match': etag } : {}),
+  });
+  if (response.status === 304) return null;
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
+  }
+  return { pack: data as Pack, etag: response.headers.get('ETag') };
+}
+
 export const api = {
+  studyPack,
   listDecks: () => request<Deck[]>('GET', '/decks'),
   activeSession: () => request<{ session: Session | null }>('GET', '/sessions/active'),
   /** Due cards from every level, then today's new words of this deck (resumes an open session). */
