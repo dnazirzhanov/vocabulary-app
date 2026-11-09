@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist', 'dist-auth', 'dist-offline', 'screenshots'] },
+  { ignores: ['dist', 'dist-auth', 'dist-offline', 'dist-app', 'android', 'screenshots'] },
   { ignores: ['test-results', 'playwright-report'] },
   {
     files: ['**/*.{ts,tsx}'],
