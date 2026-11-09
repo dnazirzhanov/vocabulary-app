@@ -5,3 +5,5 @@ dist-auth
 dist-offline
 public/audio
 src/study/vectors.json
+dist-app
+android

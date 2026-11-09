@@ -45,7 +45,8 @@ Build from the repo `Dockerfile` with build args `VITE_SUPABASE_URL` and `VITE_S
 Runtime variables (secrets in the host's secret store, never in git):
 `DATABASE_URL=postgresql+psycopg://…`, `AUTH_ISSUER=https://<project>.supabase.co/auth/v1`,
 `SUPABASE_SECRET_KEY=…` (the app refuses to start without it; it can manage every login, so it never
-goes anywhere else).
+goes anywhere else), and `ALLOWED_ORIGINS=https://localhost` for the Android app, whose pages come from
+inside the app (`docs/android.md`; ADR 0063). Without it every request from the app is refused.
 Health check: `/api/health/ready`. The free host sleeps when idle; the first visit can take a minute.
 
 ## 3. Nightly cleanup (required; ADR 0044)

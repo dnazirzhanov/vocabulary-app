@@ -5,6 +5,7 @@ import type { CardLanguage } from '../i18n/languages.ts';
 import { accessToken, dropSession } from './auth.ts';
 import { ApiError } from './apiError.ts';
 import { syncWithServer } from './clock.ts';
+import { apiBase } from './platform.ts';
 import type {
   AttemptResult,
   Board,
@@ -65,7 +66,7 @@ async function send(
   const token = await accessToken();
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`${apiBase}${path}`, {
       method,
       headers: {
         'X-Time-Zone': timeZone,
