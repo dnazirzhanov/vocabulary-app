@@ -25,9 +25,14 @@ one every night at 01:30 UTC, encrypts it, keeps it 30 days, and proves it resto
 
 ## Turning it on (once, after the database exists)
 In GitHub: Settings → Secrets and variables → Actions → New repository secret:
-1. `BACKUP_DATABASE_URL`: the database's **direct** connection string from Supabase (Project
-   Settings → Database → Connection string → URI, port 5432), `postgresql://…`. A read-only user
-   is better if you make one; `pg_dump` only reads.
+1. `BACKUP_DATABASE_URL`: the **Session pooler** connection string from Supabase, as a URI. Find it at **Connect → Session pooler → URI**, port 5432. It looks like
+   `postgresql://postgres.<project>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
+   - **Not the direct connection** (`db.<project>.supabase.co`): on the free plan it is reachable over IPv6 only, and GitHub's runners have none, so the backup could never connect.
+   - **Not the transaction pooler** (port 6543): `pg_dump` needs a session.
+   - **Paste only the URI:** no quotes, no `psql` command, no `DATABASE_URL=`. The scripts drop spaces and quotes around it anyway, and refuse anything else with a message that never shows it (`scripts/db-url.sh`).
+   - **A password with `@ : / ? # %`** must be URL-encoded (`@` is `%40`). Supabase's URI already does this.
+   - **`?sslmode=require`** may be there or not: the scripts add it for a remote database.
+   - A read-only user is better if you make one; `pg_dump` only reads.
 2. `BACKUP_PASSPHRASE`: a long random passphrase (for example 6+ random words). **Store it in a
    password manager as well.** Without it no backup can ever be opened, and GitHub will not show
    it again.
