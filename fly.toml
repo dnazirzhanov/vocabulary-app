@@ -1,0 +1,40 @@
+# Production on Fly.io (docs/deploy.md): the repository's Dockerfile, one machine in Frankfurt that
+# stops when idle and starts again on the next request (a few seconds).
+app = "slovar-kg"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Baked into the web app at build time. Both are public by design: they are in every copy of the
+# app a browser or phone loads. The project is production's (lulybzscivqgyvvdtfgc).
+[build.args]
+  VITE_SUPABASE_URL = "https://lulybzscivqgyvvdtfgc.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_POielBpgZt0qw9esTPtRpQ_Lru9uZpx"
+
+# Not secret. The secrets (DATABASE_URL, SUPABASE_SECRET_KEY, REMINDERS_TOKEN, optionally
+# DEEPSEEK_API_KEY) are set with scripts/fly-secrets.sh and live only in Fly.
+[env]
+  AUTH_ISSUER = "https://lulybzscivqgyvvdtfgc.supabase.co/auth/v1"
+  # The Android app's pages come from https://localhost inside it (ADR 0063).
+  ALLOWED_ORIGINS = "https://localhost"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api/health/ready"
+    # The first start creates the tables and loads the course.
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "10s"
+
+# One machine: rate limits and the busy guard are kept in the process (ADR 0044).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

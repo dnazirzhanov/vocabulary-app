@@ -40,14 +40,29 @@ To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`, stop `make dev`, and run
 `make dev-supabase`.
 
-## 2. Host the container (Koyeb Frankfurt, or Render)
-Build from the repo `Dockerfile` with build args `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-Runtime variables (secrets in the host's secret store, never in git):
-`DATABASE_URL=postgresql+psycopg://…`, `AUTH_ISSUER=https://<project>.supabase.co/auth/v1`,
-`SUPABASE_SECRET_KEY=…` (the app refuses to start without it; it can manage every login, so it never
-goes anywhere else), and `ALLOWED_ORIGINS=https://localhost` for the Android app, whose pages come from
-inside the app (`docs/android.md`; ADR 0063). Without it every request from the app is refused.
-Health check: `/api/health/ready`. The free host sleeps when idle; the first visit can take a minute.
+## 2. Host the container (Fly.io, Frankfurt)
+Koyeb no longer offers its free plan to new accounts (only Pro, $29 a month), so production runs on
+Fly.io: about $0.50–1.50 a month for a pilot, billed by the second while the machine runs. The repo's
+`fly.toml` holds everything that isn't secret:
+- one 512 MB machine in Frankfurt that stops when idle and starts on the next request (a few seconds);
+- the health check `/api/health/ready`;
+- the public build values (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`);
+- `AUTH_ISSUER`;
+- `ALLOWED_ORIGINS=https://localhost` for the Android app, whose pages come from inside the app (`docs/android.md`; ADR 0063). Without it every request from the app is refused.
+
+**Steps:**
+1. Make an account at fly.io; a card is required. Install the tool (`brew install flyctl`), then `fly auth login`.
+2. `fly apps create slovar-kg`. If the name is taken, choose another and change `app` in `fly.toml` to match.
+3. `scripts/fly-secrets.sh`: it asks, without showing anything, for:
+   - the database URL: Supabase → Connect → **Session pooler** → URI, with the password; the script checks it is production's project;
+   - the Supabase **secret** key;
+   - optionally a DeepSeek key.
+
+   It makes `REMINDERS_TOKEN` itself. The secret key can manage every login, so it lives only in Fly's secrets.
+4. `fly deploy --ha=false`: **one** machine, since rate limits are kept in the process (ADR 0044). The first start creates the tables and loads the course.
+5. The address is `https://slovar-kg.fly.dev`, and `/api/health/ready` should answer `{"status":"ok","database":"ok"}`.
+
+Each later `fly deploy --ha=false` from an up-to-date `main` replaces the running version; migrations run on start.
 
 ## 3. Nightly cleanup (required; ADR 0044)
 Without it the free database fills up within months. Make a secret once (`openssl rand -hex 32`) and put
