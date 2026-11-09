@@ -1,7 +1,8 @@
 """Simulated students against a real server, limited like the free host. A throttled uvicorn (the
 CPU share enforced by pausing the process), a proxy before Postgres (network delay, bytes counted).
 Usage: uv run python -m loadtest.run --students 30 --seconds 120 --cpu 0.1
-A class taking a spelling test together (ADR 0046): add --class-test (--seconds is then ignored)."""
+A class taking a spelling test together (ADR 0046): add --class-test (--seconds is then ignored).
+Studying on the device (ADR 0062), as the web app does since #80: add --device."""
 
 from __future__ import annotations
 
@@ -16,8 +17,10 @@ import statistics
 import subprocess
 import sys
 import time
+import uuid
 from collections import defaultdict
 from collections.abc import Coroutine
+from datetime import UTC, datetime
 from multiprocessing.sharedctypes import Synchronized
 from typing import Any
 
@@ -363,7 +366,135 @@ def database_cpu(name: str) -> float:
     return total
 
 
-async def drive(students: int, seconds: float, population: int, stats: Stats) -> None:
+# Each student's last pack tag and decks cursor, as their device keeps them between visits.
+DEVICE_STATE: dict[int, dict[str, Any]] = {}
+NEW_PER_LESSON = 5
+REVIEWS_PER_LESSON = 30
+ANSWERS_PER_PUSH = 10  # as web/src/local/batch.ts
+
+
+async def device_journey(
+    client: httpx2.AsyncClient, stats: Stats, number: int, rng: random.Random, stop: float
+) -> None:
+    """What the web app asks for since lessons run on the device (ADR 0062): opening it and a
+    deck's page bring the study pack (a sync); the lesson makes no request until it is finished;
+    then one push of every answer and the end, the decks and a fresh pack; then home as before."""
+    headers = {"X-Dev-User": f"load-{number:04d}", "X-Time-Zone": "Asia/Bishkek"}
+    kept = DEVICE_STATE.setdefault(
+        number, {"device": str(uuid.uuid5(uuid.NAMESPACE_URL, f"load-{number}")), "cursor": 0}
+    )
+
+    def get(name: str, path: str) -> Coroutine[Any, Any, httpx2.Response | None]:
+        return call(client, stats, name, "GET", path, headers)
+
+    async def sync(force_pack: bool, ops: list[dict[str, Any]] | None = None) -> None:
+        pulled_at = kept.get("pulled_at")
+        if ops:
+            await call(
+                client,
+                stats,
+                "push",
+                "POST",
+                "/api/sync/push",
+                headers,
+                {"ops": ops, "pulled_at": pulled_at},
+                timeout=30.0,
+            )
+        query = f"?cursor={kept['cursor']}" + (f"&pulled_at={pulled_at}" if pulled_at else "")
+        pulled = await get("sync_decks", f"/api/sync/decks{query}")
+        if pulled is not None and pulled.status_code == 200:
+            kept["cursor"], kept["pulled_at"] = pulled.json()["cursor"], pulled.json()["pulled_at"]
+        if force_pack or "pack" not in kept:
+            pack_headers = headers | ({"If-None-Match": kept["etag"]} if "etag" in kept else {})
+            response = await call(
+                client,
+                stats,
+                "pack",
+                "GET",
+                f"/api/study/pack?device_id={kept['device']}",
+                pack_headers,
+                timeout=30.0,
+            )
+            if response is not None and response.status_code == 200:
+                kept["pack"], kept["etag"] = response.json(), response.headers.get("etag")
+
+    await asyncio.gather(get("me", "/api/me"), get("decks", "/api/decks"))
+    await sync(force_pack=False)
+    await asyncio.gather(get("library", "/api/decks/library"), get("progress", "/api/progress"))
+    await asyncio.sleep(rng.uniform(1, 3))
+    deck = "a1-a2"
+    # The deck's page: worked out on the device after a sync; the pace still comes from the server.
+    await sync(force_pack=True)
+    await get("pace", f"/api/me/pace?deck_id={deck}")
+    await asyncio.sleep(rng.uniform(1, 3))
+    pack = kept.get("pack")
+    if pack is None:
+        return
+    now = datetime.now(UTC).isoformat()
+    words = next(item["word_ids"] for item in pack["decks"] if item["id"] == deck)
+    met = {row[0]: row[5] for row in pack["progress"]}
+    due = sorted((word for word in words if word in met and met[word] <= now), key=lambda w: met[w])
+    fresh = [word for word in words if word not in met][:NEW_PER_LESSON]
+    plan = [(word, False) for word in due[:REVIEWS_PER_LESSON]] + [(word, True) for word in fresh]
+    session = str(uuid.uuid4())
+    ops: list[dict[str, Any]] = []
+    waiting: list[dict[str, Any]] = []
+    index = 0
+    while index < len(plan) and time.monotonic() < stop:
+        word, new = plan[index]
+        await asyncio.sleep(rng.uniform(2, 5))
+        rating = 1 if rng.random() < 0.1 else 3
+        if len(waiting) == ANSWERS_PER_PUSH:
+            # A full batch goes during the lesson (the decks come along; the pack is still fresh).
+            await sync(force_pack=False, ops=waiting)
+            ops += waiting
+            waiting = []
+        waiting.append(
+            {
+                "op_id": str(uuid.uuid4()),
+                "kind": "study.answer",
+                "device_id": kept["device"],
+                "session_id": session,
+                "session_kind": "study",
+                "deck_id": deck,
+                "exercise_id": f"c{len(ops) + len(waiting) + 1}",
+                "word_id": word,
+                "new": new,
+                "response": {"kind": "rating", "rating": rating},
+                "answered_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        if rating == 1 and sum(1 for item in plan if item[0] == word) < 4:
+            plan.insert(min(len(plan), index + 4), (word, False))  # shown again, on the device
+        index += 1
+    ops += waiting
+    if index == len(plan) and ops:
+        waiting.append(
+            {
+                "op_id": str(uuid.uuid4()),
+                "kind": "study.finish",
+                "device_id": kept["device"],
+                "session_id": session,
+                "finished_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        await sync(force_pack=True, ops=waiting)
+        stats.lessons += 1
+    await asyncio.gather(get("library", "/api/decks/library"), get("progress", "/api/progress"))
+    if rng.random() < 0.4:
+        groups = await get("groups", "/api/groups")
+        if groups is not None and groups.status_code == 200 and groups.json():
+            group = groups.json()[0]["id"]
+            await get("board", f"/api/groups/{group}/board?period=week")
+    if rng.random() < 0.25:
+        await asyncio.gather(
+            get("progress", "/api/progress"), get("knowledge", "/api/progress/decks")
+        )
+
+
+async def drive(
+    students: int, seconds: float, population: int, stats: Stats, device: bool = False
+) -> None:
     stop = time.monotonic() + seconds
     rng = random.Random(11)  # the same students each run
     limits = httpx2.Limits(max_connections=None)
@@ -376,7 +507,8 @@ async def drive(students: int, seconds: float, population: int, stats: Stats) ->
             while time.monotonic() < stop:
                 # A slot only draws from its own share, so no student is in two places at once.
                 number = slot + population // students * rng.randrange(students) % population
-                await journey(client, stats, number % population, rng, stop)
+                walk = device_journey if device else journey
+                await walk(client, stats, number % population, rng, stop)
 
         await asyncio.gather(*(one_student(slot) for slot in range(students)))
 
@@ -390,6 +522,7 @@ def main() -> None:
     parser.add_argument("--population", type=int, default=1000)
     parser.add_argument("--out", default=None)
     parser.add_argument("--class-test", action="store_true", help="a class on one timed test")
+    parser.add_argument("--device", action="store_true", help="lessons on the device (ADR 0062)")
     args = parser.parse_args()
 
     url = load_url()
@@ -444,12 +577,13 @@ def main() -> None:
         if args.class_test:
             asyncio.run(class_test(args.students, stats, (6.0, 14.0)))
         else:
-            asyncio.run(drive(args.students, args.seconds, args.population, stats))
+            asyncio.run(drive(args.students, args.seconds, args.population, stats, args.device))
         elapsed = time.monotonic() - started
         cpu_after, rss = process_usage(server.pid)
         requests = sum(len(values) for values in stats.times.values())
         result = {
             "students": args.students,
+            "device": args.device,
             "cpu_share": args.cpu,
             "seconds": round(elapsed),
             "boot_seconds": round(boot_seconds, 1),

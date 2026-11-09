@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api.ts';
 import type { AccountDb, OutboxOp } from './db.ts';
 import { keepAudioAhead, refreshPack, takePackWanted } from '../study/device.ts';
+import { ANSWERS_PER_PUSH, nextBatch } from './batch.ts';
 import { applyPull, applyResults, syncState } from './myDecks.ts';
+
+export { ANSWERS_PER_PUSH };
 import { localDb } from './session.ts';
 
 /**
@@ -14,7 +17,6 @@ import { localDb } from './session.ts';
  * connection or an expired sign-in.
  */
 
-const BATCH = 200;
 let running: Promise<void> | null = null;
 let again = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -93,7 +95,7 @@ async function cycle(db: AccountDb) {
   let finished = false;
   for (;;) {
     // In order made; one left "sending" by a closed app is simply sent again.
-    const batch = (await db.getAll('outbox')).slice(0, BATCH);
+    const batch = nextBatch(await db.getAll('outbox'));
     if (batch.length === 0) break;
     await mark(db, batch, 'sending');
     let results;

@@ -13,7 +13,7 @@ import type {
 } from '../lib/types.ts';
 import type { AccountDb, KeptAnswer, OutboxOp } from '../local/db.ts';
 import { localDb } from '../local/session.ts';
-import { syncNow, syncSoon } from '../local/sync.ts';
+import { ANSWERS_PER_PUSH, syncNow, syncSoon } from '../local/sync.ts';
 import {
   answer as answerLesson,
   dayPlan,
@@ -193,7 +193,11 @@ async function save(db: AccountDb, lesson: LocalLesson, extra: { answer?: KeptAn
   cached?.lessons.set(lesson.id, lesson);
   others?.postMessage(lesson.id);
   // Answers go together, a lesson's end at once (then the pack follows).
-  if (extra.ops?.length) syncSoon(extra.ops.some((op) => op.kind === 'study.finish') ? 1000 : ANSWERS_WAIT_MS);
+  if (extra.ops?.length) {
+    // A full batch waiting, or the lesson's end: now; otherwise the next answers may join them.
+    const now = extra.ops.some((op) => op.kind === 'study.finish') || (await db.count('outbox')) >= ANSWERS_PER_PUSH;
+    syncSoon(now ? 1000 : ANSWERS_WAIT_MS);
+  }
 }
 
 function openOf(lessons: Map<string, LocalLesson>, spelling: boolean): LocalLesson | null {
