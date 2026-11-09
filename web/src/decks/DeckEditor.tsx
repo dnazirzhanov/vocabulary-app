@@ -292,9 +292,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
     setEditing(id);
     setFormError(null);
     setMode('manual');
+    // The word first, on the next frame (the form is drawn by then), unless the person has already
+    // gone to another field: on a slow phone that frame can come after they started typing there.
+    const tapped = document.activeElement;
     requestAnimationFrame(() => {
       reveal(composerRef.current, true);
-      firstField.current?.focus({ preventScroll: true });
+      const now = document.activeElement;
+      if (now === tapped || now === document.body || now === null) firstField.current?.focus({ preventScroll: true });
     });
   };
 

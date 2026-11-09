@@ -50,6 +50,9 @@ test('a teacher drafts words from photos: four at a time, eight per deck, up to 
   await page.getByLabel('Фото страниц').setInputFiles(photos(5));
   await expect(page.getByText('Взяли первые 4 фото: за один раз — не больше 4 фото.')).toBeVisible();
   await draft(page, 30);
+  // The deck's count is redrawn a moment after the draft (kept on the device first): wait for it,
+  // as a person would see it, before choosing more.
+  await expect(page.getByText('для этой колоды осталось 2 из 8')).toBeVisible();
 
   // Two left for the deck: of three, two are read; then no more photos for it.
   await page.getByLabel('Фото страниц').setInputFiles(photos(3));
