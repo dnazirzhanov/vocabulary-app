@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api.ts';
 import type { AccountDb, OutboxOp } from './db.ts';
+import { keepAudioAhead, refreshPack, takePackWanted } from '../study/device.ts';
 import { applyPull, applyResults, syncState } from './myDecks.ts';
 import { localDb } from './session.ts';
 
 /**
- * Sends this device's changes and brings the server's (ADR 0061). Runs when the app opens, when
+ * Sends this device's changes (decks, settings, answers) and brings the server's (ADR 0061,
+ * 0062): my decks, then the study pack. Runs when the app opens, when
  * the connection comes back, when the app is looked at again, and a moment after each change.
  * One tab at a time (a browser lock); the server applies each change once anyway. A change the
  * server can't be reached for stays, and is sent next time: nothing is dropped for want of a
@@ -88,6 +90,7 @@ async function mark(db: AccountDb, batch: OutboxOp[], status: OutboxOp['status']
 async function cycle(db: AccountDb) {
   // First time on this device: everything of mine, before sending anything against it.
   if (!(await syncState(db)).pulledAt) await pullFrom(db, true);
+  let finished = false;
   for (;;) {
     // In order made; one left "sending" by a closed app is simply sent again.
     const batch = (await db.getAll('outbox')).slice(0, BATCH);
@@ -106,8 +109,13 @@ async function cycle(db: AccountDb) {
       throw error; // no connection, signed out: they wait for next time
     }
     await applyResults(db, batch, results);
+    finished ||= batch.some((item) => item.kind === 'study.finish');
   }
   await pullFrom(db);
+  // With every change of this device in, the study pack holds them all (ADR 0062); it is also
+  // this device's contact with the server. Then the week's recordings, quietly.
+  await refreshPack(db, finished || takePackWanted());
+  void keepAudioAhead(db).catch(() => 0);
 }
 
 if (typeof window !== 'undefined') {

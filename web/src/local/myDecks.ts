@@ -69,12 +69,29 @@ const op = (fields: Omit<OutboxOp, 'opId' | 'createdAt' | 'status' | 'attempts'>
 type Tx = ReturnType<typeof write>;
 const write = (db: AccountDb) => db.transaction(['decks', 'cards', 'outbox'], 'readwrite');
 type SyncTx = ReturnType<typeof writeAll>;
-const writeAll = (db: AccountDb) => db.transaction(['decks', 'cards', 'outbox', 'sync'], 'readwrite');
+const writeAll = (db: AccountDb) => db.transaction(['decks', 'cards', 'outbox', 'sync', 'answers'], 'readwrite');
 
-async function addLost(tx: SyncTx, count: number) {
+async function addNotice(tx: SyncTx, field: 'lost' | 'refused', count: number) {
   const sync = tx.objectStore('sync');
-  const before = ((await sync.get('notices')) as LostChanges | undefined)?.lost ?? 0;
-  await sync.put({ key: 'notices', lost: before + count });
+  const before = ((await sync.get('notices')) as LostChanges | undefined) ?? { key: 'notices', lost: 0 };
+  await sync.put({ ...before, [field]: (before[field] ?? 0) + count });
+}
+
+const addLost = (tx: SyncTx, count: number) => addNotice(tx, 'lost', count);
+
+/**
+ * A study answer's result (ADR 0062): taken, it stays applied on this device until the next pack
+ * has it; refused, it goes, and is said.
+ */
+async function settleAnswer(tx: SyncTx, item: OutboxOp, result: OpResult) {
+  const answers = tx.objectStore('answers');
+  const kept = await answers.index('byOp').get(item.opId);
+  if (result.status === 'rejected') {
+    if (kept) await answers.delete(kept.seq!);
+    await addNotice(tx, 'refused', 1);
+  } else if (kept) {
+    await answers.put({ ...kept, acked: true });
+  }
 }
 
 async function unsent(tx: Tx, index: 'byDeck' | 'byWord', key: string): Promise<OutboxOp[]> {
@@ -442,6 +459,11 @@ export async function applyResults(db: AccountDb, sent: OutboxOp[], results: OpR
     const result = byId.get(item.opId);
     if (!result) continue; // not answered: stays to be sent again
     await outbox.delete(item.seq!);
+    if (item.kind === 'study.answer') {
+      await settleAnswer(tx, item, result);
+      continue;
+    }
+    if (item.kind === 'study.finish') continue;
     const problem: Problem | undefined =
       result.status === 'conflict'
         ? { status: 'conflict', conflicts: result.conflicts ?? {} }
@@ -489,13 +511,16 @@ async function becameCourseWord(tx: SyncTx, from: string, to: string) {
   }
 }
 
-/** Changes lost to deletions elsewhere since last said; reading them clears them. */
-export async function takeNotices(db: AccountDb): Promise<number> {
+/**
+ * Changes lost to deletions elsewhere, and answers the server refused, since last said; reading
+ * them clears them.
+ */
+export async function takeNotices(db: AccountDb): Promise<{ lost: number; refused: number }> {
   const tx = db.transaction('sync', 'readwrite');
   const notice = (await tx.store.get('notices')) as LostChanges | undefined;
   if (notice) await tx.store.delete('notices');
   await tx.done;
-  return notice?.lost ?? 0;
+  return { lost: notice?.lost ?? 0, refused: notice?.refused ?? 0 };
 }
 
 export async function syncState(db: AccountDb): Promise<{ cursor: number; pulledAt: string | null }> {

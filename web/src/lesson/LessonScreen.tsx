@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Illustration, isIllustrationId } from '../illustrations/index.tsx';
 import { api, describeError } from '../lib/api.ts';
+import { withSnapshot } from '../local/session.ts';
+import { study } from '../study/device.ts';
 import { autoplayEnabled, playAudio, preloadAudio, setAutoplay } from '../lib/audio.ts';
 import { tokenize } from '../lib/tokens.ts';
 import type { CardExercise, GlossaryEntry, Rating, Session, Summary } from '../lib/types.ts';
@@ -116,9 +118,14 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
   );
 }
 
-// One request per visit: the glossary is small and the same for every card.
+// One request per visit: the glossary is small and the same for every card. Without a connection,
+// the copy kept last time.
 let glossaryRequest: Promise<Record<string, GlossaryEntry>> | null = null;
-const loadGlossary = () => (glossaryRequest ??= api.glossary().catch(() => ((glossaryRequest = null), {})));
+const loadGlossary = () =>
+  (glossaryRequest ??= withSnapshot('glossary', () => api.glossary()).then(
+    ({ value }) => value,
+    () => ((glossaryRequest = null), {}),
+  ));
 
 export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps) {
   const [state, dispatch] = useReducer(reduceLesson, session, startLesson);
@@ -163,8 +170,8 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       const pending = state.pending;
       const request =
         pending.kind === 'rating'
-          ? api.rateCard(session.id, current.id, pending.rating)
-          : api.spell(session.id, current.id, pending.answer, pending.heard);
+          ? study.rateCard(session.id, current.id, pending.rating)
+          : study.spell(session.id, current.id, pending.answer, pending.heard);
       request
         .then(
           (result) => dispatch({ type: 'saved', result }),
@@ -176,7 +183,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     }
     if (state.phase === 'finishing' && inflight.current !== 'finish') {
       inflight.current = 'finish';
-      api
+      study
         .completeSession(session.id)
         .then(onComplete, (error: unknown) => dispatch({ type: 'failed', message: describeError(error) }))
         .finally(() => {
@@ -268,7 +275,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
               busy={state.phase === 'saving' || state.phase === 'finishing'}
               result={state.phase === 'feedback' ? state.last : null}
               onSubmit={(answer, heard) => dispatch({ type: 'spell', answer, heard })}
-              onHint={(position) => api.hint(session.id, exercise.id, position)}
+              onHint={(position) => study.hint(session.id, exercise.id, position)}
               onContinue={() => dispatch({ type: 'continue' })}
             />
           )}

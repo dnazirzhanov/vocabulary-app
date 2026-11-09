@@ -243,11 +243,18 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
 
   // The keyboard still works after a click: letters, then Enter checks rather than plays again.
   await listen.click();
-  const sent = page.waitForRequest((request) => /\/attempts$/.test(request.url()));
   await page.keyboard.type('house');
   await page.keyboard.press('Enter');
-  expect((await sent).postDataJSON().response).toEqual({ kind: 'spelling', answer: 'house', heard: true });
   await expect(page.getByRole('status')).toContainText('Верно');
+  // Sent with the next sync (ADR 0062): heard, so not spelled from memory.
+  const sent = page.waitForRequest((request) => request.url().endsWith('/api/sync/push'));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  const ops = (await sent).postDataJSON().ops as { kind: string; response: unknown }[];
+  expect(ops.filter((op) => op.kind === 'study.answer').map((op) => op.response)).toContainEqual({
+    kind: 'spelling',
+    answer: 'house',
+    heard: true,
+  });
   await expect(hints).toHaveCount(0); // a hint is for before answering
 
   // The next card says its own word.

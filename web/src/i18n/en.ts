@@ -39,6 +39,8 @@ export const en: Messages = {
   takeTheOther: 'Take that one',
   notSaved: (a: Arg) => `Not saved: ${a}`,
   lostChanges: (a: Arg) => `Changes not saved: ${a}. The deck or card was deleted on another device.`,
+  answersNotCounted: (a: Arg) =>
+    `Answers not counted: ${a}. The phone's clock was wrong, or they were more than a month old.`,
   unsentOnSignOut: (a: Arg) =>
     `Changes not sent yet: ${a}. They stay on this device and are sent when you sign in again.`,
   tooManyDecks: "Too many decks: delete the ones you don't need.",

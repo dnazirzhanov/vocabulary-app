@@ -29,6 +29,7 @@ import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { study } from '../study/device.ts';
 import styles from './DeckEditor.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -596,7 +597,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
               run(async () => {
                 // Studying is the server's: what was made here goes first.
                 await syncNow();
-                onStudy(await api.startStudySession(deck.id));
+                onStudy(await study.startStudySession(deck.id));
               })
             }
           >

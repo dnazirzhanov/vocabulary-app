@@ -13,6 +13,7 @@ The rules of the decks themselves (limits, duplicates, course words, deleting pr
 same functions the app's own routes use (`services/decks.py`).
 """
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -46,6 +47,8 @@ from app.services import decks, me, study_sync
 
 # How long deletions and applied operations are remembered (`cleanup`).
 KEPT = timedelta(days=90)
+
+logger = logging.getLogger("app.sync")
 
 
 def _tombstone(db: Session, entity: str, entity_id: str) -> SyncTombstone | None:
@@ -236,6 +239,11 @@ def push(db: Session, user: User, body: PushIn, now: datetime, time_zone: ZoneIn
                 result = _apply(db, user, op, now, time_zone)
         except ApiError as error:
             result = _result(op, "rejected", code=error.code)
+        except Exception:
+            # A fault of ours in one operation: logged with its trace, and refused, so it can't
+            # fail every push and hold back all of this device's later changes for good.
+            logger.exception("sync operation failed: %s", op.kind)
+            result = _result(op, "rejected", code="server_error")
         db.add(
             SyncOp(
                 user_id=user.id,

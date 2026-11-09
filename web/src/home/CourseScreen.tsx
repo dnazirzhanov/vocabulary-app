@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
+import { withSnapshot } from '../local/session.ts';
 import type { Deck } from '../lib/types.ts';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -24,7 +25,12 @@ export function CourseScreen({ onOpenDeck, onBack }: CourseScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
-    () => api.listDecks().then(setDecks, (caught: unknown) => setLoadError(describeError(caught))),
+    // Without a connection, the levels as last seen: each level's page is worked out on the device.
+    () =>
+      withSnapshot('courseDecks', () => api.listDecks()).then(
+        ({ value }) => setDecks(value),
+        (caught: unknown) => setLoadError(describeError(caught)),
+      ),
     [],
   );
   useEffect(() => {

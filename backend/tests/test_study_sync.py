@@ -2,12 +2,14 @@
 server exactly as the same answers given online would; they count for the moment they were given,
 within a guard; and the pack holds what a device needs to study by itself."""
 
+import logging
 import random
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,10 +24,11 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import spelling_ladder
+from app.services import spelling_ladder, study_sync
 from app.services.cleanup import clean_up
 from app.services.study_days import days_by_user
 from tests.support import at, rate, spell
+from tests.test_decks_api import CARRY_OUT, class_group, give, write_deck
 
 ZONE = "Asia/Bishkek"
 BISHKEK = ZoneInfo(ZONE)
@@ -655,3 +658,86 @@ def test_the_pack_is_not_sent_again_while_nothing_changed(client: TestClient, db
 
 def test_the_pack_names_a_device(client: TestClient) -> None:
     assert client.get("/api/study/pack", headers=as_("ben", DAY0)).status_code == 422
+
+
+def test_a_deck_given_to_my_group_comes_with_its_group_and_author(client: TestClient) -> None:
+    group = class_group(client)
+    deck = write_deck(client, group["id"], [CARRY_OUT])
+    give(client, deck, group["id"])
+    pack = fetch_pack(client, "pavel", uuid4(), DAY0).json()
+    [given] = [item for item in pack["decks"] if item["kind"] == "group"]
+    assert (given["id"], given["group_name"], given["author"]) == (
+        deck["id"],
+        "7Б английский",
+        "Ольга",
+    )
+    assert len(given["word_ids"]) == 1
+    # The teacher's own deck is hers, not given to her.
+    olga = fetch_pack(client, "olga", uuid4(), DAY0).json()
+    [own] = [item for item in olga["decks"] if item["id"] == deck["id"]]
+    assert (own["kind"], own["group_name"], own["author"]) == ("mine", None, None)
+
+
+def test_one_answer_failing_on_our_side_never_holds_back_the_others(
+    client: TestClient,
+    db: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A fault of ours in one operation is logged and refused; the rest of the batch is applied,
+    and the device is never left retrying it for good."""
+    device = uuid4()
+    words = fetch_pack(client, "ben", device, DAY0).json()["decks"][0]["word_ids"][:3]
+    session = uuid4()
+    ops = [
+        answer(device, session, f"c{n}", word, DAY0 + timedelta(seconds=n), rate(), new=True)
+        for n, word in enumerate(words, start=1)
+    ]
+    real = study_sync.apply_answer
+
+    def broken_on_second(db: Session, user: User, op: Any, now: datetime) -> Any:
+        if op.exercise_id == "c2":
+            raise RuntimeError("a bug")
+        return real(db, user, op, now)
+
+    monkeypatch.setattr(study_sync, "apply_answer", broken_on_second)
+    with caplog.at_level(logging.ERROR, logger="app.sync"):
+        results = push(client, "ben", ops, DAY0 + timedelta(minutes=1))
+    assert results == [("applied", None), ("rejected", "server_error"), ("applied", None)]
+    assert any("sync operation failed" in record.message for record in caplog.records)
+    ben = user_of(db, "ben")
+    assert sorted(
+        db.scalars(select(ReviewAttempt.exercise_id).where(ReviewAttempt.user_id == ben.id))
+    ) == ["c1", "c3"]
+    # Sent again, the answer stays as it was: the ledger has it.
+    assert push(client, "ben", ops, DAY0 + timedelta(minutes=2))[1] == ("rejected", "server_error")
+
+
+def test_a_refused_answer_in_the_middle_of_a_batch_leaves_the_rest(
+    client: TestClient, db: Session
+) -> None:
+    """The second of four answers is dated before the last contact (the clock was moved back for
+    it): it alone is refused; the lesson is made by the first answer taken."""
+    device = uuid4()
+    contact = DAY0 + timedelta(hours=1)
+    words = fetch_pack(client, "ben", device, contact).json()["decks"][0]["word_ids"][:4]
+    session = uuid4()
+    moments = [
+        contact + timedelta(minutes=1),
+        DAY0,
+        contact + timedelta(minutes=2),
+        contact + timedelta(minutes=3),
+    ]
+    ops = [
+        answer(device, session, f"c{n}", word, moment, rate(), new=True)
+        for n, (word, moment) in enumerate(zip(words, moments, strict=True), start=1)
+    ]
+    assert push(client, "ben", ops, contact + timedelta(minutes=5)) == [
+        ("applied", None),
+        ("rejected", "before_last_contact"),
+        ("applied", None),
+        ("applied", None),
+    ]
+    lesson = db.get_one(LearningSession, session)
+    assert [step["id"] for step in lesson.plan] == ["c1", "c3", "c4"]
+    assert lesson.started_at == moments[0]

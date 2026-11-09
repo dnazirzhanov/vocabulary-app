@@ -237,29 +237,36 @@ class Pack:
     etag: str
 
 
-def _studied_decks(db: Session, user: User) -> list[tuple[Deck, DeckKind, date | None]]:
-    """Every deck I study, with its kind for the device and a group's deadline: the course's
-    levels in order (when the course is mine to study), my own decks, then decks given to my
-    groups."""
-    found: list[tuple[Deck, DeckKind, date | None]] = []
+@dataclass(frozen=True)
+class _Studied:
+    deck: Deck
+    kind: DeckKind
+    given: decks.GivenDeck | None
+
+
+def _studied_decks(db: Session, user: User) -> list[_Studied]:
+    """Every deck I study: the course's levels in order (when the course is mine to study), my
+    own decks, then decks given to my groups; with where a given one comes from."""
+    found: list[_Studied] = []
     if decks.course_open(user):
         course = db.scalars(
             select(Deck)
             .where(Deck.kind == "course", Deck.status == "published")
             .order_by(Deck.level_order, Deck.id)
         )
-        found += [(deck, "course", None) for deck in course]
+        found += [_Studied(deck, "course", None) for deck in course]
     mine = db.scalars(
         select(Deck)
         .where(Deck.kind == "user", Deck.owner_id == user.id)
         .order_by(Deck.created_at, Deck.id)
     )
-    found += [(deck, "mine", None) for deck in mine]
-    given = decks.assigned_decks(db, user)
-    deadline = {item.deck.id: item.due_on for item in given}
-    seen = {deck.id for deck, _, _ in found}
-    found = [(deck, kind, deadline.get(deck.id)) for deck, kind, _ in found]
-    found += [(item.deck, "group", item.due_on) for item in given if item.deck.id not in seen]
+    found += [_Studied(deck, "mine", None) for deck in mine]
+    given = {item.deck.id: item for item in decks.assigned_decks(db, user)}
+    seen = {item.deck.id for item in found}
+    found = [_Studied(item.deck, item.kind, given.get(item.deck.id)) for item in found]
+    found += [
+        _Studied(item.deck, "group", item) for item in given.values() if item.deck.id not in seen
+    ]
     return found
 
 
@@ -297,7 +304,7 @@ def pack(db: Session, user: User, now: datetime) -> Pack:
     """What a device needs to study every deck of mine by itself, tagged with its content."""
     zone = zone_of(user)
     studied = _studied_decks(db, user)
-    order = _words_in(db, [deck.id for deck, _, _ in studied])
+    order = _words_in(db, [item.deck.id for item in studied])
     paces = {
         row.deck_id: row for row in db.scalars(select(DeckPace).where(DeckPace.user_id == user.id))
     }
@@ -332,15 +339,17 @@ def pack(db: Session, user: User, now: datetime) -> Pack:
         started_on=local_date(user.onboarded_at, zone) if user.onboarded_at else None,
         decks=[
             PackDeck(
-                id=deck.id,
-                kind=kind,
-                title=deck.title,
-                level=deck.level,
-                level_order=deck.level_order,
-                word_ids=order.get(deck.id, []),
-                pace=pace_of(deck, due_on),
+                id=item.deck.id,
+                kind=item.kind,
+                title=item.deck.title,
+                level=item.deck.level,
+                level_order=item.deck.level_order,
+                group_name=item.given.group_name if item.given and item.kind == "group" else None,
+                author=item.given.author if item.given and item.kind == "group" else None,
+                word_ids=order.get(item.deck.id, []),
+                pace=pace_of(item.deck, item.given.due_on if item.given else None),
             )
-            for deck, kind, due_on in studied
+            for item in studied
         ],
         words=[
             PackWord(
