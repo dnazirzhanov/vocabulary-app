@@ -7,15 +7,15 @@ primary_region = "fra"
   dockerfile = "Dockerfile"
 
 # Baked into the web app at build time. Both are public by design: they are in every copy of the
-# app a browser or phone loads. The project is production's (lulybzscivqgyvvdtfgc).
+# app a browser or phone loads. The project is production's (xlhiwcabkwgojbfhurmp).
 [build.args]
-  VITE_SUPABASE_URL = "https://lulybzscivqgyvvdtfgc.supabase.co"
-  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_POielBpgZt0qw9esTPtRpQ_Lru9uZpx"
+  VITE_SUPABASE_URL = "https://xlhiwcabkwgojbfhurmp.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2xSwjU-AOTdCIJjY3C0yyw_McPDxa2i"
 
 # Not secret. The secrets (DATABASE_URL, SUPABASE_SECRET_KEY, REMINDERS_TOKEN, optionally
 # DEEPSEEK_API_KEY) are set with scripts/fly-secrets.sh and live only in Fly.
 [env]
-  AUTH_ISSUER = "https://lulybzscivqgyvvdtfgc.supabase.co/auth/v1"
+  AUTH_ISSUER = "https://xlhiwcabkwgojbfhurmp.supabase.co/auth/v1"
   # The Android app's pages come from https://localhost inside it (ADR 0063).
   ALLOWED_ORIGINS = "https://localhost"
 
