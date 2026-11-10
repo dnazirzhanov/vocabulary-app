@@ -19,6 +19,8 @@ export interface PackDeck {
   author: string | null;
   word_ids: string[];
   pace: { daily_new: number; due_on: string | null; extra_day: string | null; extra_words: number };
+  /** Given to one of my groups: a course level then is open, whatever level I am on. */
+  given?: boolean;
 }
 
 export interface PackWord {

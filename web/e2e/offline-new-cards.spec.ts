@@ -15,7 +15,7 @@ async function visitOnline(page: Page) {
 }
 
 /** A deck of my own with these words, made through the API (the server has it at once). */
-async function deckWith(page: Page, title: string, headwords: string[]) {
+async function deckWith(page: Page, title: string, headwords: string[]): Promise<string> {
   const deck = await (await page.request.post('/api/decks', { data: { title } })).json();
   for (const headword of headwords) {
     const added = await page.request.post(`/api/decks/${deck.id}/words`, {
@@ -23,6 +23,7 @@ async function deckWith(page: Page, title: string, headwords: string[]) {
     });
     expect(added.ok()).toBe(true);
   }
+  return deck.id;
 }
 
 async function openEditor(page: Page, title: string) {
@@ -85,4 +86,28 @@ test('a card added offline is said to be waiting, and is in the lesson once onli
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await button(page, 'Учить · 3 слова').click();
   expect(await lessonWords(page)).toEqual(new Set(['luggage']));
+});
+
+// Found in the owner's phone test: a deck studied online, then the app opened with no connection.
+test('with no connection, my deck is studied from its page, today’s words and more', async ({ page, context }) => {
+  const id = await deckWith(page, 'Поездка', ['ticket', 'hotel', 'airport', 'suitcase', 'passport', 'luggage']);
+  await page.request.put(`/api/decks/${id}/pace`, { data: { daily_new: 3 } });
+  await visitOnline(page);
+  await page.getByRole('button', { name: /^Поездка/ }).click();
+  await button(page, 'Начать урок · 3 слова').click();
+  expect((await lessonWords(page)).size).toBe(3);
+
+  // The app opened again offline: the deck's page offers more, and gives them.
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole('button', { name: /^Поездка/ }).click();
+  await button(page, 'Ещё 3 слова').click();
+  expect((await lessonWords(page)).size).toBe(3);
+
+  // Back online: the extra words reach the server, and the answers with them.
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/me/pace?deck_id=${id}`)).json()).extra_today)
+    .toBe(3);
 });

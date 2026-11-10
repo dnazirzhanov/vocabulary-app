@@ -303,3 +303,35 @@ def test_old_deletions_and_operations_are_forgotten(client: TestClient, db: Sess
     assert db.scalars(select(SyncOp)).all() == []
     # Forgetting is only the memory of what happened: the deck itself stays.
     assert [d["id"] for d in pull(client)["decks"]] == [deck]
+
+
+def test_extra_words_pressed_offline_count_on_the_day_they_were_pressed(client: TestClient) -> None:
+    deck, _, ops = offline_deck(3)
+    push(client, ops)
+
+    def extra_today(moment: datetime = NOW) -> int:
+        return int(
+            client.get(
+                "/api/me/pace", params={"deck_id": deck}, headers=as_("pavel", moment)
+            ).json()["extra_today"]
+        )
+
+    extra = op("pace.extra", deck_id=deck, words=4, added_at=NOW.isoformat())
+    assert push(client, [extra, op("pace.extra", deck_id=deck, words=2, added_at=NOW.isoformat())])
+    push(client, [extra])  # sent again (a lost answer): not counted twice
+    assert extra_today() == 6
+    # Pressed yesterday and sent today: it never takes away today's extra words.
+    late = op("pace.extra", deck_id=deck, words=9, added_at=(NOW - timedelta(days=1)).isoformat())
+    assert push(client, [late])[0][0] == "applied"
+    assert extra_today() == 6
+    # A clock ahead of the server's counts as now, not as a later day.
+    ahead = op("pace.extra", deck_id=deck, words=1, added_at=(NOW + timedelta(days=3)).isoformat())
+    push(client, [ahead])
+    assert extra_today() == 7
+    # Another person's deck: refused.
+    assert (
+        push(client, [op("pace.extra", deck_id=deck, words=1, added_at=NOW.isoformat())], "olga")[
+            0
+        ][0]
+        == "rejected"
+    )

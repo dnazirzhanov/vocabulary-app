@@ -28,12 +28,14 @@ import {
   planStudy,
   present,
   summarize,
+  withExtra,
   type LocalLesson,
   type Response,
 } from './lessons.ts';
 import type { DayPlan, Step } from './plan.ts';
 import { serializer } from './serial.ts';
 import { learnerFrom, type Learner, type LocalAnswer } from './state.ts';
+import { localDate } from './time.ts';
 
 /**
  * Studying on this device (ADR 0062), in the same calls and shapes as the server's lesson routes:
@@ -426,6 +428,31 @@ export const study = {
    * The pack up to date: a sync cycle sends what is waiting, then fetches it. After a change made
    * online that the pack holds (a deck's pace, extra words today), or to show a deck's page.
    */
+  /** «Ещё N слов» (ADR 0028): kept here at once, sent with the other changes (works offline). */
+  async addExtraWords(deckId: string, words: number): Promise<void> {
+    if (!local()) {
+      await api.addExtraWords(deckId, words);
+      return;
+    }
+    const db = localDb()!;
+    await serial(async () => {
+      const { learner } = await load(db);
+      const moment = now();
+      const tx = db.transaction(['study', 'outbox'], 'readwrite');
+      const record = await tx.objectStore('study').get('pack');
+      if (record?.key === 'pack') {
+        const pack = withExtra(record.pack, deckId, words, localDate(moment, learner.timeZone));
+        await tx.objectStore('study').put({ ...record, pack });
+      }
+      const payload = { deck_id: deckId, words, added_at: new Date(moment).toISOString() };
+      await tx.objectStore('outbox').add({ ...outboxOp('pace.extra', crypto.randomUUID(), payload), deckId });
+      await tx.done;
+      studyChanged();
+      others?.postMessage('pack');
+    });
+    syncSoon(1000);
+  },
+
   async refresh(): Promise<void> {
     if (!localDb()) return;
     packWanted = true;

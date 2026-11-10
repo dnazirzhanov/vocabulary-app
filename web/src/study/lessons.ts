@@ -29,7 +29,7 @@ import {
 import { REVIEW } from './fsrs.ts';
 import { isWellLearned, previews } from './schedule.ts';
 import { letters, overview, pick, separators, tiles, type Mode, type Words } from './spelling.ts';
-import { applyAnswer, scopeOf, type Learner, type LocalAnswer } from './state.ts';
+import { applyAnswer, scopeOf, type Learner, type LocalAnswer, type Pack } from './state.ts';
 import { localDate, localDayBounds } from './time.ts';
 
 /**
@@ -78,6 +78,7 @@ const metIn = (learner: Learner, wordIds: readonly string[]) =>
   wordIds.filter((wordId) => learner.progress.has(wordId)).length;
 
 export function isLocked(learner: Learner, deckId: string): boolean {
+  if (learner.decks.get(deckId)?.given) return false;
   const { levels, current } = course(learner);
   const index = levels.findIndex((deck) => deck.id === deckId);
   return index > current;
@@ -106,6 +107,25 @@ export function dayPlan(learner: Learner, deckId: string, now: number): DayPlan 
     share: deadline ? deadlineShare(left + newToday, today, deadline) : 0,
     extra: deck.pace.extra_day === today ? deck.pace.extra_words : 0,
   });
+}
+
+/** Extra new words one deck can hold for a day (`pace.MAX_EXTRA`). */
+const MAX_EXTRA = 200;
+
+/**
+ * «Ещё N слов» pressed on this device (`pace.extend`): the pack as the server will have it. A day
+ * older than the one kept changes nothing.
+ */
+export function withExtra(pack: Pack, deckId: string, words: number, day: string): Pack {
+  return {
+    ...pack,
+    decks: pack.decks.map((deck) => {
+      const { extra_day: kept, extra_words: earlier } = deck.pace;
+      if (deck.id !== deckId || (kept !== null && day < kept)) return deck;
+      const total = Math.min(MAX_EXTRA, (kept === day ? earlier : 0) + words);
+      return { ...deck, pace: { ...deck.pace, extra_day: day, extra_words: total } };
+    }),
+  };
 }
 
 const allowance = (plan: DayPlan) => (plan.blockedByReviews ? 0 : plan.remaining);

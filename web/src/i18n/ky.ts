@@ -341,6 +341,8 @@ export const ky: Messages = {
   rev: 'Кайт.',
   afterTheLevel: (a: Arg) => `«${a}» деңгээлинен кийин`,
   locked: 'жабык',
+  nameNotAllowed: 'Бул атты колдонууга болбойт. Башкасын тандаңыз.',
+  opensAfterThePreviousLevel: 'Мурунку деңгээлден кийин ачылат',
   newWords: 'жаңы',
   inLearning: 'окулуп жаткан',
   toReviewLabel: 'кайталоого',

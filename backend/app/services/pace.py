@@ -403,13 +403,22 @@ def set_deck_pace(db: Session, user: User, deck: Deck, daily_new: int) -> None:
 
 def add_extra(db: Session, user: User, deck: Deck, words: int, today: date) -> None:
     """More new words in this deck today only; a second time the same day adds to the first."""
+    extend(db, user, deck, words, today)
+    db.commit()
+
+
+def extend(db: Session, user: User, deck: Deck, words: int, day: date) -> None:
+    """`add_extra` without committing. A day older than the one already kept changes nothing: a
+    device's late «Ещё N слов» never takes away a later day's."""
     row = db.get(DeckPace, (user.id, deck.id))
     if row is None:
         row = DeckPace(user_id=user.id, deck_id=deck.id)
         db.add(row)
-    earlier = (row.extra_words or 0) if row.extra_day == today else 0
-    row.extra_day, row.extra_words = today, min(MAX_EXTRA, earlier + words)
-    db.commit()
+    if row.extra_day is not None and day < row.extra_day:
+        return
+    earlier = (row.extra_words or 0) if row.extra_day == day else 0
+    row.extra_day, row.extra_words = day, min(MAX_EXTRA, earlier + words)
+    db.flush()
 
 
 def pace_view(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneInfo) -> PaceOut:

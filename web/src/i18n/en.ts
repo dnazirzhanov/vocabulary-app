@@ -342,6 +342,8 @@ export const en: Messages = {
   rev: 'Rev.',
   afterTheLevel: (a: Arg) => `after the level “${a}”`,
   locked: 'locked',
+  nameNotAllowed: 'This name can’t be used. Choose another one.',
+  opensAfterThePreviousLevel: 'Opens after the previous level',
   newWords: 'new words',
   inLearning: 'in learning',
   toReviewLabel: 'to review',

@@ -518,3 +518,54 @@ def test_a_decks_words_are_numbered_from_the_start_with_no_gaps(client: TestClie
     carry_out = next(w for w in deck["words"] if w["word"]["headword"] == "carry out")
     client.delete(f"/api/decks/{deck['id']}/words/{carry_out['word']['id']}", headers=as_("olga"))
     assert numbers() == [(0, "setback"), (1, "money")]
+
+
+def test_a_course_level_is_given_to_a_group_and_open_to_its_members(client: TestClient) -> None:
+    """Friends study a course level together (ADR 0065): given like a deck of one's own, open to
+    every member whatever level they are on, never changed by being given."""
+    group = class_group(client)
+    level = {"id": "b1-b2"}
+    # Before: the second level is locked for Pavel (he hasn't finished the first).
+    locked = client.get("/api/decks/b1-b2/stats", headers=as_("pavel")).json()
+    assert locked["locked"] is True
+    assert (
+        client.post("/api/sessions", json=lesson_of(level), headers=as_("pavel")).json()["error"][
+            "code"
+        ]
+        == "deck_locked"
+    )
+
+    given = give(client, level, group["id"])
+    assert [g["name"] for g in given["groups"]] == ["7Б английский"]
+    stats = client.get("/api/decks/b1-b2/stats", headers=as_("pavel")).json()
+    assert (stats["locked"], stats["group_name"]) == (False, "7Б английский")
+    assert new_words(client, "pavel", level)
+    # The level is listed open on the course too, with today's new words.
+    course = {d["id"]: d for d in client.get("/api/decks", headers=as_("pavel")).json()}
+    assert course["b1-b2"]["locked"] is False and course["c1"]["locked"] is True
+
+    # Another class given the same level: each giver sees only their own groups.
+    other = client.post(
+        "/api/groups", json={"name": "Друзья"}, headers=named(client, as_("anna"), "Анна")
+    ).json()
+    response = client.post(
+        "/api/decks/b1-b2/publish", json={"group_id": other["id"]}, headers=as_("anna")
+    )
+    assert [g["name"] for g in response.json()["groups"]] == ["Друзья"]
+    edit = client.get("/api/decks/b1-b2/edit", headers=as_("olga")).json()
+    assert [g["name"] for g in edit["groups"]] == ["7Б английский"]
+
+    # Only a group's owner gives, and the course itself can't be edited this way.
+    member = client.post(
+        "/api/decks/c1/publish", json={"group_id": group["id"]}, headers=as_("pavel")
+    )
+    assert member.status_code == 403
+    edit_word = client.post("/api/decks/b1-b2/words", json=SETBACK, headers=as_("olga"))
+    assert edit_word.status_code == 404
+
+    # Taken back: locked again for Pavel; what he learned stays.
+    assert (
+        client.delete(f"/api/groups/{group['id']}/decks/b1-b2", headers=as_("olga")).status_code
+        == 204
+    )
+    assert client.get("/api/decks/b1-b2/stats", headers=as_("pavel")).json()["locked"] is True

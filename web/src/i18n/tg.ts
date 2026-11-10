@@ -341,6 +341,8 @@ export const tg: Messages = {
   rev: 'Такр.',
   afterTheLevel: (a: Arg) => `баъд аз сатҳи «${a}»`,
   locked: 'баста',
+  nameNotAllowed: 'Ин номро истифода бурдан мумкин нест. Дигарашро интихоб кунед.',
+  opensAfterThePreviousLevel: 'Пас аз сатҳи қаблӣ кушода мешавад',
   newWords: 'нав',
   inLearning: 'дар омӯзиш',
   toReviewLabel: 'барои такрор',

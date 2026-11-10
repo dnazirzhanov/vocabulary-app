@@ -30,6 +30,7 @@ from app.schemas.groups import (
     TodayMemberOut,
     TotalsOut,
 )
+from app.services.decency import is_rude
 from app.services.decks import board_assignments, member_deck_progress
 from app.services.group_rights import actions_for, require
 from app.services.names import LINK_LIKE, require_name, shown_name, squash
@@ -58,6 +59,8 @@ def clean_group_name(raw: str) -> str:
     name = squash(raw)
     if not 2 <= len(name) <= 40 or "@" in name or LINK_LIKE.search(name) or "<" in name:
         raise ApiError(422, "invalid_group_name", "Use 2–40 characters, without links")
+    if is_rude(name):
+        raise ApiError(422, "name_not_allowed", "Choose another name")
     return name
 
 

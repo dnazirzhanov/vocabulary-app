@@ -52,12 +52,14 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   await noTodayLine(page);
 });
 
-test('a locked level is not pressable and says what opens it', async ({ page }) => {
+test('a locked level says what opens it, and its page shows it without a lesson', async ({ page }) => {
   await page.goto('/');
   await button(page, 'Открыть курс').click();
-  await expect(deckRow(page, 'Уверенный уровень')).toBeDisabled();
-  await expect(deckRow(page, 'Продвинутый уровень')).toBeDisabled();
   await expect(deckRow(page, 'Уверенный уровень')).toContainText('после уровня «Основа»');
+  // It opens (to see it, or give it to a group: ADR 0065), with no lesson to start.
+  await deckRow(page, 'Уверенный уровень').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Уверенный уровень' })).toBeVisible();
+  await expect(button(page, 'Откроется после предыдущего уровня')).toBeDisabled();
 });
 
 test("after today's target, a deck's page offers a bonus lesson", async ({ page }) => {

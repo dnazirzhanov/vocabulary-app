@@ -40,7 +40,8 @@ export function DeckList({
               type="button"
               className={`${styles.deckGrid} ${styles.deckRow}`}
               data-locked={deck.locked || undefined}
-              disabled={deck.locked || busy}
+              // A locked level still opens: its page shows what is in it and can give it to a group.
+              disabled={busy}
               onClick={() => onStart(deck.id)}
             >
               <span className={styles.deckName}>
@@ -66,7 +67,7 @@ export function DeckList({
                   <Count value={deck.review_count} className={styles.review} name={t.toReviewLabel} />
                 </>
               )}
-              {!deck.locked && <ForwardIcon className={styles.chevron} aria-hidden="true" />}
+              <ForwardIcon className={styles.chevron} aria-hidden="true" />
             </button>
           </li>
         ))}

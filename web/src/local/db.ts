@@ -67,6 +67,7 @@ export type OpKind =
   | 'card.update'
   | 'card.delete'
   | 'me.update'
+  | 'pace.extra'
   | 'study.answer'
   | 'study.finish';
 
