@@ -34,6 +34,7 @@ from app.schemas.sync import (
     DeckRename,
     Op,
     OpResult,
+    PaceExtra,
     PullOut,
     PushIn,
     PushOut,
@@ -43,7 +44,9 @@ from app.schemas.sync import (
     SyncCardOut,
     SyncDeckOut,
 )
-from app.services import decks, me, study_sync
+from app.services import decks, me, pace, study_sync
+from app.services.scheduling import local_date
+from app.services.study_days import zone_of
 
 # How long deletions and applied operations are remembered (`cleanup`).
 KEPT = timedelta(days=90)
@@ -204,6 +207,15 @@ def _change_settings(
     return _result(op, "applied" if changes else "duplicate")
 
 
+def _extra_words(db: Session, user: User, op: PaceExtra, now: datetime) -> OpResult:
+    """«Ещё N слов» pressed on the device: on the learner's day it was pressed (a clock ahead of
+    the server's counts as now)."""
+    deck = decks.visible_deck(db, user, op.deck_id)
+    day = local_date(min(op.added_at, now), zone_of(user))
+    pace.extend(db, user, deck, op.words, day)
+    return _result(op, "applied")
+
+
 def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) -> OpResult:
     if isinstance(op, DeckCreate):
         return _create_deck(db, user, op, now)
@@ -217,6 +229,8 @@ def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) 
         return _update_card(db, user, op, now)
     if isinstance(op, CardDelete):
         return _delete_card(db, user, op, now)
+    if isinstance(op, PaceExtra):
+        return _extra_words(db, user, op, now)
     if isinstance(op, StudyAnswer):
         return study_sync.apply_answer(db, user, op, now)
     if isinstance(op, StudyFinish):

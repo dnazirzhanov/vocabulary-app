@@ -106,6 +106,16 @@ class SettingsChange(_Op):
     base: SettingsBase
 
 
+class PaceExtra(_Op):
+    """«Ещё N слов» (ADR 0028), pressed on the device: more new words in a deck on that day."""
+
+    kind: Literal["pace.extra"]
+    deck_id: AnyId
+    words: Annotated[int, Field(ge=1, le=100)]
+    # When it was pressed (server's clock, as answers): the learner's day it adds to.
+    added_at: datetime
+
+
 class StudyAnswer(_Op):
     """One answer in a lesson planned on the device (ADR 0062): re-applied by the server with the
     same rules, at the moment it was given. The first answer of a session creates it."""
@@ -147,6 +157,7 @@ Op = Annotated[
     | CardUpdate
     | CardDelete
     | SettingsChange
+    | PaceExtra
     | StudyAnswer
     | StudyFinish,
     Field(discriminator="kind"),

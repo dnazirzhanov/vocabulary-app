@@ -1,5 +1,6 @@
 import { withSnapshot } from '../local/session.ts';
 import { study } from '../study/device.ts';
+import type { DayPlan } from '../study/plan.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
 import { api, describeError } from '../lib/api.ts';
@@ -23,6 +24,8 @@ type Loaded = {
   stats: DeckStats;
   active: Session | null;
   pace: Pace | null;
+  /** Today in the deck as this device plans it (with or without a connection). */
+  today: DayPlan | null;
   /** I own a group, so I can give this deck to it; `given`: the groups that have it (ADR 0036). */
   canGive: boolean;
   given: { name: string }[];
@@ -94,7 +97,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 () => [],
               )
             : [];
-          setLoaded({ stats, active: active.session, pace, canGive, given });
+          setLoaded({ stats, active: active.session, pace, today, canGive, given });
         })
         .catch((caught: unknown) => setLoadError(describeError(caught))),
     [deckId],
@@ -127,16 +130,17 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
     );
   }
 
-  const { stats, active, pace, canGive, given } = loaded;
+  const { stats, active, pace, today, canGive, given } = loaded;
   const due = stats.learning_count + stats.review_count;
   // An unfinished lesson in this deck is resumed here; one in another deck is set aside when this
   // one starts (ADR 0035). An unfinished spelling waits beside it, on its own card (ADR 0026).
   const resumeHere = active !== null && active.deck_id === deckId;
-  const blocked = (pace?.blocked_by_reviews ?? false) && due > 0;
+  const blocked = (today?.blockedByReviews ?? pace?.blocked_by_reviews ?? false) && due > 0;
   const left = stats.word_count - stats.introduced_count;
   // Today's pace done but words left: a bonus lesson is still there to take (ADR 0010).
-  const bonus = stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (pace?.bonus ?? false);
-  const fresh = bonus ? Math.min(pace?.next_lesson_size ?? 0, left) : stats.new_today;
+  const bonus =
+    stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (today?.bonus ?? pace?.bonus ?? false);
+  const fresh = bonus ? Math.min(today?.nextLessonSize ?? pace?.next_lesson_size ?? 0, left) : stats.new_today;
   const label = resumeHere ? t.continueLesson : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
   // Where the deck comes from: nothing to say for my own; for the others, who gave it or the level.
   const source = stats.is_mine
@@ -158,8 +162,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
   // Extra words today: there are words left to meet, and nothing else comes first.
   const canAddWords = left > 0 && !stats.locked && !blocked && !resumeHere && pace !== null;
   const startWith = async (extra: number) => {
-    await api.addExtraWords(deckId, extra);
-    await study.refresh();
+    await study.addExtraWords(deckId, extra);
     onSession(await study.startStudySession(deckId), deckId);
   };
   const stages = deckStages({

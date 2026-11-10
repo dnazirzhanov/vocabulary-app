@@ -1,5 +1,5 @@
 import { localDb, withSnapshot } from '../local/session.ts';
-import { setOffline, useOffline } from '../local/online.ts';
+import { setOffline } from '../local/online.ts';
 import { readSnapshot } from '../local/db.ts';
 import { mergeMine, type KeptDeck } from '../local/library.ts';
 import { createDeck, deckCards, myDecks, syncState, takeNotices } from '../local/myDecks.ts';
@@ -45,7 +45,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   // Answers the server didn't count (a phone's clock set back, or a month old): said once.
   const [refused, setRefused] = useState(0);
   const localVersion = useLocalVersion();
-  const offline = useOffline();
   useEffect(() => {
     const db = localDb();
     if (!db) return;
@@ -130,10 +129,10 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
   const onlyHere = new Set(
     mine.filter((deck) => !library.mine.some((item) => item.id === deck.id)).map((deck) => deck.id),
   );
-  // An empty deck has nothing to study yet: it opens for adding words. So does one of mine
-  // without a connection, or not yet on the server: its page needs the server.
+  // An empty deck has nothing to study yet: it opens for adding words. So does one of mine not
+  // yet on the server: its page is worked out from the study pack, which doesn't have it yet.
   const open = (deck: LibraryDeck, isMine: boolean) =>
-    isMine && (deck.word_count === 0 || offline || onlyHere.has(deck.id)) ? onOpenDeck(deck.id) : onOpenPage(deck.id);
+    isMine && (deck.word_count === 0 || onlyHere.has(deck.id)) ? onOpenDeck(deck.id) : onOpenPage(deck.id);
 
   return (
     <div className={styles.screen}>

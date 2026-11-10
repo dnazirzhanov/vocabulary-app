@@ -11,6 +11,7 @@ import {
   planSpelling,
   planStudy,
   summarize,
+  withExtra,
   type LocalLesson,
 } from './lessons.ts';
 import { learnerFrom, type Pack, type PackDeck } from './state.ts';
@@ -256,4 +257,24 @@ test("the deck's cards on this device that the study pack doesn't have yet", () 
   assert.deepEqual(missingFromPack(learner, 'one', ['a', 'b', 't-new', 'c']), ['t-new']);
   assert.deepEqual(missingFromPack(learner, 'one', ['a', 'b']), []);
   assert.deepEqual(missingFromPack(learner, 'mine', ['t-1', 't-2']), ['t-1', 't-2']);
+});
+
+test('«Ещё N слов» on the device adds to the day, as the server will (pace.extend)', () => {
+  const extra = (pack: Pack) => pack.decks.find((deck) => deck.id === 'one')!.pace;
+  const monday = withExtra(packWith(), 'one', 4, '2026-11-09');
+  assert.deepEqual([extra(monday).extra_day, extra(monday).extra_words], ['2026-11-09', 4]);
+  // Again the same day: added; at most 200.
+  assert.equal(extra(withExtra(monday, 'one', 3, '2026-11-09')).extra_words, 7);
+  assert.equal(
+    extra(withExtra(withExtra(monday, 'one', 100, '2026-11-09'), 'one', 100, '2026-11-09')).extra_words,
+    200,
+  );
+  // A later day starts again; an earlier one changes nothing.
+  assert.equal(extra(withExtra(monday, 'one', 2, '2026-11-10')).extra_words, 2);
+  assert.deepEqual(withExtra(monday, 'one', 9, '2026-11-08'), monday);
+  // Other decks untouched.
+  assert.deepEqual(
+    monday.decks.filter((deck) => deck.id !== 'one'),
+    packWith().decks.filter((deck) => deck.id !== 'one'),
+  );
 });
