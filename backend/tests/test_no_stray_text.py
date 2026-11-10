@@ -15,6 +15,8 @@ ALLOWED = {
     "services/decks.py",
     # Prompts and example cards for the model, not for people.
     "services/generation.py",
+    # Words refused in names, never shown.
+    "services/decency.py",
 }
 
 
