@@ -48,6 +48,8 @@ class PackDeck(BaseModel):
     # In deck order.
     word_ids: list[str]
     pace: PackPace
+    # Given to one of my groups: a course level then is open, whatever level I am on (ADR 0065).
+    given: bool = False
 
 
 # word id, FSRS state, step, stability, difficulty, due, last review, introduced, first recalled,

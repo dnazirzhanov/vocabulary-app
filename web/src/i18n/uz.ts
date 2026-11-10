@@ -341,6 +341,8 @@ export const uz: Messages = {
   rev: 'Takr.',
   afterTheLevel: (a: Arg) => `«${a}» darajasidan keyin`,
   locked: 'yopiq',
+  nameNotAllowed: 'Bu nomdan foydalanib bo‘lmaydi. Boshqasini tanlang.',
+  opensAfterThePreviousLevel: 'Oldingi darajadan keyin ochiladi',
   newWords: 'yangi',
   inLearning: 'o‘rganilayotgan',
   toReviewLabel: 'takrorlash uchun',

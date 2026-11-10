@@ -78,6 +78,7 @@ const metIn = (learner: Learner, wordIds: readonly string[]) =>
   wordIds.filter((wordId) => learner.progress.has(wordId)).length;
 
 export function isLocked(learner: Learner, deckId: string): boolean {
+  if (learner.decks.get(deckId)?.given) return false;
   const { levels, current } = course(learner);
   const index = levels.findIndex((deck) => deck.id === deckId);
   return index > current;

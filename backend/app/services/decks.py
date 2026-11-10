@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, and_, delete, exists, func, or_, select
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, true
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
@@ -114,6 +114,19 @@ def _owned_deck(db: Session, user: User, deck_id: str) -> Deck:
     return deck
 
 
+def _givable_deck(db: Session, user: User, deck_id: str) -> Deck:
+    """A deck I may give to my group: one I wrote, or a level of the course (ADR 0065)."""
+    deck = db.get(Deck, deck_id)
+    if (
+        deck is not None
+        and deck.kind == "course"
+        and deck.status == "published"
+        and course_open(user)
+    ):
+        return deck
+    return _owned_deck(db, user, deck_id)
+
+
 def _owned_group(db: Session, user: User, group_id: UUID) -> Group:
     """A group I own. Not a member: 404, as for any group; a member: 403 (they can see it)."""
     row = db.execute(
@@ -187,6 +200,11 @@ class GivenDeck:
     due_on: date | None = None
 
 
+def given_ids(db: Session, user: User) -> set[str]:
+    """Decks given to my groups: a course level among them is open, whatever level I am on."""
+    return {item.deck.id for item in assigned_decks(db, user)}
+
+
 def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
     """Decks given to my groups, oldest first, with their group and author (the first group to
     give a deck names it)."""
@@ -207,6 +225,9 @@ def assigned_decks(db: Session, user: User) -> list[GivenDeck]:
             soonest[deck.id] = due_on
     seen: dict[str, GivenDeck] = {}
     for deck, group_name, author_name, _ in rows:
+        # The course is for those studying in Russian (ADR 0055), given or not.
+        if deck.kind == "course" and not course_open(user):
+            continue
         seen.setdefault(
             deck.id,
             GivenDeck(
@@ -240,7 +261,9 @@ def shared_groups(db: Session, user: User) -> dict[str, list[AssignedGroupOut]]:
 # --- writing a deck -------------------------------------------------------------------------
 
 
-def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
+def _deck_out(db: Session, deck: Deck, viewer: User | None = None) -> TeacherDeckOut:
+    """The deck as its giver sees it. A course level is given by many people: `viewer` sees only
+    the groups they are in."""
     words = db.execute(
         select(Word)
         .join(DeckWord, DeckWord.word_id == Word.id)
@@ -250,7 +273,13 @@ def _deck_out(db: Session, deck: Deck) -> TeacherDeckOut:
     groups = db.execute(
         select(Group.id, Group.name, DeckAssignment.due_on)
         .join(DeckAssignment, DeckAssignment.group_id == Group.id)
-        .where(DeckAssignment.deck_id == deck.id, DeckAssignment.removed_at.is_(None))
+        .where(
+            DeckAssignment.deck_id == deck.id,
+            DeckAssignment.removed_at.is_(None),
+            Group.id.in_(select(GroupMember.group_id).where(GroupMember.user_id == viewer.id))
+            if viewer is not None
+            else true(),
+        )
         .order_by(DeckAssignment.assigned_at)
     ).all()
     return TeacherDeckOut(
@@ -369,7 +398,7 @@ def my_decks(db: Session, user: User) -> list[TeacherDeckOut]:
 
 
 def get_deck(db: Session, user: User, deck_id: str) -> TeacherDeckOut:
-    return _deck_out(db, _owned_deck(db, user, deck_id))
+    return _deck_out(db, _givable_deck(db, user, deck_id), user)
 
 
 def retitle(db: Session, deck: Deck, title: str, now: datetime) -> None:
@@ -830,7 +859,7 @@ def publish(
     """Publish the deck and give it to a group I own, with an optional «Выучить к» (ADR 0028).
     Repeating it only sets the deadline. A deck taken back is given again, and undoing that keeps
     its deadline if the date is still to come (ADR 0049)."""
-    deck = _owned_deck(db, user, deck_id)
+    deck = _givable_deck(db, user, deck_id)
     group = _owned_group(db, user, group_id)
     if not _deck_word_ids(db, deck.id):
         raise ApiError(409, "deck_empty", "Add a word first")
@@ -845,8 +874,9 @@ def publish(
         )
         if taken_back and taken_back >= local_date(now, ZoneInfo(group.time_zone)):
             due_on = taken_back
-    deck.status = "published"
-    mark_deck(db, deck, now)
+    if deck.kind == "user":
+        deck.status = "published"
+        mark_deck(db, deck, now)
     db.execute(
         insert(DeckAssignment)
         .values(
@@ -862,7 +892,7 @@ def publish(
         )
     )
     db.commit()
-    return _deck_out(db, deck)
+    return _deck_out(db, deck, user)
 
 
 def set_due(
@@ -883,7 +913,7 @@ def set_due(
     assignment.due_on = due_on
     db.commit()
     deck = db.get_one(Deck, deck_id)
-    return _deck_out(db, deck)
+    return _deck_out(db, deck, user)
 
 
 def take_back(db: Session, user: User, group_id: UUID, deck_id: str, now: datetime) -> None:

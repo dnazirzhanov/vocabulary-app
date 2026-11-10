@@ -341,6 +341,8 @@ export const kk: Messages = {
   rev: 'Қайт.',
   afterTheLevel: (a: Arg) => `«${a}» деңгейінен кейін`,
   locked: 'жабық',
+  nameNotAllowed: 'Бұл атауды қолдануға болмайды. Басқасын таңдаңыз.',
+  opensAfterThePreviousLevel: 'Алдыңғы деңгейден кейін ашылады',
   newWords: 'жаңа',
   inLearning: 'оқылып жатқан',
   toReviewLabel: 'қайталауға',

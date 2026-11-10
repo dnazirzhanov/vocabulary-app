@@ -345,10 +345,11 @@ def pack(db: Session, user: User, now: datetime) -> Pack:
                 title=item.deck.title,
                 level=item.deck.level,
                 level_order=item.deck.level_order,
-                group_name=item.given.group_name if item.given and item.kind == "group" else None,
+                group_name=item.given.group_name if item.given else None,
                 author=item.given.author if item.given and item.kind == "group" else None,
                 word_ids=order.get(item.deck.id, []),
                 pace=pace_of(item.deck, item.given.due_on if item.given else None),
+                given=item.given is not None,
             )
             for item in studied
         ],

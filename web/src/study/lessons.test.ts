@@ -278,3 +278,13 @@ test('«Ещё N слов» on the device adds to the day, as the server will (p
     packWith().decks.filter((deck) => deck.id !== 'one'),
   );
 });
+
+test('a course level given to my group is open, whatever level I am on', () => {
+  const pack = packWith();
+  const levels = pack.decks.filter((deck) => deck.kind === 'course');
+  const later = levels[levels.length - 1]!;
+  assert.ok(levels.length > 1, 'the test pack has two levels');
+  assert.throws(() => planStudy(learnerFrom(pack, []), later.id, NOW), /deck_locked/);
+  const given = { ...pack, decks: pack.decks.map((deck) => (deck.id === later.id ? { ...deck, given: true } : deck)) };
+  assert.ok(planStudy(learnerFrom(given, []), later.id, NOW).length > 0);
+});

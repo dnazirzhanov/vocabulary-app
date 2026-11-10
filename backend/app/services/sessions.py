@@ -370,11 +370,14 @@ def list_decks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> l
         return []
     current = _current_index(rows)
     allowance = _allowance(db, user, rows, now, time_zone)
+    given = decks.given_ids(db, user)
     return [
         _deck_out(
             row,
-            locked=index > current,
-            new_today=min(allowance, row[1] - row[2]) if index == current else 0,
+            locked=index > current and row[0].id not in given,
+            new_today=min(allowance, row[1] - row[2])
+            if index == current or row[0].id in given
+            else 0,
         )
         for index, row in enumerate(rows)
     ]
@@ -407,7 +410,7 @@ def deck_stats(
     new_today = min(_deck_allowance(db, user, deck.id, now, time_zone), words - met)
     if deck.kind == "course":
         index = next((i for i, course_row in enumerate(rows) if course_row[0].id == deck.id), 0)
-        locked = index > _current_index(rows)
+        locked = index > _current_index(rows) and deck.id not in decks.given_ids(db, user)
         if locked:
             new_today = 0
     known = db.scalar(
@@ -519,7 +522,7 @@ def _study_plan(
     else:
         deck = decks.visible_deck(db, user, request.deck_id)
         position = next((i for i, row in enumerate(rows) if row[0].id == deck.id), current)
-        if position > current:
+        if position > current and deck.id not in decks.given_ids(db, user):
             raise ApiError(409, "deck_locked", "Finish the previous level first")
     due_query = select(UserWordProgress.word_id).where(
         UserWordProgress.user_id == user.id, UserWordProgress.due_at <= now

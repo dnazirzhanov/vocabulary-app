@@ -9,6 +9,7 @@ import re
 
 from app.core.errors import ApiError
 from app.models import User
+from app.services.decency import is_rude
 
 MAX_LENGTH = 20
 # Letters and digits of any language (ң, ө, ҷ, ʻ…), with a space, hyphen or apostrophe (O'g'il),
@@ -32,6 +33,8 @@ def clean_name(raw: str) -> str:
         raise ApiError(422, "invalid_name", "A name cannot be a number")
     if LINK_LIKE.search(name):
         raise ApiError(422, "invalid_name", "A name cannot contain a link")
+    if is_rude(name):
+        raise ApiError(422, "name_not_allowed", "Choose another name")
     return name
 
 

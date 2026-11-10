@@ -307,6 +307,7 @@ const MESSAGES: Record<string, string> = {
   not_group_owner: t.onlyTheGroupSOwnerCan,
   not_owner: t.onlyOwnerCanDoThat,
   not_allowed: t.youArenTAllowedToDo,
+  name_not_allowed: t.nameNotAllowed,
   already_owner: t.chooseAnotherMember,
   generation_limit: t.wordPickingIsUsedUpFor,
   generation_unavailable: t.wordPickingIsnTSetUp,

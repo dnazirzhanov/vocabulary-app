@@ -84,13 +84,15 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                   next_lesson_size: today.nextLessonSize,
                 }
               : server;
-          // Giving a deck to a group is for a group's owner (ADR 0036).
-          const canGive = stats.is_mine
-            ? await api.groups().then(
-                (groups) => groups.some((group) => group.can.includes('give_decks')),
-                () => false,
-              )
-            : false;
+          // Giving a deck to a group is for a group's owner (ADR 0036): one I wrote, or a course
+          // level to study with friends (ADR 0065).
+          const canGive =
+            stats.is_mine || stats.kind === 'course'
+              ? await api.groups().then(
+                  (groups) => groups.some((group) => group.can.includes('give_decks')),
+                  () => false,
+                )
+              : false;
           const given = canGive
             ? await api.teacherDeck(deckId).then(
                 (deck) => deck.groups,
@@ -412,7 +414,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 )
               }
             >
-              {busy ? t.loading : (label ?? t.thatSAllForToday)}
+              {busy ? t.loading : stats.locked ? t.opensAfterThePreviousLevel : (label ?? t.thatSAllForToday)}
             </PrimaryButton>
           }
         </div>

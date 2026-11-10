@@ -337,6 +337,8 @@ export const ru = {
   rev: 'Повт.',
   afterTheLevel: (a: Arg) => `после уровня «${a}»`,
   locked: 'закрыта',
+  nameNotAllowed: 'Это имя нельзя использовать. Выберите другое.',
+  opensAfterThePreviousLevel: 'Откроется после предыдущего уровня',
   newWords: 'новых',
   inLearning: 'изучаемых',
   toReviewLabel: 'к повторению',
