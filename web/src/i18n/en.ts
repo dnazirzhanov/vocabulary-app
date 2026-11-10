@@ -321,8 +321,6 @@ export const en: Messages = {
   removeFromTheGroupTheyCan: (a: Arg) => `Remove “${a}” from the group? They can come back with the invite link.`,
   yesHandOver: 'Yes, hand over',
   englishByLevels: 'English by levels',
-  theMostUsefulEnglishWordsFrom:
-    "The most useful English words, from simple to hard. Open a level: new words come at your pace, and reviews remind you of the ones you've learned. The next level opens when you finish this one.",
   levelsWillAppearHereSoon: 'Levels will appear here soon.',
   levels: 'Levels',
   new: 'New',
@@ -552,7 +550,6 @@ export const en: Messages = {
   startYourFirstDeck: 'Start your first deck',
   thisWeek: (a: Arg) => `+${a} this week`,
   moreInLearning: (a: Arg) => `${a} more in learning`,
-  aWordCountsAsKnownWhen: 'A word counts as known when you recall it in a review, a day or more later.',
   decks: 'Decks',
   myPromiseTitle: 'My promise',
   theDaysYouPromiseToStudy: 'The days you promise to study. A change starts tomorrow: today stays as it is.',

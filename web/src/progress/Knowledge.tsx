@@ -32,16 +32,17 @@ export function Summary({
       ) : (
         <p className={styles.hero}>{learning > 0 ? t.wordsYouReLearning(learning) : t.startYourFirstDeck}</p>
       )}
-      <p className={styles.sub}>
-        {data.learned > 0
-          ? [
-              data.learned_this_week > 0 && t.thisWeek(data.learned_this_week),
-              learning > 0 && t.moreInLearning(learning),
-            ]
-              .filter(Boolean)
-              .join(' · ')
-          : t.aWordCountsAsKnownWhen}
-      </p>
+      {/* Numbers only: what «знаю» means is the learner's to find, not a paragraph here. */}
+      {data.learned > 0 && (
+        <p className={styles.sub}>
+          {[
+            data.learned_this_week > 0 && t.thisWeek(data.learned_this_week),
+            learning > 0 && t.moreInLearning(learning),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
       <WeekDays progress={progress} onPromiseChanged={onPromiseChanged} />
     </section>
   );

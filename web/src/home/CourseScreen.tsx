@@ -69,7 +69,6 @@ export function CourseScreen({ onOpenDeck, onBack }: CourseScreenProps) {
             <h1 ref={headingRef} tabIndex={-1} className={styles.pageTitle}>
               {t.englishByLevels}
             </h1>
-            <p className={styles.lead}>{t.theMostUsefulEnglishWordsFrom}</p>
           </div>
           {decks.length === 0 ? (
             <p className={styles.lead}>{t.levelsWillAppearHereSoon}</p>

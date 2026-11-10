@@ -39,17 +39,26 @@
 
 .sectionTitle {
   margin: 0;
-  font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  overflow: hidden;
+}
+
+.list > li + li {
+  border-top: 1px solid var(--color-border);
 }
 
 .card {
@@ -58,11 +67,10 @@
   gap: var(--space-2) var(--space-3);
   align-items: center;
   width: 100%;
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px var(--color-border);
+  border-radius: 0;
+  background: transparent;
   color: var(--color-text);
   font: inherit;
   text-align: left;

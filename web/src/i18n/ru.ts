@@ -316,8 +316,6 @@ export const ru = {
   removeFromTheGroupTheyCan: (a: Arg) => `Удалить «${a}» из группы? Вернуться можно будет по ссылке-приглашению.`,
   yesHandOver: 'Да, передать',
   englishByLevels: 'Английский по уровням',
-  theMostUsefulEnglishWordsFrom:
-    'Самые нужные слова английского, от простых к сложным. Откройте уровень — новые слова придут в вашем темпе, а повторения напомнят о выученных. Следующий уровень откроется, когда пройдёте этот.',
   levelsWillAppearHereSoon: 'Скоро здесь появятся уровни.',
   levels: 'Уровни',
   new: 'Нов.',
@@ -544,7 +542,6 @@ export const ru = {
   startYourFirstDeck: 'Начните первую колоду',
   thisWeek: (a: Arg) => `+${a} за эту неделю`,
   moreInLearning: (a: Arg) => `ещё ${a} учите`,
-  aWordCountsAsKnownWhen: 'Слово становится знакомым, когда вы вспомните его на повторении — через день или позже.',
   decks: 'Колоды',
   myPromiseTitle: 'Моё обещание',
   theDaysYouPromiseToStudy:

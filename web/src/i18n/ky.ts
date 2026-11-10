@@ -320,8 +320,6 @@ export const ky: Messages = {
   removeFromTheGroupTheyCan: (a: Arg) => `«${a}» топтон чыгарылсынбы? Чакыруу шилтемеси менен кайра келе алат.`,
   yesHandOver: 'Ооба, өткөрүү',
   englishByLevels: 'Деңгээлдер боюнча англис тили',
-  theMostUsefulEnglishWordsFrom:
-    'Англис тилинин эң керектүү сөздөрү, жөнөкөйдөн татаалга. Деңгээлди ачыңыз: жаңы сөздөр өз ылдамдыгыңызда келет, ал эми кайталоо үйрөнгөндөрдү эске салат. Кийинки деңгээл бул бүткөндө ачылат.',
   levelsWillAppearHereSoon: 'Жакында бул жерде деңгээлдер пайда болот.',
   levels: 'Деңгээлдер',
   new: 'Жаңы',
@@ -551,7 +549,6 @@ export const ky: Messages = {
   startYourFirstDeck: 'Биринчи топтомду баштаңыз',
   thisWeek: (a: Arg) => `бул жумада +${a}`,
   moreInLearning: (a: Arg) => `дагы ${a} окулууда`,
-  aWordCountsAsKnownWhen: 'Сөздү кайталоодо, жок дегенде бир күндөн кийин эстегенде, ал белгилүү саналат.',
   decks: 'Топтомдор',
   myPromiseTitle: 'Менин убадам',
   theDaysYouPromiseToStudy: 'Кайсы күндөрү окууга убада бересиз. Өзгөртүү эртеңден башталат: бүгүнкү күн өзгөрбөйт.',
