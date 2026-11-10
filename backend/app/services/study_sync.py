@@ -140,8 +140,9 @@ def _new_session(db: Session, user: User, op: StudyAnswer) -> LearningSession:
 
 
 def _word_refusal(db: Session, user: User, op: StudyAnswer) -> str | None:
-    """The answered word must be one of the lesson's deck; hard words and spelling are of words
-    already met."""
+    """The answered word must be one of the lesson's deck; hard words are of words already met.
+    Spelling may be of any word of the deck («Все слова», ADR 0064): one no lesson has shown is
+    practice and leaves the ladder alone (`sessions.spell_word`)."""
     in_deck = db.scalar(
         select(DeckWord.word_id).where(
             DeckWord.deck_id == op.deck_id, DeckWord.word_id == op.word_id
@@ -149,7 +150,7 @@ def _word_refusal(db: Session, user: User, op: StudyAnswer) -> str | None:
     )
     if in_deck is None:
         return "word_not_found"
-    if op.session_kind != "study" and db.get(UserWordProgress, (user.id, op.word_id)) is None:
+    if op.session_kind == "hard" and db.get(UserWordProgress, (user.id, op.word_id)) is None:
         return "not_met"
     return None
 

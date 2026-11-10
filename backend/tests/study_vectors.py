@@ -224,8 +224,11 @@ def ladders(rng: random.Random) -> dict[str, list[Any]]:
             for word in met
             if rng.random() < 0.5
         }
-        words = spelling_ladder.Words(met, today, ladder, now - timedelta(hours=6))
-        mode: spelling_ladder.Mode = rng.choice(("mix", "today", "hard"))
+        # The deck in its own order, with words no lesson has shown (for «Все слова»).
+        deck = met + [f"u{n}" for n in range(rng.randrange(0, 5))]
+        rng.shuffle(deck)
+        words = spelling_ladder.Words(met, today, ladder, now - timedelta(hours=6), deck)
+        mode: spelling_ladder.Mode = rng.choice(("mix", "today", "hard", "all"))
         size = rng.choice(spelling_ladder.SIZES)
         chosen = spelling_ladder.pick(mode, size, words, now, random.Random(0))
         seen = spelling_ladder.overview(words, now)
@@ -233,6 +236,7 @@ def ladders(rng: random.Random) -> dict[str, list[Any]]:
             [
                 met,
                 today,
+                deck,
                 [[w, s.rung, ms(s.due_at), ms(s.last_spelled_at)] for w, s in ladder.items()],
                 ms(now - timedelta(hours=6)),
                 ms(now),
@@ -247,6 +251,7 @@ def ladders(rng: random.Random) -> dict[str, list[Any]]:
                     seen.hard,
                     seen.known,
                     seen.met,
+                    seen.words,
                 ],
             ]
         )

@@ -56,13 +56,36 @@ WORDS = Words(
         "f": Spelled(HARD, morning(1), TODAY_START + timedelta(hours=10)),  # missed today
     },
     today_start=TODAY_START,
+    # The deck's order; x and y no lesson has shown.
+    deck=["x", "a", "b", "c", "d", "e", "f", "g", "y"],
 )
 
 
-def test_mix_takes_due_words_hardest_first_then_todays_then_older_never_spelled() -> None:
+def test_mix_takes_due_words_hardest_first_then_todays_just_learned_first_then_older() -> None:
+    """Right after a lesson, its own new words come before earlier ones of the day (ADR 0064)."""
     rng = random.Random(1)
-    assert pick("mix", 10, WORDS, NOW, rng) == ["c", "b", "e", "g", "d"]
-    assert pick("mix", 3, WORDS, NOW, rng) == ["c", "b", "e"]
+    assert pick("mix", 10, WORDS, NOW, rng) == ["c", "b", "g", "e", "d"]
+    assert pick("mix", 3, WORDS, NOW, rng) == ["c", "b", "g"]
+
+
+def test_mix_never_offers_a_word_no_lesson_has_shown() -> None:
+    assert not {"x", "y"} & set(pick("mix", 30, WORDS, NOW, random.Random(1)))
+
+
+def test_all_takes_every_word_of_the_deck_in_order_spelled_today_and_known_last() -> None:
+    """«Все слова»: met or not, in the deck's order; f was spelled today, a is known (ADR 0064)."""
+    assert pick("all", 30, WORDS, NOW, random.Random(1)) == [
+        "x",
+        "b",
+        "c",
+        "d",
+        "e",
+        "g",
+        "y",
+        "f",
+        "a",
+    ]
+    assert pick("all", 3, WORDS, NOW, random.Random(1)) == ["x", "b", "c"]
 
 
 def test_today_puts_words_not_yet_spelled_today_first() -> None:
@@ -101,4 +124,4 @@ def test_random_favours_words_never_spelled_and_rarely_a_known_one() -> None:
 def test_the_overview_counts_what_each_button_holds() -> None:
     seen = overview(WORDS, NOW)
     assert (seen.ready, seen.due, seen.today, seen.today_left) == (5, 2, 3, 2)
-    assert (seen.hard, seen.known, seen.met) == (2, 1, 7)
+    assert (seen.hard, seen.known, seen.met, seen.words) == (2, 1, 7, 9)

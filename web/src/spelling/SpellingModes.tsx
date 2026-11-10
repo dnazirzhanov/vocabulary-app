@@ -30,11 +30,19 @@ function modes(state: SpellingState): { id: Choice; title: string; note: string;
       note: t.fromTheYouVeMet(wordsLabel(state.met)),
       count: state.met,
     },
+    {
+      // For learning new words by spelling them (ADR 0064): met or not.
+      id: 'all',
+      title: t.allWords,
+      note: t.allWordsNote(wordsLabel(state.words)),
+      count: state.words,
+    },
   ];
 }
 
 /**
- * «Другие режимы»: today's words, the hard ones, or a random draw, 5 to 30 at a time. The main
+ * «Другие режимы»: today's words, the hard ones, a random draw, or every word of the deck (ADR
+ * 0064), 5 to 30 at a time. The main
  * button stays one tap on the deck's page; this is for when the learner wants something else.
  * Starting one replaces a spelling left unfinished (ADR 0050), so it says so.
  */

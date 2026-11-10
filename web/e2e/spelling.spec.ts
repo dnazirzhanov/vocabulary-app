@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { button, expect, finishSession, openDeck, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, spell, test } from './learner.ts';
 
 /** Today's lesson: five new cards, then its summary, where spelling is offered next. */
 async function lesson(page: Page) {
@@ -17,34 +17,35 @@ test('spelling follows the lesson: a card per new word, built from its meaning',
   // Spelling is practice, offered after the lesson (ADR 0022).
   await button(page, 'Правописание · 5 слов').click();
 
+  // The words just learned first (ADR 0064): the lesson met house … cheap, so cheap comes first.
   const card = page.locator('[data-spelling]');
-  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дом');
-  await expect(page.locator('main')).not.toContainText('house'); // the word is never shown
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дешёвый');
+  await expect(page.locator('main')).not.toContainText('cheap'); // the word is never shown
   const check = button(page, 'Проверить');
   await expect(check).toBeDisabled();
 
+  await tile(page, 'c').click();
   await tile(page, 'h').click();
-  await tile(page, 'o').click();
   // A used tile leaves an empty, disabled place; removing the letter brings it back there.
-  await expect(page.getByRole('button', { name: 'h, уже в ответе' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Буква 1: h, убрать' }).click();
-  await expect(page.getByRole('button', { name: 'Буква 1: o, убрать' })).toBeVisible(); // shifted left
-  await expect(tile(page, 'h')).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'c, уже в ответе' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Буква 1: c, убрать' }).click();
+  await expect(page.getByRole('button', { name: 'Буква 1: h, убрать' })).toBeVisible(); // shifted left
+  await expect(tile(page, 'c')).toBeEnabled();
   await button(page, 'Очистить').click();
   await expect(page.getByRole('group', { name: 'Ответ: 0 из 5 букв' })).toBeVisible();
 
-  for (const letter of 'house') await tile(page, letter).click();
+  for (const letter of 'cheap') await tile(page, letter).click();
   await check.click();
   await expect(page.getByRole('status')).toContainText('Верно');
   await button(page, 'Дальше').click();
-  await expect(card.getByRole('heading', { level: 1 })).toHaveText('вода');
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('покупать, купить');
 });
 
 test('a mistake shows the word, and the card can be built again until right', async ({ page }) => {
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
-  await expect(page.locator('[data-spelling] h1')).toHaveText('дом'); // the card is there to type into
-  await page.keyboard.type('huose');
+  await expect(page.locator('[data-spelling] h1')).toHaveText('дешёвый'); // the card is there to type into
+  await page.keyboard.type('hceap');
   await button(page, 'Проверить').click();
   const feedback = page.getByRole('status');
   await expect(feedback).toContainText('Почти');
@@ -53,8 +54,8 @@ test('a mistake shows the word, and the card can be built again until right', as
   await expect(feedback.locator('mark')).toHaveCount(2); // the two letters out of place
 
   await button(page, 'Собрать ещё раз').click();
-  await expect(page.locator('[data-spelling] [lang="en"]')).toHaveText('house'); // shown now
-  await page.keyboard.type('house');
+  await expect(page.locator('[data-spelling] [lang="en"]')).toHaveText('cheap'); // shown now
+  await page.keyboard.type('cheap');
   await expect(page.getByRole('status')).toContainText('Верно');
   await button(page, 'Дальше').click();
 
@@ -70,14 +71,13 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
 }) => {
   await lesson(page);
   await button(page, 'На главную').click(); // back on the deck's page
-  // The main button: today's words, never spelled (ADR 0026).
-  await expect(button(page, 'Правописание · 5 слов')).toContainText(
-    'Слова, которые вы ещё не писали — из любой колоды',
-  );
+  // The main button: today's words, never spelled (ADR 0026), from this deck only (ADR 0056).
+  await expect(button(page, 'Правописание · 5 слов')).toContainText('Слова, которые вы ещё не писали');
+  await expect(button(page, 'Правописание · 5 слов')).not.toContainText('из любой колоды');
   await expect(button(page, 'Правописание: другие режимы')).toBeVisible();
   await button(page, 'Правописание · 5 слов').click();
+  await tile(page, 'c').click();
   await tile(page, 'h').click();
-  await tile(page, 'o').click();
   await page.reload();
   await openDeck(page);
   await button(page, 'Продолжить правописание').click();
@@ -116,16 +116,16 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
 test('one hint per card fills the next letter, and only that one', async ({ page }) => {
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
-  await expect(page.locator('[data-spelling] h1')).toHaveText('дом');
+  await expect(page.locator('[data-spelling] h1')).toHaveText('дешёвый');
+  await tile(page, 'c').click();
   await tile(page, 'h').click();
-  await tile(page, 'o').click();
   const hint = page.getByRole('button', { name: 'Подсказка: буква' });
   await hint.click();
   // The third slot gets its letter; the word's other letters stay hidden.
-  await expect(page.getByRole('button', { name: 'Буква 3: u (подсказка), убрать' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Буква 3: e (подсказка), убрать' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Ответ: 3 из 5 букв' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Подсказка использована' })).toBeDisabled();
-  await expect(page.locator('main')).not.toContainText('house');
+  await expect(page.locator('main')).not.toContainText('cheap');
 
   // Still one hint after a reload.
   await page.reload();
@@ -137,8 +137,8 @@ test('one hint per card fills the next letter, and only that one', async ({ page
 test('spelling left midway waits with its progress on the deck page, not home, and resumes there', async ({ page }) => {
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
-  await spellOne(page, 'house'); // right
-  await spellOne(page, 'wtaer'); // a mistake
+  await spellOne(page, 'cheap'); // right
+  await spellOne(page, 'byu'); // a mistake
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
 
   // Back on the deck's page: the spelling is there with how far it got, not gone.
@@ -165,8 +165,8 @@ test('spelling left midway waits with its progress on the deck page, not home, a
 test('another mode can be chosen while a spelling waits, and replaces it', async ({ page }) => {
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
-  await spellOne(page, 'house'); // right
-  await spellOne(page, 'wtaer'); // a mistake, so one word is hard now
+  await spellOne(page, 'cheap'); // right
+  await spellOne(page, 'byu'); // a mistake, so one word is hard now
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
 
   // Both ways on: carry on, or choose something else.
@@ -176,7 +176,7 @@ test('another mode can be chosen while a spelling waits, and replaces it', async
   await page.getByRole('radio', { name: /Трудные/ }).check();
   await button(page, 'Начать · 1 слово').click();
 
-  await expect(page.locator('[data-spelling] h1')).toHaveText('вода');
+  await expect(page.locator('[data-spelling] h1')).toHaveText('покупать, купить');
   await page.getByRole('button', { name: 'Выйти из урока' }).click();
 
   // The chosen set is what waits now; the one before is gone, and its mistake stayed hard.
@@ -184,7 +184,51 @@ test('another mode can be chosen while a spelling waits, and replaces it', async
     'Написано 0 из 1 · осталось 1 слово',
   );
   await button(page, 'Продолжить правописание').click();
-  await expect(page.locator('[data-spelling] h1')).toHaveText('вода');
+  await expect(page.locator('[data-spelling] h1')).toHaveText('покупать, купить');
+});
+
+test('after a new lesson, spelling asks its words first, and one left before it is not offered to continue', async ({
+  page,
+}) => {
+  // ADR 0064: the words just learned come first.
+  await lesson(page); // house … cheap
+  await button(page, 'Правописание · 5 слов').click();
+  await spellOne(page, 'cheap');
+  await page.getByRole('button', { name: 'Выйти из урока' }).click();
+  await expect(button(page, 'Продолжить правописание')).toBeVisible();
+
+  await button(page, 'Ещё 5 слов').click(); // five more: money … morning
+  await finishSession(page);
+  await button(page, 'На главную').click();
+  // The spelling from before isn't offered to continue: a fresh one, the new words first.
+  await expect(button(page, 'Продолжить правописание')).toHaveCount(0);
+  await button(page, 'Правописание · 9 слов').click();
+  await expect(page.locator('[data-spelling] h1')).toHaveText('утро');
+});
+
+test('«Все слова колоды» spells words not studied yet, and missing them makes nothing hard', async ({ page }) => {
+  // ADR 0064: for learning words by spelling them; an unstudied word is practice.
+  await lesson(page); // house … cheap
+  await button(page, 'На главную').click();
+  await button(page, 'Правописание: другие режимы').click();
+  const dialog = page.getByRole('dialog', { name: 'Правописание' });
+  const all = dialog.getByRole('radio', { name: /Все слова колоды/ });
+  await expect(all).toBeEnabled();
+  await expect(dialog).toContainText('Все 100\u00a0слов — и те, что вы ещё не учили');
+  await all.check();
+  await dialog.getByRole('button', { name: 'Начать · 10 слов' }).click();
+  // The deck's order: the five studied, then five never shown in a lesson.
+  for (let index = 0; index < 5; index += 1) await spell(page);
+  await expect(page.locator('[data-spelling] h1')).toHaveText('деньги'); // money: not studied
+  // Built wrong from the card's own tiles: each word backwards.
+  for (const word of ['money', 'city', 'wait', 'busy', 'morning']) await spellOne(page, [...word].reverse().join(''));
+  await finishSession(page);
+
+  // The misses were practice: nothing is hard, and the main button has nothing new to offer.
+  await button(page, 'На главную').click();
+  await expect(page.getByRole('button', { name: /^Правописание · \d/ })).toHaveCount(0);
+  await button(page, 'Правописание').click(); // with nothing for the main button, only the modes
+  await expect(dialog.getByRole('radio', { name: /Трудные/ })).toBeDisabled();
 });
 
 /** Builds the current spelling card from a keyboard and moves on. */
@@ -210,13 +254,13 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
   await lesson(page);
   await button(page, 'Правописание · 5 слов').click();
   const card = page.locator('[data-spelling]');
-  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дом');
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дешёвый');
 
   // Nothing plays until asked: not the lesson's last card's word, and not this one.
   const before = (await played()).length;
   await page.waitForTimeout(300);
   expect(await played()).toHaveLength(before);
-  expect((await played()).slice(before)).not.toContain('/audio/words/house.mp3');
+  expect((await played()).slice(before)).not.toContain('/audio/words/cheap.mp3');
 
   // Only one speaker here: the auto-play switch belongs to flashcards.
   await expect(page.getByRole('button', { name: 'Произносить слово автоматически' })).toHaveCount(0);
@@ -230,20 +274,20 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
   await listen.click();
   await expect
     .poll(async () => (await played()).slice(before))
-    .toEqual(['/audio/words/house.mp3', '/audio/words/house.mp3']);
+    .toEqual(['/audio/words/cheap.mp3', '/audio/words/cheap.mp3']);
   // Heard, never shown, and the letter hint is still there to use.
-  await expect(page.locator('main')).not.toContainText('house');
+  await expect(page.locator('main')).not.toContainText('cheap');
   await expect(page.getByRole('button', { name: 'Подсказка: буква' })).toBeEnabled();
 
   // Listening is remembered across a reload, so the word can't pass as spelled from memory.
   await page.reload();
   await openDeck(page);
   await button(page, 'Продолжить правописание').click();
-  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дом');
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('дешёвый');
 
   // The keyboard still works after a click: letters, then Enter checks rather than plays again.
   await listen.click();
-  await page.keyboard.type('house');
+  await page.keyboard.type('cheap');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Верно');
   // Sent with the next sync (ADR 0062): heard, so not spelled from memory.
@@ -252,16 +296,16 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
   const ops = (await sent).postDataJSON().ops as { kind: string; response: unknown }[];
   expect(ops.filter((op) => op.kind === 'study.answer').map((op) => op.response)).toContainEqual({
     kind: 'spelling',
-    answer: 'house',
+    answer: 'cheap',
     heard: true,
   });
   await expect(hints).toHaveCount(0); // a hint is for before answering
 
   // The next card says its own word.
   await button(page, 'Дальше').click();
-  await expect(card.getByRole('heading', { level: 1 })).toHaveText('вода');
+  await expect(card.getByRole('heading', { level: 1 })).toHaveText('покупать, купить');
   await listen.click();
-  await expect.poll(async () => (await played()).at(-1)).toBe('/audio/words/water.mp3');
+  await expect.poll(async () => (await played()).at(-1)).toBe('/audio/words/buy.mp3');
 });
 
 test('a word with no recording is said by the device', async ({ page, context }) => {

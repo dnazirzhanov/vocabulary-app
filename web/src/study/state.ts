@@ -154,6 +154,11 @@ export function applyAnswer(
     const correct = isCorrect(answer.answer ?? '', headword);
     const right = correct && answer.hint === null && !answer.heard;
     const before = learner.ladder.get(answer.wordId) ?? null;
+    // A word no lesson has shown («Все слова») is practice: off the ladder, so it never reaches
+    // the main button (ADR 0064). One a group's test put there stays on it.
+    if (!learner.progress.has(answer.wordId) && before === null) {
+      return { wasReview: false, after: null, correct };
+    }
     // A try earlier than one already recorded counts as of that one (ADR 0062).
     const moment = before ? Math.max(now, before.lastSpelledAt) : now;
     learner.ladder.set(answer.wordId, afterSpelling(before, right, moment, learner.timeZone));

@@ -29,6 +29,16 @@ def answer(client: TestClient, session: dict[str, Any], exercise_id: str, built:
     )
 
 
+def word_at(session: dict[str, Any], index: int) -> str:
+    """The word behind a spelling card, read from the stored plan (a card never shows it)."""
+    return headword_of(session["id"], session["exercises"][index]["id"])
+
+
+def typo(word: str) -> str:
+    """The word with its first two letters swapped: a miss."""
+    return word[1] + word[0] + word[2:]
+
+
 def progress(client: TestClient) -> dict[str, Any]:
     report: dict[str, Any] = client.get("/api/progress", headers=at(DAY0)).json()
     return report
@@ -43,14 +53,16 @@ def test_the_lesson_is_cards_only_and_spelling_is_a_session_of_its_own(
     session = start_spelling(client).json()
     assert session["kind"] == "spelling"
     assert [e["type"] for e in session["exercises"]] == ["spelling"] * 5
+    # The lesson met house … cheap: spelling asks the ones just learned first (ADR 0064).
+    assert [word_at(session, i) for i in range(5)] == ["cheap", "buy", "friend", "water", "house"]
     first = session["exercises"][0]
     # The word comes only to be heard (ADR 0047); everything else is the meaning, no word.
-    assert first.pop("pronunciation") == {"key": "house", "text": "house"}
+    assert first.pop("pronunciation") == {"key": "cheap", "text": "cheap"}
     assert set(first) == {"id", "type", "prompt", "slots", "separators", "tiles", "hint"}
     assert first["hint"] is None
-    assert (first["prompt"]["translation"], first["slots"]) == ("дом", 5)
-    assert "house" not in str(first)
-    assert all(letter in first["tiles"] for letter in "house")
+    assert (first["prompt"]["translation"], first["slots"]) == ("дешёвый", 5)
+    assert "cheap" not in str(first)
+    assert all(letter in first["tiles"] for letter in "cheap")
 
 
 def test_nothing_to_spell_before_any_word_is_met(client: TestClient) -> None:
@@ -63,10 +75,10 @@ def test_the_first_try_counts_and_the_word_is_shown_once_answered(
 ) -> None:
     play(STUDY, DAY0, spell=False)
     session = start_spelling(client).json()
-    house = session["exercises"][0]["id"]
-    missed = answer(client, session, house, "huose").json()
-    assert (missed["correct"], missed["answer"], missed["inserted"]) == (False, "house", [])
-    again = answer(client, session, house, "house").json()
+    first, word = session["exercises"][0]["id"], word_at(session, 0)
+    missed = answer(client, session, first, typo(word)).json()
+    assert (missed["correct"], missed["answer"], missed["inserted"]) == (False, word, [])
+    again = answer(client, session, first, word).json()
     assert again == missed  # one stored answer per card: the first try
     for exercise in session["exercises"][1:]:
         answer(client, session, exercise["id"], headword_of(session["id"], exercise["id"]))
@@ -116,6 +128,7 @@ def test_spelling_is_tracked_and_offered_after_a_lesson(client: TestClient, play
         "hard": 0,
         "known": 0,
         "met": 5,
+        "words": 100,
         "paused": None,
     }
     spell_today(client, at(DAY0), "a1-a2", {"water": "wtaer"})
@@ -128,6 +141,7 @@ def test_spelling_is_tracked_and_offered_after_a_lesson(client: TestClient, play
         "hard": 1,
         "known": 0,
         "met": 5,
+        "words": 100,
         "paused": None,
     }
     nothing = client.post("/api/sessions", json=SPELLING, headers=at(DAY0))
@@ -211,9 +225,9 @@ def test_a_misspelled_word_comes_back_until_it_is_spelled_on_three_days(
 def test_a_hinted_word_counts_as_hard(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0, spell=False)
     session = start_spelling(client).json()
-    house = session["exercises"][0]["id"]
-    hint(client, session, house, 0)
-    answer(client, session, house, "house")
+    first = session["exercises"][0]["id"]
+    hint(client, session, first, 0)
+    answer(client, session, first, word_at(session, 0))
     assert spelling_state(client)["hard"] == 1
 
 
@@ -223,12 +237,12 @@ def test_a_word_heard_first_counts_as_hard_but_is_still_right(
     """The sound is a hint (ADR 0047): only spelling from memory moves a word up."""
     play(STUDY, DAY0, spell=False)
     session = start_spelling(client).json()
-    house, water = session["exercises"][0]["id"], session["exercises"][1]["id"]
+    first, second = session["exercises"][0]["id"], session["exercises"][1]["id"]
     heard = client.post(
         f"/api/sessions/{session['id']}/attempts",
         json={
-            "exercise_id": house,
-            "response": {"kind": "spelling", "answer": "house", "heard": True},
+            "exercise_id": first,
+            "response": {"kind": "spelling", "answer": word_at(session, 0), "heard": True},
         },
         headers=at(DAY0),
     ).json()
@@ -236,7 +250,7 @@ def test_a_word_heard_first_counts_as_hard_but_is_still_right(
     assert heard["correct"] is True
     assert spelling_state(client)["hard"] == 1
     # A word spelled without listening isn't touched by that.
-    assert answer(client, session, water, "water").json()["correct"] is True
+    assert answer(client, session, second, word_at(session, 1)).json()["correct"] is True
     assert spelling_state(client)["hard"] == 1
 
 
@@ -262,21 +276,22 @@ def hint(client: TestClient, session: dict[str, Any], exercise_id: str, position
 def test_one_hint_per_card_gives_one_letter_and_never_more(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0, spell=False)
     session = start_spelling(client).json()
-    house = session["exercises"][0]["id"]
-    # Five letters, two built: the hint is the third letter of "house".
-    assert hint(client, session, house, 2).json() == {"position": 2, "letter": "u"}
-    assert hint(client, session, house, 2).json() == {"position": 2, "letter": "u"}  # same slot
-    second = hint(client, session, house, 3)
+    first, word = session["exercises"][0]["id"], word_at(session, 0)
+    # Two letters built: the hint is the word's third letter.
+    third = {"position": 2, "letter": word[2]}
+    assert hint(client, session, first, 2).json() == third
+    assert hint(client, session, first, 2).json() == third  # same slot
+    second = hint(client, session, first, 3)
     assert (second.status_code, second.json()["error"]["code"]) == (409, "hint_used")
     # The card remembers its hint after a reload, and still hides the rest of the word.
     resumed = start_spelling(client).json()  # resumes the open one
     card = resumed["exercises"][0]
-    assert card["hint"] == {"position": 2, "letter": "u"}
+    assert card["hint"] == third
     card.pop("pronunciation")
-    assert "house" not in str(card)
+    assert word not in str(card)
     # Another card has its own hint; past the end of a word there is no letter.
-    water = session["exercises"][1]["id"]
-    beyond = hint(client, session, water, 5)
+    other = session["exercises"][1]["id"]
+    beyond = hint(client, session, other, len(word_at(session, 1)))
     assert (beyond.status_code, beyond.json()["error"]["code"]) == (422, "no_such_letter")
 
 
@@ -286,9 +301,9 @@ def test_no_hint_once_a_card_is_answered_or_for_flashcards(client: TestClient, p
     assert (flashcard.status_code, flashcard.json()["error"]["code"]) == (404, "exercise_not_found")
     play(STUDY, DAY0, spell=False)  # finishes the open lesson
     session = start_spelling(client).json()
-    house = session["exercises"][0]["id"]
-    answer(client, session, house, "house")
-    late = hint(client, session, house, 0)
+    first = session["exercises"][0]["id"]
+    answer(client, session, first, word_at(session, 0))
+    late = hint(client, session, first, 0)
     assert (late.status_code, late.json()["error"]["code"]) == (409, "already_answered")
 
 
@@ -300,8 +315,8 @@ def test_a_paused_spelling_keeps_its_place_and_never_blocks_a_lesson(
     play(STUDY, DAY0, spell=False)
     session = start_spelling(client).json()
     first, second = session["exercises"][0]["id"], session["exercises"][1]["id"]
-    answer(client, session, first, "house")
-    answer(client, session, second, "wtaer")
+    answer(client, session, first, word_at(session, 0))
+    answer(client, session, second, typo(word_at(session, 1)))
     assert spelling_state(client)["paused"] == {"spelled": 2, "right": 1, "total": 5}
 
     # A lesson starts as usual, beside the paused spelling.
@@ -327,8 +342,8 @@ def test_choosing_another_set_replaces_a_paused_spelling_and_keeps_its_answers(
     and the main button then resumes the new one."""
     play(STUDY, DAY0, spell=False)
     paused = start_spelling(client).json()
-    answer(client, paused, paused["exercises"][0]["id"], "house")
-    answer(client, paused, paused["exercises"][1]["id"], "wtaer")
+    answer(client, paused, paused["exercises"][0]["id"], word_at(paused, 0))
+    answer(client, paused, paused["exercises"][1]["id"], typo(word_at(paused, 1)))
 
     hard = client.post("/api/sessions", json={**SPELLING, "mode": "hard"}, headers=at(DAY0)).json()
     assert hard["id"] != paused["id"] and hard["results"] == []
@@ -341,7 +356,7 @@ def test_choosing_another_set_replaces_a_paused_spelling_and_keeps_its_answers(
 def test_a_set_with_no_words_leaves_a_paused_spelling_alone(client: TestClient, play: Play) -> None:
     play(STUDY, DAY0, spell=False)
     paused = start_spelling(client).json()
-    answer(client, paused, paused["exercises"][0]["id"], "house")
+    answer(client, paused, paused["exercises"][0]["id"], word_at(paused, 0))
 
     empty = client.post("/api/sessions", json={**SPELLING, "mode": "hard"}, headers=at(DAY0))
     assert (empty.status_code, empty.json()["error"]["code"]) == (409, "nothing_to_spell")
@@ -399,7 +414,7 @@ def test_a_spelling_paused_in_one_deck_is_not_another_decks(client: TestClient, 
     mine = own_deck(client, ["kettle", "ladder"])
     play({"kind": "study", "deck_id": mine}, DAY0, spell=False)
     paused = start_spelling(client).json()
-    answer(client, paused, paused["exercises"][0]["id"], "house")
+    answer(client, paused, paused["exercises"][0]["id"], word_at(paused, 0))
 
     stats = client.get(f"/api/decks/{mine}/stats", headers=at(DAY0)).json()["spelling_today"]
     assert stats["paused"] is None
@@ -409,3 +424,43 @@ def test_a_spelling_paused_in_one_deck_is_not_another_decks(client: TestClient, 
     assert own["id"] != paused["id"] and own["deck_id"] == mine
     assert sorted(headword_of(own["id"], e["id"]) for e in own["exercises"]) == ["kettle", "ladder"]
     assert spelling_state(client)["paused"] is None  # set aside, not resumed
+
+
+def test_all_words_spells_the_whole_deck_and_unseen_words_stay_off_the_ladder(
+    client: TestClient, play: Play
+) -> None:
+    """ADR 0064: «Все слова» takes every word of the deck in its order, met or not. A word no
+    lesson has shown is practice there: missed, it doesn't become hard, so the main button never
+    offers it."""
+    play(STUDY, DAY0, spell=False)  # house, water, friend, buy, cheap
+    everything = {**SPELLING, "mode": "all", "size": 10}
+    session = client.post("/api/sessions", json=everything, headers=at(DAY0)).json()
+    words = [word_at(session, i) for i in range(10)]
+    assert words[:6] == ["house", "water", "friend", "buy", "cheap", "money"]  # money: never met
+    assert spelling_state(client)["words"] == 100
+    for index, exercise in enumerate(session["exercises"]):
+        assert (
+            answer(client, session, exercise["id"], typo(words[index])).json()["correct"] is False
+        )
+    client.post(f"/api/sessions/{session['id']}/complete", headers=at(DAY0))
+    assert spelling_state(client)["hard"] == 5  # the five met words only
+    # The next morning the main button gives the five due words, none of the unseen ones.
+    day1 = DAY0 + timedelta(days=1)
+    assert sorted(spelled_words(client, SPELLING, day1)) == sorted(words[:5])
+
+
+def test_new_words_met_since_a_spelling_was_left_start_a_fresh_one(
+    client: TestClient, play: Play
+) -> None:
+    """ADR 0064: the main button resumes a spelling left unfinished, unless new words were met in
+    the deck since; then it starts afresh with the words just learned first."""
+    play(STUDY, DAY0, spell=False)  # house … cheap
+    paused = start_spelling(client).json()
+    answer(client, paused, paused["exercises"][0]["id"], word_at(paused, 0))
+    later = DAY0 + timedelta(hours=1)
+    play(STUDY, later, spell=False)  # five more: money … morning
+    # The deck's page no longer offers to continue it; what was spelled stays.
+    assert spelling_state(client, later)["paused"] is None
+    fresh = client.post("/api/sessions", json=SPELLING, headers=at(later)).json()
+    assert fresh["id"] != paused["id"]
+    assert [word_at(fresh, i) for i in range(5)] == ["morning", "busy", "wait", "city", "money"]

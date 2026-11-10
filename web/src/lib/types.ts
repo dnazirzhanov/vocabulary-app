@@ -87,7 +87,7 @@ export type Exercise = CardExercise | SpellingExercise;
 export type SessionKind = 'study' | 'hard' | 'spelling';
 
 /** Which words a spelling session takes (ADR 0026); `mix` is the main button's. */
-export type SpellingMode = 'mix' | 'today' | 'hard' | 'random';
+export type SpellingMode = 'mix' | 'today' | 'hard' | 'random' | 'all';
 export const SPELLING_SIZES = [5, 10, 20, 30] as const;
 export type SpellingSize = (typeof SPELLING_SIZES)[number];
 
@@ -104,6 +104,8 @@ export interface SpellingState {
   hard: number;
   known: number;
   met: number;
+  /** Every word of the deck, met or not: the pool for «Все слова» (ADR 0064). */
+  words: number;
   /** A spelling session left unfinished: cards answered, right on the first try, and all. */
   paused: { spelled: number; right: number; total: number } | null;
 }

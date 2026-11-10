@@ -94,7 +94,7 @@ def spelling_today(
 
 def _paused_spelling(db: Session, user: User, deck_id: str) -> SpellingPausedOut | None:
     """The deck's unfinished spelling session: how far it got (ADR 0026, 0056). A device keeps
-    its own (ADR 0062)."""
+    its own (ADR 0062). Not once new words were met since it was left (ADR 0064)."""
     session = db.scalar(
         select(LearningSession).where(
             LearningSession.user_id == user.id,
@@ -105,7 +105,7 @@ def _paused_spelling(db: Session, user: User, deck_id: str) -> SpellingPausedOut
             LearningSession.set_aside_at.is_(None),
         )
     )
-    if session is None:
+    if session is None or spelling_ladder.met_since(db, user, deck_id, session.started_at):
         return None
     spelled, right = db.execute(
         select(func.count(), func.count().filter(ReviewAttempt.correct.is_(True))).where(

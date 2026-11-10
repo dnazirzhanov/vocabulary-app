@@ -9,12 +9,16 @@ nothing, so climbing always takes separate days. Days are the scheduler's: from 
 Spelling is one deck's (ADR 0056): every set below is drawn from the words of the deck whose page
 the learner is on, never from their other decks. A word in two decks is on one ladder.
 
-A spelling session takes one of four sets of words, at most `size` of them:
+A spelling session takes one of five sets of words, at most `size` of them:
 - `mix` (the main button): hard and climbing words that are due, then today's new words not yet
-  spelled, then older words never spelled;
+  spelled, the ones just learned first, then older words never spelled (ADR 0064). Only words a
+  lesson has shown, or a group's test put on the ladder (ADR 0048);
 - `today`: today's new words, those not spelled yet today first;
 - `hard`: the words on the bottom rung;
-- `random`: a draw from every word met, favouring words never spelled, rarely a known one.
+- `random`: a draw from every word met, favouring words never spelled, rarely a known one;
+- `all`: every word of the deck, met or not, for learning words by spelling them (ADR 0064): in
+  the deck's order, those not spelled today first and those already known last. A word no lesson
+  has shown is practice there: it doesn't go on the ladder, so it never reaches `mix`.
 """
 
 import random
@@ -35,7 +39,7 @@ HARD = 0
 KNOWN = 3
 # Days until a word on each rung is due again.
 WAIT_DAYS = {HARD: 1, 1: 3, 2: 7, KNOWN: 21}
-Mode = Literal["mix", "today", "hard", "random"]
+Mode = Literal["mix", "today", "hard", "random", "all"]
 SIZES = (5, 10, 20, 30)
 DEFAULT_SIZE = 10
 # «Вразброс» draws words never spelled three times as often, known ones rarely.
@@ -64,12 +68,13 @@ def after_spelling(
 @dataclass(frozen=True)
 class Words:
     """What a learner has to spell from: words met (oldest first), today's new words (in the
-    order learned), the ladder, and when today began."""
+    order learned), the ladder, when today began, and every word of the deck in its order."""
 
     met: Sequence[str]
     today: Sequence[str]
     ladder: Mapping[str, Spelled]
     today_start: datetime
+    deck: Sequence[str] = ()
 
 
 def _due(words: Words, now: datetime) -> list[str]:
@@ -84,8 +89,9 @@ def _due(words: Words, now: datetime) -> list[str]:
 
 
 def _fresh(words: Words) -> list[str]:
-    """Words never spelled: today's in the order learned, then older ones, latest met first."""
-    today = [word for word in words.today if word not in words.ladder]
+    """Words never spelled: today's, the ones just learned first, then older ones, latest met
+    first (ADR 0064): right after a lesson, its own words."""
+    today = [word for word in reversed(words.today) if word not in words.ladder]
     learned_today = set(words.today)
     older = [
         word
@@ -95,16 +101,24 @@ def _fresh(words: Words) -> list[str]:
     return today + older
 
 
+def _spelled_today(words: Words, word: str) -> bool:
+    spelled = words.ladder.get(word)
+    return spelled is not None and spelled.last_spelled_at >= words.today_start
+
+
 def pick(mode: Mode, size: int, words: Words, now: datetime, rng: random.Random) -> list[str]:
     if mode == "mix":
         chosen = _due(words, now) + _fresh(words)
-    elif mode == "today":
+    elif mode == "all":
 
-        def spelled_today(word: str) -> bool:
+        def later(word: str) -> tuple[bool, bool]:
             spelled = words.ladder.get(word)
-            return spelled is not None and spelled.last_spelled_at >= words.today_start
+            return (spelled is not None and spelled.rung == KNOWN, _spelled_today(words, word))
 
-        chosen = sorted(words.today, key=spelled_today)  # stable: in the order learned
+        chosen = sorted(words.deck, key=later)  # stable: in the deck's order
+    elif mode == "today":
+        # Stable: in the order learned.
+        chosen = sorted(words.today, key=lambda word: _spelled_today(words, word))
     elif mode == "hard":
         hard = [w for w, s in words.ladder.items() if s.rung == HARD]
         chosen = sorted(hard, key=lambda word: words.ladder[word].due_at)
@@ -131,6 +145,7 @@ class Overview:
     hard: int
     known: int
     met: int
+    words: int  # every word of the deck: the pool for «Все слова»
 
 
 def overview(words: Words, now: datetime) -> Overview:
@@ -145,6 +160,7 @@ def overview(words: Words, now: datetime) -> Overview:
         hard=rungs.count(HARD),
         known=rungs.count(KNOWN),
         met=len(words.met),
+        words=len(words.deck),
     )
 
 
@@ -182,7 +198,28 @@ def load(db: Session, user: User, deck_id: str, now: datetime, time_zone: ZoneIn
             )
         )
     }
-    return Words(met=met, today=today, ladder=ladder, today_start=start)
+    deck = db.scalars(
+        select(DeckWord.word_id).where(DeckWord.deck_id == deck_id).order_by(DeckWord.position)
+    ).all()
+    return Words(met=met, today=today, ladder=ladder, today_start=start, deck=deck)
+
+
+def met_since(db: Session, user: User, deck_id: str | None, moment: datetime) -> bool:
+    """New words met in the deck after `moment`. A spelling left before them is no longer offered
+    to resume: the main button starts afresh with them first (ADR 0064); its answers stay."""
+    if deck_id is None:
+        return False
+    met = db.scalar(
+        select(func.count())
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+        .where(
+            DeckWord.deck_id == deck_id,
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.introduced_at > moment,
+        )
+    )
+    return bool(met)
 
 
 def record(
