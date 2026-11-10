@@ -110,7 +110,6 @@ function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean
               />
             </p>
             <p className={styles.exampleRu}>{word.example_translation}</p>
-            {glossary && <p className={styles.tapHint}>{t.tapAnyWordToSeeIts}</p>}
           </div>
         </div>
       )}

@@ -13,16 +13,16 @@ test('a learner changes the promise, which starts tomorrow once a lesson is done
   await learner.travelTo(MONDAY);
   await page.goto('/');
   await button(page, 'Прогресс').click();
-  await expect(page.getByText(/Обещание: Пн–Сб/)).toBeVisible();
+  await expect(page.getByRole('list', { name: /Обещание: Пн–Сб/ })).toBeVisible();
 
   // Nothing is finished yet, so a change applies at once.
-  await button(page, 'Изменить').click();
+  await button(page, 'Изменить обещание').click();
   const dialog = page.getByRole('dialog', { name: 'Моё обещание' });
   await dialog.getByRole('button', { name: 'Пн–Пт' }).click();
   await dialog.getByRole('button', { name: 'Сохранить' }).click();
   await expect(dialog.getByRole('status')).toHaveText('Сохранено: Пн–Пт');
   await page.keyboard.press('Escape');
-  await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
+  await expect(page.getByRole('list', { name: /Обещание: Пн–Пт/ })).toBeVisible();
   await expect(page.getByText('0 из 5 дней на этой неделе')).toBeVisible();
 
   // After a lesson the past is protected: a change starts tomorrow, and today still reads as before.
@@ -32,19 +32,19 @@ test('a learner changes the promise, which starts tomorrow once a lesson is done
   await finishSession(page);
   await button(page, 'На главную').click();
   await button(page, 'Прогресс').click();
-  await button(page, 'Изменить').click();
+  await button(page, 'Изменить обещание').click();
   await dialog.getByRole('button', { name: 'Каждый день' }).click();
   await dialog.getByRole('button', { name: 'Сохранить' }).click();
   await expect(dialog.getByRole('status')).toHaveText('Сохранено: каждый день');
   await page.keyboard.press('Escape');
-  await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
+  await expect(page.getByRole('list', { name: /Обещание: Пн–Пт/ })).toBeVisible();
   await learner.travelTo(TUESDAY);
   await page.reload();
   await button(page, 'Прогресс').click();
-  await expect(page.getByText(/Обещание: каждый день/)).toBeVisible();
+  await expect(page.getByRole('list', { name: /Обещание: каждый день/ })).toBeVisible();
 
   // A pause starts tomorrow and can be dropped; its days are not promised.
-  await button(page, 'Изменить').click();
+  await button(page, 'Изменить обещание').click();
   await dialog.getByLabel('Пауза до').fill('2026-11-06');
   await dialog.getByRole('button', { name: 'Поставить паузу' }).click();
   await expect(dialog).toContainText('Пауза с 4 ноября по 6 ноября.');

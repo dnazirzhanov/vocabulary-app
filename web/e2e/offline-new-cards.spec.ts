@@ -59,8 +59,10 @@ test('cards added to a deck whose words are all met are in the very next lesson'
   await button(page, 'Учить · 3 слова').click();
   expect(await lessonWords(page)).toEqual(new Set(['ticket', 'hotel', 'airport']));
 
-  // Two more cards, then study at once: those two, not "nothing new".
-  await openEditor(page, 'Поездка');
+  // Two more cards, added from the deck's page, then study at once: those two, not "nothing new".
+  await button(page, 'На главную').click();
+  await button(page, 'Добавить слова').click();
+  await page.getByRole('tab', { name: 'Вручную' }).click();
   await addByHand(page, 'suitcase');
   await addByHand(page, 'passport');
   await button(page, 'Учить · 5 слов').click();

@@ -340,10 +340,6 @@
   font-weight: var(--weight-display);
 }
 
-.courseText {
-  color: var(--color-text-muted);
-}
-
 /* Changes this device couldn't send because what they changed was deleted elsewhere. */
 .lost {
   color: var(--color-error);

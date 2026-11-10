@@ -264,7 +264,6 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
               <h2 id="course-title" className={styles.courseTitle}>
                 {t.englishByLevels}
               </h2>
-              <p className={styles.courseText}>{t.aReadyMadeCourseTheMost}</p>
               <button type="button" className={styles.outlineButton} onClick={onOpenCourse}>
                 {t.openTheCourse}
                 <ForwardIcon aria-hidden="true" />

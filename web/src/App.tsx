@@ -415,6 +415,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           onBack={() => setScreen(backTo(from))}
           onSession={startSession}
           onWords={(id, title, mine) => setScreen({ name: 'words', deckId: id, title, mine, from })}
+          onAddWords={(id) => setScreen({ name: 'deck', deckId: id, groupId: null, from })}
         />
       );
     }

@@ -39,6 +39,8 @@ interface DeckScreenProps {
   onSession: (session: Session, deckId: string) => void;
   /** Its words; `mine`: my own deck, which is edited from there (ADR 0051). */
   onWords: (deckId: string, title: string, mine: boolean) => void;
+  /** My own deck: straight to adding words (its editor). */
+  onAddWords: (deckId: string) => void;
 }
 
 /**
@@ -46,7 +48,7 @@ interface DeckScreenProps {
  * Anki's three numbers, its own new words a day (ADR 0028) — and one button that studies this
  * deck, within today's pace. More words today are one tap further.
  */
-export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: DeckScreenProps) {
+export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAddWords }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
@@ -358,6 +360,15 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                         ? t.hardWordsTodaySHardOr(spelling.hard)
                         : t.allWrittenForTodayTodayS}
                   </small>
+                </span>
+                <ForwardIcon className={styles.chevron} aria-hidden="true" />
+              </button>
+            )}
+            {stats.is_mine && (
+              <button type="button" className={styles.link} onClick={() => onAddWords(deckId)}>
+                <PlusIcon aria-hidden="true" />
+                <span>
+                  <strong>{t.addWords}</strong>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
