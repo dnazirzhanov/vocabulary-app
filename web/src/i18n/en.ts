@@ -428,6 +428,8 @@ export const en: Messages = {
   youVeAlreadyTakenThisTest: "You've already taken this test.",
   finishTheTestFirst: 'Finish the test first.',
   nothingToStudyInThisDeck: "Nothing to study in this deck now: you've met the new words and no reviews are due.",
+  cardsNotSynced:
+    "Your new cards haven't reached the server yet. Connect to the internet and they'll be in the lesson.",
   firstReviewTheWordsThatAre: 'First review the words that are waiting. New ones come back right after.',
   thisWordIsAlreadyInThe: 'This word is already in the set.',
   aDeckCanHaveAtMost: 'A deck can have at most 500 words.',

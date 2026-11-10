@@ -111,6 +111,15 @@ export function dayPlan(learner: Learner, deckId: string, now: number): DayPlan 
 const allowance = (plan: DayPlan) => (plan.blockedByReviews ? 0 : plan.remaining);
 
 /**
+ * Cards this device has in the deck that the study pack doesn't (added here and not yet on the
+ * server, or the pack is older than them): they can't be in a lesson until the pack has them.
+ */
+export function missingFromPack(learner: Learner, deckId: string, localCardIds: readonly string[]): string[] {
+  const known = new Set(learner.decks.get(deckId)?.word_ids ?? []);
+  return localCardIds.filter((id) => !known.has(id));
+}
+
+/**
  * Whether any word of the deck was met after `moment`: a spelling left before that isn't resumed
  * by the main button, which starts afresh with the new words first (ADR 0064).
  */

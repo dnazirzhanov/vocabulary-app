@@ -7,6 +7,7 @@ import {
   deckStats,
   hint,
   metSince,
+  missingFromPack,
   planSpelling,
   planStudy,
   summarize,
@@ -247,4 +248,12 @@ test('a spelling left before new words were met is not resumed (ADR 0064)', () =
   assert.equal(metSince(learner, 'one', introduced - 1), true);
   assert.equal(metSince(learner, 'one', introduced), false);
   assert.equal(metSince(learner, 'two', introduced - 1), false); // another deck's words
+});
+
+test("the deck's cards on this device that the study pack doesn't have yet", () => {
+  const learner = learnerFrom(packWith(), []);
+  // One: a, b and c are in the pack; t-new was added here; a deck the pack lacks has all missing.
+  assert.deepEqual(missingFromPack(learner, 'one', ['a', 'b', 't-new', 'c']), ['t-new']);
+  assert.deepEqual(missingFromPack(learner, 'one', ['a', 'b']), []);
+  assert.deepEqual(missingFromPack(learner, 'mine', ['t-1', 't-2']), ['t-1', 't-2']);
 });

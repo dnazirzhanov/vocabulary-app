@@ -429,6 +429,7 @@ export const uz: Messages = {
   finishTheTestFirst: 'Avval testni tugating.',
   nothingToStudyInThisDeck:
     'Bu to‘plamda hozir o‘rganadigan narsa yo‘q: yangi so‘zlar ko‘rildi, takrorlash esa hali yo‘q.',
+  cardsNotSynced: 'Yangi kartalar hali serverga yetib bormadi. Internetga ulaning — ular darsda paydo bo‘ladi.',
   firstReviewTheWordsThatAre: 'Avval kutayotgan so‘zlarni takrorlang, yangilari shundan keyin qaytadi.',
   thisWordIsAlreadyInThe: 'Bu so‘z to‘plamda allaqachon bor.',
   aDeckCanHaveAtMost: 'To‘plamda 500 tadan ortiq so‘z bo‘lmaydi.',

@@ -12,6 +12,7 @@ import type {
   Summary,
 } from '../lib/types.ts';
 import type { AccountDb, KeptAnswer, OutboxOp } from '../local/db.ts';
+import { deckCards } from '../local/myDecks.ts';
 import { localDb } from '../local/session.ts';
 import { ANSWERS_PER_PUSH, syncNow, syncSoon } from '../local/sync.ts';
 import {
@@ -21,6 +22,7 @@ import {
   hint as hintIn,
   isOpen,
   metSince,
+  missingFromPack,
   planHard,
   planSpelling,
   planStudy,
@@ -116,10 +118,21 @@ export async function refreshPack(db: AccountDb, force = false): Promise<boolean
  */
 async function loadWith(db: AccountDb, deckId: string | null) {
   const loaded = await load(db);
-  if (deckId === null || loaded.learner.decks.has(deckId)) return loaded;
+  if (deckId === null) return loaded;
+  if (loaded.learner.decks.has(deckId) && (await unsentCards(db, loaded.learner, deckId)).length === 0) return loaded;
   packWanted = true;
   await syncNow();
   return load(db);
+}
+
+/** This device's cards of the deck the study pack lacks (only my own decks have any here). */
+async function unsentCards(db: AccountDb, learner: Learner, deckId: string): Promise<string[]> {
+  const cards = await deckCards(db, deckId).catch(() => []);
+  return missingFromPack(
+    learner,
+    deckId,
+    cards.map((card) => card.id),
+  );
 }
 
 async function load(db: AccountDb) {
@@ -330,12 +343,24 @@ export const study = {
 
   async startStudySession(deckId: string | null): Promise<Session> {
     if (!local()) return api.startStudySession(deckId);
-    const { learner } = await load(localDb()!);
+    const db = localDb()!;
+    const { learner } = await load(db);
     const deck = deckId ?? currentLevel(learner);
+    // Cards added here still not in the pack (no connection): said, rather than "nothing new".
+    const unsent = await unsentCards(db, (await loadWith(db, deck)).learner, deck);
     return begin(
       deck,
       'study',
-      (state, moment) => planStudy(state, deck, moment),
+      (state, moment) => {
+        try {
+          return planStudy(state, deck, moment);
+        } catch (error) {
+          if (unsent.length && error instanceof ApiError && error.code === 'nothing_to_study') {
+            throw new ApiError('http', 409, 'cards_not_synced', 'cards_not_synced');
+          }
+          throw error;
+        }
+      },
       (open) => deckId === null || open.deckId === deckId,
     );
   },
