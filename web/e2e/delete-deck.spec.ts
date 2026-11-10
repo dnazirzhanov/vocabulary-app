@@ -17,7 +17,7 @@ test('deleting a deck asks first; cancel keeps it, confirm removes it', async ({
   await expect(confirm.getByRole('button', { name: 'Отмена' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(confirm).toBeHidden();
-  await expect(page.getByText('Моя колода')).toBeVisible(); // still here
+  await expect(page.getByRole('heading', { name: 'Новые карточки' })).toBeVisible(); // still here
 
   await button(page, 'Удалить колоду').click();
   await confirm.getByRole('button', { name: 'Удалить колоду' }).click();

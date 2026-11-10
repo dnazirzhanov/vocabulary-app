@@ -6,7 +6,7 @@ async function newDeck(page: Page, title: string) {
   await page.getByRole('button', { name: /^Создать колоду/ }).click();
   await page.getByLabel('Название новой колоды').fill(title);
   await button(page, 'Создать').click();
-  await expect(page.getByText('Моя колода')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Новые карточки' })).toBeVisible();
 }
 
 /** «Друзья» always lists the groups first (ADR 0023); the group opens from its row. */

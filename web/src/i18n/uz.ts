@@ -320,8 +320,6 @@ export const uz: Messages = {
   removeFromTheGroupTheyCan: (a: Arg) => `«${a}» guruhdan chiqarilsinmi? Taklif havolasi orqali qaytishi mumkin.`,
   yesHandOver: 'Ha, o‘tkazish',
   englishByLevels: 'Darajalar bo‘yicha ingliz tili',
-  theMostUsefulEnglishWordsFrom:
-    'Eng kerakli inglizcha so‘zlar, oddiydan murakkabga. Darajani oching: yangi so‘zlar sizning sur’atingizda keladi, takrorlash esa o‘rganilganlarni eslatadi. Keyingi daraja bunisini tugatganingizda ochiladi.',
   levelsWillAppearHereSoon: 'Tez orada bu yerda darajalar paydo bo‘ladi.',
   levels: 'Darajalar',
   new: 'Yangi',
@@ -551,7 +549,6 @@ export const uz: Messages = {
   startYourFirstDeck: 'Birinchi to‘plamni boshlang',
   thisWeek: (a: Arg) => `bu hafta +${a}`,
   moreInLearning: (a: Arg) => `yana ${a} o‘rganilmoqda`,
-  aWordCountsAsKnownWhen: 'So‘z uni takrorlashda, kamida bir kundan keyin eslaganingizda bilingan hisoblanadi.',
   decks: 'To‘plamlar',
   myPromiseTitle: 'Mening va’dam',
   theDaysYouPromiseToStudy:

@@ -320,8 +320,6 @@ export const kk: Messages = {
   removeFromTheGroupTheyCan: (a: Arg) => `«${a}» топтан шығару керек пе? Шақыру сілтемесі арқылы қайта алады.`,
   yesHandOver: 'Иә, беру',
   englishByLevels: 'Деңгейлер бойынша ағылшын тілі',
-  theMostUsefulEnglishWordsFrom:
-    'Ағылшын тілінің ең қажетті сөздері, оңайдан қиынға. Деңгейді ашыңыз: жаңа сөздер өз қарқыныңызбен келеді, ал қайталау үйренгендеріңізді еске салады. Келесі деңгей мұны аяқтағанда ашылады.',
   levelsWillAppearHereSoon: 'Жақында мұнда деңгейлер пайда болады.',
   levels: 'Деңгейлер',
   new: 'Жаңа',
@@ -550,7 +548,6 @@ export const kk: Messages = {
   startYourFirstDeck: 'Алғашқы жинақты бастаңыз',
   thisWeek: (a: Arg) => `осы аптада +${a}`,
   moreInLearning: (a: Arg) => `тағы ${a} оқылуда`,
-  aWordCountsAsKnownWhen: 'Сөзді қайталауда, кемінде бір күннен кейін есіңізге түсіргенде, ол белгілі саналады.',
   decks: 'Жинақтар',
   myPromiseTitle: 'Менің уәдем',
   theDaysYouPromiseToStudy: 'Қай күндері оқуға уәде бересіз. Өзгеріс ертеңнен басталады: бүгінгі күн өзгермейді.',

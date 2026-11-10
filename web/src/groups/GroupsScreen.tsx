@@ -6,6 +6,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { ForwardIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from './Groups.module.css';
+import { ListRow, ListSection } from '../ui/List.tsx';
 import styles from './Friends.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -53,20 +54,27 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
             </ul>
           )}
 
-          <div className={styles.actions} data-empty={empty || undefined}>
-            {empty ? (
+          {empty ? (
+            <div className={styles.actions} data-empty>
               <PrimaryButton type="button" onClick={() => setDialog('create')}>
                 <PlusIcon aria-hidden="true" /> {t.createAGroup}
               </PrimaryButton>
-            ) : (
-              <button type="button" className={shared.secondaryAction} onClick={() => setDialog('create')}>
-                <PlusIcon aria-hidden="true" /> {t.createAGroup}
+              <button type="button" className={shared.secondaryAction} onClick={() => setDialog('join')}>
+                {t.enterAnInviteCode}
               </button>
-            )}
-            <button type="button" className={shared.secondaryAction} onClick={() => setDialog('join')}>
-              {t.enterAnInviteCode}
-            </button>
-          </div>
+            </div>
+          ) : (
+            <ListSection>
+              <ListRow
+                icon={<PlusIcon />}
+                label={t.createAGroup}
+                tone="accent"
+                onClick={() => setDialog('create')}
+                dialog
+              />
+              <ListRow label={t.enterAnInviteCode} onClick={() => setDialog('join')} dialog />
+            </ListSection>
+          )}
         </div>
       </main>
       <Dialog open={dialog === 'create'} onClose={() => setDialog(null)} title={t.newGroup}>

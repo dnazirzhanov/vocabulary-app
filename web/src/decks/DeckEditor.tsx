@@ -324,7 +324,6 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
       <main className={styles.main}>
         <div className={styles.column}>
           <div className={styles.intro}>
-            <p className={styles.eyebrow}>{t.myDeck}</p>
             <h1 id="deck-title" ref={headingRef} tabIndex={-1} className="visually-hidden">
               {deck.title}
             </h1>

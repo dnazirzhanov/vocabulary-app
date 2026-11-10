@@ -320,8 +320,6 @@ export const tg: Messages = {
   removeFromTheGroupTheyCan: (a: Arg) => `«${a}» аз гурӯҳ хориҷ карда шавад? Бо пайванди даъват баргаштан мумкин аст.`,
   yesHandOver: 'Ҳа, супоридан',
   englishByLevels: 'Забони англисӣ аз рӯи сатҳҳо',
-  theMostUsefulEnglishWordsFrom:
-    'Калимаҳои зарурии англисӣ, аз осон ба душвор. Сатҳро кушоед: калимаҳои нав бо суръати шумо меоянд ва такрор омӯхтаҳоро ба ёд меорад. Сатҳи навбатӣ баъди анҷоми ин мекушояд.',
   levelsWillAppearHereSoon: 'Ба зудӣ дар ин ҷо сатҳҳо пайдо мешаванд.',
   levels: 'Сатҳҳо',
   new: 'Нав',
@@ -550,7 +548,6 @@ export const tg: Messages = {
   startYourFirstDeck: 'Маҷмӯаи аввалро оғоз кунед',
   thisWeek: (a: Arg) => `+${a} дар ин ҳафта`,
   moreInLearning: (a: Arg) => `боз ${a} дар омӯзиш`,
-  aWordCountsAsKnownWhen: 'Калима вақте шинос ҳисоб мешавад, ки онро дар такрор, ақаллан баъди як рӯз, ба ёд оред.',
   decks: 'Маҷмӯаҳо',
   myPromiseTitle: 'Ваъдаи ман',
   theDaysYouPromiseToStudy:
