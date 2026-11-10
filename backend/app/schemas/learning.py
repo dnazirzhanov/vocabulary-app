@@ -215,7 +215,7 @@ class StartSpellingSession(_Input):
 
     kind: Literal["spelling"]
     deck_id: Annotated[str, StringConstraints(max_length=64)]
-    mode: Literal["mix", "today", "hard", "random"] = "mix"
+    mode: Literal["mix", "today", "hard", "random", "all"] = "mix"
     size: Literal[5, 10, 20, 30] = 10
 
 
@@ -372,6 +372,7 @@ class SpellingTodayOut(BaseModel):
     hard: int  # misspelled last time
     known: int  # «умеет писать»
     met: int  # every word met: the pool for «Вразброс»
+    words: int  # every word of the deck: the pool for «Все слова» (ADR 0064)
     # A spelling session left unfinished: resumed where it stopped, never lost.
     paused: "SpellingPausedOut | None" = None
 

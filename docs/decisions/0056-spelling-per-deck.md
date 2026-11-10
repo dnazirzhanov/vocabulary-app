@@ -1,6 +1,6 @@
 # 0056 — Each deck's spelling is its own words
 
-**Status:** Accepted (the owner's request, 7 November 2026). Refines ADR 0026, whose sets were drawn from every word the learner had met, in any deck.
+**Status:** Accepted (the owner's request, 7 November 2026). Refines ADR 0026, whose sets were drawn from every word the learner had met, in any deck. The main button's order and «Все слова колоды»: ADR 0064.
 
 ## Context
 Spelling is started from a deck's page, but the server drew its words from every deck: a learner who met words in two decks today found the other deck's words in this one's spelling, and the page's counts and its unfinished spelling were the other deck's too. The owner: each deck's spelling should be the deck whose page the learner is on.

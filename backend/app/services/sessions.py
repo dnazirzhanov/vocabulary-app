@@ -28,6 +28,7 @@ from app.models import (
     DeletedLogin,
     LearningSession,
     ReviewAttempt,
+    SpellingProgress,
     User,
     UserWordProgress,
     Word,
@@ -616,7 +617,9 @@ def start_session(
     existing = _open_session(db, user, spelling_kind)
     if existing is not None:
         chose_another = (
-            request.mode != "mix" or existing.deck_id != request.deck_id
+            request.mode != "mix"
+            or existing.deck_id != request.deck_id
+            or spelling_ladder.met_since(db, user, existing.deck_id, existing.started_at)
             if isinstance(request, StartSpellingSession)
             else request.deck_id is not None and existing.deck_id != request.deck_id
         )
@@ -856,6 +859,11 @@ def spell_word(
     db.add(stored)
     # Flush first: a second try at the same card fails here and leaves the ladder alone.
     db.flush()
+    # A word no lesson has shown (only «Все слова» offers one) is practice: off the ladder, so it
+    # never reaches the main button (ADR 0064). One a group's test put there stays on it.
+    met = db.get(UserWordProgress, (user.id, step.word_id)) is not None
+    if not met and db.get(SpellingProgress, (user.id, step.word_id)) is None:
+        return stored
     # A hinted or heard word was not spelled from memory: on the ladder it counts as a miss
     # (ADR 0026, 0047).
     right = bool(stored.correct) and step.hint is None and not response.heard

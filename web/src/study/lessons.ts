@@ -110,6 +110,15 @@ export function dayPlan(learner: Learner, deckId: string, now: number): DayPlan 
 
 const allowance = (plan: DayPlan) => (plan.blockedByReviews ? 0 : plan.remaining);
 
+/**
+ * Whether any word of the deck was met after `moment`: a spelling left before that isn't resumed
+ * by the main button, which starts afresh with the new words first (ADR 0064).
+ */
+export function metSince(learner: Learner, deckId: string, moment: number): boolean {
+  const words = learner.decks.get(deckId)?.word_ids ?? [];
+  return words.some((wordId) => (learner.progress.get(wordId)?.introducedAt ?? -Infinity) > moment);
+}
+
 // --- what a lesson takes ----------------------------------------------------------------------
 
 /** One deck's due cards, most overdue first, then its new words as today's pace allows. */
@@ -159,7 +168,7 @@ export function spellingWords(learner: Learner, deckId: string, now: number): Wo
   });
   const inDeck = new Set(deck.word_ids);
   const ladder = new Map([...learner.ladder].filter(([wordId]) => inDeck.has(wordId)));
-  return { met, today, ladder, todayStart: start };
+  return { met, today, ladder, todayStart: start, deck: deck.word_ids };
 }
 
 export function planSpelling(
@@ -356,6 +365,7 @@ export function spellingState(
     hard: seen.hard,
     known: seen.known,
     met: seen.met,
+    words: seen.words,
     paused: paused && {
       spelled: spelled.length,
       right: spelled.filter((result) => result.correct).length,

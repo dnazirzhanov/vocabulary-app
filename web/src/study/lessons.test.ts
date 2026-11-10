@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ApiError } from '../lib/apiError.ts';
-import { answer, dayPlan, deckStats, hint, planStudy, summarize, type LocalLesson } from './lessons.ts';
+import {
+  answer,
+  dayPlan,
+  deckStats,
+  hint,
+  metSince,
+  planSpelling,
+  planStudy,
+  summarize,
+  type LocalLesson,
+} from './lessons.ts';
 import { learnerFrom, type Pack, type PackDeck } from './state.ts';
 
 // Lessons on the device (ADR 0062), as `services/sessions.py` plans, answers and sums them up.
@@ -202,4 +212,39 @@ test('an answer earlier than one already applied is scheduled from the later one
   assert.ok('sent' in done);
   assert.equal(learner.progress.get('a')!.lastReviewedAt, lastReview);
   assert.equal(done.sent.answeredAt, lastReview - DAY);
+});
+
+test('«Все слова»: the whole deck in its order, and a word no lesson has shown is practice (ADR 0064)', () => {
+  const learner = learnerFrom(packWith([reviewing('a', 5), reviewing('b', 5)]), []);
+  const steps = planSpelling(learner, 'one', 'all', 10, NOW, () => 0.5);
+  assert.deepEqual(
+    steps.map((step) => step.wordId),
+    ['a', 'b', 'c', 'd', 'e', 'f'],
+  );
+  let lesson = lessonOf(steps, 'spelling');
+  // Missed: a met word goes on the ladder as hard; c, never shown in a lesson, stays off it.
+  for (const [index, wordId] of ['a', 'b', 'c'].entries()) {
+    const done = answer(
+      learner,
+      lesson,
+      `s${index + 1}`,
+      { kind: 'spelling', answer: 'zz', heard: false },
+      NOW,
+      `op-${wordId}`,
+    );
+    assert.ok('sent' in done);
+    assert.equal(done.result.correct, false);
+    lesson = done.lesson;
+  }
+  assert.equal(learner.ladder.get('a')?.rung, 0);
+  assert.equal(learner.ladder.get('c'), undefined);
+  assert.equal(learner.progress.has('c'), false); // not introduced either
+});
+
+test('a spelling left before new words were met is not resumed (ADR 0064)', () => {
+  const learner = learnerFrom(packWith([reviewing('a', 5)]), []);
+  const introduced = Date.parse(learner.pack.progress[0][7]);
+  assert.equal(metSince(learner, 'one', introduced - 1), true);
+  assert.equal(metSince(learner, 'one', introduced), false);
+  assert.equal(metSince(learner, 'two', introduced - 1), false); // another deck's words
 });

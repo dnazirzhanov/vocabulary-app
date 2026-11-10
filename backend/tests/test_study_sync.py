@@ -517,7 +517,6 @@ def test_only_words_of_a_deck_i_study_and_only_my_own_lessons(
     assert one(word="b1-b2-whatever") == ("rejected", "word_not_found")
     assert one(session=ana_session) == ("rejected", "id_taken")
     assert one(kind="hard") == ("rejected", "not_met")
-    assert one(kind="spelling") == ("rejected", "not_met")
     rating_in_spelling = answer(device, uuid4(), "s1", word, later, rate(), kind="spelling")
     assert push(client, "ben", [rating_in_spelling], later) == [("rejected", "wrong_response")]
     ben = user_of(db, "ben")
@@ -741,3 +740,16 @@ def test_a_refused_answer_in_the_middle_of_a_batch_leaves_the_rest(
     lesson = db.get_one(LearningSession, session)
     assert [step["id"] for step in lesson.plan] == ["c1", "c3", "c4"]
     assert lesson.started_at == moments[0]
+
+
+def test_spelling_a_word_no_lesson_has_shown_is_practice(client: TestClient, db: Session) -> None:
+    """«Все слова» (ADR 0064) from a device: the try is kept, but the word stays off the spelling
+    ladder, so it never reaches the main button."""
+    device = uuid4()
+    word = fetch_pack(client, "ben", device, DAY0).json()["decks"][0]["word_ids"][0]
+    op = answer(device, uuid4(), "s1", word, DAY0, spell("wrong"), kind="spelling")
+    assert push(client, "ben", [op], DAY0 + timedelta(minutes=1)) == [("applied", None)]
+    ben = user_of(db, "ben")
+    assert db.get(SpellingProgress, (ben.id, word)) is None
+    [attempt] = db.scalars(select(ReviewAttempt).where(ReviewAttempt.user_id == ben.id)).all()
+    assert (attempt.exercise_type, attempt.correct) == ("spelling", False)

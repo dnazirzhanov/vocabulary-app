@@ -326,7 +326,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords }: De
                 <PencilIcon aria-hidden="true" />
                 <span>
                   <strong>{t.spellingWords(wordsLabel(spelling.ready))}</strong>
-                  <small id="spelling-note">{t.fromAnyDeck(spellingNote)}</small>
+                  <small id="spelling-note">{spellingNote}</small>
                 </span>
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>

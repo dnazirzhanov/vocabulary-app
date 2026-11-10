@@ -62,7 +62,7 @@ export function tiles(target: string, random: () => number): string[] {
 export const HARD = 0;
 export const KNOWN = 3;
 const WAIT_DAYS: Record<number, number> = { 0: 1, 1: 3, 2: 7, 3: 21 };
-export type Mode = 'mix' | 'today' | 'hard' | 'random';
+export type Mode = 'mix' | 'today' | 'hard' | 'random' | 'all';
 export const DEFAULT_SIZE = 10;
 const RANDOM_WEIGHT = { never: 3.0, climbing: 1.5, known: 0.25 };
 
@@ -87,6 +87,8 @@ export interface Words {
   today: readonly string[];
   ladder: ReadonlyMap<string, Spelled>;
   todayStart: number;
+  /** Every word of the deck, in its order (for «Все слова»). */
+  deck: readonly string[];
 }
 
 function due(words: Words, now: number): string[] {
@@ -96,22 +98,29 @@ function due(words: Words, now: number): string[] {
     .map(([word]) => word);
 }
 
-/** Words never spelled: today's in the order learned, then older ones, latest met first. */
+/**
+ * Words never spelled: today's, the ones just learned first, then older ones, latest met first
+ * (ADR 0064): right after a lesson, its own words.
+ */
 function fresh(words: Words): string[] {
   const learnedToday = new Set(words.today);
-  const today = words.today.filter((word) => !words.ladder.has(word));
+  const today = [...words.today].reverse().filter((word) => !words.ladder.has(word));
   const older = [...words.met].reverse().filter((word) => !words.ladder.has(word) && !learnedToday.has(word));
   return [...today, ...older];
 }
 
 export function pick(mode: Mode, size: number, words: Words, now: number, random: () => number): string[] {
   let chosen: string[];
+  const spelledToday = (word: string) => {
+    const spelled = words.ladder.get(word);
+    return spelled !== undefined && spelled.lastSpelledAt >= words.todayStart ? 1 : 0;
+  };
   if (mode === 'mix') chosen = [...due(words, now), ...fresh(words)];
-  else if (mode === 'today') {
-    const spelledToday = (word: string) => {
-      const spelled = words.ladder.get(word);
-      return spelled !== undefined && spelled.lastSpelledAt >= words.todayStart ? 1 : 0;
-    };
+  else if (mode === 'all') {
+    // Every word of the deck in its order: known ones last, then those spelled today (ADR 0064).
+    const known = (word: string) => (words.ladder.get(word)?.rung === KNOWN ? 1 : 0);
+    chosen = [...words.deck].sort((a, b) => known(a) - known(b) || spelledToday(a) - spelledToday(b));
+  } else if (mode === 'today') {
     // Stable: in the order learned, not yet spelled today first.
     chosen = [...words.today].sort((a, b) => spelledToday(a) - spelledToday(b));
   } else if (mode === 'hard') {
@@ -142,6 +151,8 @@ export interface Overview {
   hard: number;
   known: number;
   met: number;
+  /** Every word of the deck: the pool for «Все слова». */
+  words: number;
 }
 
 export function overview(words: Words, now: number): Overview {
@@ -156,5 +167,6 @@ export function overview(words: Words, now: number): Overview {
     hard: rungs.filter((rung) => rung === HARD).length,
     known: rungs.filter((rung) => rung === KNOWN).length,
     met: words.met.length,
+    words: words.deck.length,
   };
 }

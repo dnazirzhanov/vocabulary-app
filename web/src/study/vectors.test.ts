@@ -146,7 +146,8 @@ test('the spelling ladder, its sets, and what counts as the word', () => {
   ][]) {
     assert.deepEqual(afterSpelling(spelled(before), right, now, zone), spelled(expected));
   }
-  for (const [met, today, ladder, todayStart, now, mode, size, chosen, seen] of vectors.ladder.picks as [
+  for (const [met, today, deck, ladder, todayStart, now, mode, size, chosen, seen] of vectors.ladder.picks as [
+    string[],
     string[],
     string[],
     [string, number, number, number][],
@@ -162,10 +163,11 @@ test('the spelling ladder, its sets, and what counts as the word', () => {
       today,
       ladder: new Map(ladder.map(([word, rung, dueAt, last]) => [word, { rung, dueAt, lastSpelledAt: last }])),
       todayStart,
+      deck,
     };
     assert.deepEqual(pick(mode, size, words, now, Math.random), chosen, `${mode} of ${size}`);
     const got = overview(words, now);
-    assert.deepEqual([got.ready, got.due, got.today, got.todayLeft, got.hard, got.known, got.met], seen);
+    assert.deepEqual([got.ready, got.due, got.today, got.todayLeft, got.hard, got.known, got.met, got.words], seen);
   }
   for (const [text, normal, bare, gaps] of vectors.ladder.words as [string, string, string, [number, string][]][]) {
     assert.equal(normalize(text), normal);

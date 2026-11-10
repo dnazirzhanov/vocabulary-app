@@ -20,6 +20,7 @@ import {
   deckStats as statsOf,
   hint as hintIn,
   isOpen,
+  metSince,
   planHard,
   planSpelling,
   planStudy,
@@ -221,14 +222,14 @@ async function beginNow(
   deckId: string,
   kind: LocalLesson['kind'],
   plan: (learner: Learner, moment: number) => Step[],
-  resumes: (open: LocalLesson) => boolean,
+  resumes: (open: LocalLesson, learner: Learner) => boolean,
 ): Promise<Session> {
   const db = localDb()!;
   const { learner, lessons } = await loadWith(db, deckId);
   const moment = now();
   const existing = openOf(lessons, kind === 'spelling');
   if (existing) {
-    if (resumes(existing)) return present(learner, existing, moment);
+    if (resumes(existing, learner)) return present(learner, existing, moment);
     await setAside(db, existing, moment);
   }
   const lesson: LocalLesson = {
@@ -277,9 +278,13 @@ async function respondNow(sessionId: string, exerciseId: string, response: Respo
   return done.result;
 }
 
-function pausedSpelling(lessons: Map<string, LocalLesson>, deckId: string): LocalLesson | null {
+/**
+ * The deck's spelling left unfinished, to resume; not once new words were met in the deck since,
+ * when the main button starts afresh with them (ADR 0064).
+ */
+function pausedSpelling(learner: Learner, lessons: Map<string, LocalLesson>, deckId: string): LocalLesson | null {
   const open = openOf(lessons, true);
-  return open && open.deckId === deckId ? open : null;
+  return open && open.deckId === deckId && !metSince(learner, deckId, open.startedAt) ? open : null;
 }
 
 async function hintNow(sessionId: string, exerciseId: string, position: number): Promise<Hint> {
@@ -309,7 +314,7 @@ async function completeNow(sessionId: string): Promise<Summary> {
     // offline this fails at once, and the outbox sends it later.
     await Promise.race([syncNow(), wait(FINISH_WAIT_MS)]);
   }
-  return summarize(learner, finished, moment, pausedSpelling(lessons, finished.deckId));
+  return summarize(learner, finished, moment, pausedSpelling(learner, lessons, finished.deckId));
 }
 
 const local = () => localDb() !== null;
@@ -351,7 +356,9 @@ export const study = {
       deckId,
       'spelling',
       (state, moment) => planSpelling(state, deckId, mode, size, moment, Math.random),
-      (open) => mode === 'mix' && open.deckId === deckId,
+      // Resumed unless new words were met in the deck since it was left: then afresh, with them
+      // first (ADR 0064). The deck's page says the same (pausedSpelling).
+      (open, learner) => mode === 'mix' && pausedSpelling(learner, new Map([[open.id, open]]), deckId) !== null,
     );
   },
 
@@ -380,7 +387,7 @@ export const study = {
     // Online, up to date first (a group test, another device), but never kept waiting for it.
     if (navigator.onLine) await Promise.race([study.refresh().catch(() => undefined), wait(FRESH_WAIT_MS)]);
     const { learner, lessons } = await loadWith(localDb()!, deckId);
-    return statsOf(learner, deckId, now(), pausedSpelling(lessons, deckId));
+    return statsOf(learner, deckId, now(), pausedSpelling(learner, lessons, deckId));
   },
 
   /** Today in a deck, as its next lesson will be planned; null where nothing is kept. */
