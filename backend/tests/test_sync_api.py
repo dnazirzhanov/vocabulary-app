@@ -310,9 +310,11 @@ def test_extra_words_pressed_offline_count_on_the_day_they_were_pressed(client: 
     push(client, ops)
 
     def extra_today(moment: datetime = NOW) -> int:
-        return client.get(
-            "/api/me/pace", params={"deck_id": deck}, headers=as_("pavel", moment)
-        ).json()["extra_today"]
+        return int(
+            client.get(
+                "/api/me/pace", params={"deck_id": deck}, headers=as_("pavel", moment)
+            ).json()["extra_today"]
+        )
 
     extra = op("pace.extra", deck_id=deck, words=4, added_at=NOW.isoformat())
     assert push(client, [extra, op("pace.extra", deck_id=deck, words=2, added_at=NOW.isoformat())])
