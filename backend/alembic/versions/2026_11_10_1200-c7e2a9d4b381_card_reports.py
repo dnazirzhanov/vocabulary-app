@@ -53,6 +53,8 @@ def upgrade() -> None:
         unique=True,
         postgresql_where=sa.text("resolved_at IS NULL"),
     )
+    # Nothing new is reachable through Supabase's Data API (ADR 0058).
+    op.execute("ALTER TABLE card_reports ENABLE ROW LEVEL SECURITY")
 
 
 def downgrade() -> None:
