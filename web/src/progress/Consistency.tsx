@@ -5,7 +5,7 @@ import { promiseText, weekdaysOf } from '../lib/promise.ts';
 import { PromiseDialog } from '../promise/PromiseDialog.tsx';
 import { buildYear, weekProgress, yearsOf, type Cell, type Level } from '../lib/consistency.ts';
 import type { Progress } from '../lib/types.ts';
-import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
+import { BackIcon, CheckIcon, ForwardIcon, PencilIcon } from '../ui/icons.tsx';
 import styles from './Progress.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -32,34 +32,36 @@ export function WeekDays({ progress, onPromiseChanged }: { progress: Progress; o
   const left = week.target - week.done;
   // Only a nudge toward what is still possible; a week that can no longer be met says nothing.
   const reachable = week.days.filter((day) => day.future || day.date === today).length >= left;
+  const promise = week.target > 0 ? promiseText(weekdaysOf(progress.promised_week)) : t.pausedThisWeek;
   return (
     <div className={styles.weekBlock}>
-      <ol className={styles.week} aria-label={t.daysOfThisWeek}>
-        {week.days.map((day, index) => (
-          <li
-            key={day.date}
-            className={styles.weekDay}
-            data-level={day.level}
-            data-future={day.future || undefined}
-            data-off={(!day.promised && day.level === 0) || undefined}
-            data-today={index === week.todayIndex || undefined}
-            aria-label={describe(day)}
-            aria-current={index === week.todayIndex ? 'date' : undefined}
-          >
-            <span className={styles.weekDot}>{day.level === 2 && <CheckIcon aria-hidden="true" />}</span>
-            <span className={styles.weekName} aria-hidden="true">
-              {WEEKDAYS[index]}
-            </span>
-          </li>
-        ))}
-      </ol>
-      <p className={styles.weekNote}>
-        {t.promise}{' '}
-        <strong>{week.target > 0 ? promiseText(weekdaysOf(progress.promised_week)) : t.pausedThisWeek}</strong>
-        <button type="button" className={styles.weekEdit} onClick={() => setEditing(true)}>
-          {t.edit}
+      {/* The picture says which days are promised (a ring) and which aren't (a dot); the words are
+          for screen readers. Changing it is the pencil beside it. */}
+      <div className={styles.weekRow}>
+        <ol className={styles.week} aria-label={`${t.daysOfThisWeek}. ${t.promise} ${promise}`}>
+          {week.days.map((day, index) => (
+            <li
+              key={day.date}
+              className={styles.weekDay}
+              data-level={day.level}
+              data-future={day.future || undefined}
+              data-off={(!day.promised && day.level === 0) || undefined}
+              data-today={index === week.todayIndex || undefined}
+              aria-label={day.promised || day.level > 0 ? describe(day) : `${describe(day)}, ${t.notPromised}`}
+              aria-current={index === week.todayIndex ? 'date' : undefined}
+            >
+              <span className={styles.weekDot}>{day.level === 2 && <CheckIcon aria-hidden="true" />}</span>
+              <span className={styles.weekName} aria-hidden="true">
+                {WEEKDAYS[index]}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <button type="button" className={styles.weekEdit} aria-label={t.editPromise} onClick={() => setEditing(true)}>
+          <PencilIcon aria-hidden="true" />
         </button>
-      </p>
+      </div>
+      {week.target === 0 && <p className={styles.weekNote}>{t.pausedThisWeek}</p>}
       {week.target > 0 && (
         <p className={styles.weekNote}>
           {rich(t.weekDaysDone(week.target), <strong>{week.done}</strong>)}

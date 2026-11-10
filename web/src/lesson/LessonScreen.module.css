@@ -206,12 +206,6 @@
   background: var(--color-primary-tint);
 }
 
-.tapHint {
-  margin-top: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-}
-
 .autoplay {
   display: grid;
   place-items: center;

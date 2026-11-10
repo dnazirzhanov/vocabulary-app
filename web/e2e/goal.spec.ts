@@ -39,7 +39,7 @@ test.describe('a learner who has not chosen a pace', () => {
     await expect(button(page, 'Начать урок · 5 слов')).toBeVisible();
     // The promise reads on «Прогресс»; nothing is finished yet, so it applies from today.
     await button(page, 'Прогресс').click();
-    await expect(page.getByText(/Обещание: Пн–Пт/)).toBeVisible();
+    await expect(page.getByRole('list', { name: /Обещание: Пн–Пт/ })).toBeVisible();
   });
 
   const toTheQuestion = async (page: Page) => {
