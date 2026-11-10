@@ -1,7 +1,8 @@
-# Production on Fly.io (docs/deploy.md): the repository's Dockerfile, one machine in Frankfurt that
-# stops when idle and starts again on the next request (a few seconds).
+# Production on Fly.io (docs/deploy.md): the repository's Dockerfile, one machine in Stockholm, next to
+# the database (Supabase eu-north-1: a query there takes ~1 ms; from Frankfurt it took ~26 ms, and a
+# screen makes up to 20). Idle, it is suspended (memory kept) and resumes in under a second.
 app = "slovar-kg"
-primary_region = "fra"
+primary_region = "arn"
 
 [build]
   dockerfile = "Dockerfile"
@@ -32,7 +33,7 @@ primary_region = "fra"
   processes = ["app"]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
 
