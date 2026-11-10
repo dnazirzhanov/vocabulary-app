@@ -5,6 +5,8 @@
  */
 /* prettier-ignore */
 :root {
+  /* Light only: a phone's dark mode must not darken it (index.html says so before any paint). */
+  color-scheme: only light;
   /* Brand */
   --color-primary: #fa5d19;          /* fills only: 3.0:1 on paper, never body text */
   --color-on-primary: #262626;       /* text on primary: 4.79:1 */
