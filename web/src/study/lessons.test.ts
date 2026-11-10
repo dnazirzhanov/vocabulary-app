@@ -8,6 +8,7 @@ import {
   hint,
   metSince,
   missingFromPack,
+  planPractice,
   planSpelling,
   planStudy,
   summarize,
@@ -287,4 +288,14 @@ test('a course level given to my group is open, whatever level I am on', () => {
   assert.throws(() => planStudy(learnerFrom(pack, []), later.id, NOW), /deck_locked/);
   const given = { ...pack, decks: pack.decks.map((deck) => (deck.id === later.id ? { ...deck, given: true } : deck)) };
   assert.ok(planStudy(learnerFrom(given, []), later.id, NOW).length > 0);
+});
+
+test('«Повторить сейчас» gives met words, soonest back first, as many as asked', () => {
+  const pack = packWith([reviewing('a', 3), reviewing('b', 1), reviewing('c', 2)]);
+  const learner = learnerFrom(pack, []);
+  const words = (count: number | null) => planPractice(learner, 'one', count).map((step) => step.wordId);
+  assert.deepEqual(words(null), ['b', 'c', 'a']);
+  assert.deepEqual(words(2), ['b', 'c']);
+  // Nothing met yet: nothing to practise.
+  assert.throws(() => planPractice(learnerFrom(packWith(), []), 'one', null), /nothing_to_practice/);
 });

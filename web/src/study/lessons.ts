@@ -184,6 +184,23 @@ export function planHard(learner: Learner, deckId: string): Step[] {
   return planCards(hardest, []);
 }
 
+/**
+ * «Повторить сейчас»: words already met in the deck, for practice whenever one likes. The ones
+ * coming back soonest first, `count` of them (all when null). Like hard words, it never changes when
+ * a word comes back (the server keeps a `hard` session's schedule as it was).
+ */
+export function planPractice(learner: Learner, deckId: string, count: number | null): Step[] {
+  const deck = deckOf(learner, deckId);
+  const position = new Map(deck.word_ids.map((wordId, index) => [wordId, index]));
+  const met = deck.word_ids
+    .filter((wordId) => learner.progress.has(wordId))
+    .sort(
+      (a, b) => learner.progress.get(a)!.dueAt - learner.progress.get(b)!.dueAt || position.get(a)! - position.get(b)!,
+    );
+  if (met.length === 0) throw refuse(409, 'nothing_to_practice');
+  return planCards(count === null ? met : met.slice(0, count), []);
+}
+
 /** What the learner can spell from in one deck (`spelling_ladder.load`). */
 export function spellingWords(learner: Learner, deckId: string, now: number): Words {
   const deck = deckOf(learner, deckId);

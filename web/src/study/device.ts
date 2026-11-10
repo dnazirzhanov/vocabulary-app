@@ -24,6 +24,7 @@ import {
   metSince,
   missingFromPack,
   planHard,
+  planPractice,
   planSpelling,
   planStudy,
   present,
@@ -364,6 +365,18 @@ export const study = {
         }
       },
       (open) => deckId === null || open.deckId === deckId,
+    );
+  },
+
+  /** Practice on this device only: the screens offer it where there is one (`onDevice`). */
+  onDevice: () => local(),
+
+  async startPracticeSession(deckId: string, count: number | null): Promise<Session> {
+    return begin(
+      deckId,
+      'hard',
+      (state) => planPractice(state, deckId, count),
+      () => false,
     );
   },
 
