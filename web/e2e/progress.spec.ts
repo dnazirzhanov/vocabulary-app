@@ -23,7 +23,9 @@ test('progress answers two questions: what I remember, deck by deck, and how ste
 
   await button(page, 'Прогресс').click();
   // Met, not known yet: a word is known once recalled in a later review (ADR 0034).
-  await expect(page.getByText('Вы учите слов: 5')).toBeVisible();
+  const stats = page.getByRole('definition');
+  await expect(page.getByRole('term')).toHaveText(['знаю', 'за неделю', 'учу']);
+  await expect(stats).toHaveText(['0', '0', '5']);
   // Each deck as a card, in plain words: «учу · впереди», then its goal.
   const level = page.getByRole('button', { name: /^Основа/ });
   await expect(level).toContainText('5 / 100');

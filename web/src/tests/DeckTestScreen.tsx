@@ -4,7 +4,6 @@ import { clockText, scoreText, verdictText } from '../lib/groupTests.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import type { TestAttempt, TestAttemptKind, TestDetail, TestResultRow } from '../lib/types.ts';
-import { StateMark } from '../promise/DayDots.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -261,9 +260,9 @@ function NotTaken({ rows }: { rows: TestResultRow[] }) {
   return (
     <section aria-label={title} className={styles.results}>
       <ResultsTitle title={title} state="off" count={rows.length} />
-      <ul className={styles.waiting}>
+      <ul className={styles.roster}>
         {rows.map((row) => (
-          <li key={row.member_id}>
+          <li key={row.member_id} className={styles.person}>
             <Name row={row} />
           </li>
         ))}
@@ -275,13 +274,21 @@ function NotTaken({ rows }: { rows: TestResultRow[] }) {
 function ResultsTitle(props: { title: string; state: 'done' | 'missed' | 'off'; count: number }) {
   return (
     <h2 className={report.namesTitle}>
-      <StateMark state={props.state} />
-      {props.title}: <span className={report.namesCount}>{props.count}</span>
+      {props.title} · {props.count}
     </h2>
   );
 }
 
 function Name({ row }: { row: TestResultRow }) {
+  return (
+    <>
+      <span className={report.avatar} data-initial={row.name.trim().charAt(0).toUpperCase()} aria-hidden="true" />
+      <NameText row={row} />
+    </>
+  );
+}
+
+function NameText({ row }: { row: TestResultRow }) {
   return (
     <span className={styles.name}>
       {row.name}

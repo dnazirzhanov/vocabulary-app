@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../lib/api.ts';
-import { knownLine, missesText, promiseText, todayLists, wordsCaption, wordsProgress } from '../lib/promise.ts';
+import { knownLine, missesText, todayLists, wordsCaption, wordsProgress } from '../lib/promise.ts';
 import { WordCount, WordStages } from '../progress/WordStages.tsx';
 import type { Board, BoardRow, Group } from '../lib/types.ts';
-import { DayDots, StateMark } from '../promise/DayDots.tsx';
-import { PromiseDialog } from '../promise/PromiseDialog.tsx';
-import { BackIcon, CheckIcon, ForwardIcon } from '../ui/icons.tsx';
+import { DayDots } from '../promise/DayDots.tsx';
+import { BackIcon, ForwardIcon, HelpIcon } from '../ui/icons.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
@@ -25,8 +24,6 @@ interface GroupScreenProps {
   /** The author opens their deck, given to this group, in the editor (ADR 0019). */
   onOpenDeck: (deckId: string) => void;
   /** A member opens a deck with a deadline to study it. */
-  /** To the lesson on the home page. */
-  onStudy: () => void;
   /** The group's spelling tests (ADR 0046). */
   onTests: () => void;
   onBack: () => void;
@@ -39,21 +36,12 @@ interface GroupScreenProps {
  * and the month's missed days. A person's window adds the words they know. Everything else is a tap
  * away: the rule in «Как это считается?», housekeeping folded at the bottom.
  */
-export function GroupScreen({
-  groupId,
-  inviteOnOpen = false,
-  onOpenDeck,
-  onStudy,
-  onTests,
-  onBack,
-  onLeft,
-}: GroupScreenProps) {
+export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onTests, onBack, onLeft }: GroupScreenProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(inviteOnOpen);
   const [person, setPerson] = useState<BoardRow | null>(null);
   const [rules, setRules] = useState(false);
-  const [promising, setPromising] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
@@ -91,7 +79,6 @@ export function GroupScreen({
   const { group } = board;
   const showFold =
     board.assignments.length > 0 || group.can.includes('give_decks') || group.can.includes('delete_group');
-  const me = board.rows.find((row) => row.is_me);
 
   return (
     <div className={shared.screen}>
@@ -128,11 +115,16 @@ export function GroupScreen({
               <h2 id="today-title" className={styles.sectionTitle}>
                 {t.todayByThePromise}
               </h2>
-              <button type="button" className={shared.linkButton} onClick={() => setRules(true)}>
-                {t.howIsThisCounted}
+              <button
+                type="button"
+                className={styles.help}
+                onClick={() => setRules(true)}
+                aria-label={t.howIsThisCounted}
+                aria-haspopup="dialog"
+              >
+                <HelpIcon aria-hidden="true" />
               </button>
             </div>
-            <Today me={me} onStudy={onStudy} onPromise={() => setPromising(true)} />
             <Report rows={board.rows} onOpen={setPerson} />
           </section>
 
@@ -178,52 +170,11 @@ export function GroupScreen({
           }}
         />
       )}
-      {promising && (
-        <PromiseDialog
-          onClose={() => {
-            setPromising(false);
-            void load();
-          }}
-        />
-      )}
     </div>
   );
 }
 
 /** Today by the promise, for me: whether I did it, and the weekdays I promised. */
-function Today(props: { me: BoardRow | undefined; onStudy: () => void; onPromise: () => void }) {
-  const { me, onStudy, onPromise } = props;
-  if (!me) return null;
-  return (
-    <div className={styles.today}>
-      <div className={styles.mine}>
-        {me.promise_today === 'done' && (
-          <p className={styles.mineState} data-done="">
-            <CheckIcon aria-hidden="true" /> {t.youDone}
-          </p>
-        )}
-        {me.promise_today === 'pending' && (
-          <>
-            <p className={styles.mineState}>{t.youNotYet}</p>
-            <button type="button" className={shared.smallButton} onClick={onStudy}>
-              {t.studyNow}
-            </button>
-          </>
-        )}
-        {me.promise_today === 'off' && (
-          <p className={styles.mineState}>{me.paused ? t.youReOnAPause : t.todayIsYourDayOff}</p>
-        )}
-      </div>
-      <p className={styles.promiseLine}>
-        {t.myPromise} <strong>{promiseText(me.promise_weekdays)}</strong>
-        <button type="button" className={shared.linkButton} onClick={onPromise}>
-          {t.edit}
-        </button>
-      </p>
-    </div>
-  );
-}
-
 /**
  * Who kept today's promise, as plain lists of names: those who did it, those who haven't yet, and
  * those with the day off. Each friend is a card like a deck's on «Прогресс» (ADR 0052): words met of
@@ -238,8 +189,7 @@ function Report({ rows, onOpen }: { rows: BoardRow[]; onOpen: (row: BoardRow) =>
       {todayLists(rows).map((list) => (
         <section key={list.state} aria-label={list.title} className={styles.names}>
           <h3 className={styles.namesTitle} data-state={list.state}>
-            <StateMark state={list.state} />
-            {list.title}:<span className={styles.namesCount}>{list.rows.length}</span>
+            {list.title} · {list.rows.length}
           </h3>
           <ul className={styles.report}>
             {list.rows.map((row) => (
@@ -259,18 +209,19 @@ function FriendCard({ row, onOpen }: { row: BoardRow; onOpen: () => void }) {
   const line = progress ? null : knownLine(row);
   return (
     <li>
-      <button type="button" className={styles.friend} data-me={row.is_me || undefined} onClick={onOpen}>
-        <span className={styles.friendHead}>
-          <span className={styles.nick}>
-            {row.name}
-            {row.is_me && <span className={styles.me}>{t.you}</span>}
+      <button type="button" className={styles.friend} onClick={onOpen}>
+        <span className={styles.avatar} data-initial={row.name.trim().charAt(0).toUpperCase()} aria-hidden="true" />
+        <span className={styles.friendBody}>
+          <span className={styles.friendHead}>
+            <span className={styles.nick}>
+              {row.name}
+              {row.is_me && <span className={styles.me}>{t.you}</span>}
+            </span>
+            {progress && <WordCount met={progress.met} total={progress.total} />}
           </span>
-          {progress && <WordCount met={progress.met} total={progress.total} />}
-        </span>
-        {progress && <WordStages {...progress} />}
-        {line && <span className={styles.words}>{line}</span>}
-        <span className={styles.misses} data-none={row.month_misses === 0 || undefined}>
-          {missesText(row.month_misses)}
+          {progress && <WordStages {...progress} />}
+          {line && <span className={styles.words}>{line}</span>}
+          {row.month_misses > 0 && <span className={styles.misses}>{missesText(row.month_misses)}</span>}
         </span>
         <ForwardIcon className={styles.chevron} aria-hidden="true" />
       </button>

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { exampleSpeed, setExampleSpeed, type Speed } from '../lib/audio.ts';
+import { exampleRate, MAX_RATE, MIN_RATE, RATE_STEP, setExampleRate } from '../lib/audio.ts';
 import type { CardReport } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { study } from '../study/device.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { CheckIcon } from '../ui/icons.tsx';
 import styles from './CardMenu.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -29,25 +30,38 @@ export function CardMenu({
   withSpeed: boolean;
   onClose: () => void;
 }) {
-  const [speed, setSpeed] = useState<Speed>(exampleSpeed);
+  const [rate, setRate] = useState(exampleRate);
   const [reason, setReason] = useState<CardReport['reason']>('translation');
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
   const { run, busy, error } = useAsyncAction();
-  const choose = (next: Speed) => (setExampleSpeed(next), setSpeed(next));
+  const choose = (next: number) => (setExampleRate(next), setRate(next));
+  const shown = `${rate.toFixed(2).replace(/0$/, '').replace(/\.0$/, '')}×`;
 
   return (
     <Dialog open onClose={onClose} title={word.headword}>
       {withSpeed && (
         <section className={styles.section} aria-label={t.exampleSpeed}>
-          <h3 className={styles.heading}>{t.exampleSpeed}</h3>
-          <div className={styles.chips} role="group" aria-label={t.exampleSpeed}>
-            <button type="button" aria-pressed={speed === 'normal'} onClick={() => choose('normal')}>
-              {t.normalSpeed}
-            </button>
-            <button type="button" aria-pressed={speed === 'slow'} onClick={() => choose('slow')}>
-              {t.slowSpeed}
-            </button>
+          <h3 className={styles.heading}>
+            {t.exampleSpeed}
+            <output className={styles.rate} aria-hidden="true">
+              {shown}
+            </output>
+          </h3>
+          {/* As a video player's speed: drag right for faster, left for slower. */}
+          <div className={styles.slider}>
+            <span aria-hidden="true">{MIN_RATE}×</span>
+            <input
+              type="range"
+              min={MIN_RATE}
+              max={MAX_RATE}
+              step={RATE_STEP}
+              value={rate}
+              aria-label={t.exampleSpeed}
+              aria-valuetext={shown}
+              onChange={(event) => choose(Number(event.target.value))}
+            />
+            <span aria-hidden="true">{MAX_RATE}×</span>
           </div>
         </section>
       )}
@@ -68,19 +82,21 @@ export function CardMenu({
               });
             }}
           >
-            <div className={styles.reasons} role="radiogroup" aria-label={t.reportAMistake}>
+            <ul className={styles.reasons} role="radiogroup" aria-label={t.reportAMistake}>
               {REASONS.map((item) => (
-                <button
-                  key={item.reason}
-                  type="button"
-                  role="radio"
-                  aria-checked={reason === item.reason}
-                  onClick={() => setReason(item.reason)}
-                >
-                  {item.label()}
-                </button>
+                <li key={item.reason}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={reason === item.reason}
+                    onClick={() => setReason(item.reason)}
+                  >
+                    <span>{item.label()}</span>
+                    {reason === item.reason && <CheckIcon aria-hidden="true" />}
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
             <textarea
               className={styles.note}
               aria-label={t.whatIsWrongOptional}

@@ -1,0 +1,85 @@
+.choice {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-weight: var(--weight-strong);
+}
+
+/* One rounded track, the choices inside it: the chosen one lifts out in white. */
+.segments {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-activity-none);
+}
+
+.segment,
+.own {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-width: 0;
+  min-height: 42px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.segment[data-selected],
+.own[data-selected] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.segment:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* «Своё»: a field shaped as one more segment. */
+.own {
+  flex: 1.4;
+  padding: 0 var(--space-1);
+  text-align: center;
+  cursor: text;
+  -moz-appearance: textfield;
+}
+
+.own::-webkit-inner-spin-button,
+.own::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.own:focus-visible {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.choice:disabled {
+  opacity: 0.6;
+}

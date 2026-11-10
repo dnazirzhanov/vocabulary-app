@@ -8,6 +8,7 @@ import { MAX_PHOTOS_PER_DECK, MAX_PHOTOS_PER_DRAFT, MIN_PHOTO_TEXT, takePhotos }
 import type { GenerateResult } from '../lib/types.ts';
 import { CameraIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { NumberChoice } from '../ui/NumberChoice.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
 import { t } from '../i18n/index.ts';
@@ -216,36 +217,15 @@ export function GeneratePanel({
       </div>
 
       <div className={styles.options}>
-        <fieldset className={styles.choice}>
-          <legend>{t.howManyWords}</legend>
-          <div className={styles.segments}>
-            {COUNTS.map((value) => (
-              <label key={value} className={styles.segment} data-selected={value === count || undefined}>
-                <input
-                  type="radio"
-                  name="count"
-                  value={value}
-                  checked={value === count}
-                  disabled={working}
-                  onChange={() => setCount(value)}
-                />
-                {value}
-              </label>
-            ))}
-          </div>
-          <label className={styles.countOwn}>
-            <span>{t.orYourOwnNumberUpTo(MAX_COUNT)}</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={MAX_COUNT}
-              value={count}
-              disabled={working}
-              onChange={(event) => setCount(Math.min(MAX_COUNT, Math.max(1, Number(event.target.value) || 1)))}
-            />
-          </label>
-        </fieldset>
+        <NumberChoice
+          label={t.howManyWords}
+          value={count}
+          presets={COUNTS}
+          max={MAX_COUNT}
+          ownLabel={t.orYourOwnNumberUpTo(MAX_COUNT)}
+          disabled={working}
+          onChange={setCount}
+        />
         <label className={styles.field}>
           <span>{t.level}</span>
           <select value={level} disabled={working} onChange={(event) => setLevel(event.target.value)}>

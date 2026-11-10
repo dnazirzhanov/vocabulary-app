@@ -22,7 +22,7 @@ test('a deck’s new words a day change in place, and extra words are for today 
   await page.getByRole('button', { name: 'Ещё слов сегодня' }).click();
   const extra = page.getByRole('dialog', { name: 'Ещё слов сегодня' });
   await expect(extra).toContainText('Завтра снова 8\u00a0слов в день');
-  await extra.getByRole('button', { name: '10', exact: true }).click();
+  await extra.getByRole('radio', { name: '10', exact: true }).check();
   await extra.getByRole('button', { name: 'Начать · 10\u00a0слов' }).click();
   await finishSession(page);
   await button(page, 'На главную').click();

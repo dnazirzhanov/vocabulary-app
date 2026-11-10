@@ -6,6 +6,7 @@ import type { Pace } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { PencilIcon } from '../ui/icons.tsx';
+import { NumberChoice } from '../ui/NumberChoice.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckPace.module.css';
 import { t } from '../i18n/index.ts';
@@ -138,24 +139,14 @@ export function ExtraWords({
   return (
     <Dialog open={open} onClose={onClose} title={t.moreWordsToday}>
       <p className={styles.muted}>{t.moreTodayNote(wordsLabel(pace.target))}</p>
-      <div className={styles.chips} role="group" aria-label={t.howManyWords}>
-        {EXTRA_CHOICES.map((choice) => (
-          <button key={choice} type="button" aria-pressed={choice === words} onClick={() => setWords(choice)}>
-            {choice}
-          </button>
-        ))}
-      </div>
-      <label className={styles.own}>
-        <span>{t.yourOwnNumber}</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={MAX_EXTRA}
-          value={words}
-          onChange={(event) => setWords(clamp(Number(event.target.value) || 1, 1, MAX_EXTRA))}
-        />
-      </label>
+      <NumberChoice
+        label={t.howManyWords}
+        value={words}
+        presets={EXTRA_CHOICES}
+        max={MAX_EXTRA}
+        ownLabel={t.yourOwnNumber}
+        onChange={setWords}
+      />
       {words > left && (
         <p className={styles.muted} role="status">
           {t.deckLeftNote(wordsLabel(left))}

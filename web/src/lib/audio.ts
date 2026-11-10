@@ -72,7 +72,7 @@ export async function playAudio(kind: AudioKind, key: string, text: string): Pro
   playing?.pause();
   const audio = player(urlFor(kind, key));
   // Examples at the learner's chosen speed; single words always as recorded.
-  const rate = kind === 'examples' && exampleSpeed() === 'slow' ? SLOW : 1;
+  const rate = kind === 'examples' ? exampleRate() : 1;
   playing = audio;
   audio.currentTime = 0;
   audio.playbackRate = rate;
@@ -105,21 +105,32 @@ export function setAutoplay(on: boolean) {
 }
 
 const SPEED_KEY = 'example-speed';
-const SLOW = 0.75;
-export type Speed = 'normal' | 'slow';
+export const MIN_RATE = 0.5;
+export const MAX_RATE = 2;
+export const RATE_STEP = 0.25;
 
-/** How fast example sentences are read (the card's «⋯»); kept on this device. */
-export function exampleSpeed(): Speed {
+/** A speed the reader can play at: within 0.5×–2×, on a 0.25× step. */
+export function clampRate(rate: number): number {
+  if (!Number.isFinite(rate)) return 1;
+  const stepped = Math.round(rate / RATE_STEP) * RATE_STEP;
+  return Math.min(MAX_RATE, Math.max(MIN_RATE, stepped));
+}
+
+/** How fast example sentences are read (the card's «⋯»), kept on this device; 1 is as recorded. */
+export function exampleRate(): number {
   try {
-    return localStorage.getItem(SPEED_KEY) === 'slow' ? 'slow' : 'normal';
+    const kept = localStorage.getItem(SPEED_KEY);
+    if (kept === null || kept === 'normal') return 1;
+    if (kept === 'slow') return 0.75; // the earlier two-choice setting
+    return clampRate(Number(kept));
   } catch {
-    return 'normal';
+    return 1;
   }
 }
 
-export function setExampleSpeed(speed: Speed) {
+export function setExampleRate(rate: number) {
   try {
-    localStorage.setItem(SPEED_KEY, speed);
+    localStorage.setItem(SPEED_KEY, String(clampRate(rate)));
   } catch {
     // private mode: the choice lasts for this visit only
   }

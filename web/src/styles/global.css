@@ -49,6 +49,15 @@ button {
   outline-offset: 3px;
 }
 
+/* A text field shows focus with its own border and a soft halo: one ring, not an outline on top. */
+input:not([type='checkbox'], [type='radio'], [type='range']):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 0 0 3px rgb(250 93 25 / 0.22);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

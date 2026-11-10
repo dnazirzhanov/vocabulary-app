@@ -40,10 +40,10 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   // A promise and a report (ADR 0039): who did today's promise as plain lists of names. No places,
   // points or ranking.
   await expect(page.getByRole('heading', { name: 'Сегодня по обещанию' })).toBeVisible();
-  await expect(page.getByText('Вы: сделано')).toBeVisible();
-  await expect(page.getByText(/Моё обещание: Пн–Сб/)).toBeVisible();
+  // My own day is my row among «Сделали сегодня»; no misses, so none are mentioned.
   const done = page.getByRole('region', { name: 'Сделали сегодня' });
-  const me = done.getByRole('button', { name: /^Ёжик.*пропусков: 0/ });
+  const me = done.getByRole('button', { name: /^Ёжик/ });
+  await expect(me).not.toContainText('пропусков');
   await expect(me).toBeVisible();
   await expect(page.getByRole('region', { name: 'Не сделали' })).toHaveCount(0);
   await expect(page.getByRole('main')).not.toContainText(/мест[оае]|очк|рейтинг|карточ/i);
@@ -78,7 +78,6 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   await friend.getByRole('button', { name: 'Вступить', exact: true }).click();
 
   await expect(friend.getByRole('heading', { name: '7Б английский' })).toBeFocused();
-  await expect(friend.getByText('Вы: ещё нет')).toBeVisible();
   await expect(friend.getByRole('region', { name: 'Сделали сегодня' })).toContainText('Ёжик');
   await expect(friend.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис/ })).toBeVisible();
   await friendContext.close();
@@ -91,9 +90,7 @@ test('a learner creates a group, a friend joins by link, both are in the report'
   const row = page.getByRole('button', { name: /^7Б английский/ });
   await expect(row).toContainText('сегодня по обещанию 1 из 2 · вы ✓');
   await row.click();
-  await expect(
-    page.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис.*пропусков: 0/ }),
-  ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Не сделали' }).getByRole('button', { name: /^Лис/ })).toBeVisible();
   // Leaving is a quiet link at the bottom for everyone (ADR 0040), not folded away; the group's own
   // management is.
   await expect(button(page, 'Выйти из группы')).toBeVisible();

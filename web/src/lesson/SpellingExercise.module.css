@@ -230,6 +230,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  width: 100%;
+  max-width: var(--width-column);
+  margin-inline: auto;
 }
 
 .hintButton {
@@ -392,6 +395,11 @@
 @media (min-width: 640px) {
   .tiles {
     grid-template-columns: repeat(5, 64px);
+  }
+
+  /* Hints and erasing stay right under the tiles, not in the screen's far corners. */
+  .toolbar {
+    max-width: calc(5 * 64px + 4 * var(--space-2));
   }
 }
 

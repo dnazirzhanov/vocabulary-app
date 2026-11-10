@@ -92,11 +92,10 @@ test('the group report shows a missed promise, and a paused one is not missed', 
   // Names by today's promise: nobody has studied yet, Борис is paused.
   await expect(page.getByRole('region', { name: 'Сделали сегодня' })).toHaveCount(0);
   const open = page.getByRole('region', { name: 'Не сделали' });
-  await expect(open.getByRole('button', { name: /^Ольга.*пропусков: 0/ })).toBeVisible();
+  // No misses: nothing said; one: said in red.
+  await expect(open.getByRole('button', { name: /^Ольга/ })).not.toContainText('пропусков');
   await expect(open.getByRole('button', { name: /^Анна.*пропусков: 1/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Сегодня выходной' })).toContainText('Борис');
-  await expect(page.getByRole('region', { name: 'Сегодня выходной' })).toContainText('пропусков: 0');
-  await expect(page.getByText('Вы: ещё нет')).toBeVisible();
   // Me first, then alphabetically: no score orders the friends.
   const names = await open.getByRole('button').allInnerTexts();
   expect(names.map((text) => text.split('\n')[0])).toEqual(['Ольга', 'Анна']);
