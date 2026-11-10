@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.schemas.card_reports import Note, ReportReason
 from app.schemas.decks import DeckWordIn, Title
 from app.schemas.learning import RatingResponse, SpellingResponse
 from app.schemas.me import CardLanguage, MeUpdate, UiLanguage
@@ -106,6 +107,17 @@ class SettingsChange(_Op):
     base: SettingsBase
 
 
+class CardReportOp(_Op):
+    """A card said to be wrong, from a lesson or the deck's word list (works offline too)."""
+
+    kind: Literal["card.report"]
+    deck_id: AnyId
+    word_id: AnyId
+    reason: ReportReason
+    note: Note | None = None
+    reported_at: datetime
+
+
 class PaceExtra(_Op):
     """«Ещё N слов» (ADR 0028), pressed on the device: more new words in a deck on that day."""
 
@@ -158,6 +170,7 @@ Op = Annotated[
     | CardDelete
     | SettingsChange
     | PaceExtra
+    | CardReportOp
     | StudyAnswer
     | StudyFinish,
     Field(discriminator="kind"),

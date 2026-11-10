@@ -25,6 +25,7 @@ from app.models.learning import (
 )
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
+    CardReport,
     DeckPace,
     DeletedLogin,
     PaceDismissal,
@@ -36,6 +37,7 @@ from app.models.user import (
 )
 
 __all__ = [
+    "CardReport",
     "Deck",
     "DeckAssignment",
     "DeckPace",

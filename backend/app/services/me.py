@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import User, WordingReport
 from app.schemas.me import MeOut, MeUpdate
+from app.services import card_reports
 from app.services.names import clean_name
 from app.services.promise import preset, promise_out, set_weekdays, weekdays_of
 from app.services.scheduling import local_date
@@ -18,6 +19,7 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
     return MeOut(
         id=user.id,
         name=user.name,
+        content_editor=card_reports.is_editor(user),
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,

@@ -63,6 +63,8 @@ class MeOut(BaseModel):
     id: UUID
     # Shown in every group I am in (ADR 0057); null until the first run asks it.
     name: str | None
+    # Reads the reports on the course's cards (CONTENT_EDITORS).
+    content_editor: bool = False
     # Null until the learner has chosen a pace (first-run screens).
     daily_target_words: int | None
     study_days_per_week: int

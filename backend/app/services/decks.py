@@ -18,12 +18,13 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, and_, delete, exists, func, or_, select, true
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
 from app.core.errors import ApiError
 from app.models import (
+    CardReport,
     Deck,
     DeckAssignment,
     DeckSeenWord,
@@ -752,6 +753,12 @@ def change_card(db: Session, deck: Deck, word: Word, fields: dict[str, str], now
     word.version += 1
     word.updated_at = now
     mark_deck(db, deck, now)
+    # Corrected: what learners reported about it is done.
+    db.execute(
+        update(CardReport)
+        .where(CardReport.word_id == word.id, CardReport.resolved_at.is_(None))
+        .values(resolved_at=now)
+    )
 
 
 def remove_word(

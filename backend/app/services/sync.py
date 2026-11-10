@@ -28,6 +28,7 @@ from app.schemas.decks import DeckWordIn
 from app.schemas.sync import (
     CardCreate,
     CardDelete,
+    CardReportOp,
     CardUpdate,
     DeckCreate,
     DeckDelete,
@@ -44,7 +45,7 @@ from app.schemas.sync import (
     SyncCardOut,
     SyncDeckOut,
 )
-from app.services import decks, me, pace, study_sync
+from app.services import card_reports, decks, me, pace, study_sync
 from app.services.scheduling import local_date
 from app.services.study_days import zone_of
 
@@ -229,6 +230,11 @@ def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) 
         return _update_card(db, user, op, now)
     if isinstance(op, CardDelete):
         return _delete_card(db, user, op, now)
+    if isinstance(op, CardReportOp):
+        card_reports.report(
+            db, user, op.deck_id, op.word_id, op.reason, op.note, min(op.reported_at, now)
+        )
+        return _result(op, "applied")
     if isinstance(op, PaceExtra):
         return _extra_words(db, user, op, now)
     if isinstance(op, StudyAnswer):
