@@ -171,3 +171,48 @@ export function ExtraWords({
     </Dialog>
   );
 }
+
+const PRACTICE_CHOICES = [10, 20];
+
+/**
+ * «Повторить сейчас»: go over words already met, as many as one likes, before they come back. It
+ * never changes when they come back.
+ */
+export function Practice({
+  open,
+  met,
+  onClose,
+  onStart,
+}: {
+  open: boolean;
+  met: number;
+  onClose: () => void;
+  onStart: (count: number | null) => Promise<void>;
+}) {
+  const choices = PRACTICE_CHOICES.filter((choice) => choice < met);
+  const [count, setCount] = useState<number | null>(choices[0] ?? null);
+  const { run, busy, error } = useAsyncAction();
+  return (
+    <Dialog open={open} onClose={onClose} title={t.practiceNow}>
+      <p className={styles.muted}>{t.practiceNote}</p>
+      <div className={styles.chips} role="group" aria-label={t.howManyWords}>
+        {choices.map((choice) => (
+          <button key={choice} type="button" aria-pressed={choice === count} onClick={() => setCount(choice)}>
+            {choice}
+          </button>
+        ))}
+        <button type="button" aria-pressed={count === null} onClick={() => setCount(null)}>
+          {t.allCount(met)}
+        </button>
+      </div>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+      <PrimaryButton type="button" disabled={busy} aria-busy={busy} onClick={() => run(() => onStart(count))}>
+        {busy ? t.loading : t.start(wordsLabel(count ?? met))}
+      </PrimaryButton>
+    </Dialog>
+  );
+}

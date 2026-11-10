@@ -188,6 +188,8 @@ export interface Me {
   id: string;
   /** Shown in every group I am in (ADR 0057); null until the first run asks it. */
   name: string | null;
+  /** Reads the reports on the course's cards. */
+  content_editor?: boolean;
   /** Null until the learner has chosen a pace. */
   daily_target_words: number | null;
   study_days_per_week: number;
@@ -636,4 +638,25 @@ export interface TestAttempt {
     /** `answer` is null for a word never answered: skipped, or the time ran out first. */
     mistakes: { translation: string; word: string; answer: string | null; skipped: boolean }[];
   } | null;
+}
+
+/** A card said to be wrong (POST /api/card-reports, or the sync op card.report). */
+export interface CardReport {
+  deck_id: string;
+  word_id: string;
+  reason: 'translation' | 'example' | 'other';
+  note?: string;
+}
+
+/** A card with open reports, as its readers see it. */
+export interface ReportedCard {
+  word_id: string;
+  headword: string;
+  translation: string;
+  example: string;
+  translation_wrong: number;
+  example_wrong: number;
+  other: number;
+  notes: string[];
+  last_at: string;
 }

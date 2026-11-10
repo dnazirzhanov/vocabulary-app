@@ -6,7 +6,8 @@ import { study } from '../study/device.ts';
 import { autoplayEnabled, playAudio, preloadAudio, setAutoplay } from '../lib/audio.ts';
 import { tokenize } from '../lib/tokens.ts';
 import type { CardExercise, GlossaryEntry, Rating, Session, Summary } from '../lib/types.ts';
-import { AlertIcon, CloseIcon, MuteIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { AlertIcon, CloseIcon, MoreIcon, MuteIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { CardMenu } from './CardMenu.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { formatInterval, reduceLesson, remaining, startLesson } from './lessonRun.ts';
 import { LessonProgress } from './LessonProgress.tsx';
@@ -76,12 +77,31 @@ function TappableSentence({
 }
 
 /** The card itself: the word on the front; translation, picture and example on the back. */
-function Card({ card, revealed, onTap }: { card: CardExercise; revealed: boolean; onTap: (t: Tapped) => void }) {
+function Card({
+  card,
+  revealed,
+  onTap,
+  onMore,
+}: {
+  card: CardExercise;
+  revealed: boolean;
+  onTap: (t: Tapped) => void;
+  onMore: () => void;
+}) {
   const { word } = card;
   // The glossary is in Russian: on any other card a tap would show the wrong language.
   const glossary = word.language === 'ru';
   return (
     <article className={styles.card} data-revealed={revealed || undefined} data-card={card.id}>
+      <button
+        type="button"
+        className={styles.more}
+        onClick={onMore}
+        aria-label={t.moreAboutCard}
+        aria-haspopup="dialog"
+      >
+        <MoreIcon />
+      </button>
       <div className={styles.wordRow}>
         <h1 className={styles.word} lang="en" tabIndex={-1} data-autofocus>
           {word.headword}
@@ -136,6 +156,8 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
   const mainRef = useRef<HTMLElement>(null);
   const inflight = useRef<string | null>(null);
   const [tapped, setTapped] = useState<Tapped | null>(null);
+  // The card's «⋯»: example speed and «Сообщить об ошибке».
+  const [menuFor, setMenuFor] = useState<{ id: string; headword: string } | null>(null);
   const closeTapped = useCallback(() => setTapped(null), []);
   const [glossary, setGlossary] = useState<Record<string, GlossaryEntry>>({});
   const [autoplay, setAutoplayState] = useState(autoplayEnabled);
@@ -202,7 +224,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
     const onKeyDown = (event: KeyboardEvent) => {
       if (!card) return; // spelling handles its own keys
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if ((event.target as Element).closest('input, textarea, select, [role="dialog"]')) return;
+      if ((event.target as Element).closest('input, textarea, select, dialog, [role="dialog"]')) return;
       const number = Number(event.key);
       if (state.phase === 'front' && (event.key === ' ' || event.key === 'Enter')) {
         event.preventDefault();
@@ -266,7 +288,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
       <main ref={mainRef} className={styles.main}>
         <div key={exercise.id} className={styles.cardWrap}>
           {exercise.type === 'card' ? (
-            <Card card={exercise} revealed={revealed} onTap={setTapped} />
+            <Card card={exercise} revealed={revealed} onTap={setTapped} onMore={() => setMenuFor(exercise.word)} />
           ) : (
             <SpellingExercise
               exercise={exercise}
@@ -281,6 +303,7 @@ export function LessonScreen({ session, onComplete, onExit }: LessonScreenProps)
         </div>
       </main>
 
+      {menuFor && <CardMenu deckId={session.deck_id} word={menuFor} withSpeed onClose={() => setMenuFor(null)} />}
       {tapped && (
         <WordPopover
           text={tapped.text}

@@ -3,6 +3,7 @@ import { urlFor } from '../lib/audio.ts';
 import { serverNow } from '../lib/clock.ts';
 import type {
   AttemptResult,
+  CardReport,
   DeckStats,
   Hint,
   Rating,
@@ -24,6 +25,7 @@ import {
   metSince,
   missingFromPack,
   planHard,
+  planPractice,
   planSpelling,
   planStudy,
   present,
@@ -364,6 +366,29 @@ export const study = {
         }
       },
       (open) => deckId === null || open.deckId === deckId,
+    );
+  },
+
+  /** A card said to be wrong: kept and sent with the other changes (works offline). */
+  async reportCard(report: CardReport): Promise<void> {
+    if (!local()) {
+      await api.reportCard(report);
+      return;
+    }
+    const payload = { ...report, reported_at: new Date(now()).toISOString() };
+    await localDb()!.add('outbox', outboxOp('card.report', crypto.randomUUID(), payload));
+    syncSoon(1000);
+  },
+
+  /** Practice on this device only: the screens offer it where there is one (`onDevice`). */
+  onDevice: () => local(),
+
+  async startPracticeSession(deckId: string, count: number | null): Promise<Session> {
+    return begin(
+      deckId,
+      'hard',
+      (state) => planPractice(state, deckId, count),
+      () => false,
     );
   },
 

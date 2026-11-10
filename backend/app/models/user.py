@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     SmallInteger,
     String,
     func,
@@ -73,6 +74,34 @@ class WordingReport(Base):
     ui_language: Mapped[str | None] = mapped_column(String(2))
     text: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CardReport(Base):
+    """A learner says a card is wrong: its translation, its example, or something else. A course
+    card's reports go to the content editors; a deck's own card's to its author. Open until the
+    card is corrected or the report is marked done; one open report per learner and card."""
+
+    __tablename__ = "card_reports"
+    __table_args__ = (
+        CheckConstraint("reason IN ('translation', 'example', 'other')", name="reason"),
+        Index(
+            "uq_card_reports_open",
+            "user_id",
+            "word_id",
+            unique=True,
+            postgresql_where=text("resolved_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    word_id: Mapped[str] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), index=True)
+    reason: Mapped[str] = mapped_column(String(16))
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PaceDismissal(Base):

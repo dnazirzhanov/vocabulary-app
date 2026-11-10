@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     vapid_subject: str = "mailto:reminders@localhost"
     # The secret an hourly scheduler sends to POST /api/internal/reminders; unset: no endpoint.
     reminders_token: str | None = None
+    # Sign-ins (auth subjects, comma-separated) who read reports on the course's cards.
+    content_editors: str = ""
 
     @field_validator("database_url")
     @classmethod

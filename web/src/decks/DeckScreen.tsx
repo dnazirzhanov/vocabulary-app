@@ -12,10 +12,10 @@ import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { SuggestionCard } from '../home/SuggestionCard.tsx';
 import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
-import { DailyPace, ExtraWords } from './DeckPace.tsx';
+import { DailyPace, ExtraWords, Practice } from './DeckPace.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
-import { BackIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
+import { BackIcon, ForwardIcon, PencilIcon, PlusIcon, RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
 import { t } from '../i18n/index.ts';
@@ -57,6 +57,7 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
   const [giving, setGiving] = useState(false);
   const [name, setName] = useState('');
   const [extraOpen, setExtraOpen] = useState(false);
+  const [practicing, setPracticing] = useState(false);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -146,6 +147,10 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
     stats.new_today === 0 && left > 0 && !stats.locked && !blocked && (today?.bonus ?? pace?.bonus ?? false);
   const fresh = bonus ? Math.min(today?.nextLessonSize ?? pace?.next_lesson_size ?? 0, left) : stats.new_today;
   const label = resumeHere ? t.continueLesson : studyLabel({ due, fresh, started: stats.introduced_count > 0, bonus });
+  // Words already met can be gone over whenever one likes (never changing when they come back).
+  const canPractice = stats.introduced_count > 0 && !stats.locked && study.onDevice();
+  // Nothing left for today: the main button offers that instead of a dead «На сегодня всё».
+  const practiceFirst = canPractice && !label && !busy;
   // Where the deck comes from: nothing to say for my own; for the others, who gave it or the level.
   const source = stats.is_mine
     ? null
@@ -364,6 +369,15 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
                 <ForwardIcon className={styles.chevron} aria-hidden="true" />
               </button>
             )}
+            {canPractice && label && (
+              <button type="button" className={styles.link} onClick={() => setPracticing(true)} aria-haspopup="dialog">
+                <RepeatIcon aria-hidden="true" />
+                <span>
+                  <strong>{t.practiceNow}</strong>
+                </span>
+                <ForwardIcon className={styles.chevron} aria-hidden="true" />
+              </button>
+            )}
             {stats.is_mine && (
               <button type="button" className={styles.link} onClick={() => onAddWords(deckId)}>
                 <PlusIcon aria-hidden="true" />
@@ -381,6 +395,14 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
               <ForwardIcon className={styles.chevron} aria-hidden="true" />
             </button>
           </nav>
+          {practicing && (
+            <Practice
+              open
+              met={stats.introduced_count}
+              onClose={() => setPracticing(false)}
+              onStart={async (count) => onSession(await study.startPracticeSession(deckId, count), deckId)}
+            />
+          )}
           {extraOpen && pace && (
             <ExtraWords open pace={pace} left={left} onClose={() => setExtraOpen(false)} onStart={startWith} />
           )}
@@ -412,20 +434,28 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
             <PrimaryButton
               type="button"
               className={styles.action}
-              disabled={busy || stats.locked || !label}
+              disabled={busy || stats.locked || (!label && !practiceFirst)}
               aria-busy={busy}
               onClick={() =>
                 // The goal met, «Ещё N слов» takes them as today's extra words (ADR 0028).
-                run(async () =>
-                  resumeHere
-                    ? onSession(active, deckId)
-                    : bonus
-                      ? startWith(fresh)
-                      : onSession(await study.startStudySession(deckId), deckId),
-                )
+                practiceFirst
+                  ? setPracticing(true)
+                  : run(async () =>
+                      resumeHere
+                        ? onSession(active, deckId)
+                        : bonus
+                          ? startWith(fresh)
+                          : onSession(await study.startStudySession(deckId), deckId),
+                    )
               }
             >
-              {busy ? t.loading : stats.locked ? t.opensAfterThePreviousLevel : (label ?? t.thatSAllForToday)}
+              {busy
+                ? t.loading
+                : stats.locked
+                  ? t.opensAfterThePreviousLevel
+                  : practiceFirst
+                    ? t.practiceNow
+                    : (label ?? t.thatSAllForToday)}
             </PrimaryButton>
           }
         </div>
