@@ -34,7 +34,9 @@ def course_word(client: TestClient) -> str:
     return str(words[0]["word"]["id"])
 
 
-def test_a_course_card_reported_reaches_only_the_content_editors(client: TestClient) -> None:
+def test_a_course_card_reported_reaches_only_the_content_editors(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     word = course_word(client)
     assert report(client, "pavel", "a1-a2", word, note="  неверный   перевод ") == 204
     # Reported again: the same report, with the new reason and note.
@@ -44,6 +46,10 @@ def test_a_course_card_reported_reaches_only_the_content_editors(client: TestCli
     assert client.get("/api/card-reports", headers=as_("pavel")).status_code == 403
     assert client.get("/api/me", headers=as_("owner")).json()["content_editor"] is True
     assert client.get("/api/me", headers=as_("pavel")).json()["content_editor"] is False
+    # Named by the id alone, as Supabase's dashboard shows it (the owner's setting on Fly).
+    monkeypatch.setattr(get_settings(), "content_editors", "pavel")
+    assert client.get("/api/me", headers=as_("pavel")).json()["content_editor"] is True
+    monkeypatch.setattr(get_settings(), "content_editors", "dev|owner")
     (card,) = client.get("/api/card-reports", headers=as_("owner")).json()["cards"]
     assert (card["word_id"], card["translation_wrong"], card["example_wrong"]) == (word, 1, 1)
     assert card["notes"] == ["пример"]

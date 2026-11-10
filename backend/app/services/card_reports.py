@@ -21,8 +21,10 @@ NOTES_SHOWN = 5
 
 
 def is_editor(user: User) -> bool:
-    editors = {subject.strip() for subject in get_settings().content_editors.split(",")}
-    return user.auth_subject in editors - {""}
+    """Named by the sign-in's id as Supabase shows it (its UID), or as stored (`supabase|<UID>`)."""
+    editors = {subject.strip() for subject in get_settings().content_editors.split(",")} - {""}
+    bare = user.auth_subject.split("|", 1)[-1]
+    return user.auth_subject in editors or bare in editors
 
 
 def report(
