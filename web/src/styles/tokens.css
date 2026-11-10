@@ -78,9 +78,10 @@
   --text-option: 1.125rem;                             /* answers, body */
   --text-body: 1rem;                                   /* instructions */
   --text-meta: 0.875rem;                               /* progress, hints */
-  --weight-body: 600;
-  --weight-strong: 750;
-  --weight-display: 850;
+  /* Light enough to read as text, not as a shout (the owner's phone test: «слишком жирно»). */
+  --weight-body: 400;
+  --weight-strong: 600;
+  --weight-display: 700;
   --leading-tight: 1.15;
   --leading-body: 1.4;
 

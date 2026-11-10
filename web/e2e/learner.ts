@@ -81,7 +81,7 @@ export async function openSettings(page: Page) {
 /** Opens a course level's page (ADR 0020): from home, through «Открыть курс» (ADR 0021). Lessons
  * are started there, one deck at a time. */
 export async function openDeck(page: Page, title = 'Основа') {
-  const course = page.getByRole('button', { name: 'Открыть курс' });
+  const course = page.getByRole('button', { name: 'Английский по уровням' });
   const row = page.getByRole('button', { name: new RegExp(`^${title}`) });
   // Home (with the course button) or the course already: whichever has loaded.
   await expect(course.or(row).first()).toBeVisible();

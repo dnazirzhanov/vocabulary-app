@@ -17,7 +17,7 @@ import { describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
-import { BulbIcon, CheckIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { BackspaceIcon, BulbIcon, CheckIcon, CloseIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
 import { t } from '../i18n/index.ts';
@@ -234,63 +234,65 @@ export function SpellingExercise({
               );
             })}
           </div>
-          <div className={styles.edit}>
-            <button
-              type="button"
-              className={styles.editButton}
-              disabled={!editable || picked.length === 0}
-              onClick={() => setPicked(backspace)}
-            >
-              {t.delete}
-            </button>
-            <button
-              type="button"
-              className={styles.editButton}
-              disabled={!editable || picked.length === 0}
-              onClick={() => setPicked([])}
-            >
-              {t.clear}
-            </button>
-          </div>
-          {/* Below the letters and asked for: the card itself asks for the word from memory (ADR 0047). */}
-          {!again && (onHint || pronunciation) && (
-            <div className={styles.hints} role="group" aria-label={t.hints}>
-              <span className={styles.hintsLabel} aria-hidden="true">
-                {t.hintsColon}
-              </span>
-              {onHint && (
-                <button
-                  type="button"
-                  className={styles.hintButton}
-                  disabled={!editable || hint !== null || hinting || full}
-                  aria-busy={hinting}
-                  aria-label={hint ? t.hintUsed : t.hintLetter}
-                  onClick={() => void askHint()}
-                >
-                  <BulbIcon aria-hidden="true" />
-                  {t.letter}
-                </button>
-              )}
-              {pronunciation && (
-                <button
-                  type="button"
-                  className={styles.hintButton}
-                  disabled={!editable}
-                  aria-label={t.hintSound}
-                  onClick={(event) => {
-                    void playAudio('words', pronunciation.key, pronunciation.text);
-                    setHeard(true);
-                    saveHeard(storageKey);
-                    // After a click, Enter should check the word, not play it again; Tab keeps its place.
-                    if (event.detail > 0) event.currentTarget.blur();
-                  }}
-                >
-                  <SpeakerIcon aria-hidden="true" />
-                  {t.sound}
-                </button>
-              )}
+          {/* One line under the letters: hints on the left (asked for, ADR 0047), erasing on the right. */}
+          <div className={styles.toolbar}>
+            {/* Below the letters and asked for: the card itself asks for the word from memory (ADR 0047). */}
+            {!again && (onHint || pronunciation) && (
+              <div className={styles.hints} role="group" aria-label={t.hints}>
+                {onHint && (
+                  <button
+                    type="button"
+                    className={styles.hintButton}
+                    disabled={!editable || hint !== null || hinting || full}
+                    aria-busy={hinting}
+                    aria-label={hint ? t.hintUsed : t.hintLetter}
+                    onClick={() => void askHint()}
+                  >
+                    <BulbIcon aria-hidden="true" />
+                    {t.letter}
+                  </button>
+                )}
+                {pronunciation && (
+                  <button
+                    type="button"
+                    className={styles.hintButton}
+                    disabled={!editable}
+                    aria-label={t.hintSound}
+                    onClick={(event) => {
+                      void playAudio('words', pronunciation.key, pronunciation.text);
+                      setHeard(true);
+                      saveHeard(storageKey);
+                      // After a click, Enter should check the word, not play it again; Tab keeps its place.
+                      if (event.detail > 0) event.currentTarget.blur();
+                    }}
+                  >
+                    <SpeakerIcon aria-hidden="true" />
+                    {t.sound}
+                  </button>
+                )}
+              </div>
+            )}
+            <div className={styles.edit}>
+              <button
+                type="button"
+                className={styles.editButton}
+                disabled={!editable || picked.length === 0}
+                onClick={() => setPicked(backspace)}
+                aria-label={t.delete}
+              >
+                <BackspaceIcon aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.editButton}
+                disabled={!editable || picked.length === 0}
+                onClick={() => setPicked([])}
+                aria-label={t.clear}
+              >
+                <CloseIcon aria-hidden="true" />
+              </button>
             </div>
-          )}
+          </div>
           {hintNote && (
             <p className={styles.fixHint} role="status">
               {hintNote}

@@ -193,3 +193,10 @@ export const MoreIcon = (props: IconProps) => (
     <circle cx="19" cy="12" r="1.25" fill="currentColor" />
   </svg>
 );
+
+export const BackspaceIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1Z" />
+    <path d="m12 9 6 6M18 9l-6 6" />
+  </svg>
+);

@@ -205,7 +205,7 @@ function WordRow({ row, onReport }: { row: DeckWord; onReport: () => void }) {
   );
 }
 
-async function wordsOf(deckId: string): Promise<DeckWord[]> {
+export async function wordsOf(deckId: string): Promise<DeckWord[]> {
   try {
     return (await withSnapshot(`deckWords:${deckId}`, () => api.deckWords(deckId))).value;
   } catch (error) {

@@ -230,61 +230,8 @@
 
 /* --- quiet links ----------------------------------------------------------------------------- */
 
-.links {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--color-border);
-}
-
-.link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 64px;
-  padding: var(--space-3) 0;
-  border: 0;
-  border-bottom: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.link:hover:not(:disabled) {
-  background: rgb(38 38 38 / 0.03);
-}
-
-.link > svg:first-child {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--color-primary-strong);
-}
-
 .paused {
   padding: var(--space-3) 0;
-}
-
-.link > .iconSpace {
-  flex: none;
-  width: 20px;
-}
-
-.link > span {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.link strong {
-  font-weight: var(--weight-display);
-}
-
-.link small {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
 }
 
 .chevron {

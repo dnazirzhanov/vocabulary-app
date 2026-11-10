@@ -69,22 +69,8 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
       {email && <p className={styles.email}>{email}</p>}
       {!confirming && (
         <>
-          <label className={styles.toggle}>
-            <input
-              type="checkbox"
-              role="switch"
-              checked={sounds}
-              onChange={(event) => {
-                setSoundsOn(event.target.checked);
-                setSounds(event.target.checked);
-              }}
-            />
-            <span>
-              {t.sounds}
-              <small>{t.aShortChimeForACorrect}</small>
-            </span>
-          </label>
-          <div className={styles.language}>
+          <h2 className={styles.groupTitle}>{t.profile}</h2>
+          <div className={styles.group}>
             {name !== null && <NameRow name={name} onSaved={setName} />}
             <LanguageRow
               disabled={busy}
@@ -113,9 +99,26 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
               />
             )}
           </div>
-          <Reminders />
-          <ReportWording />
-          <CourseReports />
+          <h2 className={styles.groupTitle}>{t.soundAndNotifications}</h2>
+          <div className={styles.group}>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={sounds}
+                onChange={(event) => {
+                  setSoundsOn(event.target.checked);
+                  setSounds(event.target.checked);
+                }}
+              />
+              <span>{t.sounds}</span>
+            </label>
+            <Reminders />
+          </div>
+          <div className={styles.group}>
+            <ReportWording />
+            <CourseReports />
+          </div>
         </>
       )}
       {confirming ? (
@@ -158,13 +161,13 @@ export function AccountSection({ email, onSignOut, onAccountDeleted }: AccountPr
           )}
         </div>
       ) : (
-        <div className={styles.accountActions}>
+        <div className={`${styles.group} ${styles.accountActions}`}>
           {onSignOut && (
             <SignOutConfirm onSignOut={onSignOut}>
               {(ask) => (
-                <SecondaryButton type="button" onClick={ask}>
+                <button type="button" className={styles.rowButton} onClick={ask}>
                   {t.signOut}
-                </SecondaryButton>
+                </button>
               )}
             </SignOutConfirm>
           )}

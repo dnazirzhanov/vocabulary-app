@@ -504,7 +504,6 @@ test('words misspelled and skipped in a test wait in «Трудные» on the d
     .getByRole('button', { name: /Unit 4/ })
     .first()
     .click();
-  await expect(button(annaPage, 'Правописание')).toHaveAccessibleDescription(/Трудных слов: 2/);
   await button(annaPage, 'Правописание').click();
   const modes = annaPage.getByRole('dialog', { name: 'Правописание' });
   await modes.getByRole('radio', { name: /Трудные 2.слова с ошибкой/ }).check();

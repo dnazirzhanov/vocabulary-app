@@ -13,12 +13,18 @@ import { SuggestionCard } from '../home/SuggestionCard.tsx';
 import { PausedSpelling } from '../spelling/PausedSpelling.tsx';
 import { SpellingModes } from '../spelling/SpellingModes.tsx';
 import { DailyPace, ExtraWords, Practice } from './DeckPace.tsx';
+import { ListRow, ListSection } from '../ui/List.tsx';
+import { wordsOf } from '../words/WordsScreen.tsx';
+import type { DeckWord } from '../lib/types.ts';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
-import { BackIcon, ForwardIcon, PencilIcon, PlusIcon, RepeatIcon } from '../ui/icons.tsx';
+import { BackIcon, PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckScreen.module.css';
 import { t } from '../i18n/index.ts';
+
+/** How many of a deck's words its page shows. */
+const PREVIEW_WORDS = 5;
 
 type Loaded = {
   stats: DeckStats;
@@ -58,6 +64,14 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
   const [name, setName] = useState('');
   const [extraOpen, setExtraOpen] = useState(false);
   const [practicing, setPracticing] = useState(false);
+  // The deck's first words, shown on its page (the rest one tap further).
+  const [preview, setPreview] = useState<DeckWord[]>([]);
+  useEffect(() => {
+    wordsOf(deckId).then(
+      (rows) => setPreview(rows.slice(0, PREVIEW_WORDS)),
+      () => setPreview([]),
+    );
+  }, [deckId]);
   const { run, busy, error } = useAsyncAction();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -161,13 +175,6 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
   // sets are one tap further, under «Другие режимы».
   const spelling = stats.spelling_today;
   const mainSpelling = spelling.ready > 0 || spelling.paused !== null;
-  const unwritten = Math.max(0, spelling.ready - spelling.due);
-  const spellingNote =
-    spelling.due > 0 && unwritten > 0
-      ? t.toReviewAndNew(spelling.due, unwritten)
-      : spelling.due > 0
-        ? t.toReview(wordsLabel(spelling.due))
-        : t.wordsYouHavenTWrittenYet;
   // Extra words today: there are words left to meet, and nothing else comes first.
   const canAddWords = left > 0 && !stats.locked && !blocked && !resumeHere && pace !== null;
   const startWith = async (extra: number) => {
@@ -299,102 +306,59 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
             />
           )}
 
-          <nav className={styles.links} aria-label={t.moreForThisDeck}>
+          {spelling.paused && (
+            <div className={styles.paused}>
+              <PausedSpelling
+                paused={spelling.paused}
+                disabled={busy}
+                onResume={() => run(async () => onSession(await study.startSpellingSession(deckId), deckId))}
+              />
+            </div>
+          )}
+          {/* Ways to study, then the words: two groups of one-line rows, as a study app's set page. */}
+          <ListSection title={t.study}>
             {canAddWords && (
-              <button
-                type="button"
-                className={styles.link}
+              <ListRow
+                label={t.moreWordsToday}
                 onClick={() => setExtraOpen(true)}
-                aria-label={t.moreWordsToday}
-                aria-haspopup="dialog"
-                aria-describedby="extra-note"
-              >
-                <PlusIcon aria-hidden="true" />
-                <span>
-                  <strong>{t.moreWordsToday}</strong>
-                  <small id="extra-note">{t.asManyAsYouLikeJust}</small>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
-            )}
-            {spelling.paused && (
-              <div className={styles.paused}>
-                <PausedSpelling
-                  paused={spelling.paused}
-                  disabled={busy}
-                  onResume={() => run(async () => onSession(await study.startSpellingSession(deckId), deckId))}
-                />
-              </div>
+                dialog
+                ariaLabel={t.moreWordsToday}
+              />
             )}
             {spelling.ready > 0 && !spelling.paused && (
-              <button
-                type="button"
-                className={styles.link}
+              <ListRow
+                label={t.spellingWords(wordsLabel(spelling.ready))}
+                ariaLabel={t.spelling(wordsLabel(spelling.ready))}
                 disabled={busy}
                 onClick={() => run(async () => onSession(await study.startSpellingSession(deckId), deckId))}
-                aria-label={t.spelling(wordsLabel(spelling.ready))}
-                aria-describedby="spelling-note"
-              >
-                <PencilIcon aria-hidden="true" />
-                <span>
-                  <strong>{t.spellingWords(wordsLabel(spelling.ready))}</strong>
-                  <small id="spelling-note">{spellingNote}</small>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
+              />
             )}
             {/* A group's test can make words hard before any lesson meets one (ADR 0048). */}
             {(spelling.met > 0 || spelling.hard > 0) && (
-              <button
-                type="button"
-                className={styles.link}
+              <ListRow
+                label={mainSpelling ? t.spellingOtherModes : t.spellingTitle}
+                ariaLabel={mainSpelling ? t.spellingOtherModes : t.spellingTitle}
                 onClick={() => setModesOpen(true)}
-                aria-label={mainSpelling ? t.spellingOtherModes : t.spellingTitle}
-                aria-describedby="spelling-modes-note"
-                aria-haspopup="dialog"
-              >
-                {/* Under the main button, its text lines up with that button's. */}
-                {spelling.ready === 0 && !spelling.paused && <PencilIcon aria-hidden="true" />}
-                {spelling.ready > 0 && !spelling.paused && <span className={styles.iconSpace} />}
-                <span>
-                  <strong>{mainSpelling ? t.spellingOtherModes : t.spellingTitle}</strong>
-                  <small id="spelling-modes-note">
-                    {mainSpelling
-                      ? t.todaySHardOrShuffled
-                      : spelling.hard > 0
-                        ? t.hardWordsTodaySHardOr(spelling.hard)
-                        : t.allWrittenForTodayTodayS}
-                  </small>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
+                dialog
+              />
             )}
-            {canPractice && label && (
-              <button type="button" className={styles.link} onClick={() => setPracticing(true)} aria-haspopup="dialog">
-                <RepeatIcon aria-hidden="true" />
-                <span>
-                  <strong>{t.practiceNow}</strong>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
-            )}
-            {stats.is_mine && (
-              <button type="button" className={styles.link} onClick={() => onAddWords(deckId)}>
-                <PlusIcon aria-hidden="true" />
-                <span>
-                  <strong>{t.addWords}</strong>
-                </span>
-                <ForwardIcon className={styles.chevron} aria-hidden="true" />
-              </button>
-            )}
-            <button type="button" className={styles.link} onClick={() => onWords(deckId, stats.title, stats.is_mine)}>
-              <span>
-                <strong>{t.allTheDeckSWords}</strong>
-                <small>{stats.is_mine ? t.withProgressAddAndCorrect : t.withYourProgressOnEach}</small>
-              </span>
-              <ForwardIcon className={styles.chevron} aria-hidden="true" />
-            </button>
-          </nav>
+            {canPractice && label && <ListRow label={t.practiceNow} onClick={() => setPracticing(true)} dialog />}
+          </ListSection>
+          <ListSection title={t.words}>
+            {stats.is_mine && <ListRow label={t.addWords} tone="accent" onClick={() => onAddWords(deckId)} />}
+            {preview.map((row) => (
+              <ListRow
+                key={row.word.id}
+                label={<span lang="en">{row.word.headword}</span>}
+                value={row.word.translation}
+              />
+            ))}
+            <ListRow
+              label={t.allTheDeckSWords}
+              value={stats.word_count}
+              onClick={() => onWords(deckId, stats.title, stats.is_mine)}
+            />
+          </ListSection>
           {practicing && (
             <Practice
               open
