@@ -1,9 +1,11 @@
+import { isApp } from './platform.ts';
 import { glossarySlug } from './tokens.ts';
 
 /**
  * Pronunciation (ADR 0013). Words, examples and glossary forms play recorded files generated with
  * a neural voice (content/tools/make_audio.py), so every learner hears the same clear voice. If a
- * file is missing, the browser's own English voice is used as a fallback.
+ * file is missing (the learner's own cards), the browser's own English voice is used, or in the
+ * Android app the phone's.
  */
 export type AudioKind = 'words' | 'examples' | 'glossary';
 
@@ -28,7 +30,27 @@ export function preloadAudio(kind: AudioKind, key: string) {
   if (typeof Audio !== 'undefined') player(urlFor(kind, key));
 }
 
+/** In the Android app: the phone's own voice, through Capacitor (its web view has no speechSynthesis). */
+async function speakOnPhone(text: string) {
+  const { TextToSpeech } = await import('@capacitor-community/text-to-speech');
+  await TextToSpeech.stop().catch(() => undefined);
+  // The phone's voice engine connects on first use and refuses until then ("language not
+  // supported"): the first tap after opening the app tries again for up to about 2 seconds.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await TextToSpeech.speak({ text, lang: 'en-US', rate: 1, category: 'playback' });
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+}
+
 function speakFallback(text: string) {
+  if (isApp) {
+    void speakOnPhone(text);
+    return;
+  }
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   const voices = speechSynthesis.getVoices().filter((voice) => voice.lang.startsWith('en'));
   // Prefer the higher-quality voices browsers ship; any English voice beats a Russian one.
