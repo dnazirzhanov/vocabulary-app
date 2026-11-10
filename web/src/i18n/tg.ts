@@ -427,6 +427,7 @@ export const tg: Messages = {
   youVeAlreadyTakenThisTest: 'Ин санҷишро аллакай супоридаед.',
   finishTheTestFirst: 'Аввал санҷишро анҷом диҳед.',
   nothingToStudyInThisDeck: 'Дар ин маҷмӯа ҳоло чизе барои омӯхтан нест: калимаҳои нав дида шуданд, такрор ҳоло нест.',
+  cardsNotSynced: 'Кортҳои нав ҳанӯз ба сервер нарасидаанд. Ба интернет пайваст шавед — онҳо дар дарс пайдо мешаванд.',
   firstReviewTheWordsThatAre: 'Аввал калимаҳои интизорро такрор кунед, навҳо баъд аз он бармегарданд.',
   thisWordIsAlreadyInThe: 'Ин калима аллакай дар маҷмӯа ҳаст.',
   aDeckCanHaveAtMost: 'Дар маҷмӯа на бештар аз 500 калима буда метавонад.',

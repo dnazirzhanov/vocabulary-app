@@ -427,6 +427,7 @@ export const kk: Messages = {
   youVeAlreadyTakenThisTest: 'Бұл тестті тапсырып қойдыңыз.',
   finishTheTestFirst: 'Алдымен тестті аяқтаңыз.',
   nothingToStudyInThisDeck: 'Бұл жинақта қазір оқитын ештеңе жоқ: жаңа сөздер кездесті, ал қайталау әзірге жоқ.',
+  cardsNotSynced: 'Жаңа карточкалар серверге әлі жеткен жоқ. Интернетке қосылыңыз — олар сабақта пайда болады.',
   firstReviewTheWordsThatAre: 'Алдымен күтіп тұрған сөздерді қайталаңыз, жаңалары содан кейін қайтады.',
   thisWordIsAlreadyInThe: 'Бұл сөз жинақта бар.',
   aDeckCanHaveAtMost: 'Жинақта 500 сөзден артық болмайды.',

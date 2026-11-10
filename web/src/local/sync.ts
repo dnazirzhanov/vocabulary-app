@@ -68,10 +68,13 @@ export function syncNow(): Promise<void> {
 
 const wire = (item: OutboxOp) => ({ op_id: item.opId, kind: item.kind, ...item.payload });
 
-async function pullFrom(db: AccountDb, fromScratch = false) {
+/** Brings my decks up to date; true when any of them changed (the study pack then follows). */
+async function pullFrom(db: AccountDb, fromScratch = false): Promise<boolean> {
   const state = await syncState(db);
   const cursor = fromScratch ? 0 : state.cursor;
-  await applyPull(db, await api.syncPull(cursor, fromScratch ? null : state.pulledAt));
+  const pulled = await api.syncPull(cursor, fromScratch ? null : state.pulledAt);
+  await applyPull(db, pulled);
+  return pulled.full || pulled.decks.length > 0 || pulled.deleted_decks.length > 0;
 }
 
 async function mark(db: AccountDb, batch: OutboxOp[], status: OutboxOp['status'], error?: string) {
@@ -92,7 +95,9 @@ async function mark(db: AccountDb, batch: OutboxOp[], status: OutboxOp['status']
 async function cycle(db: AccountDb) {
   // First time on this device: everything of mine, before sending anything against it.
   if (!(await syncState(db)).pulledAt) await pullFrom(db, true);
-  let finished = false;
+  // Anything sent but answers (a lesson's end, cards, decks, settings) changes what the study pack
+  // holds; so does a deck changed elsewhere: then it is fetched again at once.
+  let changed = false;
   for (;;) {
     // In order made; one left "sending" by a closed app is simply sent again.
     const batch = nextBatch(await db.getAll('outbox'));
@@ -111,12 +116,12 @@ async function cycle(db: AccountDb) {
       throw error; // no connection, signed out: they wait for next time
     }
     await applyResults(db, batch, results);
-    finished ||= batch.some((item) => item.kind === 'study.finish');
+    changed ||= batch.some((item) => item.kind !== 'study.answer');
   }
-  await pullFrom(db);
+  changed = (await pullFrom(db)) || changed;
   // With every change of this device in, the study pack holds them all (ADR 0062); it is also
   // this device's contact with the server. Then the week's recordings, quietly.
-  await refreshPack(db, finished || takePackWanted());
+  await refreshPack(db, changed || takePackWanted());
   void keepAudioAhead(db).catch(() => 0);
 }
 

@@ -296,6 +296,7 @@ const MESSAGES: Record<string, string> = {
   already_taken: t.youVeAlreadyTakenThisTest,
   test_running: t.finishTheTestFirst,
   nothing_to_study: t.nothingToStudyInThisDeck,
+  cards_not_synced: t.cardsNotSynced,
   reviews_first: t.firstReviewTheWordsThatAre,
   too_many_decks: t.tooManyDecks,
   invalid_request: t.checkTheCard,

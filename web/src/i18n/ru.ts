@@ -423,6 +423,7 @@ export const ru = {
   youVeAlreadyTakenThisTest: 'Этот тест вы уже прошли.',
   finishTheTestFirst: 'Сначала закончите тест.',
   nothingToStudyInThisDeck: 'В этой колоде сейчас нечего учить: новые слова уже встречены, а повторений пока нет.',
+  cardsNotSynced: 'Новые карточки ещё не дошли до сервера. Подключитесь к интернету — и они появятся в уроке.',
   firstReviewTheWordsThatAre: 'Сначала повторите слова, которые ждут, — новые вернутся сразу после этого.',
   thisWordIsAlreadyInThe: 'Это слово уже есть в наборе.',
   aDeckCanHaveAtMost: 'В колоде может быть не больше 500 слов.',
