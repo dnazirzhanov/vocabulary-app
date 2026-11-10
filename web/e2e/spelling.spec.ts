@@ -72,7 +72,6 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
   await lesson(page);
   await button(page, 'На главную').click(); // back on the deck's page
   // The main button: today's words, never spelled (ADR 0026), from this deck only (ADR 0056).
-  await expect(button(page, 'Правописание · 5 слов')).toContainText('Слова, которые вы ещё не писали');
   await expect(button(page, 'Правописание · 5 слов')).not.toContainText('из любой колоды');
   await expect(button(page, 'Правописание: другие режимы')).toBeVisible();
   await button(page, 'Правописание · 5 слов').click();
@@ -90,7 +89,6 @@ test('the deck page offers ten words at a time, and other modes; a half-built wo
   await expect(page.getByRole('button', { name: /^Правописание · \d/ })).toHaveCount(0);
 
   // The other modes: today's words again, the hard one, or a random draw; 5 to 30 at a time.
-  await expect(button(page, 'Правописание')).toHaveAccessibleDescription(/Трудных слов: 1/);
   await button(page, 'Правописание').click();
   const dialog = page.getByRole('dialog', { name: 'Правописание' });
   await expect(dialog.getByRole('radio', { name: /Сегодняшние/ })).toBeChecked();

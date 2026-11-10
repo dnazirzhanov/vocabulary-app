@@ -15,7 +15,7 @@ test('a busy server is tried again without the learner seeing an error', async (
   await page.goto('/');
   // Two refusals wait up to 3 seconds each before the page has its decks.
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible({ timeout: 15_000 });
-  await expect(button(page, 'Открыть курс')).toBeVisible();
+  await expect(button(page, 'Английский по уровням')).toBeVisible();
   expect(refused).toBe(2);
   await expect(page.getByRole('alert')).toHaveCount(0);
 });

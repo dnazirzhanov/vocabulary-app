@@ -240,8 +240,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 64px;
-  padding: var(--space-3) 0;
+  min-height: 56px;
+  padding: var(--space-2) 0;
   border: 0;
   border-bottom: 1px solid var(--color-border);
   background: transparent;
@@ -255,20 +255,8 @@
   background: rgb(38 38 38 / 0.03);
 }
 
-.link > svg:first-child {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--color-primary-strong);
-}
-
 .paused {
   padding: var(--space-3) 0;
-}
-
-.link > .iconSpace {
-  flex: none;
-  width: 20px;
 }
 
 .link > span {
@@ -279,7 +267,7 @@
 }
 
 .link strong {
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-strong);
 }
 
 .link small {

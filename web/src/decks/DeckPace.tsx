@@ -5,6 +5,7 @@ import { newWords } from '../lib/today.ts';
 import type { Pace } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { Dialog } from '../ui/Dialog.tsx';
+import { PencilIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './DeckPace.module.css';
 import { t } from '../i18n/index.ts';
@@ -36,11 +37,11 @@ export function DailyPace({ pace, onSaved }: { pace: Pace; onSaved: (pace: Pace)
         {!editing && (
           <button
             type="button"
-            className={styles.change}
+            className={styles.pencil}
             onClick={() => (setValue(pace.target), setEditing(true))}
             aria-label={t.changeTheNumberOfNewWords}
           >
-            {t.edit}
+            <PencilIcon aria-hidden="true" />
           </button>
         )}
       </div>

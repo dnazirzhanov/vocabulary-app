@@ -14,7 +14,7 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeFocused();
   // Home is the learner's own decks; the course is one tap away (ADR 0021).
-  await button(page, 'Открыть курс').click();
+  await button(page, 'Английский по уровням').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Английский по уровням' })).toBeFocused();
   await expect(deckRow(page, 'Основа')).toHaveAccessibleName(/A1–A2 · 0 из 100 5 новых 0 изучаемых 0 к повторению/);
   // Later levels wait for the one before.
@@ -38,7 +38,7 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
 
   await learner.travelTo(new Date(Date.now() + 10 * DAY));
   await page.reload();
-  await button(page, 'Открыть курс').click();
+  await button(page, 'Английский по уровням').click();
   await expect(deckRow(page, 'Основа')).toHaveAccessibleName(/5 новых 0 изучаемых 5 к повторению/);
   await openDeck(page);
   await expect(page.getByRole('button', { name: /^Учить · 5 повт\. \+ 5 нов\./ })).toBeVisible();
@@ -54,7 +54,7 @@ test('the course lists the levels; a deck’s page counts today like Anki and st
 
 test('a locked level says what opens it, and its page shows it without a lesson', async ({ page }) => {
   await page.goto('/');
-  await button(page, 'Открыть курс').click();
+  await button(page, 'Английский по уровням').click();
   await expect(deckRow(page, 'Уверенный уровень')).toContainText('после уровня «Основа»');
   // It opens (to see it, or give it to a group: ADR 0065), with no lesson to start.
   await deckRow(page, 'Уверенный уровень').click();

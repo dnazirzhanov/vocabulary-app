@@ -29,7 +29,7 @@ test('after one visit the app opens without a connection and says so', async ({ 
   await expect(page.getByRole('status')).toHaveText('Нет соединения. Показано то, что сохранено на этом устройстве.');
   // What it last saw: my deck and the course.
   await expect(page.getByRole('button', { name: /^Путешествия/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Открыть курс' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Английский по уровням' })).toBeVisible();
 
   // Back online, the next request clears the note.
   await context.setOffline(false);

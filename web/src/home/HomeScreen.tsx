@@ -191,10 +191,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
               <span className={styles.createMark} aria-hidden="true">
                 <PlusIcon />
               </span>
-              <span className={styles.createText}>
-                <strong>{t.createADeck}</strong>
-                <span>{t.wordsByHandOrCardsWith}</span>
-              </span>
+              <span className={styles.createText}>{t.createADeck}</span>
             </button>
           )}
 
@@ -260,14 +257,17 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
           {/* The course, level by level: offered, one tap away (ADR 0021). */}
           {/* Only for those studying in Russian, the language it is written in (ADR 0055). */}
           {onOpenCourse && (
-            <section className={styles.course} aria-labelledby="course-title">
-              <h2 id="course-title" className={styles.courseTitle}>
-                {t.englishByLevels}
-              </h2>
-              <button type="button" className={styles.outlineButton} onClick={onOpenCourse}>
-                {t.openTheCourse}
-                <ForwardIcon aria-hidden="true" />
-              </button>
+            <section className={styles.section}>
+              <ul className={styles.list}>
+                <li className={styles.row}>
+                  <button type="button" className={styles.study} onClick={onOpenCourse}>
+                    <span className={styles.text}>
+                      <strong>{t.englishByLevels}</strong>
+                    </span>
+                    <ForwardIcon className={styles.chevron} aria-hidden="true" />
+                  </button>
+                </li>
+              </ul>
             </section>
           )}
         </div>
