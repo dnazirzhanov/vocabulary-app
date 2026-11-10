@@ -39,7 +39,7 @@ export function GroupsScreen({ onOpen, onJoinCode }: GroupsScreenProps) {
           <h1 ref={headingRef} tabIndex={-1} className={shared.title}>
             {t.friends}
           </h1>
-          <p className={styles.lead}>{empty ? t.learningTogetherIsMoreFunCreate : t.yourGroupsWhoHasAlreadyKept}</p>
+          {empty && <p className={styles.lead}>{t.learningTogetherIsMoreFunCreate}</p>}
 
           {loadError && <p role="alert">{loadError}</p>}
           {!groups && !loadError && <p aria-busy="true">{t.loading}</p>}

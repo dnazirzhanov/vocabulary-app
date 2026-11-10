@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, describeError } from '../lib/api.ts';
 import { deadlineLeft, localToday } from '../lib/deadline.ts';
 import { wordsLabel } from '../lib/pace.ts';
+import { studyLabel } from '../lib/today.ts';
 import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
@@ -23,6 +24,8 @@ interface HomeScreenProps {
   onOpenDeck: (deckId: string) => void;
   /** The course: English words level by level. */
   onOpenCourse?: () => void;
+  /** Straight into a deck's lesson (the «Продолжить» card). */
+  onStudy?: (deckId: string) => Promise<void>;
 }
 
 /**
@@ -30,7 +33,7 @@ interface HomeScreenProps {
  * groups were given; each opens its page (ADR 0020). The course, level by level, is offered
  * below it, one tap away.
  */
-export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenProps) {
+export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: HomeScreenProps) {
   const [library, setLibrary] = useState<Library | null>(null);
   // Weeks with the promise kept (ADR 0015); secondary, so home works without it.
   const [streak, setStreak] = useState<number | null>(null);
@@ -126,6 +129,10 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
     });
   };
   const mine = mergeMine(library.mine, kept?.decks ?? null, kept?.pulled ?? false);
+  // Something to study today: new words in its pace or cards due.
+  const next = [...mine, ...library.from_groups].find(
+    (deck) => deck.new_today + deck.learning_count + deck.review_count > 0,
+  );
   const onlyHere = new Set(
     mine.filter((deck) => !library.mine.some((item) => item.id === deck.id)).map((deck) => deck.id),
   );
@@ -165,6 +172,20 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse }: HomeScreenP
             </h1>
           </div>
 
+          {/* The deck to go on with, first and largest, as study apps open: one tap into its lesson. */}
+          {next && onStudy && (
+            <section className={styles.next} aria-label={t.continueTitle}>
+              <DeckText deck={next} source={null} />
+              <PrimaryButton type="button" disabled={busy} onClick={() => void run(() => onStudy(next.id))}>
+                {studyLabel({
+                  due: next.learning_count + next.review_count,
+                  fresh: next.new_today,
+                  started: next.introduced_count > 0,
+                  bonus: false,
+                }) ?? t.study}
+              </PrimaryButton>
+            </section>
+          )}
           {naming ? (
             <form className={styles.newDeck} onSubmit={create}>
               <label className={styles.field}>

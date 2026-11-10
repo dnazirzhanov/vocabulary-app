@@ -203,3 +203,79 @@
   font: inherit;
   resize: vertical;
 }
+
+/* --- settings as grouped rows, as in a phone's own settings --------------------------------- */
+
+.groupTitle {
+  margin: 0 0 var(--space-1) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--space-5);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+/* One thin line between rows, whatever each row is. */
+.group.group > * {
+  margin: 0;
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.group.group > * + * {
+  border-top: 1px solid var(--color-border);
+}
+
+.group .toggle {
+  align-items: center;
+  min-height: 52px;
+  padding: var(--space-2) 0;
+  font-weight: var(--weight-body);
+}
+
+.group .toggle span {
+  font-weight: var(--weight-body);
+}
+
+.group .wordingLink {
+  align-self: stretch;
+  min-height: 52px;
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-body);
+  text-align: left;
+  text-decoration: none;
+}
+
+.accountActions.accountActions {
+  align-items: stretch;
+  gap: 0;
+}
+
+.group .dangerLink {
+  min-height: 52px;
+}
+
+.rowButton {
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group .dangerLink {
+  padding: 0;
+  text-align: left;
+  font-weight: var(--weight-body);
+}

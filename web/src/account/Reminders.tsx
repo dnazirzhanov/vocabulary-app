@@ -115,7 +115,8 @@ export function Reminders() {
         />
         <span>
           {t.notifications}
-          <small>{note}</small>
+          {/* Said only when something is in the way; a working switch needs no words. */}
+          {state !== 'on' && state !== 'off' && <small>{note}</small>}
         </span>
       </label>
       {error && (

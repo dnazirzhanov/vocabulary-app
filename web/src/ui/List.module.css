@@ -1,0 +1,107 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The category: small and quiet, so the records carry the screen. */
+.title {
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  overflow: hidden;
+}
+
+.item + .item .row {
+  box-shadow: inset 0 1px 0 var(--color-border);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+}
+
+button.row {
+  cursor: pointer;
+}
+
+button.row:hover:not(:disabled) {
+  background: rgb(38 38 38 / 0.03);
+}
+
+button.row:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+/* The group clips its corners, so focus rings are drawn inside. */
+button.row:focus-visible {
+  outline-offset: -3px;
+}
+
+.row[data-tone='danger'] {
+  justify-content: center;
+  color: var(--color-error);
+}
+
+.row[data-tone='accent'] {
+  color: var(--color-primary-strong);
+}
+
+.icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.value {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+}

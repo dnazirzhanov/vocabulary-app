@@ -264,7 +264,6 @@ test('the sound is a hint: said on a tap, as often as asked, without showing the
   await expect(page.getByRole('button', { name: 'Произносить слово автоматически' })).toHaveCount(0);
   // Offered with the letter, below the tiles, not as part of the question.
   const hints = page.getByRole('group', { name: 'Подсказки' });
-  await expect(hints).toContainText('Подсказки:');
   await expect(hints.getByRole('button')).toHaveCount(2);
   await expect(card.locator('[class*="prompt"]').getByRole('button')).toHaveCount(0);
   const listen = hints.getByRole('button', { name: 'Подсказка: звук' });

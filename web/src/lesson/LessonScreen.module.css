@@ -85,6 +85,12 @@
   animation: enter var(--duration-enter) var(--ease-out);
 }
 
+/* A spelling fills the screen, its button at the bottom; a card stays centred. */
+.cardWrap:has([data-spelling]) {
+  margin: 0 auto;
+  min-height: 100%;
+}
+
 .card {
   position: relative;
   display: flex;
