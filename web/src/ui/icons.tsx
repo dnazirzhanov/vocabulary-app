@@ -185,3 +185,11 @@ export const MuteIcon = (props: IconProps) => (
     <path d="M16 9.5l5 5M21 9.5l-5 5" />
   </svg>
 );
+
+export const MoreIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="5" cy="12" r="1.25" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.25" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.25" fill="currentColor" />
+  </svg>
+);

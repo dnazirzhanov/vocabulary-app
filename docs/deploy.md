@@ -74,6 +74,14 @@ every night. It needs two repository secrets (Settings → Secrets and variables
 
 Until both exist, the workflow only warns. The answer says `"finished": false` if it stopped early; the next night carries on.
 
+### 3a. Who reads reports on the course's cards (ADR 0066)
+Learners can say a card is wrong. Reports on the course's cards are shown only to the accounts named in `CONTENT_EDITORS`:
+1. In Supabase, open **Authentication → Users**, find your own account, and copy its **UID**.
+2. Run `fly secrets set CONTENT_EDITORS=<that UID> --app slovar-kg`. For more than one person, separate the UIDs with commas.
+3. In the app, open ⚙: the button «Ошибки в карточках» appears.
+
+A report on a teacher's or a learner's own card goes to that deck's author, in the deck's editor. No setting is needed for that.
+
 ### 3b. A new REMINDERS_TOKEN (if it was never copied)
 Run this in your own Terminal. It sets a new token in Fly and shows it once, on your screen only, for the GitHub secret:
 ```sh

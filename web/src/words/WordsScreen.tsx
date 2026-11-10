@@ -8,7 +8,8 @@ import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { playAudio } from '../lib/audio.ts';
 import type { DeckWord, WordStatus } from '../lib/types.ts';
-import { BackIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { BackIcon, FlagIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { CardMenu } from '../lesson/CardMenu.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './WordsScreen.module.css';
 import { t } from '../i18n/index.ts';
@@ -38,6 +39,7 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<WordStatus | 'all'>('all');
   const [query, setQuery] = useState('');
+  const [reporting, setReporting] = useState<{ id: string; headword: string } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Without a connection: the list as last seen, or my deck's cards on this device (ADR 0060, 0061).
@@ -136,18 +138,19 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
               </p>
               <ol className={styles.list}>
                 {shown.map((row) => (
-                  <WordRow key={row.word.id} row={row} />
+                  <WordRow key={row.word.id} row={row} onReport={() => setReporting(row.word)} />
                 ))}
               </ol>
             </>
           )}
         </div>
       </main>
+      {reporting && <CardMenu deckId={deckId} word={reporting} withSpeed={false} onClose={() => setReporting(null)} />}
     </div>
   );
 }
 
-function WordRow({ row }: { row: DeckWord }) {
+function WordRow({ row, onReport }: { row: DeckWord; onReport: () => void }) {
   const { word, status } = row;
   const pos = partOfSpeech(word.pos);
   return (
@@ -172,6 +175,15 @@ function WordRow({ row }: { row: DeckWord }) {
           aria-label={t.listen(word.headword)}
         >
           <SpeakerIcon />
+        </button>
+        <button
+          type="button"
+          className={styles.report}
+          onClick={onReport}
+          aria-label={t.reportWord(word.headword)}
+          aria-haspopup="dialog"
+        >
+          <FlagIcon />
         </button>
       </div>
       <div className={styles.meta}>

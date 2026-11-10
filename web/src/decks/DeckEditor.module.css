@@ -822,3 +822,24 @@
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+
+/* Learners said some cards are wrong: one quiet line under the title, opening the list. */
+.reports {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reports svg {
+  width: 18px;
+  height: 18px;
+}

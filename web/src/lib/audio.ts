@@ -31,14 +31,14 @@ export function preloadAudio(kind: AudioKind, key: string) {
 }
 
 /** In the Android app: the phone's own voice, through Capacitor (its web view has no speechSynthesis). */
-async function speakOnPhone(text: string) {
+async function speakOnPhone(text: string, rate: number) {
   const { TextToSpeech } = await import('@capacitor-community/text-to-speech');
   await TextToSpeech.stop().catch(() => undefined);
   // The phone's voice engine connects on first use and refuses until then ("language not
   // supported"): the first tap after opening the app tries again for up to about 2 seconds.
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      await TextToSpeech.speak({ text, lang: 'en-US', rate: 1, category: 'playback' });
+      await TextToSpeech.speak({ text, lang: 'en-US', rate, category: 'playback' });
       return;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 400));
@@ -46,9 +46,9 @@ async function speakOnPhone(text: string) {
   }
 }
 
-function speakFallback(text: string) {
+function speakFallback(text: string, rate: number) {
   if (isApp) {
-    void speakOnPhone(text);
+    void speakOnPhone(text, rate);
     return;
   }
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -60,6 +60,7 @@ function speakFallback(text: string) {
     voices[0];
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
+  utterance.rate = rate;
   if (voice) utterance.voice = voice;
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
@@ -70,14 +71,17 @@ export async function playAudio(kind: AudioKind, key: string, text: string): Pro
   if (typeof Audio === 'undefined') return;
   playing?.pause();
   const audio = player(urlFor(kind, key));
+  // Examples at the learner's chosen speed; single words always as recorded.
+  const rate = kind === 'examples' && exampleSpeed() === 'slow' ? SLOW : 1;
   playing = audio;
   audio.currentTime = 0;
+  audio.playbackRate = rate;
   try {
     await audio.play();
   } catch (error) {
     // Autoplay before any tap is blocked by browsers: stay quiet rather than fall back.
     if (error instanceof DOMException && error.name === 'NotAllowedError') return;
-    speakFallback(text);
+    speakFallback(text, rate);
   }
 }
 
@@ -95,6 +99,27 @@ export function autoplayEnabled(): boolean {
 export function setAutoplay(on: boolean) {
   try {
     localStorage.setItem(AUTOPLAY_KEY, on ? 'on' : 'off');
+  } catch {
+    // private mode: the choice lasts for this visit only
+  }
+}
+
+const SPEED_KEY = 'example-speed';
+const SLOW = 0.75;
+export type Speed = 'normal' | 'slow';
+
+/** How fast example sentences are read (the card's «⋯»); kept on this device. */
+export function exampleSpeed(): Speed {
+  try {
+    return localStorage.getItem(SPEED_KEY) === 'slow' ? 'slow' : 'normal';
+  } catch {
+    return 'normal';
+  }
+}
+
+export function setExampleSpeed(speed: Speed) {
+  try {
+    localStorage.setItem(SPEED_KEY, speed);
   } catch {
     // private mode: the choice lasts for this visit only
   }

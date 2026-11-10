@@ -6,7 +6,7 @@ import type { DeckWordInput, GenerateResult, PartOfSpeech, Session, TeacherDeck,
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { AlertIcon, BackIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
+import { AlertIcon, BackIcon, FlagIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { deckView, type DeckView } from '../local/deckView.ts';
 import {
   addCard,
@@ -30,6 +30,7 @@ import { TranslationLanguage } from './TranslationLanguage.tsx';
 import { TopicPanel } from './TopicPanel.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { study } from '../study/device.ts';
+import { ReportsDialog } from '../reports/ReportsDialog.tsx';
 import styles from './DeckEditor.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -80,6 +81,17 @@ interface DeckEditorProps {
 export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOpenDeck }: DeckEditorProps) {
   const [deck, setDeck] = useState<TeacherDeck | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Cards of this deck learners said are wrong (online only: the author reads them when connected).
+  const [reports, setReports] = useState(0);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const loadReports = useCallback(() => api.deckReports(deckId), [deckId]);
+  useEffect(() => {
+    if (!navigator.onLine) return;
+    loadReports().then(
+      (sent) => setReports(sent.cards.length),
+      () => undefined,
+    );
+  }, [loadReports]);
   // What is being typed as the title; otherwise the deck's own.
   const [draftTitle, setDraftTitle] = useState<string | null>(null);
   const [form, setForm] = useState<DeckWordInput>(EMPTY);
@@ -334,7 +346,24 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                 {renaming.error}
               </p>
             )}
+            {reports > 0 && (
+              <button type="button" className={styles.reports} onClick={() => setReportsOpen(true)}>
+                <FlagIcon aria-hidden="true" /> {t.cardReports} · {reports}
+              </button>
+            )}
           </div>
+          {reportsOpen && (
+            <ReportsDialog
+              load={loadReports}
+              onClose={() => {
+                setReportsOpen(false);
+                void loadReports().then(
+                  (sent) => setReports(sent.cards.length),
+                  () => undefined,
+                );
+              }}
+            />
+          )}
 
           {/* The screen's main job: making cards. One way at a time, chosen by tabs. */}
           <section ref={composerRef} className={styles.composer} aria-labelledby="composer-title">

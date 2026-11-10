@@ -7,6 +7,8 @@ import { ApiError } from './apiError.ts';
 import { syncWithServer } from './clock.ts';
 import { apiBase } from './platform.ts';
 import type {
+  CardReport,
+  ReportedCard,
   AttemptResult,
   Board,
   Deck,
@@ -177,6 +179,11 @@ export const api = {
   setDeckPace: (deckId: string, dailyNew: number) =>
     request<Pace>('PUT', `/decks/${encodeURIComponent(deckId)}/pace`, { daily_new: dailyNew }),
   /** More new words in a deck, today only. */
+  reportCard: (report: CardReport) => request<null>('POST', '/card-reports', report),
+  courseReports: () => request<{ cards: ReportedCard[] }>('GET', '/card-reports'),
+  deckReports: (deckId: string) =>
+    request<{ cards: ReportedCard[] }>('GET', `/decks/${encodeURIComponent(deckId)}/card-reports`),
+  resolveReports: (wordId: string) => request<null>('POST', `/card-reports/${encodeURIComponent(wordId)}/resolve`),
   addExtraWords: (deckId: string, words: number) =>
     request<Pace>('POST', `/decks/${encodeURIComponent(deckId)}/pace/extra`, { words }),
   /** My changes made on this device, in order; each applied once however often sent (ADR 0061). */
@@ -307,6 +314,7 @@ const MESSAGES: Record<string, string> = {
   not_group_owner: t.onlyTheGroupSOwnerCan,
   not_owner: t.onlyOwnerCanDoThat,
   not_allowed: t.youArenTAllowedToDo,
+  too_many_reports: t.tooManyReports,
   name_not_allowed: t.nameNotAllowed,
   already_owner: t.chooseAnotherMember,
   generation_limit: t.wordPickingIsUsedUpFor,

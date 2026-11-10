@@ -1,0 +1,45 @@
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+}
+
+.card p {
+  margin: 0;
+}
+
+.example {
+  font-style: italic;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.note {
+  display: block;
+  font-size: var(--text-meta);
+}
+
+.done {
+  justify-self: start;
+  min-height: 40px;
+  margin-top: var(--space-1);
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  cursor: pointer;
+}
