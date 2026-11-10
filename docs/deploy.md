@@ -3,8 +3,8 @@
 Nothing here has been run for you: it creates accounts and publishes the app. Do it when ready.
 For a first class, follow `pilot.md`: these steps in order, plus what the class needs.
 
-## 1. Supabase (Frankfurt, free) and email (ADR 0043)
-1. Create a project in **Frankfurt (eu-central-1)**; note the database password.
+## 1. Supabase (free) and email (ADR 0043)
+1. Create a project in a region near Central Asia (production is **Stockholm, eu-north-1**); note the database password. **The app's server must run in the same region** (section 2): every query crosses between them, and a screen makes up to 20.
 2. Authentication → JWT Signing Keys: **create an asymmetric (ECC P-256) key and rotate to it**.
    Leave the JWT expiry at its default (an hour); never set it above a day.
 3. **A dedicated Gmail account** for the app's mail, not your own: turn on 2-Step Verification, then
@@ -40,11 +40,11 @@ To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`, stop `make dev`, and run
 `make dev-supabase`.
 
-## 2. Host the container (Fly.io, Frankfurt)
+## 2. Host the container (Fly.io, Stockholm: the database's region)
 Koyeb no longer offers its free plan to new accounts (only Pro, $29 a month), so production runs on
 Fly.io: about $0.50–1.50 a month for a pilot, billed by the second while the machine runs. The repo's
 `fly.toml` holds everything that isn't secret:
-- one 512 MB machine in Frankfurt that stops when idle and starts on the next request (a few seconds);
+- one 512 MB machine in Stockholm (`arn`), next to the database, suspended when idle and resumed on the next request (under a second);
 - the health check `/api/health/ready`;
 - the public build values (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`);
 - `AUTH_ISSUER`;
