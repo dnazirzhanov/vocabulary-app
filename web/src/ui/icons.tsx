@@ -208,3 +208,10 @@ export const HelpIcon = (props: IconProps) => (
     <path d="M12 17.2h.01" />
   </svg>
 );
+
+export const BookIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5Z" />
+    <path d="M12 6.5v13" />
+  </svg>
+);

@@ -65,6 +65,8 @@ class MeOut(BaseModel):
     name: str | None
     # Reads the reports on the course's cards (CONTENT_EDITORS).
     content_editor: bool = False
+    # Sees the «Чтение» tab (READING_TESTERS): Reading Mode is tried by a few accounts first.
+    reading: bool = False
     # Null until the learner has chosen a pace (first-run screens).
     daily_target_words: int | None
     study_days_per_week: int

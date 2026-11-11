@@ -121,3 +121,20 @@ def test_at_most_thirty_reports_a_day(client: TestClient) -> None:
     words = client.get("/api/decks/a1-a2/words", headers=as_("pavel")).json()
     codes = [report(client, "pavel", "a1-a2", row["word"]["id"]) for row in words[:31]]
     assert codes == [204] * 30 + [429]
+
+
+def test_reading_mode_is_shown_to_the_testers_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """READING_TESTERS names sign-ins as CONTENT_EDITORS does: the bare id or as stored."""
+    monkeypatch.setattr(get_settings(), "reading_testers", "pavel, dev|anna")
+    for user, sees in (("pavel", True), ("anna", True), ("ivan", False)):
+        assert client.get("/api/me", headers=as_(user)).json()["reading"] is sees, user
+    # A prefix: test accounts; "*" alone: everyone.
+    monkeypatch.setattr(get_settings(), "reading_testers", "e2e-reader-*")
+    assert client.get("/api/me", headers=as_("e2e-reader-7")).json()["reading"] is True
+    assert client.get("/api/me", headers=as_("pavel")).json()["reading"] is False
+    monkeypatch.setattr(get_settings(), "reading_testers", "*")
+    assert client.get("/api/me", headers=as_("ivan")).json()["reading"] is True
+    monkeypatch.setattr(get_settings(), "reading_testers", "")
+    assert client.get("/api/me", headers=as_("pavel")).json()["reading"] is False

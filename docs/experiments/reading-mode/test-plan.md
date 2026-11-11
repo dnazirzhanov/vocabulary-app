@@ -50,8 +50,8 @@ filled in below as each phase lands.
 ## Performance (numbers recorded here in Phase 4)
 | Measure | Budget | Result |
 |---|---|---|
-| Main chunk, gzipped, before → after | Δ < 1 KB | _tbd_ |
-| Reader requests on home | 0 | _tbd_ |
+| Main chunk, gzipped, before → after | Δ < 1 KB | App 81,698 → 82,057 B, index 84,167 → 84,440 B: **+632 B** (phase 2) |
+| Reader requests on home | 0 | **0** (e2e: no `/reading/`, font or reader chunk request on home) |
 | Requests per word tap | 0 | _tbd_ |
 | Tap → sheet visible | < 100 ms | _tbd_ |
 | Long tasks while scrolling, 4× CPU slowdown | none > 50 ms | _tbd_ |
@@ -69,3 +69,14 @@ filled in below as each phase lands.
 - **Lessons, spelling and offline studying** work as before (the existing e2e suites).
 - **Home:** a reading deck appears in «Мои колоды» and studies like any deck.
 - **Service worker:** the shell and audio caches are untouched.
+
+## Phase 2 results
+- **Reader chunk** (loaded only when opened): 3.4 KB JS + 2.1 KB CSS gzipped. The Literata Latin
+  font (52 KB woff2) is requested only after an article opens (e2e).
+- **Contrast**, measured: body text 13.3:1 (Бумага), 10.4:1 (Сепия), 11.4:1 (Ночь); muted text
+  5.7–6.5:1.
+- **Screens:** 320, 390 and 1280 px, with no horizontal overflow. The bottom bar now takes four
+  tabs in one row.
+- **Tests:** e2e `reading.spec.ts` (4) and `offline-reading.spec.ts` (1); backend
+  `test_reading_mode_is_shown_to_the_testers_only`; the full app, offline and sign-in suites
+  (127) pass.

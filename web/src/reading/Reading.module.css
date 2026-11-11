@@ -1,0 +1,435 @@
+/* Reading Mode: the library (a tab page) and the reader (a full-screen page like a book). */
+
+/* --- the library -------------------------------------------------------------------------------- */
+
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: var(--width-column);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-7);
+}
+
+.libraryTitle {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.state {
+  color: var(--color-text-muted);
+}
+
+.retry {
+  margin-top: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Levels: one segmented track, as «Сколько слов». */
+.levels {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-activity-none);
+}
+
+.levels button {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.levels button[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+.topic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.topicTitle {
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  overflow: hidden;
+}
+
+.cards > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover {
+  background: rgb(38 38 38 / 0.03);
+}
+
+.card:focus-visible {
+  outline-offset: -3px;
+}
+
+.cardTitle {
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: var(--text-option);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cardSubtitle {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.finished {
+  color: var(--color-success);
+}
+
+.finished svg {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+.cardBar {
+  display: block;
+  height: 3px;
+  margin-top: var(--space-1);
+  border-radius: 2px;
+  background: var(--color-activity-none);
+  overflow: hidden;
+}
+
+.cardBar span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+/* --- the reader ----------------------------------------------------------------------------------- */
+
+/* Its own colours, by theme. Measured contrast (WCAG), body text on its page: Бумага 13.3:1,
+   Сепия 10.4:1, Ночь 11.4:1; muted text 5.8, 5.7 and 6.5:1. */
+.reader {
+  --page: #f7f2e8;
+  --ink: #2b2722;
+  --ink-muted: #675d52;
+  --rule: rgb(43 39 34 / 0.12);
+  --accent: #b8440f;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--page);
+  color: var(--ink);
+  -webkit-overflow-scrolling: touch;
+}
+
+.reader[data-theme='sepia'] {
+  --page: #efe4d0;
+  --ink: #3a2f23;
+  --ink-muted: #66553f;
+  --rule: rgb(58 47 35 / 0.14);
+}
+
+.reader[data-theme='night'] {
+  --page: #1d1b18;
+  --ink: #d9d2c5;
+  --ink-muted: #a69e90;
+  --rule: rgb(217 210 197 / 0.14);
+  --accent: #f0a070;
+  color-scheme: dark;
+}
+
+/* The top bar: back, «Aa», and a hairline of how far through I am. Slides away while reading. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* The buttons line up with the text column on wide screens. */
+  padding: max(var(--space-2), env(safe-area-inset-top))
+    max(var(--gutter), calc((100% - 66ch - 2 * var(--gutter)) / 2 + var(--gutter) - 12px)) var(--space-2);
+  background: var(--page);
+  transition: transform var(--duration-state) var(--ease-out);
+}
+
+.bar[data-hidden='true'] {
+  transform: translateY(-100%);
+}
+
+.barSpace {
+  flex: 1;
+}
+
+.barButton {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.barButton svg {
+  width: 22px;
+  height: 22px;
+}
+
+.aa {
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.track {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--rule);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.readerState {
+  max-width: 34rem;
+  margin: var(--space-7) auto;
+  padding: 0 var(--gutter);
+  color: var(--ink-muted);
+}
+
+/* The page: a comfortable measure, generous lines, quiet structure. */
+.page {
+  max-width: 66ch;
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) max(var(--space-8), env(safe-area-inset-bottom));
+  font-family: 'Literata Reader', Georgia, 'Times New Roman', serif;
+  font-size: var(--reader-size, 19px);
+}
+
+.kicker {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  letter-spacing: 0.02em;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6em;
+  font-weight: 650;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.subtitle {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-muted);
+  font-size: 1.05em;
+  line-height: 1.5;
+}
+
+.body {
+  margin-top: 1.6em;
+}
+
+.paragraph {
+  margin: 0 0 0.9em;
+  line-height: 1.7;
+  /* No hyphenation: a learner reads, and taps, whole words. */
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+.heading {
+  margin: 1.5em 0 0.5em;
+  font-size: 1.15em;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+/* Reached by scrolling to where I stopped: clear of the top bar. */
+.paragraph,
+.heading {
+  scroll-margin-top: 72px;
+}
+
+.end {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: 2.5em;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+}
+
+.source {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+
+.source a {
+  color: inherit;
+}
+
+.done {
+  width: 100%;
+}
+
+/* «Aa»: the size and the page colour. */
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.settingLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.sizer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-activity-none);
+}
+
+.sizer button {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  min-height: 44px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: 'Literata Reader', Georgia, serif;
+  cursor: pointer;
+}
+
+.sizer button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sizer output {
+  font-variant-numeric: tabular-nums;
+}
+
+.smallA {
+  font-size: 0.85rem;
+}
+
+.bigA {
+  font-size: 1.35rem;
+}
+
+.themes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.themes button {
+  min-height: 52px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  font: inherit;
+  cursor: pointer;
+}
+
+.themes [data-swatch='paper'] {
+  background: #f7f2e8;
+  color: #2b2722;
+  box-shadow: inset 0 0 0 1px rgb(43 39 34 / 0.15);
+}
+
+.themes [data-swatch='sepia'] {
+  background: #efe4d0;
+  color: #3a2f23;
+}
+
+.themes [data-swatch='night'] {
+  background: #1d1b18;
+  color: #d9d2c5;
+}
+
+.themes button[aria-checked='true'] {
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 0 0 2px var(--color-primary-tint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}

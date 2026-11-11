@@ -190,6 +190,8 @@ export interface Me {
   name: string | null;
   /** Reads the reports on the course's cards. */
   content_editor?: boolean;
+  /** Sees the «Чтение» tab (READING_TESTERS): Reading Mode, an experiment. */
+  reading?: boolean;
   /** Null until the learner has chosen a pace. */
   daily_target_words: number | null;
   study_days_per_week: number;

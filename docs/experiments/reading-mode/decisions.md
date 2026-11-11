@@ -95,3 +95,23 @@ Chosen: **by an id map on the device, else the deck's exact title.** A renamed d
 basket.
 - The robust fix, a nullable `decks.source` column (an additive migration), waits until the
   experiment proves itself.
+
+## 13. Service worker: network-first for articles (changed from the plan)
+**Chosen:** the newest file when online, the kept copy offline.
+- Article files keep their names between versions (`tea.json`), unlike the app's built files.
+  Cache-first would show an outdated text forever once corrected.
+- Network-first costs one small request per article, and an article read once still opens offline
+  (`e2e/offline-reading.spec.ts`; without the `/reading/` branch that test fails).
+
+## 14. No hyphenation in the reader
+- The first screenshots split words at line ends («de-sign», «heli-copter»). A learner reads
+  whole words, and will tap them in phase 3.
+- So the paragraphs use `text-wrap: pretty` instead of `hyphens: auto`, accepting a slightly
+  more ragged right edge.
+
+## 15. Testers by name or prefix
+`READING_TESTERS` takes bare UIDs, `supabase|<UID>`, or a prefix ending in `*`:
+- `e2e-reader-*` is how the e2e tests become testers;
+- `*` alone switches Reading Mode on for everyone without a code change.
+
+The same helper serves `CONTENT_EDITORS`.
