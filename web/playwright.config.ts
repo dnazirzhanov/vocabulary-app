@@ -41,6 +41,8 @@ export default defineConfig({
     {
       command: 'uv run uvicorn app.main:app --port 8000',
       cwd: '../backend',
+      // Reading Mode is for testers (READING_TESTERS); the reading tests sign in as these.
+      env: { ...process.env, READING_TESTERS: 'e2e-reader-*' } as Record<string, string>,
       url: 'http://localhost:8000/api/health/ready',
       reuseExistingServer: !ci,
     },

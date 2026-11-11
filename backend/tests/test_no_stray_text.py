@@ -17,6 +17,8 @@ ALLOWED = {
     "services/generation.py",
     # Words refused in names, never shown.
     "services/decency.py",
+    # Reading articles' meanings for names and possessives: content built into the article files.
+    "services/reading.py",
 }
 
 

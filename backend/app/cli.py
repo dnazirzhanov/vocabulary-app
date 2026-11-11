@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.models import WordingReport
+from app.services import reading
 from app.services.cleanup import clean_up
 from app.services.content import (
     ContentError,
@@ -45,10 +46,29 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("send-reminders", help="send this hour's notifications (ADR 0042)")
     commands.add_parser("clean-up", help="remove old answers, keeping what screens need (ADR 0044)")
     commands.add_parser("wording-reports", help="the latest reports of bad wording (ADR 0055)")
+    commands.add_parser(
+        "build-reading",
+        help="build content/reading/*.yaml into web/public/reading/*.json (Reading Mode)",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "vapid-keys":
         print("\n".join(f"{name}={value}" for name, value in vapid_keys().items()))
+        return 0
+
+    if args.command == "build-reading":
+        root = Path(__file__).resolve().parents[2]
+        try:
+            files = reading.build(
+                root / "content" / "reading",
+                parse_glossary(root / "content" / "glossary.yaml"),
+                reading.course_parts_of_speech(root / "content"),
+            )
+        except ContentError as error:
+            print("\n".join(error.problems), file=sys.stderr)
+            return 1
+        for name in reading.write(files, root / "web" / "public" / "reading"):
+            print(f"wrote web/public/reading/{name}")
         return 0
 
     if args.command == "wording-reports":

@@ -1,0 +1,51 @@
+id: volcanoes
+title: Volcanoes
+subtitle: Mountains with fire inside. Why they erupt, and the biggest one on Earth.
+topic: nature
+level: B2
+source:
+  name: Simple English Wikipedia, "Volcano"
+  url: https://simple.wikipedia.org/w/index.php?title=Volcano&oldid=10961960
+  license: CC BY-SA 4.0
+  note: shortened; this adapted text is under the same licence
+body:
+  - A volcano is a mountain that has lava (hot, liquid rock) coming out from a magma chamber under the ground, or did have in the past. Volcanoes are formed by the movement of tectonic plates, the huge pieces that the outer layer of the Earth is made of.
+  - Most volcanoes have a volcanic crater at the top. When a volcano is active, materials come out of it. The materials include lava, steam, gases, ash and broken rock pieces.
+  - "## When a volcano erupts"
+  - When there is enough pressure, the volcano erupts. Some volcanic eruptions blow off the top of the volcano. Sometimes, the magma comes out quickly or slowly depending on the eruption. Some eruptions come out at a side instead of the top.
+  - Volcanoes are found on planets other than Earth. An example is Olympus Mons on Mars. Volcanologists are scientists who study volcanoes, using methods from geology, chemistry, geography and physics.
+  - "## The biggest volcano in the world"
+  - The world's biggest volcano is named Mauna Loa, in Hawaii. It is one of the five volcanoes on Hawaii's Big Island. The most recent time it erupted before 2022 was in 1984. It erupted 33 times in the last 170 years.
+  - Like all the other Hawaiian volcanoes, Mauna Loa was created by the movement of the Pacific plate over a hot spot deep in the Earth. Mauna Loa is 4,196 meters tall. It is a shield volcano, built up from layers of runny lava that spread out over a wide area. Its largest recent eruption left a lava trail 51 kilometres long.
+  - "## Two kinds of volcanoes"
+  - Shield volcanoes have gently sloping sides, because their lava is runny and flows far before it cools. Although their sides are not steep, they are among the largest volcanoes in the world.
+  - A stratovolcano is a tall volcano shaped like a cone. It is built up of many layers of hardened lava and volcanic ash. Its lava is thick and sticky, so it cools and hardens before spreading far. That is why stratovolcanoes have steep sides.
+names: [Earth, Olympus Mons, Mars, Mauna Loa, Hawaii, Big Island, Pacific]
+glossary:
+  volcano: {ru: "вулкан", pos: noun}
+  volcanoes: {ru: "вулканы", pos: noun, lemma: volcano}
+  volcanic: {ru: "вулканический", pos: adjective}
+  lava: {ru: "лава", pos: noun, def: "hot liquid rock that comes out of a volcano"}
+  magma: {ru: "магма", pos: noun, def: "hot liquid rock under the ground"}
+  chamber: {ru: "очаг, камера", pos: noun, def: "a closed space inside something"}
+  tectonic: {ru: "тектонический", pos: adjective, def: "about the large moving pieces of the Earth's surface"}
+  plates: {ru: "плиты", pos: noun, lemma: plate}
+  plate: {ru: "плита", pos: noun}
+  crater: {ru: "кратер", pos: noun, def: "a round hole at the top of a volcano"}
+  ash: {ru: "пепел", pos: noun}
+  erupts: {ru: "извергается", pos: verb, lemma: erupt, def: "sends out lava, ash and gas suddenly"}
+  erupted: {ru: "извергался", pos: verb, lemma: erupt}
+  eruption: {ru: "извержение", pos: noun}
+  eruptions: {ru: "извержения", pos: noun, lemma: eruption}
+  volcanologists: {ru: "вулканологи", pos: noun, lemma: volcanologist, def: "scientists who study volcanoes"}
+  hawaiian: {ru: "гавайский", pos: adjective}
+  spot: {ru: "точка (hot spot — горячая точка)", pos: noun}
+  shield: {ru: "щитовой (вулкан)", pos: noun, def: "a shield volcano is wide and low, like a soldier's shield"}
+  runny: {ru: "жидкий, текучий", pos: adjective, def: "flowing easily, like water"}
+  stratovolcano: {ru: "стратовулкан", pos: noun, def: "a tall, cone-shaped volcano made of layers"}
+  stratovolcanoes: {ru: "стратовулканы", pos: noun, lemma: stratovolcano}
+  cone: {ru: "конус", pos: noun}
+  sloping: {ru: "пологий, наклонный", pos: adjective}
+  sides: {ru: "склоны", pos: noun, lemma: side}
+  side: {ru: "сбоку, сторона", pos: noun}
+  top: {ru: "вершина, верх", pos: noun}

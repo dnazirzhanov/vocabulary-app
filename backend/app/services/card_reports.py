@@ -20,11 +20,21 @@ MAX_REPORTS_A_DAY = 30
 NOTES_SHOWN = 5
 
 
-def is_editor(user: User) -> bool:
-    """Named by the sign-in's id as Supabase shows it (its UID), or as stored (`supabase|<UID>`)."""
-    editors = {subject.strip() for subject in get_settings().content_editors.split(",")} - {""}
+def listed(user: User, setting: str) -> bool:
+    """Whether a comma-separated list of sign-ins names this user: by the id Supabase shows (its
+    UID) or as stored (`supabase|<UID>`), or by a prefix ending in "*". Used for CONTENT_EDITORS
+    and READING_TESTERS."""
+    names = {subject.strip() for subject in setting.split(",")} - {""}
     bare = user.auth_subject.split("|", 1)[-1]
-    return user.auth_subject in editors or bare in editors
+    if user.auth_subject in names or bare in names:
+        return True
+    # A name ending in "*" is a prefix ("*" alone: everyone; "e2e-reader-*": test accounts).
+    prefixes = [name[:-1] for name in names if name.endswith("*")]
+    return any(user.auth_subject.startswith(p) or bare.startswith(p) for p in prefixes)
+
+
+def is_editor(user: User) -> bool:
+    return listed(user, get_settings().content_editors)
 
 
 def report(

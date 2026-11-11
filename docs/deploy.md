@@ -82,6 +82,18 @@ Learners can say a card is wrong. Reports on the course's cards are shown only t
 
 A report on a teacher's or a learner's own card goes to that deck's author, in the deck's editor. No setting is needed for that.
 
+### 3c. Reading Mode testers (experiment)
+Reading Mode's «Чтение» tab is shown only to the accounts in `READING_TESTERS`, which takes:
+- UIDs (as in 3a);
+- a prefix ending in `*`;
+- `*` alone, for everyone.
+
+Run:
+```
+fly secrets set READING_TESTERS=<UID>,<UID> --app slovar-kg
+```
+Then reload the app. To turn it off, unset the secret.
+
 ### 3b. A new REMINDERS_TOKEN (if it was never copied)
 Run this in your own Terminal. It sets a new token in Fly and shows it once, on your screen only, for the GitHub secret:
 ```sh

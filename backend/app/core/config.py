@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     reminders_token: str | None = None
     # Sign-ins (auth subjects, comma-separated) who read reports on the course's cards.
     content_editors: str = ""
+    # Sign-ins (auth subjects or bare UIDs, comma-separated) who see Reading Mode (an experiment).
+    reading_testers: str = ""
 
     @field_validator("database_url")
     @classmethod

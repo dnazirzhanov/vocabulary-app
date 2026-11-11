@@ -1,5 +1,5 @@
 import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { bindAccount, closeLocal, localForgetter, openLocal, withSnapshot } from './local/session.ts';
 import { saveSnapshot } from './local/db.ts';
 import { syncNow } from './local/sync.ts';
@@ -30,6 +30,10 @@ import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 
+// Reading Mode (an experiment): its code, styles and font load only when it is opened.
+const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
+const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
+
 type Screen =
   | { name: 'home' }
   | { name: 'session'; session: Session }
@@ -48,7 +52,9 @@ type Screen =
   // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there;
   // `from`: opened from the deck's words (ADR 0051), which «Назад» returns to.
   | { name: 'deck'; deckId: string; groupId: string | null; from?: 'home' | 'course' | 'progress' }
-  | { name: 'join'; code: string };
+  | { name: 'join'; code: string }
+  | { name: 'reading' }
+  | { name: 'article'; articleId: string };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
 // first-run screens; the address bar goes back to "/" because the app has no router.
@@ -252,6 +258,18 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       />
     );
   }
+  if (screen.name === 'article') {
+    return (
+      <Suspense fallback={null}>
+        <ReadingArticle
+          account={me.id}
+          articleId={screen.articleId}
+          onBack={() => setScreen({ name: 'reading' })}
+          onStudy={(session, deckId) => startSession(session, deckId)}
+        />
+      </Suspense>
+    );
+  }
   if (screen.name === 'session') {
     return <LessonScreen key={screen.session.id} session={screen.session} onComplete={showSummary} onExit={leave} />;
   }
@@ -311,6 +329,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
     else if (tab === 'progress') setScreen({ name: 'progress' });
+    else if (tab === 'reading') setScreen({ name: 'reading' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
@@ -329,12 +348,20 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         },
       }}
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
+      reading={me.reading === true}
     >
       {tabScreen()}
     </NavShell>
   );
 
   function tabScreen() {
+    if (screen.name === 'reading') {
+      return (
+        <Suspense fallback={null}>
+          <ReadingLibrary account={me.id} onOpen={(articleId) => setScreen({ name: 'article', articleId })} />
+        </Suspense>
+      );
+    }
     if (screen.name === 'groups') {
       return (
         <GroupsScreen
@@ -457,6 +484,7 @@ function backTo(from: 'home' | 'course' | 'progress'): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
+  if (screen.name === 'reading' || screen.name === 'article') return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';
   if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';

@@ -1,0 +1,40 @@
+id: mars-red-color
+title: Why Is Mars Red?
+subtitle: Scientists may have found the mineral that colours the Red Planet, and a clue that it once had water.
+topic: science
+level: B2
+source:
+  name: VOA Learning English (Bryan Lynn)
+  url: https://learningenglish.voanews.com/a/new-discovery-could-explain-what-gives-mars-its-red-color/7990107.html
+  license: public domain
+  note: the broadcast sign-off removed
+body:
+  - "Scientists say they might have identified the mineral on Mars that is responsible for making the planet appear red."
+  - "New data collected on Mars through several methods suggests the substance, called ferrihydrite, is likely found in dust and rock material across wide areas of the planet. The team carrying out the research describes ferrihydrite as an \"iron oxide mineral.\""
+  - "The mineral appears reddish in color and can form in water-rich environments. The scientists said discovering large amounts of it on Mars adds to existing evidence that the planet might have held a large supply of liquid water in the past."
+  - "The research was carried out by an international team led by America's Brown University and the University of Bern in Switzerland. The findings recently appeared in a study published in Nature Communications."
+  - "The researchers noted that scientists have long wondered about the exact substance that gives Mars – which is also known as the Red Planet – its deep red color. Past studies had suggested a mineral called hematite might be the cause."
+  - "The study is based on Martian data collected by several spacecraft. These include the Mars Reconnaissance Orbiter, operated by the American space agency NASA. In addition, information was captured by instruments aboard the European Space Agency's (ESA's) Mars Express and Trace Gas orbiters. Some data also came from exploring vehicles, called rovers, operating on Mars."
+  - "In their examinations, the researchers also used manmade, or synthetic, material designed to look and feel similar to real Martian dust."
+  - "Adomas Valantinas currently works as a researcher at Brown University's Department of Earth, Environment & Planetary Sciences. He helped write the study. Valantinas noted the mystery of why Mars is red had been considered \"for hundreds, if not thousands, of years.\""
+  - "Valantinas recognized his team was not the first to consider ferrihydrite as a possible reason for the coloring of Mars. But he noted, \"it has never been proven as we have now, using observational data and novel laboratory methods...\""
+  - "Valantinas noted the discovery of widespread ferrihydrite suggests Mars once held liquid water that would have made it possible for the planet to support some form of life."
+  - "\"Our study reveals that ferrihydrite formation on Mars required the presence of both oxygen...and water capable of reacting with iron,\" he added. \"These conditions were very different from the dry, cold environment of Mars today.\""
+  - "John Mustard is a planetary expert at Brown University and was a co-writer of the study. He called it \"a door-opening opportunity\" for future research. But he added that additional study is needed to confirm the team's latest findings."
+  - "\"As exciting as the new findings are, we realize that our results can only be verified by samples from Mars, which are currently being collected by NASA's Perseverance rover,\" Mustard said. He added, \"When we get those back, we will be able to check whether our theory about ferrihydrite is correct.\""
+names: [Mars, Martian, Brown University, Bern, Switzerland, Nature Communications, NASA, Mars Reconnaissance Orbiter, European Space Agency, ESA, Mars Express, Trace Gas, Adomas Valantinas, Valantinas, Brown, John Mustard, Mustard, Perseverance, Earth, Environment, Planetary Sciences, America, Department]
+glossary:
+  ferrihydrite: {ru: "ферригидрит (минерал железа)", pos: noun, def: "a reddish mineral of iron that forms where there is water"}
+  hematite: {ru: "гематит (красный железняк)", pos: noun, def: "a red-brown mineral of iron"}
+  iron: {ru: железо, pos: noun}
+  oxide: {ru: оксид, pos: noun, def: "a substance made when something joins with oxygen"}
+  orbiters: {ru: "орбитальные аппараты", pos: noun, lemma: orbiter, def: "spacecraft that travel around a planet"}
+  rovers: {ru: "марсоходы", pos: noun, lemma: rover, def: "vehicles that drive on another planet to explore it"}
+  rover: {ru: "марсоход", pos: noun, def: "a vehicle that drives on another planet to explore it"}
+  aboard: {ru: "на борту", pos: other}
+  manmade: {ru: "искусственный, рукотворный", pos: adjective, def: "made by people, not by nature"}
+  synthetic: {ru: "синтетический, искусственный", pos: adjective, def: "made by people to copy something natural"}
+  observational: {ru: "наблюдательный, полученный при наблюдении", pos: adjective, def: "coming from watching and measuring"}
+  co: {ru: "со- (co-writer — соавтор)", pos: other}
+  writer: {ru: "автор", pos: noun}
+  opening: {ru: "открывающий", pos: adjective}

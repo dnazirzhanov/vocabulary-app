@@ -383,6 +383,22 @@ export const study = {
   /** Practice on this device only: the screens offer it where there is one (`onDevice`). */
   onDevice: () => local(),
 
+  /** Headwords (lowercase) of the words I already study: «Уже учите» in Reading Mode. */
+  async learningHeadwords(): Promise<Set<string>> {
+    if (!local()) return new Set();
+    try {
+      const { learner } = await load(localDb()!);
+      const found = new Set<string>();
+      for (const wordId of learner.progress.keys()) {
+        const word = learner.words.get(wordId);
+        if (word) found.add(word.headword.toLowerCase());
+      }
+      return found;
+    } catch {
+      return new Set(); // no study pack on this device yet
+    }
+  },
+
   async startPracticeSession(deckId: string, count: number | null): Promise<Session> {
     return begin(
       deckId,

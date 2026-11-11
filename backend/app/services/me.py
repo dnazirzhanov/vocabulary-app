@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.errors import ApiError
 from app.models import User, WordingReport
 from app.schemas.me import MeOut, MeUpdate
@@ -20,6 +21,7 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
         id=user.id,
         name=user.name,
         content_editor=card_reports.is_editor(user),
+        reading=card_reports.listed(user, get_settings().reading_testers),
         daily_target_words=user.daily_target_words,
         study_days_per_week=user.study_days_per_week,
         ramp_enabled=user.ramp_enabled,

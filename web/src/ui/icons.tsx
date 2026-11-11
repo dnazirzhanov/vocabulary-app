@@ -208,3 +208,24 @@ export const HelpIcon = (props: IconProps) => (
     <path d="M12 17.2h.01" />
   </svg>
 );
+
+export const BookIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5Z" />
+    <path d="M12 6.5v13" />
+  </svg>
+);
+
+export const CardsIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <rect x="3.5" y="7" width="13" height="13" rx="2.5" />
+    <path d="M7.5 3.5h10a3 3 0 0 1 3 3v10" />
+  </svg>
+);
+
+export const MarkerIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="m14.5 4.5 5 5L10 19H5v-5l9.5-9.5Z" />
+    <path d="M4 22h16" />
+  </svg>
+);

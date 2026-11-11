@@ -1,0 +1,54 @@
+id: internet
+title: The Internet
+subtitle: How a network that started in 1969 grew into something billions of people use every day, and its dangers.
+topic: technology
+level: B1
+source:
+  name: Simple English Wikipedia, "Internet"
+  url: https://simple.wikipedia.org/w/index.php?title=Internet&oldid=11040891
+  license: CC BY-SA 4.0
+  note: shortened; this adapted text is under the same licence
+body:
+  - The Internet is the world's largest global communication network for computers and other devices. It connects many smaller networks from homes, schools, businesses, and governments. These networks share different kinds of information. One of its most popular services is the World Wide Web, which is used by billions of people every day.
+  - "## Where it began"
+  - The Internet was developed in the United States by the Advanced Research Projects Agency (ARPA). It was first connected in October 1969 and was called ARPANET. The World Wide Web was created at CERN in Switzerland in 1990 by a British scientist named Tim Berners-Lee.
+  - Today, people use Internet services by paying Internet Service Providers. Some websites and tools are free, while others may show ads to earn money.
+  - "## What people use it for"
+  - The Internet is used for many things, such as electronic mail, online chat, and sharing files. The most used service is the World Wide Web. The web contains websites, including social media, blogs, and wikis like Wikipedia. Webpages can be seen and read by anyone, unless the page needs a password or it is blocked.
+  - The second biggest use of the Internet is to send and receive e-mail. E-mail is private and goes from one user to another. Instant messaging is similar to e-mail, but allows two or more people to chat to each other faster.
+  - "## Dangers"
+  - The Internet makes communication easy. Yet, communication can be dangerous, too. People often send secret information, and sometimes other people can steal that information. People can use the Internet to spread lies, steal secrets, or give dangerously bad advice.
+  - Some websites may trick people into downloading viruses that can harm a computer, or spyware that watches what its users are doing and tells someone else. E-mails can have harmful files with them as attachments. Criminals may steal people's personal information or trick people into sending them money.
+names: [Internet, World Wide Web, United States, Advanced Research Projects Agency, ARPA, ARPANET, CERN, Switzerland, Tim Berners-Lee, Internet Service Providers, Wikipedia]
+glossary:
+  network: {ru: "сеть", pos: noun, def: "computers joined together so they can share information"}
+  networks: {ru: "сети", pos: noun, lemma: network, def: "groups of computers joined together"}
+  devices: {ru: "устройства", pos: noun, lemma: device, def: "machines or tools, like phones or tablets"}
+  connects: {ru: "соединяет", pos: verb, lemma: connect}
+  connected: {ru: "подключён, соединён", pos: verb, lemma: connect}
+  services: {ru: "сервисы, службы", pos: noun, lemma: service}
+  websites: {ru: "веб-сайты", pos: noun, lemma: website}
+  webpages: {ru: "веб-страницы", pos: noun, lemma: webpage}
+  ads: {ru: "реклама", pos: noun, lemma: ad, def: "short for advertisements"}
+  electronic: {ru: "электронный", pos: adjective}
+  mail: {ru: "почта", pos: noun}
+  chat: {ru: "чат; переписываться", pos: noun, def: "talking by sending short messages"}
+  files: {ru: "файлы", pos: noun, lemma: file}
+  social: {ru: "социальный", pos: adjective}
+  media: {ru: "медиа, СМИ", pos: noun}
+  blogs: {ru: "блоги", pos: noun, lemma: blog, def: "websites where a person writes regularly"}
+  wikis: {ru: "вики-сайты", pos: noun, lemma: wiki, def: "websites that many people can write and edit"}
+  password: {ru: "пароль", pos: noun}
+  blocked: {ru: "заблокирован", pos: verb, lemma: block}
+  e: {ru: "e-mail — электронная почта", pos: other}
+  mails: {ru: "письма (e-mails — электронные письма)", pos: noun, lemma: e-mail}
+  user: {ru: "пользователь", pos: noun}
+  users: {ru: "пользователи", pos: noun, lemma: user}
+  instant: {ru: "мгновенный", pos: adjective}
+  messaging: {ru: "обмен сообщениями", pos: noun}
+  downloading: {ru: "скачивание", pos: verb, lemma: download, def: "copying files from the Internet to your device"}
+  viruses: {ru: "вирусы", pos: noun, lemma: virus, def: "programs that harm a computer"}
+  spyware: {ru: "шпионская программа", pos: noun, def: "a program that secretly watches what you do"}
+  attachments: {ru: "вложения", pos: noun, lemma: attachment, def: "files sent together with an e-mail"}
+  computer: {ru: "компьютер", pos: noun}
+  computers: {ru: "компьютеры", pos: noun, lemma: computer}

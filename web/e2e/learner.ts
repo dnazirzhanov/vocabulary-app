@@ -18,6 +18,7 @@ export const test = base.extend<{
   onboarded: boolean;
   languageChosen: boolean;
   named: string | null;
+  reader: boolean;
 }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
@@ -25,8 +26,10 @@ export const test = base.extend<{
   languageChosen: [true, { option: true }],
   // The learner's name (ADR 0057); `test.use({ named: null })` starts as one not asked it yet.
   named: ['Тест', { option: true }],
-  context: async ({ context, onboarded, languageChosen, named }, use) => {
-    const id = `e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  // `test.use({ reader: true })`: one of Reading Mode's testers (the e2e API lists e2e-reader-*).
+  reader: [false, { option: true }],
+  context: async ({ context, onboarded, languageChosen, named, reader }, use) => {
+    const id = `e2e-${reader ? 'reader-' : ''}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.

@@ -25,6 +25,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
     assert me == {
         "name": None,
         "content_editor": False,
+        "reading": False,
         "daily_target_words": None,
         "study_days_per_week": 6,
         "ramp_enabled": True,
@@ -46,6 +47,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "id": account,
         "name": None,
         "content_editor": False,
+        "reading": False,
         "daily_target_words": 3,
         "study_days_per_week": 5,
         "ramp_enabled": True,

@@ -8,6 +8,7 @@ const SHELL_CACHE = `shell-${VERSION}`;
 // A kept file is the same file whatever the request said: some servers add `Vary: Origin`, which
 // would otherwise keep a navigation from matching the page kept at install.
 const AUDIO_CACHE = 'audio-1';
+const READING_CACHE = 'reading-1';
 
 self.addEventListener('install', (event) => {
   // The whole app, or nothing: a half-saved shell would open broken offline.
@@ -43,6 +44,21 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     // The newest app when online; without a connection, the one kept at install.
     event.respondWith(fetch(request).catch(() => caches.match('/', { cacheName: SHELL_CACHE, ignoreVary: true })));
+    return;
+  }
+  if (url.pathname.startsWith('/reading/')) {
+    // Reading Mode's articles: the newest when online, kept to read again offline. An article
+    // changes only with a new build, so a stale copy is never worse than none.
+    event.respondWith(
+      caches.open(READING_CACHE).then((cache) =>
+        fetch(request)
+          .then((response) => {
+            if (response.ok) void cache.put(request, response.clone());
+            return response;
+          })
+          .catch(() => cache.match(request, { ignoreVary: true }).then((kept) => kept ?? Response.error())),
+      ),
+    );
     return;
   }
   if (url.pathname.startsWith('/audio/')) {
