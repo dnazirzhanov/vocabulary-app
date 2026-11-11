@@ -1,9 +1,34 @@
-import { expect, test } from './learner.ts';
+import { type APIRequestContext, type Page } from '@playwright/test';
+import { button, DEMO, expect, learnerHeaders, test } from './learner.ts';
 
 // Reading Mode offline (docs/product/reading-mode-architecture.md): an article opened once is kept
 // by the service worker and opens again without a connection, where I stopped. A production build.
 
 test.use({ reader: true });
+
+/** My decks on the server: title → "headword=translation" of each card. */
+async function onServer(request: APIRequestContext) {
+  const decks = (await (await request.get('/api/decks/mine')).json()) as {
+    title: string;
+    words: { word: { headword: string; translation: string } }[];
+  }[];
+  return Object.fromEntries(
+    decks.map((deck) => [deck.title, deck.words.map(({ word }) => `${word.headword}=${word.translation}`)]),
+  );
+}
+
+async function openMars(page: Page) {
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Наука/ }).click();
+  await page.getByRole('button', { name: /^Why Is Mars Red/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Why Is Mars Red?' })).toBeVisible();
+}
+
+async function visitOnline(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+}
 
 test('an article read once opens offline, back where I stopped', async ({ page, context }) => {
   await page.goto('/');
@@ -31,4 +56,41 @@ test('an article read once opens offline, back where I stopped', async ({ page, 
   await expect(page.getByRole('heading', { level: 1, name: 'Why Is Mars Red?' })).toBeVisible();
   // Back where I stopped: a later paragraph is on screen, not the title.
   await expect(page.locator('article p[data-i="10"]')).toBeInViewport();
+});
+
+test("a word kept offline is in the article's deck on the server once online", async ({ page, context }) => {
+  await visitOnline(page);
+  await openMars(page);
+  await context.setOffline(true);
+  await page.locator('article [data-f="planet"]').first().click();
+  await button(page, 'Добавить в слова').click();
+  await expect(page.getByRole('button', { name: 'Слова из статьи: 1' })).toBeVisible();
+  expect(await onServer(context.request)).toEqual({});
+
+  await context.setOffline(false);
+  await expect
+    .poll(() => onServer(context.request), { timeout: 15_000 })
+    .toEqual({ 'Why Is Mars Red?': ['planet=планета'] });
+});
+
+test("another account on this device never sees this one's reading words", async ({ page, context }) => {
+  await visitOnline(page);
+  await openMars(page);
+  await page.locator('article [data-f="dust"]').first().click();
+  await button(page, 'Добавить в слова').click();
+  await expect(page.getByRole('button', { name: 'Слова из статьи: 1' })).toBeVisible();
+  await expect.poll(() => onServer(context.request), { timeout: 15_000 }).toHaveProperty('Why Is Mars Red?');
+
+  // Someone else signs in on the same phone: no words in the article, no deck of mine.
+  const me = learnerHeaders(context);
+  await context.setExtraHTTPHeaders({ ...DEMO, 'X-Dev-User': `${me['X-Dev-User']}-b` });
+  await context.request.patch('/api/me', {
+    data: { language: 'ru', name: 'Другой', daily_target_words: 5, study_days_per_week: 6 },
+  });
+  await page.goto('/');
+  await openMars(page);
+  await expect(page.getByRole('button', { name: 'Слова из статьи: 0' })).toBeVisible();
+  await page.locator('article [data-f="dust"]').first().click();
+  await expect(button(page, 'Добавить в слова')).toBeVisible();
+  expect(await onServer(context.request)).toEqual({});
 });

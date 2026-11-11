@@ -58,25 +58,6 @@ test.describe('a tester', () => {
     await expect(page.getByRole('region', { name: 'Природа' })).toContainText('Volcanoes');
   });
 
-  test('a topic shows five articles, then «Показать ещё»', async ({ page }) => {
-    const articles = Array.from({ length: 7 }, (_, n) => ({
-      id: `science-${n}`,
-      title: `Science article ${n + 1}`,
-      subtitle: 'About science.',
-      topic: 'science',
-      level: 'B1',
-      minutes: 2,
-    }));
-    await page.route('**/reading/index.json', (route) => route.fulfill({ json: { articles } }));
-    await page.goto('/');
-    await tab(page).click();
-    await topic(page, 'Наука').click();
-    const science = page.getByRole('region', { name: 'Наука' });
-    await expect(science.getByRole('listitem')).toHaveCount(5);
-    await button(page, 'Показать ещё · 2').click();
-    await expect(science.getByRole('listitem')).toHaveCount(7);
-  });
-
   test('reads in their own look, back where they stopped, and finishes', async ({ page }) => {
     await openArticle(page, 'Культура', /^Tea/);
     await expect(page.getByText('B1 · Культура · 2 мин')).toBeVisible();
@@ -187,16 +168,41 @@ test.describe('a tester', () => {
     await expect.poll(() => requests.some((url) => /literata/i.test(url))).toBe(true);
   });
 
-  test('a missing article says so and offers to try again', async ({ page }) => {
-    await page.route('**/reading/tea.json', (route) => route.fulfill({ status: 404, body: 'gone' }));
-    await page.goto('/');
-    await tab(page).click();
-    await topic(page, 'Культура').click();
-    await page.getByRole('button', { name: /^Tea/ }).click();
-    await expect(page.getByRole('alert')).toContainText('Не удалось открыть статью.');
-    await page.unroute('**/reading/tea.json');
-    await page.getByRole('button', { name: 'Повторить' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Tea' })).toBeVisible();
+  // These answer for the server with made-up files. A production build's service worker would
+  // fetch the real ones past them (CI found it); offline-reading.spec.ts covers the worker.
+  test.describe('with no service worker', () => {
+    test.use({ serviceWorkers: 'block' });
+
+    test('a topic shows five articles, then «Показать ещё»', async ({ page }) => {
+      const articles = Array.from({ length: 7 }, (_, n) => ({
+        id: `science-${n}`,
+        title: `Science article ${n + 1}`,
+        subtitle: 'About science.',
+        topic: 'science',
+        level: 'B1',
+        minutes: 2,
+      }));
+      await page.route('**/reading/index.json', (route) => route.fulfill({ json: { articles } }));
+      await page.goto('/');
+      await tab(page).click();
+      await topic(page, 'Наука').click();
+      const science = page.getByRole('region', { name: 'Наука' });
+      await expect(science.getByRole('listitem')).toHaveCount(5);
+      await button(page, 'Показать ещё · 2').click();
+      await expect(science.getByRole('listitem')).toHaveCount(7);
+    });
+
+    test('a missing article says so and offers to try again', async ({ page }) => {
+      await page.route('**/reading/tea.json', (route) => route.fulfill({ status: 404, body: 'gone' }));
+      await page.goto('/');
+      await tab(page).click();
+      await topic(page, 'Культура').click();
+      await page.getByRole('button', { name: /^Tea/ }).click();
+      await expect(page.getByRole('alert')).toContainText('Не удалось открыть статью.');
+      await page.unroute('**/reading/tea.json');
+      await page.getByRole('button', { name: 'Повторить' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Tea' })).toBeVisible();
+    });
   });
 });
 

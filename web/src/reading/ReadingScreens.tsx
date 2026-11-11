@@ -7,7 +7,7 @@ import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import type { Session } from '../lib/types.ts';
 import type { LocalCard } from '../local/db.ts';
 import { localDb } from '../local/session.ts';
-import { useLocalVersion } from '../local/sync.ts';
+import { syncSoon, useLocalVersion } from '../local/sync.ts';
 import { study } from '../study/device.ts';
 import {
   BackIcon,
@@ -502,6 +502,8 @@ export function Reader({
     if (!db || !article) return;
     try {
       const id = await addWord(db, account, article, word.meaning, word.sentence);
+      // To the server soon, as the deck editor does; offline, the outbox keeps it.
+      syncSoon();
       setDeckId(id);
       setCards(await basketCards(db, id));
     } catch (error) {
@@ -512,6 +514,7 @@ export function Reader({
     const db = localDb();
     if (!db) return;
     await removeWord(db, card.id);
+    syncSoon();
     setCards(await basketCards(db, deckId));
   };
   const learn = async () => {

@@ -94,5 +94,26 @@ filled in below as each phase lands.
   lesson; highlights and notes kept per article after a reload; home loads nothing; a missing
   article; a non-tester). The full app, offline and sign-in suites (131), backend (623) and unit
   (127) pass.
-- **Still open for phase 4:** offline add-then-sync of a reading word, another account never seeing
-  the reading deck, and the Android emulator checks.
+
+## Phase 4 results
+- **A word saved online now reaches the server within seconds.** Before, it waited on the phone
+  until the app was next opened or came back online: the reader never asked the outbox to send, as
+  the deck editor does. Found by the new offline test, which failed before the fix.
+- **Offline project** (`offline-reading.spec.ts`, 3): an article read once opens offline; a word
+  saved offline is in the article's deck on the server once online; another account on the same
+  device sees no reading words and no deck of the first.
+- **Android emulator** (debug build against this computer's API, Android 16):
+  - the tab shows for a tester; the article, the reader font and the word sheet work;
+  - with the server cut off, the app restarted and opened an article never opened before (it ships
+    inside the APK), and a word was saved; it reached the server after the app came back to the
+    front;
+  - 🔊 speaks through the phone's voice (the TextToSpeech plugin, en-US);
+  - the sheet sits above the gesture bar.
+- **Speed on slower devices:** the emulator runs JavaScript about 18× slower than this computer
+  (223 ms against 12 ms on the same loop), well below a real phone. On it a tap shows the sheet in
+  80–250 ms, mostly script and painting. On this computer at 10× CPU slowdown, a tap that opens
+  the sheet takes 19–51 ms, and the first tap 23–26 ms at 4×. A real low-end phone is the
+  remaining check, on the owner's phone with the next APK.
+- **CI found what the local run could not:** CI tests a production build, where the service worker
+  fetches articles itself. Tests that fake a missing article or a longer library now block the
+  service worker; the offline project covers it.
