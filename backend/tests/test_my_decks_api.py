@@ -228,9 +228,10 @@ def test_a_topic_becomes_cards_for_it(client: TestClient) -> None:
     assert len(again) == 5 and not set(again) & set(taken)
 
     assert client.post(url, json={"topic": "x"}, headers=as_("pavel")).status_code == 422
-    assert (
-        client.post(url, json={"topic": "еда", "count": 7}, headers=as_("pavel")).status_code == 422
-    )
+    # Any number from 1 to 20 (the owner's «своё число»), nothing beyond.
+    for count in (0, 21):
+        refused = client.post(url, json={"topic": "еда", "count": count}, headers=as_("pavel"))
+        assert refused.status_code == 422
     assert client.post(url, json={"topic": "еда"}, headers=as_("ivan")).status_code == 404
 
 

@@ -5,11 +5,14 @@ import { api, describeError } from '../lib/api.ts';
 import { deckTitleFor, isNewTopic } from '../lib/topics.ts';
 import type { GenerateResult } from '../lib/types.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
+import { NumberChoice } from '../ui/NumberChoice.tsx';
 import styles from './DeckEditor.module.css';
 import { DraftResult } from './DraftResult.tsx';
 import { t } from '../i18n/index.ts';
 
 const COUNTS = [5, 10, 15, 20];
+/** The most words one topic gives at a time (`TopicIn.count`). */
+const MAX_TOPIC_WORDS = 20;
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
 /**
@@ -97,24 +100,15 @@ export function TopicPanel({
         />
       </label>
       <div className={styles.options}>
-        <fieldset className={styles.choice}>
-          <legend>{t.howManyWords}</legend>
-          <div className={styles.segments}>
-            {COUNTS.map((value) => (
-              <label key={value} className={styles.segment} data-selected={value === count || undefined}>
-                <input
-                  type="radio"
-                  name="topic-count"
-                  value={value}
-                  checked={value === count}
-                  disabled={busy}
-                  onChange={() => setCount(value)}
-                />
-                {value}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <NumberChoice
+          label={t.howManyWords}
+          value={count}
+          presets={COUNTS}
+          max={MAX_TOPIC_WORDS}
+          ownLabel={t.orYourOwnNumberUpTo(MAX_TOPIC_WORDS)}
+          disabled={busy}
+          onChange={setCount}
+        />
         <label className={styles.field}>
           <span>{t.level}</span>
           <select value={level} disabled={busy} onChange={(event) => setLevel(event.target.value)}>

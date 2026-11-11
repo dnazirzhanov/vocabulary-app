@@ -200,3 +200,11 @@ export const BackspaceIcon = (props: IconProps) => (
     <path d="m12 9 6 6M18 9l-6 6" />
   </svg>
 );
+
+export const HelpIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.2-2.4 3.7" />
+    <path d="M12 17.2h.01" />
+  </svg>
+);

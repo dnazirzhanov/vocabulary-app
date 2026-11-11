@@ -105,7 +105,7 @@ class TopicIn(_Input):
     """A topic to make cards for (ADR 0019): the AI chooses the words a learner needs for it."""
 
     topic: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
-    count: Literal[5, 10, 15, 20] = 10
+    count: Annotated[int, Field(ge=1, le=20)] = 10
     level: Level = "B1"
     language: CardLanguage | None = None
 

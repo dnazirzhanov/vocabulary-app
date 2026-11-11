@@ -97,7 +97,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: inset 0 0 0 1px var(--color-border);
   list-style: none;
@@ -113,10 +113,6 @@
 
 .person + .person {
   border-top: 1px solid var(--color-border);
-}
-
-.person[data-me] {
-  background: var(--color-primary-tint);
 }
 
 .name {
@@ -153,28 +149,6 @@
   font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-/* Who hasn't taken it: names in a run, parted by commas. */
-.waiting {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: inset 0 0 0 1px var(--color-border);
-  list-style: none;
-}
-
-.waiting li:not(:last-child)::after {
-  content: ',';
-}
-
-.waiting .name {
-  flex: none;
-  font-weight: var(--weight-body);
 }
 
 .clock {

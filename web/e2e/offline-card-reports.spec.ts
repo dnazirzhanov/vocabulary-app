@@ -31,9 +31,12 @@ test('a card reported offline from a lesson and one from the word list reach the
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Ещё о карточке' }).click();
   const sheet = page.getByRole('dialog');
-  await sheet.getByRole('button', { name: 'Медленная' }).click();
-  await expect(sheet.getByRole('button', { name: 'Медленная' })).toHaveAttribute('aria-pressed', 'true');
-  expect(await page.evaluate(() => localStorage.getItem('example-speed'))).toBe('slow');
+  // As a video's speed: a slider from 0.5× to 2×; left is slower.
+  const speed = sheet.getByRole('slider', { name: 'Скорость примера' });
+  await expect(speed).toHaveValue('1');
+  await speed.fill('0.75');
+  await expect(sheet.getByText('0.75×')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('example-speed'))).toBe('0.75');
   const word = (await sheet.getByRole('heading').first().textContent())!;
   await sheet.getByRole('radio', { name: 'Неверный перевод' }).click();
   await sheet.getByLabel('Что не так (необязательно)').fill('не ложка');
@@ -53,7 +56,7 @@ test('a card reported offline from a lesson and one from the word list reach the
   const other = word === 'ticket' ? 'hotel' : 'ticket';
   await page.getByRole('button', { name: `Сообщить об ошибке в «${other}»` }).click();
   const listSheet = page.getByRole('dialog');
-  await expect(listSheet.getByRole('button', { name: 'Медленная' })).toHaveCount(0);
+  await expect(listSheet.getByRole('slider')).toHaveCount(0);
   await listSheet.getByRole('radio', { name: 'Неверный пример' }).click();
   await listSheet.getByRole('button', { name: 'Отправить' }).click();
   await expect(listSheet.getByRole('status')).toBeVisible();

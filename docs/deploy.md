@@ -42,9 +42,9 @@ To try it on your computer before deploying: put `AUTH_ISSUER`, `SUPABASE_SECRET
 
 ## 2. Host the container (Fly.io, Stockholm: the database's region)
 Koyeb no longer offers its free plan to new accounts (only Pro, $29 a month), so production runs on
-Fly.io: about $0.50–1.50 a month for a pilot, billed by the second while the machine runs. The repo's
+Fly.io: about $3 a month for one always-on 512 MB machine. The repo's
 `fly.toml` holds everything that isn't secret:
-- one 512 MB machine in Stockholm (`arn`), next to the database, suspended when idle and resumed on the next request (under a second);
+- one 512 MB machine in Stockholm (`arn`), next to the database, always on (about $3 a month): a stopped machine took 6–7 s to answer the first tap, and Fly stopped it even when asked to suspend;
 - the health check `/api/health/ready`;
 - the public build values (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`);
 - `AUTH_ISSUER`;

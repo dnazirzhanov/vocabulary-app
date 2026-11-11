@@ -20,15 +20,34 @@
   line-height: var(--leading-tight);
 }
 
-.hero strong {
-  color: var(--color-primary-strong);
-  font-size: 1.875rem;
-  font-variant-numeric: tabular-nums;
+/* Three numbers side by side, each above its word, all the same size. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
 }
 
-.sub {
+.stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.stats dt {
   color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
+  font-size: var(--text-meta);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
 }
 
 .section {

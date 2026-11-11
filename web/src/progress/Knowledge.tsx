@@ -24,24 +24,24 @@ export function Summary({
       <h2 id="summary-heading" className="visually-hidden">
         {t.summary}
       </h2>
-      {data.learned > 0 ? (
-        <p className={styles.hero}>
-          {/* «Слов: N» is plural whatever the number; «21 слов» would be wrong Russian. */}
-          {t.wordsYouKnow} <strong>{data.learned}</strong>
-        </p>
+      {/* The numbers as a stats row, each with its word under it; nothing before the first lesson. */}
+      {data.met > 0 ? (
+        <dl className={styles.stats}>
+          <div>
+            <dt>{t.statKnown}</dt>
+            <dd>{data.learned}</dd>
+          </div>
+          <div>
+            <dt>{t.statThisWeek}</dt>
+            <dd>{data.learned_this_week > 0 ? `+${data.learned_this_week}` : 0}</dd>
+          </div>
+          <div>
+            <dt>{t.statLearning}</dt>
+            <dd>{learning}</dd>
+          </div>
+        </dl>
       ) : (
-        <p className={styles.hero}>{learning > 0 ? t.wordsYouReLearning(learning) : t.startYourFirstDeck}</p>
-      )}
-      {/* Numbers only: what «знаю» means is the learner's to find, not a paragraph here. */}
-      {data.learned > 0 && (
-        <p className={styles.sub}>
-          {[
-            data.learned_this_week > 0 && t.thisWeek(data.learned_this_week),
-            learning > 0 && t.moreInLearning(learning),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
+        <p className={styles.hero}>{t.startYourFirstDeck}</p>
       )}
       <WeekDays progress={progress} onPromiseChanged={onPromiseChanged} />
     </section>

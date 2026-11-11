@@ -53,3 +53,43 @@
 .close:hover {
   background: rgb(38 38 38 / 0.06);
 }
+
+/* On a phone: a sheet from the bottom, as the phone's own apps do, within reach of the thumb. */
+@media (max-width: 600px) {
+  .dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - var(--space-6));
+    margin: auto 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -8px 32px rgb(38 38 38 / 0.18);
+  }
+
+  .body {
+    padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  }
+
+  /* The grab handle: says it is a sheet; closing stays the ✕ and the backdrop. */
+  .body::before {
+    content: '';
+    align-self: center;
+    width: 36px;
+    height: 4px;
+    margin: calc(-1 * var(--space-2)) 0 var(--space-1);
+    border-radius: 2px;
+    background: var(--color-track);
+  }
+}
+
+@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+  .dialog[open] {
+    animation: sheet-up var(--duration-enter) var(--ease-out);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}

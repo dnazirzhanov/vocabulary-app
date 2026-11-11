@@ -574,13 +574,18 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                     </div>
                     <div className={styles.rowActions}>
                       {!from_course && (
-                        <button type="button" className={styles.linkButton} onClick={() => startEdit(word.id)}>
-                          {t.edit}
+                        <button
+                          type="button"
+                          className={styles.iconAction}
+                          onClick={() => startEdit(word.id)}
+                          aria-label={t.edit}
+                        >
+                          <PencilIcon aria-hidden="true" />
                         </button>
                       )}
                       <button
                         type="button"
-                        className={styles.linkButton}
+                        className={styles.iconAction}
                         disabled={busy}
                         onClick={() =>
                           run(async () => {
@@ -592,7 +597,7 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
                         }
                         aria-label={t.remove(word.headword)}
                       >
-                        {t.removeAction}
+                        <TrashIcon aria-hidden="true" />
                       </button>
                     </div>
                   </li>
