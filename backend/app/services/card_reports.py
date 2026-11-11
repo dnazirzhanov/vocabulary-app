@@ -99,8 +99,9 @@ def _listed(db: Session, words: list[Word]) -> CardReportsOut:
 
 
 def course_reports(db: Session, user: User) -> CardReportsOut:
-    """Every open report, on any card (the course's and every deck's), for the content editors: they
-    are how the cards, and the AI that drafts them, get better. A deck's author still sees their own."""
+    """Every open report, on any card (the course's and every deck's), for the content editors:
+    they are how the cards, and the AI that drafts them, get better. A deck's author still sees
+    their own."""
     if not is_editor(user):
         raise ApiError(403, "not_allowed", "Only the content editors read these")
     words = db.scalars(
