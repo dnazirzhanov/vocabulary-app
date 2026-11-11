@@ -41,19 +41,32 @@ source: {name: VOA Learning English, url: https://…, license: public domain}
 body:                         # paragraphs; "## " starts a heading
   - "## A dance with a message"
   - "When a honeybee finds flowers, it flies back to the hive and dances."
-glossary:                     # every form in the text not in content/glossary.yaml
+names: [Kitty Hawk, Dayton]   # people and places: tapped, «имя или название»; never a card
+glossary:                     # only this text's own words, or a meaning special to it
   dances: {lemma: dance, pos: verb, ru: танцует, def: moves the body to music or in a pattern}
   hive:   {pos: noun, ru: улей, def: a home that bees live in}
 ```
 
-**What the build adds:** `content/tools/build_reading.py` writes the JSON the app reads. It adds:
+**Where a meaning comes from, first match wins:**
+1. the article's own `glossary:`;
+2. `content/reading/_shared.yaml`, meanings common to many articles, written once (the build
+   refuses a word listed twice there, because YAML would silently keep only the last);
+3. the course glossary `content/glossary.yaml`. Its words take their course word's part of
+   speech, so a saved card links to the course card; others get `other`.
+
+A possessive (*world's*) takes its word's meaning, marked as possessive.
+
+**What the build adds:** `uv run python -m app.cli build-reading` (code in
+`backend/app/services/reading.py`, next to the deck content code it reuses) writes the JSON the
+app reads. It adds:
 - the forms the article uses from `glossary.yaml`;
 - the word count and the minutes to read (about 180 words a minute at A2–B1, 220 at B2–C1);
 - the library index, `index.json`: `id, title, subtitle, topic, level, minutes`, newest first.
 
-The JSON is committed, so the app build needs no Python.
+The JSON is committed, so the app build needs no Python. Prettier ignores it
+(`web/.prettierignore`): it is compared byte for byte instead.
 
-**What the validator checks** (a backend test that `make check` runs):
+**What the validator checks** (`backend/tests/test_reading_content.py`, in the backend suite):
 - every word in every article has a meaning;
 - levels and topics are known;
 - each source has a name, a link and a licence;

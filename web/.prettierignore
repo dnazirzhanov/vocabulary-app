@@ -7,3 +7,5 @@ public/audio
 src/study/vectors.json
 dist-app
 android
+# Built by 'uv run python -m app.cli build-reading' and compared byte for byte by the backend tests.
+public/reading/

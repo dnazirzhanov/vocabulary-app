@@ -1,0 +1,39 @@
+id: tea
+title: Tea
+subtitle: After water, it is the drink people drink most. Black, green or oolong all come from one plant.
+topic: culture
+level: B1
+source:
+  name: Simple English Wikipedia, "Tea"
+  url: https://simple.wikipedia.org/w/index.php?title=Tea&oldid=11057736
+  license: CC BY-SA 4.0
+  note: shortened; this adapted text is under the same licence
+body:
+  - Tea is a caffeinated drink made from steeping the leaves of the Camellia sinensis plant. Tea can have other herbs, spices, or fruit flavors in it, like lemon.
+  - Sometimes, tea is used for other drinks that have been made by soaking fruit or herbs in hot water, like "rosehip tea" or "chamomile tea". These are called "herbal teas". After water, tea is the most widely consumed drink in the world.
+  - "## Types of tea"
+  - "There are three main types of tea: black tea, oolong, and green tea."
+  - To make black tea, leaves are dried with hot air until they turn brown or black. Next, they are broken into pieces and put into a room where they absorb oxygen, or oxidize. Chemical reactions change the taste and style of the tea.
+  - Most black tea comes from Sri Lanka, Indonesia and eastern Africa. Another name used for black tea, especially in China, is red tea. That is because when black tea leaves are brewed in boiling water, the tea made from them looks deep dark red.
+  - Oolong tea is a traditional semi-oxidized Chinese tea. It is produced by withering the leaves under strong sun.
+  - Green tea is made by steaming freshly picked leaves. This keeps them green. Then they are crushed and dried in ovens. India is the biggest maker and user of green tea.
+  - "## Where tea grows"
+  - Tea is mainly grown in China, India, Pakistan, Sri Lanka, Taiwan, Japan, Nepal, Australia, Argentina and Kenya.
+  - Green tea is usually steeped for 2 to 3 minutes in water at 79 degrees Celsius, while black tea is steeped for 3 to 5 minutes in boiling water.
+names: [Camellia sinensis, Sri Lanka, Indonesia, Africa, China, India, Pakistan, Taiwan, Japan, Nepal, Australia, Argentina, Kenya, Celsius]
+glossary:
+  caffeinated: {ru: "содержащий кофеин", pos: adjective, def: "having caffeine, which makes you feel awake"}
+  steeping: {ru: "заваривание, настаивание", pos: verb, lemma: steep, def: "leaving something in hot water so it gives its taste"}
+  steeped: {ru: "заваривают, настаивают", pos: verb, lemma: steep, def: "left in hot water so it gives its taste"}
+  rosehip: {ru: "шиповник", pos: noun, def: "the red fruit of a wild rose"}
+  chamomile: {ru: "ромашка", pos: noun, def: "a small white flower used to make a calming tea"}
+  herbal: {ru: "травяной", pos: adjective}
+  teas: {ru: "чаи, сорта чая", pos: noun, lemma: tea}
+  oolong: {ru: "улун (сорт чая)", pos: noun, def: "a Chinese tea between green and black tea"}
+  oxidize: {ru: "окисляться", pos: verb, def: "change when joined with oxygen from the air"}
+  oxidized: {ru: "окисленный", pos: adjective, lemma: oxidize}
+  semi: {ru: "полу- (semi-oxidized — частично окисленный)", pos: other}
+  withering: {ru: "завяливание, подвяливание", pos: verb, lemma: wither, def: "drying leaves until they become soft"}
+  brewed: {ru: "заваривают", pos: verb, lemma: brew, def: "made a hot drink by putting leaves in hot water"}
+  user: {ru: "потребитель", pos: noun}
+  maker: {ru: "производитель", pos: noun}

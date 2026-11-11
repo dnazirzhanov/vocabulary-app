@@ -1,0 +1,35 @@
+id: wright-brothers
+title: "Wilbur and Orville Wright: The First Airplane"
+subtitle: Two brothers who liked bicycles and kites built the first plane with an engine.
+topic: history
+level: A2
+source:
+  name: VOA Learning English (Marilyn Rice Christiano, adapted by John Russell)
+  url: https://learningenglish.voanews.com/a/wilbur-and-orville-wright-the-first-airplane/7998765.html
+  license: public domain
+  note: the broadcast sign-off removed
+body:
+  - Wilbur and Orville Wright are the American inventors who made a small engine-powered flying machine. They proved that flight without the aid of gas-filled balloons was possible.
+  - Wilbur Wright was born in 1867 near Melville, Indiana. His brother Orville was born four years later in Dayton, Ohio.
+  - As they grew up, the Wright brothers experimented with mechanical things. Later, the Wright brothers began to design their own flying machine. They used ideas they had developed from earlier experiments with a toy helicopter, kites, the printing machine and bicycles.
+  - "## Kitty Hawk"
+  - Soon, they needed a place to test their ideas about flight. The best place with the best wind conditions seemed to be a piece of sandy land in North Carolina along the coast of the Atlantic Ocean. It was called Kill Devil Hill, near the town of Kitty Hawk.
+  - The Wright brothers did many tests with gliders at Kitty Hawk. With these tests, they learned how to solve many problems.
+  - By the autumn of 1903, Wilbur and Orville had designed and built an airplane powered by a gasoline engine. The plane had wings 12 meters across. It weighed about 340 kilograms, including the pilot.
+  - On December 17th, 1903, they made the world's first flight in a machine that was heavier than air and powered by an engine. Orville flew the plane 36 meters. He was in the air for 12 seconds. The two brothers made three more flights that day.
+  - "## Famous at last"
+  - Four other men watched the Wright brothers' first flights. One of the men took pictures. Few newspapers, however, noted the event.
+  - It was almost five years before the Wright brothers became famous. In 1908, Wilbur went to France. He gave demonstration flights at heights of 90 meters. A French company agreed to begin making the Wright brothers' flying machine.
+  - Orville made successful flights in the United States at the time Wilbur was in France. The United States War Department agreed to buy a Wright brothers' plane. Wilbur and Orville suddenly became world heroes. But the brothers were not seeking fame. They returned to Dayton where they continued to improve their airplanes. They taught many others how to fly.
+  - Wilbur Wright died of typhoid fever in 1912. Orville Wright continued designing and inventing until he died many years later, in 1948.
+  - Today, the Wright brothers' first airplane is in the Air and Space Museum in Washington, D.C. Visitors to the museum can look at the Wright brothers' small plane. Then they can walk to another area and see space vehicles and a rock collected from the moon. The world has changed a lot since Wilbur and Orville Wright began the modern age of flight over one hundred years ago.
+names: [Wilbur, Orville, Wright, Melville, Indiana, Dayton, Ohio, Kitty Hawk, North Carolina, Atlantic, Kill Devil Hill, France, United States, Washington, D.C.]
+glossary:
+  powered: {ru: "с двигателем, приводимый в движение", pos: "adjective", def: "moved by an engine or other power"}
+  filled: {ru: "заполненный", pos: "adjective", lemma: "fill"}
+  born: {ru: "родился", pos: "verb", lemma: "be born", def: "started life"}
+  grew: {ru: "росли", pos: "verb", lemma: "grow up", def: "became older and bigger"}
+  across: {ru: "в размахе, поперёк", pos: "adverb"}
+  th: {ru: "-е (число: 17th = семнадцатое)", pos: "other"}
+  war: {ru: "военный, война", pos: "noun"}
+  department: {ru: "министерство, отдел", pos: "noun", def: "a part of a government or company"}

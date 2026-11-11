@@ -1,0 +1,464 @@
+# Meanings common to many reading articles; an article's own glossary wins over these.
+# Same fields as an article's glossary: ru, pos, lemma (when the form differs), def (simple English).
+american: {ru: "американский", pos: "adjective", def: "from the United States"}
+inventors: {ru: "изобретатели", pos: "noun", lemma: "inventor", def: "people who make something new for the first time"}
+engine: {ru: "двигатель", pos: "noun", def: "a machine that makes something move"}
+flying: {ru: "летающий", pos: "adjective", def: "able to move through the air"}
+proved: {ru: "доказали", pos: "verb", lemma: "prove", def: "showed that something is true"}
+flight: {ru: "полёт", pos: "noun", def: "a trip through the air"}
+without: {ru: "без", pos: "other"}
+aid: {ru: "помощь", pos: "noun", def: "help"}
+gas: {ru: "газ", pos: "noun"}
+balloons: {ru: "воздушные шары", pos: "noun", lemma: "balloon", def: "big bags filled with gas that float in the air"}
+possible: {ru: "возможный", pos: "adjective", def: "able to happen or be done"}
+four: {ru: "четыре", pos: "other"}
+later: {ru: "позже", pos: "adverb"}
+brothers: {ru: "братья", pos: "noun", lemma: "brother"}
+experimented: {ru: "экспериментировали", pos: "verb", lemma: "experiment", def: "tried new things to learn about them"}
+mechanical: {ru: "механический", pos: "adjective", def: "having moving parts, like a machine"}
+things: {ru: "вещи", pos: "noun", lemma: "thing"}
+began: {ru: "начали", pos: "verb", lemma: "begin"}
+own: {ru: "собственный", pos: "adjective"}
+used: {ru: "использовали", pos: "verb", lemma: "use"}
+developed: {ru: "разработали", pos: "verb", lemma: "develop", def: "made an idea grow and become better"}
+earlier: {ru: "более ранний", pos: "adjective", lemma: "early"}
+experiments: {ru: "эксперименты, опыты", pos: "noun", lemma: "experiment", def: "tests to find out something"}
+toy: {ru: "игрушечный, игрушка", pos: "noun", def: "a thing children play with"}
+helicopter: {ru: "вертолёт", pos: "noun"}
+kites: {ru: "воздушные змеи", pos: "noun", lemma: "kite", def: "light frames with paper or cloth that fly on wind"}
+printing: {ru: "печатный", pos: "adjective", def: "used to put words on paper"}
+bicycles: {ru: "велосипеды", pos: "noun", lemma: "bicycle"}
+soon: {ru: "скоро, вскоре", pos: "adverb"}
+needed: {ru: "нуждались, им был нужен", pos: "verb", lemma: "need"}
+wind: {ru: "ветер", pos: "noun"}
+conditions: {ru: "условия", pos: "noun", lemma: "condition", def: "the state of the weather or place"}
+seemed: {ru: "казалось", pos: "verb", lemma: "seem"}
+piece: {ru: "кусок, участок", pos: "noun"}
+sandy: {ru: "песчаный", pos: "adjective", def: "covered with sand"}
+land: {ru: "земля, участок суши", pos: "noun"}
+along: {ru: "вдоль", pos: "other"}
+coast: {ru: "побережье", pos: "noun", def: "the land next to the sea"}
+ocean: {ru: "океан", pos: "noun"}
+called: {ru: "назывался", pos: "verb", lemma: "call"}
+town: {ru: "городок", pos: "noun"}
+did: {ru: "делали, проводили", pos: "verb", lemma: "do"}
+tests: {ru: "испытания", pos: "noun", lemma: "test"}
+gliders: {ru: "планеры", pos: "noun", lemma: "glider", def: "flying objects like airplanes but without an engine"}
+learned: {ru: "узнали, научились", pos: "verb", lemma: "learn"}
+how: {ru: "как", pos: "adverb"}
+solve: {ru: "решать", pos: "verb", def: "find the answer to a problem"}
+autumn: {ru: "осень", pos: "noun"}
+designed: {ru: "спроектировали", pos: "verb", lemma: "design", def: "planned how something will look and work"}
+built: {ru: "построили", pos: "verb", lemma: "build"}
+airplane: {ru: "самолёт", pos: "noun"}
+gasoline: {ru: "бензиновый, бензин", pos: "noun", def: "fuel for car and plane engines"}
+plane: {ru: "самолёт", pos: "noun"}
+wings: {ru: "крылья", pos: "noun", lemma: "wing"}
+meters: {ru: "метров", pos: "noun", lemma: "meter"}
+weighed: {ru: "весил", pos: "verb", lemma: "weigh", def: "was a certain heaviness"}
+kilograms: {ru: "килограммов", pos: "noun", lemma: "kilogram"}
+including: {ru: "включая", pos: "other"}
+pilot: {ru: "пилот", pos: "noun", def: "a person who flies a plane"}
+december: {ru: "декабрь", pos: "noun"}
+heavier: {ru: "тяжелее", pos: "adjective", lemma: "heavy"}
+air: {ru: "воздух", pos: "noun"}
+flew: {ru: "пролетел", pos: "verb", lemma: "fly"}
+seconds: {ru: "секунд", pos: "noun", lemma: "second"}
+three: {ru: "три", pos: "other"}
+flights: {ru: "полёты", pos: "noun", lemma: "flight"}
+other: {ru: "другой", pos: "adjective"}
+men: {ru: "мужчины", pos: "noun", lemma: "man"}
+watched: {ru: "наблюдали", pos: "verb", lemma: "watch"}
+pictures: {ru: "фотографии", pos: "noun", lemma: "picture"}
+few: {ru: "немногие, мало", pos: "adjective"}
+newspapers: {ru: "газеты", pos: "noun", lemma: "newspaper"}
+however: {ru: "однако", pos: "adverb"}
+noted: {ru: "отметили, упомянули", pos: "verb", lemma: "note", def: "wrote or said something about"}
+event: {ru: "событие", pos: "noun", def: "something important that happens"}
+almost: {ru: "почти", pos: "adverb"}
+five: {ru: "пять", pos: "other"}
+demonstration: {ru: "показательный, демонстрация", pos: "noun", def: "showing how something works"}
+heights: {ru: "высоты", pos: "noun", lemma: "height"}
+french: {ru: "французский", pos: "adjective"}
+begin: {ru: "начать", pos: "verb"}
+successful: {ru: "успешный", pos: "adjective", def: "ending well, as you wanted"}
+heroes: {ru: "героями", pos: "noun", lemma: "hero", def: "people admired for doing great things"}
+were: {ru: "были", pos: "verb", lemma: "be"}
+seeking: {ru: "искали, стремились к", pos: "verb", lemma: "seek", def: "trying to find or get"}
+fame: {ru: "слава", pos: "noun", def: "being known by many people"}
+returned: {ru: "вернулись", pos: "verb", lemma: "return"}
+continued: {ru: "продолжили", pos: "verb", lemma: "continue"}
+improve: {ru: "улучшать", pos: "verb", def: "make better"}
+airplanes: {ru: "самолёты", pos: "noun", lemma: "airplane"}
+taught: {ru: "научили, учили", pos: "verb", lemma: "teach"}
+others: {ru: "другие, другим", pos: "other"}
+fly: {ru: "летать", pos: "verb"}
+died: {ru: "умер", pos: "verb", lemma: "die"}
+typhoid: {ru: "брюшной тиф", pos: "noun", def: "a serious illness from dirty water or food"}
+fever: {ru: "лихорадка, жар", pos: "noun"}
+designing: {ru: "проектировать", pos: "verb", lemma: "design"}
+inventing: {ru: "изобретать", pos: "verb", lemma: "invent", def: "making something new for the first time"}
+space: {ru: "космос", pos: "noun"}
+visitors: {ru: "посетители", pos: "noun", lemma: "visitor"}
+then: {ru: "затем, потом", pos: "adverb"}
+another: {ru: "другой, ещё один", pos: "other"}
+area: {ru: "зона, часть", pos: "noun"}
+vehicles: {ru: "аппараты, транспортные средства", pos: "noun", lemma: "vehicle", def: "machines that carry people or things"}
+rock: {ru: "камень", pos: "noun"}
+collected: {ru: "собранный", pos: "verb", lemma: "collect"}
+moon: {ru: "Луна", pos: "noun"}
+changed: {ru: "изменился", pos: "verb", lemma: "change"}
+since: {ru: "с тех пор как", pos: "other"}
+modern: {ru: "современный", pos: "adjective"}
+hundred: {ru: "сто", pos: "other"}
+ago: {ru: "назад", pos: "adverb"}
+rocket: {ru: "ракета", pos: "noun", def: "a long vehicle pushed up into the sky by burning fuel"}
+rockets: {ru: "ракеты", pos: "noun", lemma: "rocket", def: "long vehicles pushed into the sky by burning fuel"}
+launches: {ru: "запуски", pos: "noun", lemma: "launch", def: "times when a rocket is sent into the air"}
+launched: {ru: "запустил", pos: "verb", lemma: "launch", def: "sent a rocket or ship into the air or water"}
+missions: {ru: "полёты, миссии", pos: "noun", lemma: "mission", def: "trips into space with a goal"}
+common: {ru: "обычный, частый", pos: "adjective", def: "happening often"}
+dream: {ru: "мечта", pos: "noun", def: "something you hope for very much"}
+dreams: {ru: "мечты", pos: "noun", lemma: "dream", def: "things you hope for very much"}
+influential: {ru: "влиятельный", pos: "adjective", def: "having a big effect on people or things"}
+field: {ru: "область, сфера", pos: "noun", def: "an area of study or work"}
+science: {ru: "наука", pos: "noun"}
+scientific: {ru: "научный", pos: "adjective"}
+agency: {ru: "агентство, ведомство", pos: "noun", def: "an office that does a special job, often for a government"}
+describes: {ru: "описывает, называет", pos: "verb", lemma: "describe", def: "says what someone or something is like"}
+described: {ru: "описал", pos: "verb", lemma: "describe", def: "said what something is like"}
+once: {ru: "однажды, когда-то", pos: "adverb"}
+said: {ru: "сказал", pos: "verb", lemma: "say"}
+yesterday: {ru: "вчера, вчерашний день", pos: "noun"}
+hope: {ru: "надежда", pos: "noun", def: "a feeling that something good can happen"}
+turned: {ru: "превратил", pos: "verb", lemma: "turn into", def: "changed into something else"}
+those: {ru: "те", pos: "other"}
+into: {ru: "в, внутрь", pos: "other"}
+liquid: {ru: "жидкий", pos: "adjective", def: "like water, able to flow"}
+fuel: {ru: "топливо", pos: "noun", def: "something burned to make power, like gas or coal"}
+fuels: {ru: "виды топлива", pos: "noun", lemma: "fuel", def: "things burned to make power"}
+carried: {ru: "провёл", pos: "verb", lemma: "carry out", def: "carried out: did a piece of work"}
+studies: {ru: "исследования", pos: "noun", lemma: "study", def: "careful work to learn about something"}
+engines: {ru: "двигатели", pos: "noun", lemma: "engine", def: "machines that make things move"}
+power: {ru: "энергия, мощность", pos: "noun", def: "energy that makes a machine work"}
+solid: {ru: "твёрдый", pos: "adjective", def: "hard, not liquid or gas"}
+chemicals: {ru: "химические вещества", pos: "noun", lemma: "chemical"}
+chemical: {ru: "химический", pos: "adjective"}
+formed: {ru: "образовали", pos: "verb", lemma: "form", def: "made or became something"}
+substance: {ru: "вещество", pos: "noun", def: "a kind of material"}
+tested: {ru: "испытал", pos: "verb", lemma: "test", def: "tried something to see if it works"}
+using: {ru: "используя", pos: "verb", lemma: "use"}
+soft: {ru: "мягкий", pos: "adjective"}
+successfully: {ru: "успешно", pos: "adverb"}
+historians: {ru: "историки", pos: "noun", lemma: "historian", def: "people who study history"}
+consider: {ru: "считают", pos: "verb", def: "think of something in a certain way"}
+considered: {ru: "считаться", pos: "verb", lemma: "consider", def: "thought of in a certain way"}
+machines: {ru: "машины, аппараты", pos: "noun", lemma: "machine"}
+could: {ru: "могли, могли бы", pos: "verb", lemma: "can"}
+outside: {ru: "за пределы, снаружи", pos: "other"}
+atmosphere: {ru: "атмосфера", pos: "noun", def: "the air around a planet"}
+foolish: {ru: "глупый", pos: "adjective", def: "not wise, silly"}
+during: {ru: "во время", pos: "other"}
+research: {ru: "исследования", pos: "noun", def: "careful study to find new facts"}
+received: {ru: "получил", pos: "verb", lemma: "receive"}
+support: {ru: "поддержка", pos: "noun", def: "help, often money or advice"}
+published: {ru: "опубликовал", pos: "verb", lemma: "publish", def: "printed something for many people to read"}
+several: {ru: "несколько", pos: "adjective"}
+reports: {ru: "отчёты, доклады", pos: "noun", lemma: "report"}
+efforts: {ru: "усилия, работа", pos: "noun", lemma: "effort", def: "hard work to do something"}
+publication: {ru: "публикация, издание", pos: "noun", def: "a book or article that is printed"}
+method: {ru: "метод, способ", pos: "noun", def: "a way of doing something"}
+reaching: {ru: "достижение, достигая", pos: "verb", lemma: "reach", def: "getting to a place or level"}
+extreme: {ru: "предельный, крайний", pos: "adjective", def: "very great or very far"}
+altitudes: {ru: "высоты", pos: "noun", lemma: "altitude", def: "how high something is above the sea"}
+wrote: {ru: "писал, рассказывал", pos: "verb", lemma: "write"}
+search: {ru: "поиск", pos: "noun"}
+ways: {ru: "способы", pos: "noun", lemma: "way"}
+send: {ru: "отправлять", pos: "verb"}
+recording: {ru: "записывающий, регистрирующий", pos: "adjective", def: "keeping a record of something"}
+instruments: {ru: "приборы", pos: "noun", lemma: "instrument", def: "tools for measuring things"}
+mathematical: {ru: "математический", pos: "adjective"}
+theories: {ru: "теории", pos: "noun", lemma: "theory", def: "ideas that explain how something works"}
+also: {ru: "также", pos: "adverb"}
+suggested: {ru: "предположил, предложил", pos: "verb", lemma: "suggest", def: "said an idea for others to think about"}
+suggesting: {ru: "предлагать, предполагать", pos: "verb", lemma: "suggest"}
+someday: {ru: "когда-нибудь", pos: "adverb"}
+dispute: {ru: "спор", pos: "noun", def: "an argument between people"}
+press: {ru: "пресса, газеты", pos: "noun", def: "newspapers and reporters"}
+claim: {ru: "утверждение", pos: "noun", def: "something said to be true, without proof yet"}
+so: {ru: "так, настолько", pos: "adverb"}
+impossible: {ru: "невозможный", pos: "adjective"}
+still: {ru: "всё ещё, до сих пор", pos: "adverb"}
+development: {ru: "разработка, развитие", pos: "noun"}
+flies: {ru: "летает", pos: "verb", lemma: "fly"}
+say: {ru: "говорят", pos: verb}
+might: {ru: "возможно, могли", pos: verb, lemma: may}
+identified: {ru: "определили, выявили", pos: verb, lemma: identify, def: "found out exactly what something is"}
+mineral: {ru: "минерал", pos: noun, def: "a natural solid substance found in rocks and earth"}
+planet: {ru: "планета", pos: noun}
+appear: {ru: "казаться, выглядеть", pos: verb, def: "seem or look"}
+appears: {ru: "кажется, выглядит", pos: verb, lemma: appear, def: "seems or looks"}
+appeared: {ru: "появились, были опубликованы", pos: verb, lemma: appear}
+red: {ru: "красный", pos: adjective}
+data: {ru: "данные", pos: noun, def: "facts and numbers collected for study"}
+through: {ru: "с помощью, через", pos: other}
+methods: {ru: "методы", pos: noun, lemma: method, def: "ways of doing something"}
+suggests: {ru: "предполагает, говорит о том, что", pos: verb, lemma: suggest}
+likely: {ru: "вероятно", pos: adverb}
+dust: {ru: "пыль", pos: noun}
+material: {ru: "материал", pos: noun}
+across: {ru: "по всей, через", pos: other}
+wide: {ru: "широкий, обширный", pos: adjective}
+areas: {ru: "районы, области", pos: noun, lemma: area}
+carrying: {ru: "проводящий", pos: verb, lemma: carry out, def: "carrying out: doing a piece of work"}
+reddish: {ru: "красноватый", pos: adjective}
+color: {ru: "цвет", pos: noun}
+coloring: {ru: "окраска, цвет", pos: noun}
+form: {ru: "образовываться", pos: verb, def: "begin to exist or take shape"}
+formation: {ru: "образование", pos: noun, def: "the way something begins to exist"}
+rich: {ru: "богатый", pos: adjective}
+environments: {ru: "среды, условия", pos: noun, lemma: environment, def: "the conditions around a living thing or place"}
+environment: {ru: "среда, условия", pos: noun}
+discovering: {ru: "обнаружение", pos: verb, lemma: discover, def: "finding something for the first time"}
+discovery: {ru: "открытие", pos: noun, def: "finding something for the first time"}
+large: {ru: "большой", pos: adjective}
+amounts: {ru: "количества", pos: noun, lemma: amount}
+adds: {ru: "добавляет", pos: verb, lemma: add}
+added: {ru: "добавил", pos: verb, lemma: add}
+existing: {ru: "существующий, имеющийся", pos: adjective}
+evidence: {ru: "доказательства", pos: noun, def: "facts that show something is true"}
+held: {ru: "имела, содержала", pos: verb, lemma: hold}
+past: {ru: "прошлое", pos: noun}
+international: {ru: "международный", pos: adjective}
+led: {ru: "возглавляемый", pos: verb, lemma: lead}
+findings: {ru: "результаты, выводы", pos: noun, lemma: finding, def: "what a study has found"}
+recently: {ru: "недавно", pos: adverb}
+study: {ru: "исследование", pos: noun, def: "careful work to learn about something"}
+researchers: {ru: "исследователи", pos: noun, lemma: researcher}
+researcher: {ru: "исследователь", pos: noun}
+wondered: {ru: "задавались вопросом", pos: verb, lemma: wonder, def: "wanted to know"}
+exact: {ru: "точный", pos: adjective}
+gives: {ru: "придаёт, даёт", pos: verb, lemma: give}
+which: {ru: "который", pos: other}
+deep: {ru: "глубокий, насыщенный", pos: adjective}
+based: {ru: "основан", pos: verb, lemma: base on, def: "based on: using something as a starting point"}
+spacecraft: {ru: "космический аппарат", pos: noun}
+include: {ru: "включают", pos: verb}
+operated: {ru: "управляемый", pos: verb, lemma: operate, def: "controlled and used"}
+operating: {ru: "работающий", pos: verb, lemma: operate}
+addition: {ru: "дополнение", pos: noun, def: "in addition: also"}
+information: {ru: "информация", pos: noun}
+captured: {ru: "собрана, получена", pos: verb, lemma: capture, def: "caught or recorded"}
+came: {ru: "поступили, пришли", pos: verb, lemma: come}
+exploring: {ru: "исследовательский", pos: adjective, lemma: explore, def: "travelling to learn about a place"}
+examinations: {ru: "исследования, проверки", pos: noun, lemma: examination}
+or: {ru: "или", pos: other}
+feel: {ru: "на ощупь", pos: verb}
+similar: {ru: "похожий", pos: adjective}
+works: {ru: "работает", pos: verb, lemma: work}
+mystery: {ru: "загадка", pos: noun, def: "something that nobody can explain"}
+why: {ru: "почему", pos: adverb}
+been: {ru: "был(о)", pos: verb, lemma: be}
+hundreds: {ru: "сотни", pos: noun, lemma: hundred}
+thousands: {ru: "тысячи", pos: noun, lemma: thousand}
+recognized: {ru: "признал", pos: verb, lemma: recognize}
+reason: {ru: "причина", pos: noun}
+proven: {ru: "доказано", pos: verb, lemma: prove}
+laboratory: {ru: "лабораторный", pos: noun}
+widespread: {ru: "широко распространённый", pos: adjective, def: "found in many places"}
+reveals: {ru: "показывает, раскрывает", pos: verb, lemma: reveal, def: "shows something that was hidden"}
+required: {ru: "требовало", pos: verb, lemma: require, def: "needed"}
+presence: {ru: "присутствие, наличие", pos: noun}
+both: {ru: "оба, и ... и", pos: other}
+oxygen: {ru: "кислород", pos: noun}
+capable: {ru: "способный", pos: adjective, def: "able to do something"}
+reacting: {ru: "вступать в реакцию", pos: verb, lemma: react}
+dry: {ru: "сухой", pos: adjective}
+expert: {ru: "специалист", pos: noun, def: "a person who knows a lot about something"}
+opportunity: {ru: "возможность", pos: noun, def: "a chance to do something"}
+future: {ru: "будущий", pos: adjective}
+additional: {ru: "дополнительный", pos: adjective}
+confirm: {ru: "подтвердить", pos: verb, def: "show that something is true"}
+latest: {ru: "последний, новейший", pos: adjective}
+exciting: {ru: "захватывающий", pos: adjective}
+realize: {ru: "понимаем, осознаём", pos: verb}
+verified: {ru: "проверены", pos: verb, lemma: verify, def: "checked to show they are true"}
+samples: {ru: "образцы", pos: noun, lemma: sample, def: "small pieces taken to study"}
+check: {ru: "проверить", pos: verb}
+whether: {ru: "ли", pos: other}
+correct: {ru: "правильный", pos: adjective}
+currently: {ru: "сейчас, в настоящее время", pos: adverb}
+leaves: {ru: "листья", pos: noun, lemma: leaf}
+herbs: {ru: "травы", pos: noun, lemma: herb, def: "plants used for taste or medicine"}
+spices: {ru: "специи, пряности", pos: noun, lemma: spice, def: "dried plant parts that give food a strong taste"}
+flavors: {ru: "вкусы, ароматы", pos: noun, lemma: flavor}
+lemon: {ru: "лимон", pos: noun}
+drinks: {ru: "напитки", pos: noun, lemma: drink}
+soaking: {ru: "замачивание", pos: verb, lemma: soak, def: "leaving something in water for some time"}
+widely: {ru: "широко", pos: adverb}
+consumed: {ru: "употребляемый", pos: verb, lemma: consume, def: "eaten or drunk"}
+types: {ru: "виды, типы", pos: noun, lemma: type}
+black: {ru: "чёрный", pos: adjective}
+make: {ru: "делать, приготовить", pos: verb}
+dried: {ru: "сушат, высушивают", pos: verb, lemma: dry}
+brown: {ru: "коричневый", pos: adjective}
+broken: {ru: "разломаны, разбиты", pos: verb, lemma: break}
+pieces: {ru: "кусочки", pos: noun, lemma: piece}
+put: {ru: "кладут, помещают", pos: verb}
+absorb: {ru: "впитывают, поглощают", pos: verb, def: "take in a liquid or gas"}
+reactions: {ru: "реакции", pos: noun, lemma: reaction}
+taste: {ru: "вкус", pos: noun}
+style: {ru: "стиль, характер", pos: noun}
+eastern: {ru: "восточный", pos: adjective}
+especially: {ru: "особенно", pos: adverb}
+boiling: {ru: "кипящий", pos: adjective}
+them: {ru: "их, им", pos: other}
+looks: {ru: "выглядит", pos: verb, lemma: look}
+dark: {ru: "тёмный", pos: adjective}
+traditional: {ru: "традиционный", pos: adjective}
+chinese: {ru: "китайский", pos: adjective}
+produced: {ru: "производится", pos: verb, lemma: produce}
+under: {ru: "под", pos: other}
+sun: {ru: "солнце", pos: noun}
+steaming: {ru: "обработка паром", pos: verb, lemma: steam, def: "heating something with hot water vapour"}
+freshly: {ru: "только что, свежо", pos: adverb}
+picked: {ru: "собранный, сорванный", pos: verb, lemma: pick}
+keeps: {ru: "сохраняет, оставляет", pos: verb, lemma: keep}
+crushed: {ru: "измельчают, раздавливают", pos: verb, lemma: crush}
+ovens: {ru: "печи", pos: noun, lemma: oven}
+grows: {ru: "растёт", pos: verb, lemma: grow}
+grown: {ru: "выращивают", pos: verb, lemma: grow}
+mainly: {ru: "главным образом", pos: adverb}
+minutes: {ru: "минут", pos: noun, lemma: minute}
+degrees: {ru: "градусов", pos: noun, lemma: degree}
+while: {ru: "тогда как, в то время как", pos: other}
+largest: {ru: "крупнейший", pos: adjective, lemma: large}
+global: {ru: "глобальный, всемирный", pos: adjective}
+communication: {ru: "общение, связь", pos: noun}
+smaller: {ru: "меньший", pos: adjective, lemma: small}
+homes: {ru: "дома", pos: noun, lemma: home}
+businesses: {ru: "компании, предприятия", pos: noun, lemma: business}
+governments: {ru: "правительства", pos: noun, lemma: government}
+share: {ru: "обмениваться, делиться", pos: verb}
+sharing: {ru: "обмен", pos: verb, lemma: share}
+popular: {ru: "популярный", pos: adjective}
+billions: {ru: "миллиарды", pos: noun, lemma: billion}
+october: {ru: "октябрь", pos: noun}
+created: {ru: "создан", pos: verb, lemma: create}
+british: {ru: "британский", pos: adjective}
+scientist: {ru: "учёный", pos: noun}
+named: {ru: "по имени, названный", pos: verb, lemma: name}
+use: {ru: "использовать", pos: verb}
+paying: {ru: "оплачивая", pos: verb, lemma: pay}
+tools: {ru: "инструменты", pos: noun, lemma: tool}
+may: {ru: "могут", pos: verb}
+earn: {ru: "зарабатывать", pos: verb}
+such: {ru: "такой (such as — такие как)", pos: other}
+contains: {ru: "содержит", pos: verb, lemma: contain}
+seen: {ru: "видны, просмотрены", pos: verb, lemma: see}
+anyone: {ru: "кто угодно, любой", pos: other}
+unless: {ru: "если только не", pos: other}
+needs: {ru: "требует, нуждается", pos: verb, lemma: need}
+second: {ru: "второй", pos: adjective}
+receive: {ru: "получать", pos: verb}
+private: {ru: "личный, частный", pos: adjective}
+allows: {ru: "позволяет", pos: verb, lemma: allow}
+each: {ru: "каждый (each other — друг друга)", pos: other}
+faster: {ru: "быстрее", pos: adverb, lemma: fast}
+dangers: {ru: "опасности", pos: noun, lemma: danger}
+yet: {ru: "однако, но", pos: other}
+dangerous: {ru: "опасный", pos: adjective}
+dangerously: {ru: "опасно", pos: adverb}
+often: {ru: "часто", pos: adverb}
+secret: {ru: "секретный", pos: adjective}
+secrets: {ru: "секреты", pos: noun, lemma: secret}
+steal: {ru: "красть", pos: verb}
+spread: {ru: "распространять; растекаться", pos: verb}
+spreading: {ru: "растекаться, распространяться", pos: verb, lemma: spread}
+lies: {ru: "ложь", pos: noun, lemma: lie}
+trick: {ru: "обманом заставить", pos: verb, def: "make someone do something by lying"}
+harm: {ru: "вредить", pos: verb}
+harmful: {ru: "вредный", pos: adjective}
+watches: {ru: "следит", pos: verb, lemma: watch}
+doing: {ru: "делают", pos: verb, lemma: do}
+tells: {ru: "сообщает", pos: verb, lemma: tell}
+someone: {ru: "кто-то", pos: other}
+else: {ru: "ещё, другой (someone else — кто-то другой)", pos: adverb}
+criminals: {ru: "преступники", pos: noun, lemma: criminal}
+personal: {ru: "личный", pos: adjective}
+sending: {ru: "отправлять", pos: verb, lemma: send}
+mountain: {ru: "гора", pos: noun}
+coming: {ru: "выходящий", pos: verb, lemma: come}
+ground: {ru: "земля", pos: noun}
+movement: {ru: "движение", pos: noun}
+outer: {ru: "внешний", pos: adjective}
+layer: {ru: "слой", pos: noun}
+layers: {ru: "слои", pos: noun, lemma: layer}
+active: {ru: "действующий, активный", pos: adjective}
+materials: {ru: "вещества, материалы", pos: noun, lemma: material}
+steam: {ru: "пар", pos: noun}
+gases: {ru: "газы", pos: noun, lemma: gas}
+pressure: {ru: "давление", pos: noun}
+blow: {ru: "сносить (blow off — сорвать)", pos: verb}
+quickly: {ru: "быстро", pos: adverb}
+slowly: {ru: "медленно", pos: adverb}
+depending: {ru: "в зависимости от", pos: verb, lemma: depend}
+instead: {ru: "вместо", pos: adverb}
+planets: {ru: "планеты", pos: noun, lemma: planet}
+example: {ru: "пример", pos: noun}
+geology: {ru: "геология", pos: noun}
+chemistry: {ru: "химия", pos: noun}
+geography: {ru: "география", pos: noun}
+physics: {ru: "физика", pos: noun}
+recent: {ru: "недавний, последний", pos: adjective}
+times: {ru: "раз", pos: noun, lemma: time}
+tall: {ru: "высотой, высокий", pos: adjective}
+left: {ru: "оставило", pos: verb, lemma: leave}
+trail: {ru: "след, полоса", pos: noun}
+kilometres: {ru: "километров", pos: noun, lemma: kilometre}
+gently: {ru: "плавно, полого", pos: adverb}
+flows: {ru: "течёт", pos: verb, lemma: flow}
+far: {ru: "далеко", pos: adverb}
+cools: {ru: "остывает", pos: verb, lemma: cool}
+although: {ru: "хотя", pos: other}
+steep: {ru: "крутой", pos: adjective}
+among: {ru: "среди", pos: other}
+shaped: {ru: "имеющий форму", pos: adjective}
+hardened: {ru: "застывший", pos: adjective, lemma: harden}
+hardens: {ru: "застывает", pos: verb, lemma: harden}
+thick: {ru: "густой, толстый", pos: adjective}
+sticky: {ru: "липкий, вязкий", pos: adjective}
+ever: {ru: "когда-нибудь", pos: adverb}
+sure: {ru: "уверенный", pos: adjective}
+knew: {ru: "знал(и)", pos: verb, lemma: know}
+forgotten: {ru: "забыли", pos: verb, lemma: forget}
+days: {ru: "дней, дни", pos: noun, lemma: day}
+alone: {ru: "один, одинок", pos: adjective}
+forgetting: {ru: "забывание", pos: noun, lemma: forget}
+wrong: {ru: "не так, неправильный", pos: adjective}
+memory: {ru: "память", pos: noun}
+himself: {ru: "себя, сам", pos: other}
+german: {ru: "немецкий", pos: adjective}
+wanted: {ru: "хотел", pos: verb, lemma: want}
+measure: {ru: "измерить", pos: verb}
+lists: {ru: "списки", pos: noun, lemma: list}
+list: {ru: "список", pos: noun}
+knowledge: {ru: "знания", pos: noun}
+again: {ru: "снова", pos: adverb}
+hours: {ru: "часов", pos: noun, lemma: hour}
+showed: {ru: "показали", pos: verb, lemma: show}
+pattern: {ru: "закономерность", pos: noun, def: "something that happens in the same way again and again"}
+happens: {ru: "происходит", pos: verb, lemma: happen}
+hopeful: {ru: "обнадёживающий", pos: adjective}
+less: {ru: "меньше", pos: adverb}
+studied: {ru: "изучали", pos: verb, lemma: study}
+much: {ru: "намного, гораздо", pos: adverb}
+longer: {ru: "дольше", pos: adverb, lemma: long}
+trying: {ru: "пытаться", pos: verb, lemma: try}
+helps: {ru: "помогает", pos: verb, lemma: help}
+finding: {ru: "вывод, открытие", pos: noun}
+reading: {ru: "чтение", pos: noun}
+even: {ru: "даже, ещё (even better — ещё лучше)", pos: adverb}
+meaning: {ru: "значение", pos: noun}
+stronger: {ru: "сильнее, прочнее", pos: adjective, lemma: strong}
+sentence: {ru: "предложение", pos: noun}

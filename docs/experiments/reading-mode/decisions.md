@@ -28,6 +28,21 @@ plus 1–2 originals for gaps.
 - The Conversation (CC BY-ND) may be shown verbatim but **not adapted**, so it's only usable as-is
   at C1.
 - Simple English Wikipedia adaptations remain **CC BY-SA**.
+- **VOA: only stories VOA wrote itself.** Many VOA Learning English stories are adapted from AP,
+  AFP or Reuters reports (their credit says so). Those texts belong to the agency, so they're left
+  out. Checked: «Saying No at Work», health and gardening stories (AP); «Stonehenge-like circle»
+  and «Earth's orbit» (AFP).
+- **Simple English Wikipedia only where it reads well.** «Honey bee» was too technical for A2
+  (genus, eusocial, haploid); «Tea», «Internet» and «Volcano» were shortened to their readable
+  parts.
+- **The first library is 7 articles:** A2 ×1, B1 ×4, B2 ×2; history, science ×2, culture,
+  technology, nature, psychology. There's no C1 text yet: a VOA text shouldn't be labelled C1.
+
+## 4b. Fewer meanings to write: a shared glossary and names
+- Meanings common to many articles are written once in `content/reading/_shared.yaml`.
+- People and places are a plain `names:` list per article.
+- About 460 shared entries plus 15–30 per article cover 7 articles, instead of ~1,000 repeated
+  entries.
 
 ## 5. Where articles live
 Chosen: **YAML in the repo → static JSON in `web/public/reading/`.**

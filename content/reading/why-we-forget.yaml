@@ -1,0 +1,33 @@
+id: why-we-forget
+title: Why We Forget New Words
+subtitle: You learn a word today and lose it by next week. A scientist found out why more than a hundred years ago.
+topic: psychology
+level: B1
+source:
+  name: Slovar (an original article)
+  license: written for Slovar
+  note: "based on H. Ebbinghaus, Memory (1885); N. Cepeda et al., Psychological Bulletin (2006); H. Roediger and J. Karpicke, Psychological Science (2006)"
+body:
+  - Have you ever learned a new English word, felt sure you knew it, and then forgotten it a few days later? You are not alone. Forgetting is not a sign that something is wrong with your memory. It is how memory works.
+  - "## A scientist who tested himself"
+  - In the 1880s, a German scientist named Hermann Ebbinghaus wanted to measure forgetting. He learned long lists of nonsense words, like "dax" and "bup", so that old knowledge could not help him. Then he tested himself again after minutes, hours and days.
+  - His results showed a clear pattern. Most forgetting happens very soon after we learn something, often in the first day. After that, we forget more slowly. Today this pattern is known as the forgetting curve.
+  - "## Coming back at the right time"
+  - Ebbinghaus also found something hopeful. Each time he learned a list again, he needed less time, and he forgot it more slowly. Later researchers studied this many times. When people review new information several times, with pauses of days between the reviews, they remember it much longer than when they study it many times in one evening. This is called the spacing effect.
+  - "## Trying to remember helps you remember"
+  - There is one more important finding. Reading a word again is useful, but trying to remember it is even better. When you look at a word and try to recall its meaning before you check the answer, your memory gets stronger. Scientists call this the testing effect.
+  - So the best way to keep a new word is simple. Meet it in a real sentence, try to remember it the next day, and then again after a few days, and later after a few weeks. Each time it will stay with you a little longer.
+names: [Hermann Ebbinghaus, Ebbinghaus, English]
+glossary:
+  s: {ru: "-е годы (1880s — 1880-е годы)", pos: other}
+  dax: {ru: "бессмысленный слог (не слово)", pos: other}
+  bup: {ru: "бессмысленный слог (не слово)", pos: other}
+  nonsense: {ru: "бессмысленный", pos: adjective, def: "having no meaning"}
+  curve: {ru: "кривая", pos: noun, def: "a line that bends; the forgetting curve shows how fast we forget"}
+  spacing: {ru: "интервальный (spacing effect — эффект интервальных повторений)", pos: noun, def: "leaving time between repetitions"}
+  effect: {ru: "эффект", pos: noun}
+  testing: {ru: "проверка (testing effect — эффект самопроверки)", pos: noun, def: "trying to remember something to check yourself"}
+  recall: {ru: "вспомнить", pos: verb, def: "bring back to your mind"}
+  review: {ru: "повторяют", pos: verb, def: "look at or study something again"}
+  reviews: {ru: "повторения", pos: noun, lemma: review}
+  pauses: {ru: "паузы, перерывы", pos: noun, lemma: pause}
