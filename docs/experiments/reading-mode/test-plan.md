@@ -52,10 +52,10 @@ filled in below as each phase lands.
 |---|---|---|
 | Main chunk, gzipped, before → after | Δ < 1 KB | App 81,698 → 82,057 B, index 84,167 → 84,440 B: **+632 B** (phase 2) |
 | Reader requests on home | 0 | **0** (e2e: no `/reading/`, font or reader chunk request on home) |
-| Requests per word tap | 0 | _tbd_ |
-| Tap → sheet visible | < 100 ms | _tbd_ |
-| Long tasks while scrolling, 4× CPU slowdown | none > 50 ms | _tbd_ |
-| DOM elements, 1,200-word article | ≈ words + 200 | _tbd_ |
+| Requests per word tap | 0 | **0** (e2e and the measurement) |
+| Tap → sheet visible | < 100 ms | **81 ms** first tap, **14–17 ms** after (4× CPU slowdown, *Why Is Mars Red*) |
+| Long tasks while scrolling, 4× CPU slowdown | none > 50 ms | **none**, the whole article in 120 px steps |
+| DOM elements, reader page | ≈ words + 200 | **592** for 483 words (*Why Is Mars Red*) |
 
 ## Device
 - **Android emulator, release build:**
@@ -80,3 +80,19 @@ filled in below as each phase lands.
 - **Tests:** e2e `reading.spec.ts` (4) and `offline-reading.spec.ts` (1); backend
   `test_reading_mode_is_shown_to_the_testers_only`; the full app, offline and sign-in suites
   (127) pass.
+
+## Phase 3 results
+- **Bundle:** the main chunks are unchanged since phase 2 (82,039 and 84,399 B gzipped). The reader
+  chunk is now 7.2 KB JS + 3.3 KB CSS gzipped, loaded only when an article opens.
+- **Screens:** library, word sheet, basket, selection bar, note editor and notes list at 320, 390
+  and 1280 px, with no horizontal overflow.
+- **Found by the screenshots and fixed:** a selection made while a word sheet was open offered
+  nothing, and Esc did not close the sheet (decision 18). The e2e test failed before the fix.
+- **Tests:** `text.test.ts` (4 unit: pieces, snapping, highlight runs, the saved sentence);
+  `reading.spec.ts` (8 e2e: topics and level; five then «Показать ещё»; look, place and finish;
+  tap with no request, add, duplicate, a name not saveable, remove, «Учить · 1 слово» starts a
+  lesson; highlights and notes kept per article after a reload; home loads nothing; a missing
+  article; a non-tester). The full app, offline and sign-in suites (131), backend (623) and unit
+  (127) pass.
+- **Still open for phase 4:** offline add-then-sync of a reading word, another account never seeing
+  the reading deck, and the Android emulator checks.

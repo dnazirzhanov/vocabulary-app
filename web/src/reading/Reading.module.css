@@ -58,18 +58,84 @@
   box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
 }
 
-.topic {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+.topics {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  overflow: hidden;
 }
 
-.topicTitle {
-  margin: 0;
+.topicItem + .topicItem {
+  border-top: 1px solid var(--color-border);
+}
+
+/* A topic: its name, how many articles, and a chevron that turns when open. */
+.topicRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
   padding: 0 var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
   font-weight: var(--weight-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.topicRow:hover {
+  background: rgb(38 38 38 / 0.03);
+}
+
+.topicRow:focus-visible {
+  outline-offset: -3px;
+}
+
+.topicName {
+  flex: 1;
+}
+
+.topicCount {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.topicChevron {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-state) var(--ease-out);
+}
+
+.topicRow[aria-expanded='true'] .topicChevron {
+  transform: rotate(90deg);
+}
+
+/* The open topic's articles, set in under it. */
+.topicItem .cards {
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-bg);
+  box-shadow: none;
+}
+
+.more {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
 }
 
 .cards {
@@ -432,4 +498,363 @@
   .bar {
     transition: none;
   }
+}
+
+/* --- words, highlights, sheets (phase 3) ------------------------------------------------------- */
+
+.reader {
+  --mark: rgb(250 200 80 / 0.38);
+  --saved: rgb(250 93 25 / 0.14);
+  --tap: rgb(250 93 25 / 0.26);
+  --sheet: #fffdf8;
+}
+
+.reader[data-theme='sepia'] {
+  --sheet: #f8efdf;
+}
+
+.reader[data-theme='night'] {
+  --mark: rgb(240 190 90 / 0.28);
+  --saved: rgb(240 160 112 / 0.16);
+  --tap: rgb(240 160 112 / 0.3);
+  --sheet: #2a2723;
+}
+
+/* Room below the text while a sheet is open, so the last lines can be read above it. */
+.reader[data-sheet='open'] .page {
+  padding-bottom: 50vh;
+}
+
+.page [data-f] {
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page .active {
+  background: var(--tap);
+}
+
+.mark {
+  background: var(--mark);
+  color: inherit;
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.count {
+  margin-left: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.barButton {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.secondary,
+.primaryDone {
+  min-height: 48px;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.secondary {
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+}
+
+.primaryDone {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* Highlight or note a selection: a small bar at the bottom, clear of the phone's own menu. */
+.selectionBar {
+  position: fixed;
+  right: 0;
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.selectionBar button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--page);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.selectionBar svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* A word's meaning: a sheet, not a window, so the text stays in sight above it. */
+.wordSheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: calc(66ch + 2 * var(--gutter));
+  max-height: 55vh;
+  margin: 0 auto;
+  padding: var(--space-4) var(--gutter) max(var(--space-4), env(safe-area-inset-bottom));
+  overflow-y: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 -8px 30px rgb(0 0 0 / 0.16);
+  font-family: var(--font-sans);
+}
+
+.wordHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.wordTitle {
+  flex: 1;
+  margin: 0;
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.wordTitle strong {
+  font-weight: 650;
+}
+
+.form {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.pos {
+  margin-left: var(--space-2);
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+}
+
+.sheetIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.sheetIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.translation {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-strong);
+}
+
+.definition {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.context {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--rule);
+  color: var(--ink-muted);
+  font-family: 'Literata Reader', Georgia, serif;
+  font-style: italic;
+}
+
+.known {
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--text-meta);
+}
+
+.reader[data-theme='night'] .known {
+  color: #7fcf98;
+}
+
+.known svg,
+.saved svg,
+.noteLink svg {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+
+.noteLink {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.problem {
+  margin: 0;
+  color: var(--color-error);
+}
+
+.saved {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--saved);
+  font-weight: var(--weight-strong);
+}
+
+.saved button {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The basket and the notes: lists in a sheet. */
+.empty {
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.list li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.listText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.listText span {
+  color: var(--color-text-muted);
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: var(--text-meta);
+  font-style: italic;
+}
+
+.quote {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quote q,
+.editorQuote {
+  padding-left: var(--space-3);
+  border-left: 3px solid rgb(250 200 80 / 0.9);
+  font-family: 'Literata Reader', Georgia, serif;
+  quotes: none;
+}
+
+.quote span {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.editorQuote {
+  display: block;
+}
+
+.noteField {
+  width: 100%;
+  padding: var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  font: inherit;
+  resize: vertical;
+}
+
+.deleteNote {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--color-error);
+  font: inherit;
+  cursor: pointer;
+}
+
+.deleteNote svg {
+  width: 18px;
+  height: 18px;
 }

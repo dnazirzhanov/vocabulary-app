@@ -261,7 +261,12 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   if (screen.name === 'article') {
     return (
       <Suspense fallback={null}>
-        <ReadingArticle account={me.id} articleId={screen.articleId} onBack={() => setScreen({ name: 'reading' })} />
+        <ReadingArticle
+          account={me.id}
+          articleId={screen.articleId}
+          onBack={() => setScreen({ name: 'reading' })}
+          onStudy={(session, deckId) => startSession(session, deckId)}
+        />
       </Suspense>
     );
   }

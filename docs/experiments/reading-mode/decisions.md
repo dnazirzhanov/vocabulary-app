@@ -115,3 +115,24 @@ basket.
 - `*` alone switches Reading Mode on for everyone without a code change.
 
 The same helper serves `CONTENT_EDITORS`.
+
+## 16. Library: topics first, five articles each (phase 3, the owner's request)
+- The library opens on topic rows only (name and count), with no article titles. One topic is
+  open at a time; its first five articles show, then «Показать ещё · N».
+- The open topic is remembered while the app runs, so «Назад» from an article returns to it.
+
+## 17. Highlights and notes stay on the device
+Chosen: **localStorage per account and article** (`reading-notes:<account>:<article>`).
+- A highlight snaps to whole words and may cross paragraphs. It is stored as paragraph and
+  character offsets, plus the quote for the list.
+- Syncing them needs a table, an outbox kind and a migration. That waits until testers show they
+  use notes (the hypothesis doc's measure).
+- An article whose text is corrected may shift old highlights. Its quote stays right in the list.
+
+## 18. A word's sheet and a selection never compete
+A new selection closes an open word sheet and offers «Выделить» / «Заметка». Esc closes the
+sheet, as ✕ does. A tap on a word while text is selected opens nothing.
+
+## 19. The basket re-reads its deck after each change
+The count and list come from the device's deck after every add and remove, not from a guess in
+memory. The first version showed a stale count after the first «Добавить».

@@ -10,6 +10,7 @@ test('an article read once opens offline, back where I stopped', async ({ page, 
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Наука/ }).click();
   await page.getByRole('button', { name: /^Why Is Mars Red/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Why Is Mars Red?' })).toBeVisible();
 
@@ -24,6 +25,7 @@ test('an article read once opens offline, back where I stopped', async ({ page, 
   await context.setOffline(true);
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Наука/ }).click();
   await expect(page.getByRole('button', { name: /^Why Is Mars Red/ })).toBeVisible();
   await page.getByRole('button', { name: /^Why Is Mars Red/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Why Is Mars Red?' })).toBeVisible();
