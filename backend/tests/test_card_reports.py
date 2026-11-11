@@ -83,8 +83,9 @@ def test_a_deck_s_own_card_goes_to_its_author_and_correcting_it_closes_the_repor
     assert (
         client.get(f"/api/decks/{deck['id']}/card-reports", headers=as_("pavel")).status_code == 404
     )
-    # Not a course card: the content editors don't get it.
-    assert client.get("/api/card-reports", headers=as_("owner")).json()["cards"] == []
+    # The content editors get every report too: they improve the cards and the AI behind them.
+    editor = client.get("/api/card-reports", headers=as_("owner")).json()["cards"]
+    assert [c["headword"] for c in editor] == ["quill"]
 
     # The author corrects it: the report is closed.
     client.put(

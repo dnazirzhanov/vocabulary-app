@@ -99,13 +99,14 @@ def _listed(db: Session, words: list[Word]) -> CardReportsOut:
 
 
 def course_reports(db: Session, user: User) -> CardReportsOut:
-    """Open reports on the course's cards, for the content editors only."""
+    """Every open report, on any card (the course's and every deck's), for the content editors: they
+    are how the cards, and the AI that drafts them, get better. A deck's author still sees their own."""
     if not is_editor(user):
         raise ApiError(403, "not_allowed", "Only the content editors read these")
     words = db.scalars(
         select(Word)
         .join(CardReport, CardReport.word_id == Word.id)
-        .where(Word.owner_deck_id.is_(None), CardReport.resolved_at.is_(None))
+        .where(CardReport.resolved_at.is_(None))
         .distinct()
     ).all()
     return _listed(db, list(words))
@@ -130,7 +131,7 @@ def resolve(db: Session, user: User, word_id: str, now: datetime) -> None:
         if word.owner_deck_id
         else None
     )
-    allowed = is_editor(user) if word.owner_deck_id is None else author == user.id
+    allowed = is_editor(user) or (word.owner_deck_id is not None and author == user.id)
     if not allowed:
         raise ApiError(404, "word_not_found", "Word not found")
     resolved(db, word_id, now)
