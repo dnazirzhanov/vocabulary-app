@@ -320,6 +320,8 @@ export const ru = {
   afterTheLevel: (a: Arg) => `после уровня «${a}»`,
   locked: 'закрыта',
   showMore: 'Показать ещё',
+  fromReading: 'Из чтения',
+  decksCount: (n: number) => `${n}\u00a0${plural(n, { one: 'колода', few: 'колоды', many: 'колод' })}`,
   addToWords: 'Добавить в слова',
   inBasket: 'В словах статьи',
   removeWord: 'Убрать',

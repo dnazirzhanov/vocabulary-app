@@ -40,6 +40,8 @@ export interface LocalDeck {
   status: string;
   version: number;
   createdAt: string;
+  /** The reading it was made from (`library:<article id>`), set once, when made. */
+  readingRef?: string;
   problem?: Problem;
 }
 

@@ -90,7 +90,7 @@ test.describe('a tester', () => {
     // Kept: a card in the article's own deck; the same word again is already there.
     await button(page, 'Добавить в слова').click();
     await expect(sheet).toContainText('В словах статьи');
-    await expect(page.getByRole('button', { name: 'Слова из статьи: 1' })).toBeVisible();
+    await expect(button(page, 'Учить · 1')).toBeVisible();
     await page.locator('article [data-f="leaves"]').nth(1).click();
     await expect(page.getByRole('region', { name: 'leaf' })).toContainText('В словах статьи');
 
@@ -99,16 +99,41 @@ test.describe('a tester', () => {
     await expect(page.getByRole('region', { name: 'china' })).toContainText('имя или название');
     await expect(button(page, 'Добавить в слова')).toHaveCount(0);
 
-    // Another word, then the basket: both, one removed, the other studied as a real lesson.
+    // Another word kept, then taken back from its sheet; the bar's «Учить» studies what is left.
     await page.locator('article [data-f="herbal"]').first().click();
     await button(page, 'Добавить в слова').click();
-    await page.getByRole('button', { name: 'Слова из статьи: 2' }).click();
-    const basket = page.getByRole('dialog', { name: 'Слова из статьи' });
-    await expect(basket.getByRole('listitem')).toHaveCount(2);
-    await basket.getByRole('button', { name: 'Убрать: herbal' }).click();
-    await expect(basket.getByRole('listitem')).toHaveCount(1);
-    await basket.getByRole('button', { name: 'Учить · 1 слово' }).click();
+    await expect(button(page, 'Учить · 2')).toBeVisible();
+    await page.getByRole('region', { name: 'herbal' }).getByRole('button', { name: 'Убрать' }).click();
+    await button(page, 'Учить · 1').click();
     await expect(page.locator('[data-card]')).toContainText('leaf');
+  });
+
+  test('decks made from readings wait behind one «Из чтения» row on home', async ({ page }) => {
+    await page.request.post('/api/decks', { data: { title: 'Поездка' } });
+    await openArticle(page, 'Культура', /^Tea/);
+    // Before any word is kept, the bar says how to keep one.
+    await page.getByRole('button', { name: 'Слова из статьи: 0' }).click();
+    await expect(page.getByRole('dialog', { name: 'Слова из статьи' })).toContainText('Нажмите на слово');
+    await page.keyboard.press('Escape');
+    await page.locator('article [data-f="leaves"]').first().click();
+    await button(page, 'Добавить в слова').click();
+    await expect(button(page, 'Учить · 1')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Назад' }).click();
+    await page.getByRole('navigation').getByRole('button', { name: 'Сегодня' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Поездка/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Tea/ })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Из чтения\s*1\s*колода/ }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Из чтения' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Поездка/ })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Tea/ }).click();
+    // Its page goes back to «Из чтения», then home.
+    await page.getByRole('button', { name: 'Из чтения' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Из чтения' })).toBeVisible();
+    await page.getByRole('button', { name: 'Мои колоды' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   });
 
   test('highlights and notes stay with the article, listed on their own', async ({ page }) => {

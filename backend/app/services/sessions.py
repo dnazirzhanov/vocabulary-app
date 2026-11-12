@@ -478,6 +478,7 @@ def library(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> Libr
             groups=shared.get(deck.id, []),
             group_name=given.group_name if given else None,
             author=given.author if given else None,
+            reading_ref=deck.reading_ref,
         )
 
     mine = db.execute(

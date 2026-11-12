@@ -324,6 +324,8 @@ export const tg: Messages = {
   afterTheLevel: (a: Arg) => `баъд аз сатҳи «${a}»`,
   locked: 'баста',
   showMore: 'Боз нишон додан',
+  fromReading: 'Аз хониш',
+  decksCount: (n: number) => `${n}\u00a0маҷмӯа`,
   addToWords: 'Ба калимаҳо илова кардан',
   inBasket: 'Дар калимаҳои мақола',
   removeWord: 'Хориҷ кардан',

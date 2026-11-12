@@ -136,3 +136,22 @@ sheet, as ✕ does. A tap on a word while text is selected opens nothing.
 ## 19. The basket re-reads its deck after each change
 The count and list come from the device's deck after every add and remove, not from a guess in
 memory. The first version showed a stale count after the first «Добавить».
+
+## Round 2 (owner, 2026-11-12)
+The plan: own texts, a reading given to a group in one step (text, words, questions), answers by
+typing or voice. Built in five PRs (R2-A to R2-E).
+
+## 20. A deck says which reading it came from (R2-A)
+`decks.reading_ref` (nullable, `library:<article id>`): set once when the deck is made, sent in
+`deck.create`, pulled to every device. It replaces decision 12's lookup by a kept id or the title,
+which stays only for the decks made before it.
+
+## 21. Home: one «Из чтения» row (R2-A)
+Decks made from readings leave «Мои колоды» and «Из моих групп» for one row, «Из чтения · N колод»,
+which opens their own list. The «Продолжить» card still picks from every deck, so a reading's words
+are one tap away when they are the next thing to study.
+
+## 22. «Учить · N» in the reader's bar (R2-A)
+The owner did not find the cards icon. Once a word is kept, the icon becomes a labelled pill that
+starts the lesson on this text's words in one tap. Before any word is kept, the icon stays and says
+how to keep one. A kept word is taken back from its own sheet («Убрать»), or from the deck's page.

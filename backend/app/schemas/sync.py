@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.schemas.card_reports import Note, ReportReason
-from app.schemas.decks import DeckWordIn, Title
+from app.schemas.decks import DeckWordIn, ReadingRef, Title
 from app.schemas.learning import RatingResponse, SpellingResponse
 from app.schemas.me import CardLanguage, MeUpdate, UiLanguage
 
@@ -33,6 +33,8 @@ class DeckCreate(_Op):
     deck_id: NewDeckId
     title: Title
     language: CardLanguage | None = None
+    # A deck made from a reading (Reading Mode); set once, when made.
+    reading_ref: ReadingRef | None = None
 
 
 class DeckRename(_Op):
@@ -227,6 +229,7 @@ class SyncDeckOut(BaseModel):
     status: str
     version: int
     created_at: datetime
+    reading_ref: str | None = None
     cards: list[SyncCardOut]
 
 

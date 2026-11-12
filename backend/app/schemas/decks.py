@@ -16,6 +16,8 @@ class _Input(BaseModel):
 
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+# The reading a deck was made from (Reading Mode): a library article, `library:<its id>`.
+ReadingRef = Annotated[str, StringConstraints(pattern=r"^library:[a-z0-9-]{1,60}$")]
 # Lowercase letters; a phrase's words are joined by single spaces, hyphens or apostrophes, which
 # a spelling card shows as fixed gaps (ADR 0016).
 _HEADWORD = re.compile(r"[a-z]+([ '-][a-z]+)*")
@@ -193,6 +195,8 @@ class LibraryDeckOut(BaseModel):
     groups: list[AssignedGroupOut]
     group_name: str | None = None
     author: str | None = None
+    # Made from a reading: home lists it under «Из чтения», apart from the others.
+    reading_ref: str | None = None
 
 
 class LibraryOut(BaseModel):

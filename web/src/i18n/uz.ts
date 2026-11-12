@@ -324,6 +324,8 @@ export const uz: Messages = {
   afterTheLevel: (a: Arg) => `«${a}» darajasidan keyin`,
   locked: 'yopiq',
   showMore: 'Yana ko‘rsatish',
+  fromReading: 'O‘qishdan',
+  decksCount: (n: number) => `${n}\u00a0to‘plam`,
   addToWords: 'So‘zlarga qo‘shish',
   inBasket: 'Maqola so‘zlarida',
   removeWord: 'Olib tashlash',

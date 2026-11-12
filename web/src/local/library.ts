@@ -20,7 +20,14 @@ export function mergeMine(server: LibraryDeck[], kept: KeptDeck[] | null, pulled
     .filter((deck) => here.has(deck.id) || !pulled)
     .map((deck) => {
       const mine = here.get(deck.id);
-      return mine ? { ...deck, title: mine.deck.title, word_count: mine.cards } : deck;
+      return mine
+        ? {
+            ...deck,
+            title: mine.deck.title,
+            word_count: mine.cards,
+            reading_ref: deck.reading_ref ?? mine.deck.readingRef,
+          }
+        : deck;
     });
   const onServer = new Set(server.map((deck) => deck.id));
   const madeHere = kept
@@ -39,6 +46,7 @@ export function mergeMine(server: LibraryDeck[], kept: KeptDeck[] | null, pulled
       groups: [],
       group_name: null,
       author: null,
+      reading_ref: deck.readingRef ?? null,
     }));
   // Newest first, as the server lists them.
   return [...madeHere, ...fromServer];

@@ -128,6 +128,7 @@ export async function createDeck(
   rawTitle: string,
   language: string,
   now = new Date(),
+  readingRef?: string,
 ): Promise<LocalDeck> {
   const title = cleanTitle(rawTitle);
   const tx = write(db);
@@ -139,11 +140,11 @@ export async function createDeck(
     status: 'draft',
     version: 0,
     createdAt: now.toISOString(),
+    ...(readingRef && { readingRef }),
   };
   await tx.objectStore('decks').add(deck);
-  await tx
-    .objectStore('outbox')
-    .add(op({ kind: 'deck.create', deckId: deck.id, payload: { deck_id: deck.id, title, language } }, now));
+  const payload = { deck_id: deck.id, title, language, ...(readingRef && { reading_ref: readingRef }) };
+  await tx.objectStore('outbox').add(op({ kind: 'deck.create', deckId: deck.id, payload }, now));
   await tx.done;
   return deck;
 }
@@ -347,6 +348,7 @@ export interface ServerDeck {
   status: string;
   version: number;
   created_at: string;
+  reading_ref?: string | null;
   cards: ServerCard[];
 }
 
@@ -420,6 +422,7 @@ async function layOver(tx: SyncTx, server: ServerDeck, outbox: OutboxOp[]) {
     status: server.status,
     version: server.version,
     createdAt: server.created_at,
+    readingRef: server.reading_ref ?? local?.readingRef,
     problem: local?.problem,
   });
   const serverIds = new Set(server.cards.map((card) => card.id));

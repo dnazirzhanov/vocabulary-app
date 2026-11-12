@@ -579,16 +579,22 @@ export function Reader({
           <MarkerIcon aria-hidden="true" />
           {highlights.length > 0 && <span className={styles.count}>{highlights.length}</span>}
         </button>
-        <button
-          type="button"
-          className={styles.barButton}
-          onClick={() => setPanel('words')}
-          aria-label={`${t.articleWords}: ${cards.length}`}
-          aria-haspopup="dialog"
-        >
-          <CardsIcon aria-hidden="true" />
-          {cards.length > 0 && <span className={styles.count}>{cards.length}</span>}
-        </button>
+        {/* Words kept from this text: one tap into their lesson. Before any, how to keep one. */}
+        {cards.length > 0 ? (
+          <button type="button" className={styles.studyPill} onClick={() => void learn()}>
+            {t.studyWords(cards.length)}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.barButton}
+            onClick={() => setPanel('words')}
+            aria-label={`${t.articleWords}: 0`}
+            aria-haspopup="dialog"
+          >
+            <CardsIcon aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className={styles.barButton}
@@ -605,6 +611,11 @@ export function Reader({
         </span>
       </header>
 
+      {problem && !tapped && (
+        <p className={styles.barProblem} role="alert">
+          {problem}
+        </p>
+      )}
       {failed && (
         <div className={styles.readerState} role="alert">
           <p>{t.articleMissing}</p>
@@ -748,36 +759,10 @@ export function Reader({
         </section>
       )}
 
+      {/* Before any word is kept: how to keep one. After, the bar's «Учить · N» takes its place. */}
       {panel === 'words' && (
         <Dialog open onClose={() => setPanel(null)} title={t.articleWords}>
-          {cards.length === 0 ? (
-            <p className={styles.empty}>{t.tapAWordToSave}</p>
-          ) : (
-            <ul className={styles.list}>
-              {cards.map((card) => (
-                <li key={card.id}>
-                  <div className={styles.listText}>
-                    <strong lang="en">{card.headword}</strong> — {card.translation}
-                    <span lang="en">{card.example}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.sheetIcon}
-                    onClick={() => void unsave(card)}
-                    aria-label={`${t.removeWord}: ${card.headword}`}
-                  >
-                    <TrashIcon aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {problem && <p role="alert">{problem}</p>}
-          {studyLabel && (
-            <PrimaryButton type="button" onClick={() => void learn()}>
-              {studyLabel}
-            </PrimaryButton>
-          )}
+          <p className={styles.empty}>{t.tapAWordToSave}</p>
         </Dialog>
       )}
 

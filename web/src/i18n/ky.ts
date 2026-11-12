@@ -324,6 +324,8 @@ export const ky: Messages = {
   afterTheLevel: (a: Arg) => `«${a}» деңгээлинен кийин`,
   locked: 'жабык',
   showMore: 'Дагы көрсөтүү',
+  fromReading: 'Окуудан',
+  decksCount: (n: number) => `${n}\u00a0топтом`,
   addToWords: 'Сөздөргө кошуу',
   inBasket: 'Макаланын сөздөрүндө',
   removeWord: 'Алып салуу',

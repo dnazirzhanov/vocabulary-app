@@ -240,6 +240,32 @@ def test_ids_a_device_makes_must_be_new_and_unguessable(client: TestClient) -> N
         assert response.status_code == 422, bad
 
 
+def test_a_deck_made_from_a_reading_says_so_on_every_device_and_on_home(
+    client: TestClient,
+) -> None:
+    reading, plain = deck_id(), deck_id()
+    ops = [
+        op("deck.create", deck_id=reading, title="Tea", reading_ref="library:tea"),
+        op("deck.create", deck_id=plain, title="Поездки"),
+    ]
+    assert [status for status, _ in push(client, ops)] == ["applied", "applied"]
+    pulled = {deck["id"]: deck["reading_ref"] for deck in pull(client)["decks"]}
+    assert pulled == {reading: "library:tea", plain: None}
+    home = client.get("/api/decks/library", headers=as_("pavel")).json()
+    assert {deck["id"]: deck["reading_ref"] for deck in home["mine"]} == pulled
+    # Only a library article's id is taken.
+    for bad in ("tea", "library:Tea", "library:" + "a" * 61, "http://x"):
+        response = client.post(
+            "/api/sync/push",
+            json={
+                "ops": [op("deck.create", deck_id=deck_id(), title="X", reading_ref=bad)],
+                "pulled_at": NOW.isoformat(),
+            },
+            headers=as_("pavel"),
+        )
+        assert response.status_code == 422, bad
+
+
 def test_a_course_word_is_linked_and_the_device_told(client: TestClient) -> None:
     deck = deck_id()
     mine = word_id()
