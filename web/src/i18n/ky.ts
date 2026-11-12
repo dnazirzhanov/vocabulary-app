@@ -78,6 +78,7 @@ export const ky: Messages = {
   backToSignIn: 'Кирүүгө кайтуу',
   enterYourAccountSEmailAnd: 'Аккаунтуңуздун e-mail дарегин киргизиңиз, жаңы сырсөз коюу үчүн код жөнөтөбүз.',
   sendCode: 'Код жөнөтүү',
+  didYouMean: (a: Arg) => `Балким, ${a} дегиңиз келдиби?`,
   youVeBeenInvitedToA: 'Сизди топко чакырышты. Кошулуу үчүн кириңиз же аккаунт түзүңүз.',
   soYourProgressIsSavedOn: 'Жыйынтыгыңыз каалаган түзмөктө сакталышы үчүн.',
   password: 'Сырсөз',

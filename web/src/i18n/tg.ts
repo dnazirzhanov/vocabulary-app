@@ -78,6 +78,7 @@ export const tg: Messages = {
   backToSignIn: 'Бозгашт ба воридшавӣ',
   enterYourAccountSEmailAnd: 'E-mail-и ҳисобатонро ворид кунед, мо барои гузоштани рамзи нав код мефиристем.',
   sendCode: 'Фиристодани рамз',
+  didYouMean: (a: Arg) => `Шояд шумо ${a}-ро дар назар доштед?`,
   youVeBeenInvitedToA: 'Шуморо ба гурӯҳ даъват карданд. Барои пайвастан ворид шавед ё ҳисоб эҷод кунед.',
   soYourProgressIsSavedOn: 'То натиҷаҳоятон дар ҳар дастгоҳ нигоҳ дошта шаванд.',
   password: 'Рамз',

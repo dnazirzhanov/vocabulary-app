@@ -438,3 +438,18 @@ test('on a computer the picture is beside the form, whole, with the language in 
   expect(language.y).toBeLessThan(40);
   expect(language.y + language.height).toBeLessThanOrEqual(form.y);
 });
+
+test('a slip in the e-mail domain is pointed out, and fixed in one tap', async ({ page }) => {
+  // A pilot student signed up as …@gamil.com: the code went nowhere.
+  await mockSupabase(page);
+  await page.goto('/');
+  const email = page.getByRole('textbox', { name: 'E-mail' });
+  await email.fill('kitkatbro886@gamil.com');
+  const hint = page.getByRole('button', { name: 'Возможно, вы имели в виду kitkatbro886@gmail.com?' });
+  await hint.click();
+  await expect(email).toHaveValue('kitkatbro886@gmail.com');
+  await expect(hint).toHaveCount(0);
+  // A right address says nothing.
+  await email.fill('teacher@school.kg');
+  await expect(page.getByRole('button', { name: /Возможно, вы имели в виду/ })).toHaveCount(0);
+});

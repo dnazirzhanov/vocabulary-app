@@ -178,3 +178,18 @@
   top: calc(env(safe-area-inset-top) + var(--space-2));
   right: var(--gutter);
 }
+
+/* «Возможно, вы имели в виду …@gmail.com?»: one tap puts it in the field. */
+.suggestion {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-body);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}

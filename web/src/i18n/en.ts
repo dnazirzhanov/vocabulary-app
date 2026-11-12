@@ -79,6 +79,7 @@ export const en: Messages = {
   backToSignIn: 'Back to sign in',
   enterYourAccountSEmailAnd: "Enter your account's email and we'll send a code to set a new password.",
   sendCode: 'Send code',
+  didYouMean: (a: Arg) => `Did you mean ${a}?`,
   youVeBeenInvitedToA: "You've been invited to a group. Sign in or create an account to join.",
   soYourProgressIsSavedOn: 'So your progress is saved on any device.',
   password: 'Password',

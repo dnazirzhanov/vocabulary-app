@@ -74,6 +74,7 @@ export const ru = {
   backToSignIn: 'Вернуться ко входу',
   enterYourAccountSEmailAnd: 'Укажите e-mail аккаунта, и мы пришлём код, чтобы задать новый пароль.',
   sendCode: 'Прислать код',
+  didYouMean: (a: Arg) => `Возможно, вы имели в виду ${a}?`,
   youVeBeenInvitedToA: 'Вас пригласили в группу. Войдите или создайте аккаунт, чтобы вступить.',
   soYourProgressIsSavedOn: 'Чтобы прогресс сохранялся на любом устройстве.',
   password: 'Пароль',

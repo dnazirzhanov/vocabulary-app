@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Illustration } from '../illustrations/index.tsx';
 import { describeAuthError, supabase, type AuthFailure } from '../lib/auth.ts';
+import { suggestEmail } from '../lib/emailTypo.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { PasswordField, useRepeatedPassword } from './PasswordField.tsx';
 import styles from './AuthScreen.module.css';
@@ -180,6 +181,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
     );
   }
 
+  const suggested = suggestEmail(email);
   const emailField = (
     <label className={styles.field}>
       <span>E-mail</span>
@@ -191,7 +193,14 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         maxLength={254}
+        aria-describedby={suggested ? 'email-suggestion' : undefined}
       />
+      {/* A slip in the domain («gamil.com»): the code would go nowhere, so the fix is one tap. */}
+      {suggested && (
+        <button id="email-suggestion" type="button" className={styles.suggestion} onClick={() => setEmail(suggested)}>
+          {t.didYouMean(suggested)}
+        </button>
+      )}
     </label>
   );
 

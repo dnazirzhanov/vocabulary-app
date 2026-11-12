@@ -78,6 +78,7 @@ export const uz: Messages = {
   backToSignIn: 'Kirishga qaytish',
   enterYourAccountSEmailAnd: 'Hisobingiz e-mailini kiriting, yangi parol o‘rnatish uchun kod yuboramiz.',
   sendCode: 'Kod yuborish',
+  didYouMean: (a: Arg) => `Balki ${a} demoqchi edingiz?`,
   youVeBeenInvitedToA: 'Sizni guruhga taklif qilishdi. Qo‘shilish uchun kiring yoki hisob yarating.',
   soYourProgressIsSavedOn: 'Natijalaringiz istalgan qurilmada saqlanishi uchun.',
   password: 'Parol',

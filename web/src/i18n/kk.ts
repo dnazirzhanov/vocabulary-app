@@ -78,6 +78,7 @@ export const kk: Messages = {
   backToSignIn: 'Кіруге оралу',
   enterYourAccountSEmailAnd: 'Аккаунтыңыздың e-mail мекенжайын енгізіңіз, жаңа құпиясөз орнату үшін код жібереміз.',
   sendCode: 'Код жіберу',
+  didYouMean: (a: Arg) => `Мүмкін, ${a} деп айтқыңыз келді ме?`,
   youVeBeenInvitedToA: 'Сізді топқа шақырды. Қосылу үшін кіріңіз немесе аккаунт жасаңыз.',
   soYourProgressIsSavedOn: 'Нәтижеңіз кез келген құрылғыда сақталуы үшін.',
   password: 'Құпиясөз',
