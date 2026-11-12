@@ -1,6 +1,6 @@
 import { addCard, createDeck, deckCards, myDecks, removeCard } from '../local/myDecks.ts';
 import type { AccountDb, LocalCard } from '../local/db.ts';
-import type { Meaning } from './articles.ts';
+import { isOwn, type Meaning } from './articles.ts';
 
 /**
  * An article's basket is a deck of the learner's own (docs/experiments/reading-mode/decisions.md §2):
@@ -26,8 +26,8 @@ function remember(account: string, articleId: string, deckId: string) {
   }
 }
 
-/** How a deck names the library article it was made from (`decks.reading_ref` on the server). */
-export const readingRef = (articleId: string) => `library:${articleId}`;
+/** How a deck names the reading it was made from (`decks.reading_ref` on the server). */
+export const readingRef = (articleId: string) => (isOwn(articleId) ? `reading:${articleId}` : `library:${articleId}`);
 
 /**
  * The article's deck if it exists: by the reading it was made from; a deck made before decks
@@ -58,21 +58,21 @@ export const cardFor = (cards: readonly LocalCard[], lemma: string) =>
 export async function addWord(
   db: AccountDb,
   account: string,
-  article: { id: string; title: string },
+  article: { id: string; title: string; language: string },
   meaning: Meaning,
   sentence: string,
 ): Promise<string> {
   const deckId =
     (await findDeck(db, account, article.id, article.title)) ??
-    (await createDeck(db, deckTitle(article.title), 'ru', new Date(), readingRef(article.id))).id;
+    (await createDeck(db, deckTitle(article.title), article.language, new Date(), readingRef(article.id))).id;
   remember(account, article.id, deckId);
   await addCard(db, deckId, {
     headword: meaning.l,
     pos: meaning.p ?? 'other',
-    translation: meaning.ru.length <= 120 ? meaning.ru : meaning.ru.slice(0, 120),
+    translation: meaning.t.length <= 120 ? meaning.t : meaning.t.slice(0, 120),
     example: sentence,
     example_translation: '',
-    language: 'ru',
+    language: article.language,
   });
   return deckId;
 }

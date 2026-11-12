@@ -33,6 +33,7 @@ import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
 const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
+const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({ default: m.OwnText })));
 
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
@@ -60,7 +61,9 @@ type Screen =
   | { name: 'deck'; deckId: string; groupId: string | null; from?: PageFrom; back?: 'reading-decks' }
   | { name: 'join'; code: string }
   | { name: 'reading' }
-  | { name: 'article'; articleId: string };
+  | { name: 'article'; articleId: string }
+  // «Свой текст»: a text of one's own for Reading Mode, into this category (round 2).
+  | { name: 'own-text'; categoryId: string | null };
 
 // An invite link (/join/CODE) is remembered for this tab, so it survives signing in and the
 // first-run screens; the address bar goes back to "/" because the app has no router.
@@ -264,6 +267,17 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       />
     );
   }
+  if (screen.name === 'own-text') {
+    return (
+      <Suspense fallback={null}>
+        <ReadingOwnText
+          categoryId={screen.categoryId}
+          onBack={() => setScreen({ name: 'reading' })}
+          onSaved={(articleId) => setScreen({ name: 'article', articleId })}
+        />
+      </Suspense>
+    );
+  }
   if (screen.name === 'article') {
     return (
       <Suspense fallback={null}>
@@ -364,7 +378,11 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'reading') {
       return (
         <Suspense fallback={null}>
-          <ReadingLibrary account={me.id} onOpen={(articleId) => setScreen({ name: 'article', articleId })} />
+          <ReadingLibrary
+            account={me.id}
+            onOpen={(articleId) => setScreen({ name: 'article', articleId })}
+            onAddText={(categoryId) => setScreen({ name: 'own-text', categoryId })}
+          />
         </Suspense>
       );
     }
@@ -508,7 +526,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (screen.name === 'reading' || screen.name === 'article') return 'reading';
+  if (screen.name === 'reading' || screen.name === 'article' || screen.name === 'own-text') return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';
   if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';

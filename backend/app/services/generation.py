@@ -58,6 +58,29 @@ class Draft(BaseModel):
     cards: list[DraftCard]
 
 
+GlossPos = Literal["noun", "verb", "adjective", "adverb", "phrase", "other", "name"]
+
+
+class Gloss(BaseModel):
+    """A word form's meaning in one text (Reading Mode, round 2): what a tap on it shows."""
+
+    lemma: str
+    pos: GlossPos
+    meaning: str
+    explanation: str | None = None
+
+    @field_validator("pos", mode="before")
+    @classmethod
+    def _any_other_pos(cls, value: object) -> object:
+        allowed = ("noun", "verb", "adjective", "adverb", "phrase", "other", "name")
+        return value if value in allowed else "other"
+
+
+class Glossary(BaseModel):
+    level: Level | None = None
+    forms: dict[str, Gloss]
+
+
 class Provider(Protocol):
     name: Literal["deepseek", "demo"]
 
@@ -73,6 +96,10 @@ class Provider(Protocol):
         self, topic: str, count: int, level: Level, avoid: list[str], language: str
     ) -> list[DraftCard]:
         """Cards for the words a learner needs to talk about a topic (ADR 0019)."""
+        ...
+
+    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+        """Each of `forms` as it is used in `text`, and the text's level (Reading Mode)."""
         ...
 
 
@@ -289,6 +316,21 @@ _LANGUAGES: dict[str, tuple[str, str, dict[str, tuple[str, str]]]] = {
 }
 
 
+GLOSS = """You help a language learner read an English text. For every word form listed in
+<forms>, as it is used in <text>, give:
+- "lemma": its dictionary form (went -> go, children -> child, better -> good); a name stays
+  as it is;
+- "pos": noun, verb, adjective, adverb, phrase, other (articles, pronouns, prepositions...),
+  or name (a person, place, company or other proper name);
+- "meaning": a short meaning in {LANGUAGE} that fits this text, two to four words at most. {SCRIPT}
+  For a name, how it is written or said in {LANGUAGE};
+- "explanation": a learner's definition in simple English, at most 12 words, for nouns, verbs,
+  adjectives, adverbs and phrases; null for the rest and for names.
+Also give the text's CEFR level, one of A1, A2, B1, B2, C1, as "level".
+Answer in JSON: {"level": "B1", "forms": {"<form>": {"lemma": "...", "pos": "...",
+"meaning": "...", "explanation": "..."}}}, with every listed form as a key, exactly as listed."""
+
+
 def prompt_for(template: str, kind: str, language: str) -> str:
     name, script, cards = _LANGUAGES[language]
     translation, example_translation = cards[kind]
@@ -344,6 +386,26 @@ class DeepSeekProvider:
             f"Already in the deck: {already}.\n\n<topic>\n{topic}\n</topic>"
         )
         return self._cards(prompt_for(TOPIC, "topic", language), prompt)[:count]
+
+    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+        name, script, _ = _LANGUAGES[language]
+        system = GLOSS.replace("{LANGUAGE}", name).replace("{SCRIPT}", script)
+        listed = "\n".join(f"- {form}" for form in forms)
+        prompt = f"<text>\n{text}\n</text>\n\n<forms>\n{listed}\n</forms>"
+        for _ in range(2):
+            content = self._ask(system, prompt)
+            if content.strip():
+                break
+        else:
+            raise _failed(
+                "generation_failed", "empty", "The drafting service answered with nothing"
+            )
+        try:
+            return Glossary.model_validate_json(content)
+        except ValidationError as error:
+            raise _failed(
+                "generation_failed", "shape", "The meanings were not in the expected shape"
+            ) from error
 
     def _cards(self, system: str, prompt: str) -> list[DraftCard]:
         # JSON mode may now and then answer with nothing (DeepSeek's docs): one more try.
@@ -455,6 +517,16 @@ class DemoProvider:
 
     def fill(self, words: list[str], level: Level, language: str) -> list[DraftCard]:
         return _demo_fill(words, language)
+
+    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+        # No model here: every form is its own dictionary form, labelled as demo.
+        return Glossary(
+            level="B1",
+            forms={
+                form: Gloss(lemma=form, pos="other", meaning=_demo_translation(form, language))
+                for form in forms
+            },
+        )
 
     def topic(
         self, topic: str, count: int, level: Level, avoid: list[str], language: str

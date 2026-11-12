@@ -16,8 +16,18 @@ const KEYS = Object.keys(ru) as (keyof Messages)[];
 /** Lines that really are the same as in Russian: loanwords and the app's name. Add sparingly. */
 const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
   kk: new Set(['slovar', 'n1Min', 'account', 'test', 'code', 'topicPsychology', 'readingTheme', 'themeSepia']),
-  ky: new Set(['slovar', 'account', 'test', 'topic', 'text', 'topicPsychology', 'readingTheme', 'themeSepia']),
-  tg: new Set(['slovar', 'themeSepia']),
+  ky: new Set([
+    'slovar',
+    'account',
+    'test',
+    'topic',
+    'text',
+    'topicPsychology',
+    'readingTheme',
+    'themeSepia',
+    'category',
+  ]),
+  tg: new Set(['slovar', 'themeSepia', 'category']),
 };
 
 /** Arguments that aren't plain text, by the message's signature. */

@@ -664,3 +664,34 @@ export interface ReportedCard {
   notes: string[];
   last_at: string;
 }
+
+// --- Reading Mode: texts people add themselves (round 2) ---------------------------------------
+
+export interface ReadingCategory {
+  id: string;
+  name: string;
+}
+
+/** A text of mine in the library's list. Its meanings are drafted after it is saved. */
+export interface OwnReadingCard {
+  id: string;
+  title: string;
+  category_id: string | null;
+  level: string | null;
+  words: number;
+  minutes: number;
+  status: 'drafting' | 'ready' | 'failed';
+  created_at: string;
+}
+
+/** The text as the reader opens it: word form → {l, p, t, d}, `t` in `language`. */
+export interface OwnReading extends OwnReadingCard {
+  body: string[];
+  language: string;
+  glossary: Record<string, { l: string; p: string | null; t: string; d: string | null }>;
+}
+
+export interface OwnReadings {
+  categories: ReadingCategory[];
+  readings: OwnReadingCard[];
+}

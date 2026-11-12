@@ -1,6 +1,11 @@
+import { api } from '../lib/api.ts';
+import type { OwnReading, OwnReadings } from '../lib/types.ts';
+import { withSnapshot } from '../local/session.ts';
+
 /**
  * Reading Mode's data (docs/product/reading-mode-architecture.md): articles are static files built
- * from content/reading/ (`app.cli build-reading`), and reading progress stays on this device.
+ * from content/reading/ (`app.cli build-reading`); texts people add themselves come from the API
+ * (round 2), kept on this device once opened; reading progress stays on this device.
  */
 
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
@@ -26,21 +31,36 @@ export interface ArticleCard {
   minutes: number;
 }
 
-/** One word form's meaning, as built: lemma, part of speech (null for a name), Russian, note. */
+/** One word form's meaning: lemma, part of speech (null for a name), meaning, explanation. */
 export interface Meaning {
   l: string;
   p: string | null;
-  ru: string;
+  /** In the article's `language`. */
+  t: string;
   d: string | null;
 }
 
-export interface Article extends ArticleCard {
+/** An article as the reader opens it: one of the library's, or a text of my own. */
+export interface Article {
+  id: string;
+  title: string;
+  subtitle?: string;
+  level: Level | null;
+  topic?: Topic;
+  minutes: number;
   words: number;
-  source: { name: string; url?: string; license: string; note?: string };
+  source?: { name: string; url?: string; license: string; note?: string };
   /** Paragraphs; one starting with "## " is a heading. */
   body: string[];
   glossary: Record<string, Meaning>;
+  /** The language its meanings are in: the library's Russian, or the owner's card language. */
+  language: string;
+  /** A text of my own: whether its meanings are ready yet. */
+  own?: { status: OwnReading['status']; categoryId: string | null };
 }
+
+/** A text of my own is named by its id; the library's articles by a short name. */
+export const isOwn = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id);
 
 let index: Promise<ArticleCard[]> | null = null;
 
@@ -62,7 +82,34 @@ export function loadIndex(): Promise<ArticleCard[]> {
   return index;
 }
 
-export const loadArticle = (id: string) => getJson<Article>(`/reading/${encodeURIComponent(id)}.json`);
+interface BuiltArticle extends Omit<Article, 'glossary' | 'language' | 'own'> {
+  glossary: Record<string, { l: string; p: string | null; ru: string; d: string | null }>;
+}
+
+/** A library article (its meanings are Russian), or a text of mine, kept here once opened. */
+export async function loadArticle(id: string): Promise<Article> {
+  if (isOwn(id)) return ownArticle((await withSnapshot(`reading:${id}`, () => api.reading(id))).value);
+  const built = await getJson<BuiltArticle>(`/reading/${encodeURIComponent(id)}.json`);
+  const glossary = Object.fromEntries(
+    Object.entries(built.glossary).map(([form, { l, p, ru, d }]) => [form, { l, p, t: ru, d }]),
+  );
+  return { ...built, glossary, language: 'ru' };
+}
+
+export const ownArticle = (reading: OwnReading): Article => ({
+  id: reading.id,
+  title: reading.title,
+  level: (reading.level as Level | null) ?? null,
+  minutes: reading.minutes,
+  words: reading.words,
+  body: reading.body,
+  glossary: reading.glossary,
+  language: reading.language,
+  own: { status: reading.status, categoryId: reading.category_id },
+});
+
+/** My texts and categories; without a connection, as this device last saw them. */
+export const loadOwn = (): Promise<OwnReadings> => withSnapshot('readings', api.readings).then(({ value }) => value);
 
 export const HEADING = '## ';
 

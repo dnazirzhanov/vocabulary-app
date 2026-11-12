@@ -1,10 +1,10 @@
 import literataUrl from '@fontsource-variable/literata/files/literata-latin-wght-normal.woff2?url';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { describeError } from '../lib/api.ts';
+import { api, describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
-import type { Session } from '../lib/types.ts';
+import type { OwnReadings, Session } from '../lib/types.ts';
 import type { LocalCard } from '../local/db.ts';
 import { localDb } from '../local/session.ts';
 import { syncSoon, useLocalVersion } from '../local/sync.ts';
@@ -16,6 +16,8 @@ import {
   CloseIcon,
   ForwardIcon,
   MarkerIcon,
+  PencilIcon,
+  PlusIcon,
   SpeakerIcon,
   TrashIcon,
 } from '../ui/icons.tsx';
@@ -30,6 +32,8 @@ import {
   TOPICS,
   loadArticle,
   loadIndex,
+  loadOwn,
+  ownArticle,
   readAppearance,
   readProgress,
   saveAppearance,
@@ -67,45 +71,114 @@ const TOPIC_NAME: Record<Topic, () => string> = {
   culture: () => t.topicCulture,
 };
 
-/** Articles a topic shows when opened, before «Показать ещё». */
+/** Articles a section shows when opened, before «Показать ещё». */
 const FIRST_ARTICLES = 5;
-let lastOpen: Topic | null = null;
-const rememberTopic = (topic: Topic | null) => {
-  lastOpen = topic;
+// The section last opened, kept while the app runs: back from an article, it is still open.
+let lastOpen: string | null = null;
+const rememberSection = (key: string | null) => {
+  lastOpen = key;
 };
+
+/** A row in the library: one of its articles, or a text of mine. */
+interface Row {
+  id: string;
+  title: string;
+  subtitle?: string;
+  level: string | null;
+  minutes: number;
+  drafting?: boolean;
+}
+
+/** A section: one of my categories (or my texts outside any), or one of the library's topics. */
+interface Section {
+  key: string;
+  name: string;
+  rows: Row[];
+  /** Mine: offers «Добавить текст» into it; a category of mine can also be renamed or deleted. */
+  mine?: { categoryId: string | null };
+}
 
 // --- the library -------------------------------------------------------------------------------
 
 /**
- * «Чтение»: topics first, each a row with its number of articles; opening one shows its articles
- * (five, then «Показать ещё»). The level switch narrows everything.
+ * «Чтение»: my categories, then the library's topics, each a row with its number of texts; opening
+ * one shows them (five, then «Показать ещё»). The level switch narrows everything. «Свой текст»
+ * at the end adds one of my own.
  */
-export function Library({ account, onOpen }: { account: string; onOpen: (id: string) => void }) {
+export function Library({
+  account,
+  onOpen,
+  onAddText,
+}: {
+  account: string;
+  onOpen: (id: string) => void;
+  onAddText: (categoryId: string | null) => void;
+}) {
   const [cards, setCards] = useState<ArticleCard[] | null>(null);
+  const [own, setOwn] = useState<OwnReadings | null>(null);
   const [failed, setFailed] = useState(false);
   const [level, setLevel] = useState<Level | null>(null);
-  // The topic last opened, kept while the app runs: back from an article, it is still open.
-  const [open, setOpen] = useState<Topic | null>(lastOpen);
+  const [open, setOpen] = useState<string | null>(lastOpen);
   const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const progress = useMemo(() => readProgress(account), [account]);
   const load = useCallback(() => {
     loadIndex().then(setCards, () => setFailed(true));
+    // Mine are a bonus to the library: without them (offline, never loaded), it still shows.
+    loadOwn().then(setOwn, () => setOwn({ categories: [], readings: [] }));
   }, []);
   useEffect(load, [load]);
   const retry = () => {
     setFailed(false);
     load();
   };
-  const toggle = (topic: Topic) => {
-    const next = open === topic ? null : topic;
-    rememberTopic(next);
+  const toggle = (key: string) => {
+    const next = open === key ? null : key;
+    rememberSection(next);
     setOpen(next);
     setShowAll(false);
   };
 
-  const levels = LEVELS.filter((one) => cards?.some((card) => card.level === one));
-  const shown = cards?.filter((card) => level === null || card.level === level) ?? [];
-  const topics = TOPICS.filter((topic) => shown.some((card) => card.topic === topic));
+  const fits = (rowLevel: string | null) => level === null || rowLevel === level;
+  const levels = LEVELS.filter(
+    (one) => cards?.some((card) => card.level === one) || own?.readings.some((reading) => reading.level === one),
+  );
+  const ownRow = (reading: OwnReadings['readings'][number]): Row => ({
+    id: reading.id,
+    title: reading.title,
+    level: reading.level,
+    minutes: reading.minutes,
+    drafting: reading.status === 'drafting',
+  });
+  const mine = own?.readings.filter((reading) => fits(reading.level)) ?? [];
+  const sections: Section[] = [
+    // My categories, even an empty one: it is where the next text goes.
+    ...(own?.categories ?? []).map((category) => ({
+      key: `category:${category.id}`,
+      name: category.name,
+      rows: mine.filter((reading) => reading.category_id === category.id).map(ownRow),
+      mine: { categoryId: category.id },
+    })),
+    ...(mine.some((reading) => reading.category_id === null)
+      ? [
+          {
+            key: 'mine',
+            name: t.myTexts,
+            rows: mine.filter((reading) => reading.category_id === null).map(ownRow),
+            mine: { categoryId: null },
+          },
+        ]
+      : []),
+    ...TOPICS.map((topic) => ({
+      key: topic,
+      name: TOPIC_NAME[topic](),
+      rows: (cards ?? []).filter((card) => card.topic === topic && fits(card.level)),
+    })).filter((section) => section.rows.length > 0),
+  ];
+  const renameCategory = (id: string, name: string) =>
+    api.renameReadingCategory(id, name).then(() => (setEditing(null), load()));
+  const deleteCategory = (id: string) => api.deleteReadingCategory(id).then(() => (setEditing(null), load()));
+
   return (
     <main className={styles.library}>
       <h1 className={styles.libraryTitle}>{t.reading}</h1>
@@ -127,57 +200,130 @@ export function Library({ account, onOpen }: { account: string; onOpen: (id: str
               </button>
             ))}
           </div>
-          {topics.length === 0 && <p className={styles.state}>{t.noArticlesAtLevel}</p>}
+          {sections.length === 0 && <p className={styles.state}>{t.noArticlesAtLevel}</p>}
           <ul className={styles.topics}>
-            {topics.map((topic) => {
-              const inTopic = shown.filter((card) => card.topic === topic);
-              const expanded = open === topic;
-              const visible = expanded && !showAll ? inTopic.slice(0, FIRST_ARTICLES) : inTopic;
+            {sections.map((section) => {
+              const expanded = open === section.key;
+              const visible = expanded && !showAll ? section.rows.slice(0, FIRST_ARTICLES) : section.rows;
+              const id = `section-${section.key.replace(/[^a-z0-9-]/gi, '-')}`;
               return (
-                <li key={topic} className={styles.topicItem}>
+                <li key={section.key} className={styles.topicItem}>
                   <button
                     type="button"
                     className={styles.topicRow}
                     aria-expanded={expanded}
-                    aria-controls={`topic-${topic}`}
-                    onClick={() => toggle(topic)}
+                    aria-controls={id}
+                    onClick={() => toggle(section.key)}
                   >
-                    <span className={styles.topicName}>{TOPIC_NAME[topic]()}</span>
-                    <span className={styles.topicCount}>{inTopic.length}</span>
+                    <span className={styles.topicName}>{section.name}</span>
+                    <span className={styles.topicCount}>{section.rows.length}</span>
                     <ForwardIcon className={styles.topicChevron} aria-hidden="true" />
                   </button>
                   {expanded && (
-                    <section id={`topic-${topic}`} aria-label={TOPIC_NAME[topic]()}>
+                    <section id={id} aria-label={section.name}>
+                      {section.rows.length === 0 && <p className={styles.emptySection}>{t.emptyCategory}</p>}
                       <ul className={styles.cards}>
-                        {visible.map((card) => (
-                          <li key={card.id}>
-                            <ArticleRow card={card} read={progress[card.id]} onOpen={() => onOpen(card.id)} />
+                        {visible.map((row) => (
+                          <li key={row.id}>
+                            <ArticleRow row={row} read={progress[row.id]} onOpen={() => onOpen(row.id)} />
                           </li>
                         ))}
                       </ul>
-                      {!showAll && inTopic.length > FIRST_ARTICLES && (
+                      {!showAll && section.rows.length > FIRST_ARTICLES && (
                         <button type="button" className={styles.more} onClick={() => setShowAll(true)}>
-                          {t.showMore} · {inTopic.length - FIRST_ARTICLES}
+                          {t.showMore} · {section.rows.length - FIRST_ARTICLES}
                         </button>
+                      )}
+                      {section.mine && (
+                        <div className={styles.sectionActions}>
+                          <button type="button" onClick={() => onAddText(section.mine!.categoryId)}>
+                            <PlusIcon aria-hidden="true" /> {t.addTextHere}
+                          </button>
+                          {section.mine.categoryId && (
+                            <button
+                              type="button"
+                              onClick={() => setEditing({ id: section.mine!.categoryId!, name: section.name })}
+                            >
+                              <PencilIcon aria-hidden="true" /> {t.editCategory}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </section>
                   )}
                 </li>
               );
             })}
+            <li className={styles.topicItem}>
+              <button type="button" className={styles.topicRow} onClick={() => onAddText(null)}>
+                <span className={styles.topicName}>
+                  <PlusIcon aria-hidden="true" className={styles.plus} /> {t.ownText}
+                </span>
+              </button>
+            </li>
           </ul>
         </>
+      )}
+      {editing && (
+        <CategoryDialog
+          name={editing.name}
+          onClose={() => setEditing(null)}
+          onRename={(name) => renameCategory(editing.id, name)}
+          onDelete={() => deleteCategory(editing.id)}
+        />
       )}
     </main>
   );
 }
 
+/** Renaming one of my categories, or deleting it (its texts stay, outside any category). */
+function CategoryDialog({
+  name,
+  onClose,
+  onRename,
+  onDelete,
+}: {
+  name: string;
+  onClose: () => void;
+  onRename: (name: string) => Promise<unknown>;
+  onDelete: () => Promise<unknown>;
+}) {
+  const [value, setValue] = useState(name);
+  const [problem, setProblem] = useState<string | null>(null);
+  const attempt = (action: () => Promise<unknown>) => () =>
+    void action().catch((error: unknown) => setProblem(describeError(error)));
+  return (
+    <Dialog open onClose={onClose} title={t.editCategory}>
+      <form
+        className={styles.categoryForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (value.trim()) attempt(() => onRename(value.trim()))();
+        }}
+      >
+        <label>
+          <span>{t.categoryName}</span>
+          <input value={value} maxLength={40} onChange={(event) => setValue(event.target.value)} />
+        </label>
+        {problem && <p role="alert">{problem}</p>}
+        <PrimaryButton type="submit" disabled={!value.trim()}>
+          {t.save}
+        </PrimaryButton>
+      </form>
+      <button type="button" className={styles.deleteText} onClick={attempt(onDelete)}>
+        {t.deleteCategory}
+      </button>
+      <p className={styles.emptySection}>{t.textsStay}</p>
+    </Dialog>
+  );
+}
+
 function ArticleRow({
-  card,
+  row,
   read,
   onOpen,
 }: {
-  card: ArticleCard;
+  row: Row;
   read: ReturnType<typeof readProgress>[string] | undefined;
   onOpen: () => void;
 }) {
@@ -185,13 +331,16 @@ function ArticleRow({
   return (
     <button type="button" className={styles.card} onClick={onOpen}>
       <span className={styles.cardTitle} lang="en">
-        {card.title}
+        {row.title}
       </span>
-      <span className={styles.cardSubtitle} lang="en">
-        {card.subtitle}
-      </span>
+      {row.subtitle && (
+        <span className={styles.cardSubtitle} lang="en">
+          {row.subtitle}
+        </span>
+      )}
       <span className={styles.cardMeta}>
-        {card.level} · {t.min(card.minutes)}
+        {[row.level, t.min(row.minutes)].filter(Boolean).join(' · ')}
+        {row.drafting && <span> · {t.meaningsComing}</span>}
         {read?.doneAt && (
           <span className={styles.finished}>
             {' '}
@@ -297,6 +446,8 @@ const THEMES: { theme: Theme; label: () => string }[] = [
 interface Tapped {
   form: string;
   meaning: Meaning;
+  /** No meaning yet: a text of mine whose meanings are still being written, or one left out. */
+  missing?: boolean;
   point: Point;
   sentence: string;
 }
@@ -346,6 +497,40 @@ export function Reader({
   useEffect(() => {
     void study.learningHeadwords().then(setKnown);
   }, []);
+
+  // A text of mine whose meanings are being written: asked again until they are (and kept here).
+  const drafting = article?.own?.status === 'drafting' ? article.id : null;
+  useEffect(() => {
+    if (!drafting) return;
+    const timer = setInterval(() => {
+      loadArticle(drafting).then(
+        (next) => {
+          if (next.own?.status === 'drafting') return;
+          setArticle(next);
+          // An open sheet that had no meaning gets it.
+          setTapped((before) =>
+            before?.missing && next.glossary[before.form]
+              ? { ...before, meaning: next.glossary[before.form], missing: false }
+              : before,
+          );
+        },
+        () => undefined,
+      );
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [drafting]);
+  const redraft = () => {
+    if (!article) return;
+    api.redraftReading(article.id).then(
+      (reading) => setArticle(ownArticle(reading)),
+      (error: unknown) => setProblem(describeError(error)),
+    );
+  };
+  const [deleting, setDeleting] = useState(false);
+  const deleteText = () => {
+    if (!article) return;
+    api.deleteReading(article.id).then(onBack, (error: unknown) => setProblem(describeError(error)));
+  };
 
   // The basket: this article's deck, if one was made; refreshed when anything kept here changes.
   useEffect(() => {
@@ -486,15 +671,22 @@ export function Reader({
     const word = (event.target as HTMLElement).closest<HTMLElement>('[data-f]');
     if (!word) return closeWord();
     const form = word.dataset.f!;
-    const meaning = article.glossary[form];
+    const found = article.glossary[form];
+    const meaning = found ?? { l: form, p: null, t: '', d: null };
     const paragraph = word.closest<HTMLElement>('[data-i]');
-    if (!meaning || !paragraph) return;
+    if (!paragraph) return;
     const point = { p: Number(paragraph.dataset.i), o: Number(word.dataset.o) };
     active.current?.classList.remove(styles.active);
     word.classList.add(styles.active);
     active.current = word;
     setProblem(null);
-    setTapped({ form, meaning, point, sentence: sentenceAt(article.body[point.p].replace(HEADING, ''), point.o) });
+    setTapped({
+      form,
+      meaning,
+      missing: !found,
+      point,
+      sentence: sentenceAt(article.body[point.p].replace(HEADING, ''), point.o),
+    });
   };
 
   const save = async (word: Tapped) => {
@@ -629,10 +821,25 @@ export function Reader({
       {article && (
         <article ref={page} className={styles.page} lang="en">
           <p className={styles.kicker} lang="ru">
-            {article.level} · {TOPIC_NAME[article.topic]()} · {t.min(article.minutes)}
+            {[article.level, article.topic ? TOPIC_NAME[article.topic]() : t.myText, t.min(article.minutes)]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <h1 className={styles.title}>{article.title}</h1>
-          <p className={styles.subtitle}>{article.subtitle}</p>
+          {article.subtitle && <p className={styles.subtitle}>{article.subtitle}</p>}
+          {article.own?.status === 'drafting' && (
+            <p className={styles.ownNote} role="status">
+              {t.meaningsComing}
+            </p>
+          )}
+          {article.own?.status === 'failed' && (
+            <p className={styles.ownNote} role="alert">
+              {t.meaningsFailed}{' '}
+              <button type="button" className={styles.retry} onClick={redraft}>
+                {t.tryAgain}
+              </button>
+            </p>
+          )}
           {/* Words are tapped through this one listener; keyboard users read the sheet's list. */}
           <div className={styles.body} onClick={onArticleClick}>
             {article.body.map((text, index) => (
@@ -647,18 +854,20 @@ export function Reader({
             ))}
           </div>
           <footer className={styles.end} lang="ru">
-            <p className={styles.source}>
-              {t.readingSource}:{' '}
-              {article.source.url ? (
-                <a href={article.source.url} target="_blank" rel="noreferrer" lang="en">
-                  {article.source.name}
-                </a>
-              ) : (
-                <span lang="en">{article.source.name}</span>
-              )}{' '}
-              · {article.source.license}
-              {article.source.note && <span lang="en"> · {article.source.note}</span>}
-            </p>
+            {article.source && (
+              <p className={styles.source}>
+                {t.readingSource}:{' '}
+                {article.source.url ? (
+                  <a href={article.source.url} target="_blank" rel="noreferrer" lang="en">
+                    {article.source.name}
+                  </a>
+                ) : (
+                  <span lang="en">{article.source.name}</span>
+                )}{' '}
+                · {article.source.license}
+                {article.source.note && <span lang="en"> · {article.source.note}</span>}
+              </p>
+            )}
             {studyLabel && (
               <PrimaryButton type="button" className={styles.done} onClick={() => void learn()}>
                 {studyLabel}
@@ -717,7 +926,11 @@ export function Reader({
               <CloseIcon aria-hidden="true" />
             </button>
           </div>
-          <p className={styles.translation}>{tapped.meaning.ru}</p>
+          {tapped.missing ? (
+            <p className={styles.definition}>{article?.own?.status === 'drafting' ? t.meaningsComing : t.noMeaning}</p>
+          ) : (
+            <p className={styles.translation}>{tapped.meaning.t}</p>
+          )}
           {tapped.meaning.d && (
             <p className={styles.definition} lang="en">
               {tapped.meaning.d}
@@ -857,6 +1070,27 @@ export function Reader({
                 </button>
               ))}
             </div>
+          </div>
+          {/* A text of my own can go; the library's cannot. */}
+          {article?.own && (
+            <button type="button" className={styles.deleteText} onClick={() => (setPanel(null), setDeleting(true))}>
+              {t.deleteText}
+            </button>
+          )}
+        </Dialog>
+      )}
+
+      {deleting && article && (
+        <Dialog open onClose={() => setDeleting(false)} title={t.deleteTheText(article.title)}>
+          <p>{t.theTextWillBeDeleted}</p>
+          {problem && <p role="alert">{problem}</p>}
+          <div className={styles.confirm}>
+            <button type="button" className={styles.danger} onClick={deleteText}>
+              {t.deleteText}
+            </button>
+            <button type="button" className={styles.secondary} onClick={() => setDeleting(false)}>
+              {t.cancel}
+            </button>
           </div>
         </Dialog>
       )}

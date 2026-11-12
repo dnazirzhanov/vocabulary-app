@@ -891,3 +891,113 @@
   font-family: var(--font-sans);
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
 }
+
+/* A text of my own: its meanings being written, or failed with a way to try again. */
+.ownNote {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+}
+
+.ownNote .retry {
+  margin: 0 0 0 var(--space-2);
+  min-height: 36px;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--ink);
+}
+
+/* Deleting a text of my own: quiet in the look panel, red only where it is confirmed. */
+.deleteText {
+  margin-top: var(--space-5);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.confirm {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.danger {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-error);
+  color: #fff;
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+/* Inside one of my categories: add a text into it, or change the category. Quiet text buttons. */
+.sectionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-1) var(--space-4) var(--space-3);
+}
+
+.sectionActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.sectionActions svg,
+.plus {
+  width: 18px;
+  height: 18px;
+}
+
+.plus {
+  margin-right: var(--space-1);
+  color: var(--color-primary-strong);
+  vertical-align: -3px;
+}
+
+.emptySection {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
+  color: var(--color-text-muted);
+}
+
+.categoryForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.categoryForm label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-weight: var(--weight-strong);
+}
+
+.categoryForm input {
+  min-height: 48px;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-body);
+}
