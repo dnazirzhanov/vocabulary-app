@@ -7,30 +7,37 @@ import { ApiError } from './apiError.ts';
 import { syncWithServer } from './clock.ts';
 import { apiBase } from './platform.ts';
 import type {
-  CardReport,
-  ReportedCard,
   AttemptResult,
   Board,
+  CardReport,
   Deck,
   DeckStats,
   DeckWord,
+  DeckWordInput,
+  GenerateResult,
   GlossaryEntry,
-  Hint,
   Group,
   GroupPreview,
   GroupSummary,
   GroupTests,
-  Period,
+  Hint,
   Knowledge,
+  Library,
   Me,
   MeUpdate,
-  PromiseInfo,
+  OwnReading,
+  OwnReadings,
   Pace,
+  Period,
   Progress,
+  PromiseInfo,
   Rating,
+  ReadingCategory,
+  ReportedCard,
   Session,
   SpellingMode,
   SpellingSize,
+  SuggestedCard,
   Summary,
   TeacherDeck,
   TestAttempt,
@@ -38,10 +45,6 @@ import type {
   TestDetail,
   TestSettings,
   TestSetupInfo,
-  DeckWordInput,
-  GenerateResult,
-  Library,
-  SuggestedCard,
 } from './types.ts';
 import { t } from '../i18n/index.ts';
 
@@ -219,6 +222,19 @@ export const api = {
   /** A new deck, mine until I give it to a group I own (ADR 0019). */
   createDeck: (title: string, language?: CardLanguage) => request<TeacherDeck>('POST', '/decks', { title, language }),
   library: () => request<Library>('GET', '/decks/library'),
+  // Reading Mode: texts people add themselves, and their categories (round 2).
+  readings: () => request<OwnReadings>('GET', '/readings'),
+  reading: (id: string) => request<OwnReading>('GET', `/readings/${id}`),
+  addReading: (title: string, text: string, categoryId: string | null) =>
+    request<OwnReading>('POST', '/readings', { title, text, category_id: categoryId }),
+  changeReading: (id: string, change: { title?: string; category_id?: string | null }) =>
+    request<OwnReading>('PATCH', `/readings/${id}`, change),
+  deleteReading: (id: string) => request<null>('DELETE', `/readings/${id}`),
+  redraftReading: (id: string) => request<OwnReading>('POST', `/readings/${id}/draft`),
+  addReadingCategory: (name: string) => request<ReadingCategory>('POST', '/reading-categories', { name }),
+  renameReadingCategory: (id: string, name: string) =>
+    request<ReadingCategory>('PATCH', `/reading-categories/${id}`, { name }),
+  deleteReadingCategory: (id: string) => request<null>('DELETE', `/reading-categories/${id}`),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
   deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
   /** Full cards from the words named, saved to the deck. */
@@ -306,6 +322,11 @@ const MESSAGES: Record<string, string> = {
   cards_not_synced: t.cardsNotSynced,
   reviews_first: t.firstReviewTheWordsThatAre,
   too_many_decks: t.tooManyDecks,
+  reading_too_long: t.readingTooLong,
+  reading_empty: t.readingEmpty,
+  category_exists: t.categoryExists,
+  too_many_readings: t.tooManyReadings,
+  too_many_categories: t.tooManyCategories,
   invalid_request: t.checkTheCard,
   word_in_deck: t.thisWordIsAlreadyInThe,
   deck_full: t.aDeckCanHaveAtMost,

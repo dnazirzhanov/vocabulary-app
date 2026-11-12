@@ -253,8 +253,10 @@ def test_a_deck_made_from_a_reading_says_so_on_every_device_and_on_home(
     assert pulled == {reading: "library:tea", plain: None}
     home = client.get("/api/decks/library", headers=as_("pavel")).json()
     assert {deck["id"]: deck["reading_ref"] for deck in home["mine"]} == pulled
-    # Only a library article's id is taken.
-    for bad in ("tea", "library:Tea", "library:" + "a" * 61, "http://x"):
+    # A text someone added is named by its id; nothing else is taken.
+    assert push(client, [op("deck.create", deck_id=deck_id(), title="Мой текст",
+                            reading_ref=f"reading:{uuid4()}")])[0][0] == "applied"  # fmt: skip
+    for bad in ("tea", "library:Tea", "library:" + "a" * 61, "http://x", "reading:12", "reading:x"):
         response = client.post(
             "/api/sync/push",
             json={

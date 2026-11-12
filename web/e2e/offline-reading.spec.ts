@@ -97,3 +97,22 @@ test("another account on this device never sees this one's reading words", async
   await expect(button(page, 'Добавить в слова')).toBeVisible();
   expect(await onServer(context.request)).toEqual({});
 });
+
+test('a text of my own opened once opens offline, its meanings too', async ({ page, context }) => {
+  const text = 'My grandmother showed me how to bake bread in an old oven.';
+  await page.request.post('/api/readings', { data: { title: 'The oven', text } });
+  await visitOnline(page);
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Мои тексты/ }).click();
+  await page.getByRole('button', { name: /^The oven/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'The oven' })).toBeVisible();
+
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Мои тексты/ }).click();
+  await page.getByRole('button', { name: /^The oven/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'The oven' })).toBeVisible();
+  await page.locator('article [data-f="oven"]').click();
+  await expect(page.getByRole('region', { name: 'oven' })).toContainText('перевод «oven» (демо)');
+});

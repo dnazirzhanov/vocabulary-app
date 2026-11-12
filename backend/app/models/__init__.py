@@ -23,6 +23,7 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
+from app.models.reading import Reading, ReadingCategory
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     CardReport,
@@ -56,6 +57,8 @@ __all__ = [
     "PromiseChange",
     "PromisePause",
     "PushSubscription",
+    "Reading",
+    "ReadingCategory",
     "ReviewAttempt",
     "SpellingProgress",
     "StudyDayTotal",

@@ -16,8 +16,14 @@ class _Input(BaseModel):
 
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
-# The reading a deck was made from (Reading Mode): a library article, `library:<its id>`.
-ReadingRef = Annotated[str, StringConstraints(pattern=r"^library:[a-z0-9-]{1,60}$")]
+# The reading a deck was made from (Reading Mode): a library article, `library:<its id>`, or a
+# text someone added, `reading:<its id>`.
+ReadingRef = Annotated[
+    str,
+    StringConstraints(
+        pattern=r"^(library:[a-z0-9-]{1,60}|reading:[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12})$"
+    ),
+]
 # Lowercase letters; a phrase's words are joined by single spaces, hyphens or apostrophes, which
 # a spelling card shows as fixed gaps (ADR 0016).
 _HEADWORD = re.compile(r"[a-z]+([ '-][a-z]+)*")

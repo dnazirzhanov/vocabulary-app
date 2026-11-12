@@ -155,3 +155,27 @@ are one tap away when they are the next thing to study.
 The owner did not find the cards icon. Once a word is kept, the icon becomes a labelled pill that
 starts the lesson on this text's words in one tap. Before any word is kept, the icon stays and says
 how to keep one. A kept word is taken back from its own sheet («Убрать»), or from the deck's page.
+
+## 23. Texts of one's own live on the server (R2-B)
+`readings` and `reading_categories` (additive migration, row-level security on). A text is saved
+at once and opens in the reader; a model (DeepSeek) then writes every word form's meaning as used
+in this text, in the owner's card language, 150 forms per call, in the background. The reader
+says «Значения слов готовятся…» and asks again every 2.5 s; an open sheet gets its meaning when
+it arrives. A form the model leaves out takes the course glossary's (Russian) meaning, else the
+sheet says there is none yet. A text is at most 2,000 words, and adding one spends one of the
+day's 20 drafts, the same budget as decks.
+
+## 24. Categories are names a person keeps (R2-B)
+Created in «Свой текст» («＋ Новая») and shown in the library even when empty, with «Добавить
+текст» inside, so one can make a category first and fill it after. Renaming keeps it open;
+deleting it keeps its texts, under «Мои тексты».
+
+## 25. Adding a text needs a connection; reading one does not (R2-B)
+The meanings need the model, so there is nothing an offline «Готово» could finish; the plan's
+`reading.create` outbox operation was dropped. A text opened once, its meanings included, is kept
+on the device (`snapshots`) and opens offline (`e2e/offline-reading.spec.ts`).
+
+## 26. A meaning is `t`, in the text's language (R2-B)
+The reader reads `t` and the article's `language`; the library's built files keep `ru`, mapped on
+load. A deck made from a text takes that language for its cards, so a text added by someone who
+studies in Uzbek gives Uzbek cards.
