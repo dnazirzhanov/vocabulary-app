@@ -38,14 +38,33 @@ glossary:
   user: {ru: "потребитель", pos: noun}
   maker: {ru: "производитель", pos: noun}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "What are the three main types of tea, and how is each one made?"
-    min: 20
-    max: 100
-  - q: "Why is black tea also called \"red tea\" in China?"
-    min: 10
-    max: 60
-  - q: "Which tea do you like most, or which would you like to try? Why?"
-    min: 20
-    max: 120
+  - q: "What is tea made from?"
+    options:
+      - "Roses and other flowers"
+      - "The leaves of the Camellia sinensis plant"
+      - "Coffee beans"
+      - "Lemon peel"
+    answer: "The leaves of the Camellia sinensis plant"
+  - q: "How is green tea made?"
+    options:
+      - "Leaves are dried with hot air until they turn black"
+      - "Leaves are withered under strong sun"
+      - "Fresh leaves are steamed, then crushed and dried"
+      - "Fruit is soaked in hot water"
+    answer: "Fresh leaves are steamed, then crushed and dried"
+  - q: "Why is black tea called \"red tea\" in China?"
+    options:
+      - "It is made from red flowers"
+      - "It grows only in red soil"
+      - "It is mixed with rosehip"
+      - "Brewed in boiling water, it looks deep dark red"
+    answer: "Brewed in boiling water, it looks deep dark red"
+  - q: "After water, tea is the most popular drink in the world. Why do you think people in so many different countries drink it?"
+    min: 30
+    max: 150
+  - q: "The same leaves become black, oolong or green tea, depending on how they are made. What else changes a lot because of how it is prepared? Explain with an example."
+    min: 30
+    max: 150

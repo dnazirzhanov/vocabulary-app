@@ -67,18 +67,42 @@ MAX_ANSWER_WORDS = 500
 
 
 class Question(BaseModel):
-    """A comprehension question, answered in writing or by voice within its word limits."""
+    """A question after the text (round 2): with choices, on the text's facts (`options`, and the
+    right one as `answer`); or open, answered in writing or by voice within `min`–`max` words."""
 
     model_config = ConfigDict(extra="forbid")
 
     q: Annotated[Text, StringConstraints(max_length=300)]
-    min: int = Field(ge=1, le=MAX_ANSWER_WORDS)
-    max: int = Field(ge=1, le=MAX_ANSWER_WORDS)
+    options: list[Annotated[Text, StringConstraints(max_length=120)]] | None = None
+    answer: Annotated[Text, StringConstraints(max_length=120)] | None = None
+    min: int | None = Field(default=None, ge=1, le=MAX_ANSWER_WORDS)
+    max: int | None = Field(default=None, ge=1, le=MAX_ANSWER_WORDS)
+
+    @property
+    def kind(self) -> Literal["choice", "open"]:
+        return "choice" if self.options is not None else "open"
+
+    @property
+    def right(self) -> int:
+        """The right option's place (a choice question)."""
+        return (self.options or []).index(self.answer or "")
 
     @model_validator(mode="after")
-    def _in_order(self) -> "Question":
-        if self.min > self.max:
-            raise ValueError("min must not be above max")
+    def _whole(self) -> "Question":
+        if self.options is not None:
+            if self.min is not None or self.max is not None:
+                raise ValueError("a question with options has no word limits")
+            if not 3 <= len(self.options) <= 4 or len(set(self.options)) != len(self.options):
+                raise ValueError("3 or 4 different options")
+            if self.answer not in self.options:
+                raise ValueError("answer must be one of the options")
+        else:
+            if self.answer is not None:
+                raise ValueError("an open question has no answer")
+            if self.min is None or self.max is None:
+                raise ValueError("an open question has min and max")
+            if self.min > self.max:
+                raise ValueError("min must not be above max")
         return self
 
 
@@ -96,8 +120,28 @@ class Article(BaseModel):
     glossary: dict[str, ArticleWord] = Field(default_factory=dict)
     # People and places, as written: tapped, they say «имя или название» and can't become cards.
     names: list[Annotated[Text, StringConstraints(max_length=40)]] = Field(default_factory=list)
-    # What a reader answers after reading (round 2): every article asks some.
-    questions: list[Question] = Field(min_length=2, max_length=5)
+    # What a reader answers after reading (round 2): three with choices, then two open ones.
+    questions: list[Question]
+
+    @model_validator(mode="after")
+    def _three_and_two(self) -> "Article":
+        kinds = [question.kind for question in self.questions]
+        if kinds != ["choice"] * 3 + ["open"] * 2:
+            raise ValueError("questions: three with options, then two open ones")
+        return self
+
+
+def question_json(question: Question) -> dict[str, Any]:
+    """As the app reads it: a choice question's right option by its place, for an answer on the
+    spot (offline too)."""
+    if question.kind == "choice":
+        return {
+            "kind": "choice",
+            "q": question.q,
+            "options": question.options,
+            "answer": question.right,
+        }
+    return {"kind": "open", "q": question.q, "min": question.min, "max": question.max}
 
 
 def question_ref(article_id: str, number: int) -> str:
@@ -244,7 +288,7 @@ def build(
             "body": article.body,
             "glossary": words,
             "questions": [
-                {"id": question_ref(article.id, n), "q": one.q, "min": one.min, "max": one.max}
+                {"id": question_ref(article.id, n), **question_json(one)}
                 for n, one in enumerate(article.questions, start=1)
             ],
         }

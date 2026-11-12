@@ -38,12 +38,18 @@ def test_every_article_is_complete_and_credited() -> None:
         assert isinstance(article, dict)
         assert article["source"]["license"]
         assert article["minutes"] >= 1
-        # Every article asks something, each question with sound word limits (round 2).
+        # Three questions with options, then two open ones with sound word limits (round 2).
         questions = article["questions"]
-        assert 2 <= len(questions) <= 5
+        assert [one["kind"] for one in questions] == ["choice"] * 3 + ["open"] * 2
+        assert card["questions"] == 5
         for number, question in enumerate(questions, start=1):
             assert question["id"] == f"library:{card['id']}:{number}"
-            assert 1 <= question["min"] <= question["max"] <= reading.MAX_ANSWER_WORDS
+            if question["kind"] == "choice":
+                assert 0 <= question["answer"] < len(question["options"]) <= 4
+            else:
+                assert 1 <= question["min"] <= question["max"] <= reading.MAX_ANSWER_WORDS
+        # The right option is not always in the same place.
+        assert len({one["answer"] for one in questions[:3]}) > 1
         # Every word form of the text has a meaning; only names can't become cards.
         for form, entry in article["glossary"].items():
             assert entry["ru"], form
@@ -55,8 +61,10 @@ def article(tmp_path: Path, name: str, body: str, extra: str = "") -> Path:
         f"id: {name}\ntitle: T\nsubtitle: S\ntopic: nature\nlevel: A2\n"
         "source: {name: Test, license: public domain}\n"
         f"body:\n  - {body}\n  - Second paragraph.\n"
-        'questions:\n  - {q: "Why?", min: 5, max: 50}\n  - {q: "How?", min: 5, max: 50}\n'
-        f"{extra}",
+        + "questions:\n"
+        + '  - {q: "Which?", options: [a, b, c], answer: b}\n' * 3
+        + '  - {q: "Why?", min: 5, max: 50}\n' * 2
+        + extra,
         encoding="utf-8",
     )
     return tmp_path

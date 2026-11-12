@@ -239,8 +239,8 @@ export const api = {
   readingAnswers: (readingRef: string) =>
     request<ReadingAnswer[]>('GET', `/reading-answers?reading=${encodeURIComponent(readingRef)}`),
   answerCounts: () => request<Record<string, number>>('GET', '/reading-answers/counts'),
-  putAnswer: (questionRef: string, text: string) =>
-    request<null>('PUT', '/reading-answers', { question_ref: questionRef, text }),
+  putAnswer: (questionRef: string, text: string, choice: number | null = null) =>
+    request<null>('PUT', '/reading-answers', { question_ref: questionRef, text, ...(choice !== null && { choice }) }),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
   deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
   /** Full cards from the words named, saved to the deck. */
@@ -331,6 +331,8 @@ const MESSAGES: Record<string, string> = {
   reading_too_long: t.readingTooLong,
   answer_too_short: t.answerTooShort,
   answer_too_long: t.answerTooLong,
+  answer_final: t.answerFinal,
+  answer_no_choice: t.answerNoChoice,
   reading_empty: t.readingEmpty,
   category_exists: t.categoryExists,
   too_many_readings: t.tooManyReadings,

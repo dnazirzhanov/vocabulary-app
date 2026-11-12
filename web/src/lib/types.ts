@@ -693,13 +693,19 @@ export interface OwnReading extends OwnReadingCard {
   questions: ReadingQuestion[];
 }
 
-/** A comprehension question and the words a good answer takes (round 2, C). */
+/**
+ * A question after a text (round 2): with options, on its facts (`answer`: the right one's place),
+ * or open, to infer and think, within `min`–`max` words.
+ */
 export interface ReadingQuestion {
   /** `library:<article>:<n>` or `question:<id>`: what an answer names. */
   id: string;
+  kind: 'choice' | 'open';
   q: string;
-  min: number;
-  max: number;
+  options?: string[] | null;
+  answer?: number | null;
+  min?: number | null;
+  max?: number | null;
 }
 
 /** My latest answer to a question, with the question as I answered it. */
@@ -710,6 +716,9 @@ export interface ReadingAnswer {
   words: number;
   sent_at: string;
   updated_at: string;
+  /** A question with options: the one picked, and whether it was right. */
+  choice?: number | null;
+  correct?: boolean | null;
 }
 
 export interface OwnReadings {

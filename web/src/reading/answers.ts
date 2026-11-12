@@ -54,27 +54,41 @@ export async function loadAnswers(readingRef: string): Promise<Record<string, Re
   return merged;
 }
 
-/** Sends an answer (once a connection allows) and keeps it here at once. */
-export async function saveAnswer(readingRef: string, question: ReadingQuestion, text: string): Promise<ReadingAnswer> {
+/**
+ * Sends an answer (once a connection allows) and keeps it here at once: open, its text; to a
+ * question with options, the one picked (`choice`), right or wrong at once, offline too.
+ */
+export async function saveAnswer(
+  readingRef: string,
+  question: ReadingQuestion,
+  text: string,
+  choice: number | null = null,
+): Promise<ReadingAnswer> {
   const now = new Date().toISOString();
+  const picked = choice !== null && question.options ? question.options[choice] : null;
   const answer: ReadingAnswer = {
     question_ref: question.id,
     question_text: question.q,
-    text: text.trim(),
-    words: countWords(text),
+    text: picked ?? text.trim(),
+    words: picked ? 0 : countWords(text),
     sent_at: now,
     updated_at: now,
+    choice,
+    correct: choice === null ? null : choice === question.answer,
   };
   const db = localDb();
   if (!db) {
-    await api.putAnswer(question.id, answer.text);
+    await api.putAnswer(question.id, picked ? '' : answer.text, choice);
     return answer;
   }
   const tx = db.transaction(['outbox', 'snapshots'], 'readwrite');
   const item: OutboxOp = {
     opId: crypto.randomUUID(),
     kind: 'reading.answer',
-    payload: { question_ref: question.id, text: answer.text, answered_at: now },
+    payload:
+      choice === null
+        ? { question_ref: question.id, text: answer.text, answered_at: now }
+        : { question_ref: question.id, choice, answered_at: now },
     createdAt: now,
     status: 'pending',
     attempts: 0,
@@ -91,5 +105,18 @@ export async function saveAnswer(readingRef: string, question: ReadingQuestion, 
   return saved;
 }
 
-/** How many questions of each text I have answered (as the server last said). */
-export const loadAnswerCounts = (): Promise<Record<string, number>> => api.answerCounts().catch(() => ({}));
+/**
+ * How many questions of each text I have answered: the server's count, or this device's when it
+ * holds more (answers not sent yet, or no connection).
+ */
+export async function loadAnswerCounts(): Promise<Record<string, number>> {
+  const counts: Record<string, number> = await api.answerCounts().catch(() => ({}));
+  const db = localDb();
+  if (!db) return counts;
+  for (const kept of await db.getAll('snapshots').catch(() => [])) {
+    if (!kept.key.startsWith('answers:')) continue;
+    const readingRef = kept.key.slice('answers:'.length);
+    counts[readingRef] = Math.max(counts[readingRef] ?? 0, (kept.value as ReadingAnswer[]).length);
+  }
+  return counts;
+}

@@ -135,7 +135,9 @@ class ReadingAnswerOp(_Op):
 
     kind: Literal["reading.answer"]
     question_ref: Annotated[str, StringConstraints(max_length=80)]
-    text: Annotated[str, StringConstraints(max_length=10_000)]
+    text: Annotated[str, StringConstraints(max_length=10_000)] = ""
+    # A question with options: the option's place.
+    choice: Annotated[int, Field(ge=0, le=9)] | None = None
     # When it was written: an older edit arriving after a newer one is kept out.
     answered_at: datetime
 

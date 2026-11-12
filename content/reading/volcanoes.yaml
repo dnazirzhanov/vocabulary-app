@@ -50,14 +50,33 @@ glossary:
   side: {ru: "сбоку, сторона", pos: noun}
   top: {ru: "вершина, верх", pos: noun}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "How are volcanoes formed, and what comes out of an active volcano?"
-    min: 20
-    max: 100
-  - q: "Describe Mauna Loa: where it is, how tall it is, and how it was created."
-    min: 20
-    max: 100
-  - q: "Would you like to visit a volcano? Explain why or why not."
-    min: 30
-    max: 150
+  - q: "What is the world's biggest volcano?"
+    options:
+      - "Mount Fuji"
+      - "Mauna Loa"
+      - "Olympus Mons"
+      - "Vesuvius"
+    answer: "Mauna Loa"
+  - q: "What are scientists who study volcanoes called?"
+    options:
+      - "Geographers"
+      - "Astronomers"
+      - "Volcanologists"
+      - "Biologists"
+    answer: "Volcanologists"
+  - q: "How was Mauna Loa created?"
+    options:
+      - "By the Pacific plate moving over a hot spot"
+      - "By a meteor hitting the Earth"
+      - "By an earthquake in 1984"
+      - "By people building on it"
+    answer: "By the Pacific plate moving over a hot spot"
+  - q: "Many people live near active volcanoes. Why do you think they stay, even though it can be dangerous?"
+    min: 40
+    max: 180
+  - q: "There are volcanoes on other planets too, like Olympus Mons on Mars. What could volcanoes on another planet tell us about that planet?"
+    min: 40
+    max: 180

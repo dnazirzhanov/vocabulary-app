@@ -206,3 +206,33 @@ Found by a flaky offline test and made exact with a held reply: the server's lis
 article opened, could come back after an answer was written and replace it, on screen and in the
 device's copy. Now the questions show at once from the device's copy, and every list that arrives
 is merged by time, each question keeping its newer answer.
+
+## 31. Three questions with options, then two to think (owner, R2-C2; supersedes 27)
+The owner: questions should push students to think and widen their horizon, not ask "when did X
+happen". So every text now asks five:
+- **three with options, on its facts:**
+  - four options, the right one in a different place each time;
+  - marked at once, on the device, offline too;
+  - answered once, so the first try is what a teacher will see (R2-D);
+- **two open ones:** inferring what the text implies, or connecting it with the reader's life or
+  the wider world, within word limits, in writing or by voice.
+
+The library's are written by me and checked against each article. For one's own texts, the model
+drafts them in the same order, and the server keeps only sound ones (3–4 different options with
+the right one among them; limits 1 ≤ min ≤ max ≤ 500).
+
+The right option is in the article's file, so a determined student could find it. That is
+accepted for now; a teacher's test would hide it.
+
+## 32. Unsent words are a draft on the device (R2-C2)
+The owner lost an answer by leaving for another tab before «Отправить». Every change to an open
+answer's box is kept on the device (`answer-draft:<account>:<question>`) and comes back when the
+article opens again; sending or «Отмена» clears it.
+
+## 33. The library's count includes answers not sent yet (R2-C2)
+«Ответы · n/5» takes, for each text, the larger of the server's count and this device's, so it
+is right at once after answering, and offline.
+
+## 34. Refused changes are logged (R2-C2)
+"Were my answers received?" had no answer in the logs: a refused sync change was silent. The
+server now logs each refused one by kind and reason (never its content).

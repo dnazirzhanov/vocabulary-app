@@ -32,14 +32,33 @@ glossary:
   reviews: {ru: "повторения", pos: noun, lemma: review}
   pauses: {ru: "паузы, перерывы", pos: noun, lemma: pause}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "What did Hermann Ebbinghaus discover about forgetting?"
-    min: 20
-    max: 100
-  - q: "What is the difference between the spacing effect and the testing effect?"
-    min: 20
-    max: 100
-  - q: "How will you study new English words after reading this text?"
-    min: 20
-    max: 120
+  - q: "When does most forgetting happen?"
+    options:
+      - "After about a year"
+      - "Only when we are tired"
+      - "Very soon after we learn something, often in the first day"
+      - "Never, if we read a word once"
+    answer: "Very soon after we learn something, often in the first day"
+  - q: "What is the spacing effect?"
+    options:
+      - "Remembering longer when reviews are spread over days"
+      - "Studying many times in one evening"
+      - "Leaving spaces between words"
+      - "Forgetting nonsense words"
+    answer: "Remembering longer when reviews are spread over days"
+  - q: "Why did Ebbinghaus learn nonsense words like \"dax\" and \"bup\"?"
+    options:
+      - "Because they were easy"
+      - "Because he liked games"
+      - "To teach them to children"
+      - "So that old knowledge could not help him"
+    answer: "So that old knowledge could not help him"
+  - q: "Trying to remember a word works better than reading it again. Why do you think the effort of remembering makes memory stronger?"
+    min: 30
+    max: 150
+  - q: "After reading this text, how will you change the way you learn new English words? Make a small plan for next week."
+    min: 30
+    max: 150

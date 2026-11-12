@@ -53,14 +53,33 @@ glossary:
   computer: {ru: "компьютер", pos: noun}
   computers: {ru: "компьютеры", pos: noun, lemma: computer}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "Where and when did the Internet and the World Wide Web begin?"
-    min: 15
-    max: 80
-  - q: "What are the two biggest uses of the Internet, according to the text?"
-    min: 10
-    max: 60
-  - q: "What dangers of the Internet does the text describe? How do you keep yourself safe online?"
-    min: 20
-    max: 120
+  - q: "When was the first network, ARPANET, connected?"
+    options:
+      - "In October 1969"
+      - "In 1990"
+      - "In 2001"
+      - "In 1945"
+    answer: "In October 1969"
+  - q: "Who created the World Wide Web?"
+    options:
+      - "The Advanced Research Projects Agency"
+      - "Tim Berners-Lee at CERN"
+      - "A Swiss bank"
+      - "Wikipedia"
+    answer: "Tim Berners-Lee at CERN"
+  - q: "What is the second biggest use of the Internet, according to the text?"
+    options:
+      - "Online games"
+      - "Watching films"
+      - "Sending and receiving e-mail"
+      - "Paying bills"
+    answer: "Sending and receiving e-mail"
+  - q: "The text says communication on the Internet can be dangerous. Why can sharing secret information online be risky, and what would you advise a younger friend?"
+    min: 30
+    max: 150
+  - q: "How has the Internet changed the way people learn? Is the change only good, or does it also bring problems?"
+    min: 30
+    max: 150
