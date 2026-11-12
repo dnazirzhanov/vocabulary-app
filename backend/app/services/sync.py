@@ -239,7 +239,9 @@ def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) 
     if isinstance(op, PaceExtra):
         return _extra_words(db, user, op, now)
     if isinstance(op, ReadingAnswerOp):
-        reading_answers.answer(db, user, op.question_ref, op.text, min(op.answered_at, now))
+        reading_answers.answer(
+            db, user, op.question_ref, op.text, min(op.answered_at, now), op.choice
+        )
         return _result(op, "applied")
     if isinstance(op, StudyAnswer):
         return study_sync.apply_answer(db, user, op, now)
@@ -262,6 +264,9 @@ def push(db: Session, user: User, body: PushIn, now: datetime, time_zone: ZoneIn
             with db.begin_nested():
                 result = _apply(db, user, op, now, time_zone)
         except ApiError as error:
+            # Said in the log by kind and reason only (never the content): "did it arrive?" has an
+            # answer there.
+            logger.info("sync operation refused: %s %s", op.kind, error.code)
             result = _result(op, "rejected", code=error.code)
         except Exception:
             # A fault of ours in one operation: logged with its trace, and refused, so it can't

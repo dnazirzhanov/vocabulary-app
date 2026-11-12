@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 ReadingTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
@@ -57,12 +57,16 @@ class ReadingCardOut(BaseModel):
 
 
 class QuestionOut(BaseModel):
-    """A comprehension question, as the library's articles carry theirs."""
+    """A question, as the library's articles carry theirs: with options and the right one's place
+    (`choice`), or open, with word limits."""
 
     id: str
+    kind: Literal["choice", "open"]
     q: str
-    min: int
-    max: int
+    options: list[str] | None = None
+    answer: int | None = None
+    min: int | None = None
+    max: int | None = None
 
 
 class ReadingOut(ReadingCardOut):
@@ -85,12 +89,17 @@ class AnswerOut(BaseModel):
     words: int
     sent_at: datetime
     updated_at: datetime
+    # A choice question's: the option picked and whether it was right.
+    choice: int | None = None
+    correct: bool | None = None
 
 
 class AnswerIn(_Input):
     question_ref: Annotated[str, StringConstraints(max_length=80)]
     # Checked in words (at most 500) once received; the characters only bound the request.
-    text: Annotated[str, StringConstraints(max_length=10_000)]
+    text: Annotated[str, StringConstraints(max_length=10_000)] = ""
+    # A choice question's answer: the option's place.
+    choice: Annotated[int, Field(ge=0, le=9)] | None = None
 
 
 class ReadingListOut(BaseModel):

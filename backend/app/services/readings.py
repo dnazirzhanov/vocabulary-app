@@ -38,8 +38,8 @@ MAX_READINGS = 200
 MAX_CATEGORIES = 50
 # Forms per model call: about 5,000 tokens of answer, well inside its limit.
 GLOSS_BATCH = 150
-# Comprehension questions drafted with a text's meanings (round 2, C).
-QUESTIONS_PER_TEXT = 3
+# Questions drafted with a text's meanings: three with options, two open (round 2, the owner's).
+QUESTIONS_PER_TEXT = 5
 _LINE_BREAK_HYPHEN = re.compile(r"(\w)-\n(\w)")
 _PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
 
@@ -88,7 +88,15 @@ def _out(reading: Reading, questions: list[ReadingQuestion] | None = None) -> Re
         language=reading.language,
         glossary=reading.glossary,
         questions=[
-            QuestionOut(id=f"question:{one.id}", q=one.text, min=one.min_words, max=one.max_words)
+            QuestionOut(
+                id=f"question:{one.id}",
+                kind=one.kind,
+                q=one.text,
+                options=one.options,
+                answer=one.answer,
+                min=one.min_words,
+                max=one.max_words,
+            )
             for one in questions or []
         ],
     )
@@ -259,23 +267,41 @@ def write_meanings(db: Session, reading: Reading, provider: Provider, now: datet
     reading.level = level
     for old in _questions(db, reading):
         db.delete(old)
-    for position, one in enumerate(drafted[:QUESTIONS_PER_TEXT]):
-        if not one.question.strip():
-            continue
-        # Limits as a model may write them, made sound: 1 ≤ min ≤ max ≤ 500.
-        high = min(max(one.max_words, 1), MAX_ANSWER_WORDS)
-        db.add(
-            ReadingQuestion(
-                id=uuid.uuid4(),
-                reading_id=reading.id,
-                position=position,
-                text=one.question.strip()[:300],
-                min_words=min(max(one.min_words, 1), high),
-                max_words=high,
-            )
-        )
+    for position, one in enumerate(_sound(drafted)):
+        db.add(ReadingQuestion(id=uuid.uuid4(), reading_id=reading.id, position=position, **one))
     reading.status = "ready"
     reading.updated_at = now
+
+
+def _sound(drafted: list[DraftQuestion]) -> list[dict[str, object]]:
+    """Questions as a model may write them, made sound: choices first (3–4 different options, the
+    right one among them), then open ones with 1 ≤ min ≤ max ≤ 500; anything else is left out."""
+    choice: list[dict[str, object]] = []
+    open_: list[dict[str, object]] = []
+    for one in drafted:
+        text = one.question.strip()[:300]
+        if not text:
+            continue
+        options = [option.strip()[:120] for option in one.options or [] if option.strip()]
+        if one.options is not None:
+            right = one.answer if one.answer is not None else -1
+            if (
+                3 <= len(options) <= 4
+                and len(set(options)) == len(options)
+                and 0 <= right < len(options)
+            ):
+                choice.append({"kind": "choice", "text": text, "options": options, "answer": right})
+            continue
+        high = min(max(one.max_words, 1), MAX_ANSWER_WORDS)
+        open_.append(
+            {
+                "kind": "open",
+                "text": text,
+                "min_words": min(max(one.min_words, 1), high),
+                "max_words": high,
+            }
+        )
+    return choice[:3] + open_[:2]
 
 
 def draft_in_background(reading_id: uuid.UUID, provider: Provider, now: datetime) -> None:

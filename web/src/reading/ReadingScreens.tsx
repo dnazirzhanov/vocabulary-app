@@ -868,7 +868,7 @@ export function Reader({
               />
             ))}
           </div>
-          <Questions readingRef={readingRef(article.id)} questions={article.questions} />
+          <Questions account={account} readingRef={readingRef(article.id)} questions={article.questions} />
           <footer className={styles.end} lang="ru">
             {article.source && (
               <p className={styles.source}>

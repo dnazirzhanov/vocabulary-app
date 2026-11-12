@@ -1,5 +1,6 @@
-"""Answers to comprehension questions (Reading Mode, round 2): each reader's latest answer to each
-question, within its word limits and never over 500 words, theirs to read again any time.
+"""Answers to the questions after a text (Reading Mode, round 2): each reader's latest answer to
+each open question, within its word limits and never over 500 words, theirs to read again any time;
+and their one answer to each question with options, right or wrong, which stays as given.
 
 A question is a library article's (`library:<article>:<n>`, from content/reading/) or one drafted
 for a text of the reader's own (`question:<id>`). Answers come through the sync outbox, so one
@@ -29,8 +30,11 @@ def count_words(text: str) -> int:
 class Asked:
     reading_ref: str
     text: str
-    min_words: int
-    max_words: int
+    kind: str = "open"
+    min_words: int = 1
+    max_words: int = MAX_ANSWER_WORDS
+    options: tuple[str, ...] = ()
+    right: int = -1
 
 
 def question(db: Session, user: User, question_ref: str) -> Asked:
@@ -39,7 +43,11 @@ def question(db: Session, user: User, question_ref: str) -> Asked:
         found = library_questions().get(question_ref)
         if found is not None:
             reading_ref, one = found
-            return Asked(reading_ref, one.q, one.min, one.max)
+            if one.kind == "choice":
+                return Asked(
+                    reading_ref, one.q, "choice", options=tuple(one.options or ()), right=one.right
+                )
+            return Asked(reading_ref, one.q, min_words=one.min or 1, max_words=one.max or 1)
     elif question_ref.startswith("question:"):
         try:
             question_id = uuid.UUID(question_ref.removeprefix("question:"))
@@ -57,26 +65,52 @@ def question(db: Session, user: User, question_ref: str) -> Asked:
         # A text of the reader's own (round 2, D adds texts given to their groups).
         if row is not None and row[1] == user.id:
             asked = row[0]
+            reading_ref = f"reading:{asked.reading_id}"
+            if asked.kind == "choice":
+                return Asked(
+                    reading_ref,
+                    asked.text,
+                    "choice",
+                    options=tuple(asked.options or ()),
+                    right=asked.answer if asked.answer is not None else -1,
+                )
             return Asked(
-                f"reading:{asked.reading_id}", asked.text, asked.min_words, asked.max_words
+                reading_ref,
+                asked.text,
+                min_words=asked.min_words or 1,
+                max_words=asked.max_words or 1,
             )
     raise ApiError(404, "question_not_found", "No such question")
 
 
-def answer(db: Session, user: User, question_ref: str, text: str, at: datetime) -> None:
-    """Saves the reader's answer, replacing their earlier one unless that one is newer."""
+def answer(
+    db: Session, user: User, question_ref: str, text: str, at: datetime, choice: int | None = None
+) -> None:
+    """Saves the reader's answer: an open one replaces their earlier one unless that is newer; one
+    to a question with options is given once, and stays."""
     asked = question(db, user, question_ref)
-    text = text.strip()
-    words = count_words(text)
-    if words > MAX_ANSWER_WORDS or words > asked.max_words:
-        raise ApiError(422, "answer_too_long", f"At most {asked.max_words} words")
-    if words < asked.min_words:
-        raise ApiError(422, "answer_too_short", f"At least {asked.min_words} words")
     kept = db.scalar(
         select(ReadingAnswer).where(
             ReadingAnswer.user_id == user.id, ReadingAnswer.question_ref == question_ref
         )
     )
+    correct: bool | None = None
+    if asked.kind == "choice":
+        if choice is None or not 0 <= choice < len(asked.options):
+            raise ApiError(422, "answer_no_choice", "Pick one of the options")
+        if kept is not None:
+            raise ApiError(409, "answer_final", "This question was answered already")
+        text, correct = asked.options[choice], choice == asked.right
+        words = 0
+    else:
+        if choice is not None:
+            raise ApiError(422, "answer_no_choice", "This question has no options")
+        text = text.strip()
+        words = count_words(text)
+        if words > MAX_ANSWER_WORDS or words > asked.max_words:
+            raise ApiError(422, "answer_too_long", f"At most {asked.max_words} words")
+        if words < asked.min_words:
+            raise ApiError(422, "answer_too_short", f"At least {asked.min_words} words")
     if kept is None:
         db.add(
             ReadingAnswer(
@@ -87,6 +121,8 @@ def answer(db: Session, user: User, question_ref: str, text: str, at: datetime) 
                 question_text=asked.text,
                 text=text,
                 words=words,
+                choice=choice,
+                correct=correct,
                 sent_at=at,
                 updated_at=at,
             )
@@ -113,6 +149,8 @@ def answers(db: Session, user: User, reading_ref: str) -> list[AnswerOut]:
             words=row.words,
             sent_at=row.sent_at,
             updated_at=row.updated_at,
+            choice=row.choice,
+            correct=row.correct,
         )
         for row in rows
     ]

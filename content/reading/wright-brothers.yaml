@@ -34,14 +34,33 @@ glossary:
   war: {ru: "военный, война", pos: "noun"}
   department: {ru: "министерство, отдел", pos: "noun", def: "a part of a government or company"}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "When and where did the Wright brothers make their first flight?"
-    min: 10
-    max: 60
-  - q: "How long was Orville's first flight, and how far did the plane go?"
-    min: 5
-    max: 40
-  - q: "Which invention changed the world the most, in your opinion? Why?"
-    min: 15
-    max: 80
+  - q: "When did the Wright brothers make the first flight with an engine?"
+    options:
+      - "In 1867"
+      - "On December 17th, 1903"
+      - "In 1950"
+      - "On January 1st, 1900"
+    answer: "On December 17th, 1903"
+  - q: "How long was Orville in the air on that first flight?"
+    options:
+      - "12 minutes"
+      - "36 seconds"
+      - "12 seconds"
+      - "One hour"
+    answer: "12 seconds"
+  - q: "Why did they test their ideas at Kitty Hawk?"
+    options:
+      - "It had the best wind conditions"
+      - "It was near their home"
+      - "It had a big airport"
+      - "It was in the mountains"
+    answer: "It had the best wind conditions"
+  - q: "The brothers learned from bicycles, kites and a toy helicopter. How can playing with simple things help people invent big things?"
+    min: 20
+    max: 100
+  - q: "Before 1903, most people thought flying machines were impossible. What seems impossible today but may be possible in the future?"
+    min: 20
+    max: 100

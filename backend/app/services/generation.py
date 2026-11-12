@@ -77,9 +77,12 @@ class Gloss(BaseModel):
 
 
 class DraftQuestion(BaseModel):
-    """A comprehension question drafted for a text, with the words a good answer takes."""
+    """A question drafted for a text: with options (and the right one's place), or open, with the
+    words a good answer takes."""
 
     question: str
+    options: list[str] | None = None
+    answer: int | None = None
     min_words: int = 20
     max_words: int = 100
 
@@ -342,10 +345,15 @@ Answer in JSON: {"level": "B1", "forms": {"<form>": {"lemma": "...", "pos": "...
 
 QUESTIONS = """
 
-Also write {COUNT} comprehension questions about the whole text, in simple English for a learner
-at its level: the first ones answered from the text, the last one asking the reader's own opinion
-or experience. For each, how many words a good answer takes: "min_words" and "max_words", between
-5 and 300. Add them as "questions": [{"question": "...", "min_words": 20, "max_words": 100}]."""
+Also write questions about the whole text, in simple English for a learner at its level, as
+"questions", in this order:
+- three with four options each, on facts stated in the text, one option right and the others
+  plausible but wrong: {"question": "...", "options": ["...", "...", "...", "..."], "answer": 2}
+  ("answer": the right option's place, from 0; put it in a different place each time);
+- two open ones that make the reader think: infer what the text implies, connect it with their own
+  life or the wider world, or say what they learned and why it matters. Never ask for a detail the
+  text states. With how many words a good answer takes, between 20 and 300:
+  {"question": "...", "min_words": 30, "max_words": 150}."""
 
 
 def prompt_for(template: str, kind: str, language: str) -> str:
@@ -545,10 +553,22 @@ class DemoProvider:
                 form: Gloss(lemma=form, pos="other", meaning=_demo_translation(form, language))
                 for form in forms
             },
-            questions=[
-                DraftQuestion(question=f"Demo question {n}: what is the text about?", min_words=5)
-                for n in range(1, questions + 1)
-            ],
+            questions=(
+                [
+                    DraftQuestion(
+                        question=f"Demo question {n}: which word is in the text?",
+                        options=[forms[0], "zebra", "violin", "glacier"],
+                        answer=0,
+                    )
+                    for n in (1, 2, 3)
+                ]
+                + [
+                    DraftQuestion(question=f"Demo question {n}: what do you think?", min_words=5)
+                    for n in (4, 5)
+                ]
+            )
+            if questions
+            else [],
         )
 
     def topic(

@@ -113,6 +113,6 @@ def my_answer_counts(user: CurrentUser, db: DbSession) -> dict[str, int]:
 @router.put("/reading-answers", status_code=204)
 def answer(body: AnswerIn, user: CurrentUser, db: DbSession, now: Now) -> Response:
     """An answer sent straight away (a device without its own store uses the outbox otherwise)."""
-    reading_answers.answer(db, user, body.question_ref, body.text, now)
+    reading_answers.answer(db, user, body.question_ref, body.text, now, body.choice)
     db.commit()
     return Response(status_code=204)

@@ -27,14 +27,33 @@ names: [Robert, Goddard, NASA, Orville, Wilbur, Wright, Earth, U.S., Smithsonian
 glossary:
   propulsion: {ru: "реактивное движение, тяга", pos: noun, def: "a force that pushes something forward"}
 
-# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+# Questions (round 2): three with choices, on the text's facts; then two open ones that ask the
+# reader to infer and think, answered in writing or by voice within the word limits.
 questions:
-  - q: "What did Robert Goddard do in 1926, and why was it important?"
-    min: 15
-    max: 80
-  - q: "Why did many people think Goddard was foolish? Were they right?"
-    min: 20
-    max: 100
-  - q: "Goddard said: \"The dream of yesterday is the hope of today and the reality of tomorrow.\" What does this mean to you?"
-    min: 20
-    max: 120
+  - q: "What did Goddard launch in 1926?"
+    options:
+      - "The first airplane"
+      - "A weather balloon"
+      - "The world's first liquid-fuel rocket"
+      - "The first satellite"
+    answer: "The world's first liquid-fuel rocket"
+  - q: "Who gave Goddard money and support for his early research?"
+    options:
+      - "The Smithsonian Institution"
+      - "NASA"
+      - "The Wright brothers"
+      - "The U.S. Army"
+    answer: "The Smithsonian Institution"
+  - q: "Why did many people think Goddard was foolish?"
+    options:
+      - "He wanted to build airplanes"
+      - "He used balloons"
+      - "He did not finish school"
+      - "He said a rocket could one day reach the moon"
+    answer: "He said a rocket could one day reach the moon"
+  - q: "People laughed at Goddard's idea, and later it became real. Why do you think new ideas are often laughed at first?"
+    min: 30
+    max: 150
+  - q: "Goddard said: \"The dream of yesterday is the hope of today and the reality of tomorrow.\" Which dream of today could become real in your lifetime? Why do you think so?"
+    min: 30
+    max: 150

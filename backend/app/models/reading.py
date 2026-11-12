@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -77,7 +78,9 @@ class ReadingQuestion(Base):
     __tablename__ = "reading_questions"
     __table_args__ = (
         CheckConstraint(
-            "min_words >= 1 AND min_words <= max_words AND max_words <= 500", name="limits"
+            "(kind = 'choice' AND answer IS NOT NULL) OR (kind = 'open' AND min_words >= 1"
+            " AND min_words <= max_words AND max_words <= 500)",
+            name="kinds",
         ),
     )
 
@@ -86,9 +89,14 @@ class ReadingQuestion(Base):
         ForeignKey("readings.id", ondelete="CASCADE"), index=True
     )
     position: Mapped[int] = mapped_column(SmallInteger)
+    # 'choice': on the text's facts, with `options` and the right one's place (`answer`); 'open':
+    # to infer and think, within `min_words`–`max_words`.
+    kind: Mapped[str] = mapped_column(String(6), server_default="open")
     text: Mapped[str] = mapped_column(String(300))
-    min_words: Mapped[int] = mapped_column(SmallInteger)
-    max_words: Mapped[int] = mapped_column(SmallInteger)
+    options: Mapped[list[str] | None] = mapped_column(JSONB)
+    answer: Mapped[int | None] = mapped_column(SmallInteger)
+    min_words: Mapped[int | None] = mapped_column(SmallInteger)
+    max_words: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class ReadingAnswer(Base):
@@ -107,6 +115,9 @@ class ReadingAnswer(Base):
     question_text: Mapped[str] = mapped_column(String(300))
     text: Mapped[str] = mapped_column(Text)
     words: Mapped[int] = mapped_column(SmallInteger)
+    # A choice question's: the option picked (its place) and whether it was the right one. Final.
+    choice: Mapped[int | None] = mapped_column(SmallInteger)
+    correct: Mapped[bool | None] = mapped_column(Boolean)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
