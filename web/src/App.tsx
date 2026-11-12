@@ -502,14 +502,6 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           setScreen({ name: 'deck', deckId, groupId: null, ...(from === 'reading-decks' && { back: from }) })
         }
         onOpenCourse={decks.length > 0 ? () => setScreen({ name: 'course' }) : undefined}
-        onStudy={async (deckId) => {
-          setPageFrom(from);
-          try {
-            startSession(await study.startStudySession(deckId), deckId);
-          } catch {
-            openPage(deckId, from); // the page says what is in the way
-          }
-        }}
       />
     );
   }

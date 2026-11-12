@@ -149,3 +149,31 @@ test('a deck keeps its topic; a new topic is offered its own deck', async ({ pag
   await fork.getByRole('button', { name: 'Всё равно добавить сюда' }).click();
   await expect(page.getByRole('heading', { name: /Карточки в колоде/ })).toContainText('10');
 });
+
+test('home shows each deck’s numbers for today, as Anki does, and no «Продолжить» card', async ({ page }) => {
+  const deck = await (await page.request.post('/api/decks', { data: { title: 'Поездка' } })).json();
+  for (const headword of ['ticket', 'hotel', 'airport']) {
+    await page.request.post(`/api/decks/${deck.id}/words`, {
+      data: { headword, pos: 'noun', translation: `перевод ${headword}`, example: `A ${headword} here.` },
+    });
+  }
+  await page.request.post('/api/decks', { data: { title: 'Пустая' } });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Продолжить' })).toHaveCount(0);
+  // New words today, cards in learning, reviews due: each number named for a screen reader.
+  await expect(page.getByRole('button', { name: /^Поездка/ })).toHaveAccessibleName(
+    /3 новых 0 изучаемых 0 к повторению/,
+  );
+  await expect(page.getByRole('button', { name: /^Пустая/ })).toHaveAccessibleName(
+    /0 новых 0 изучаемых 0 к повторению/,
+  );
+  await expect(page.getByText('Нов.', { exact: true })).toBeVisible();
+
+  // After a lesson, its words are no longer new today.
+  await page.getByRole('button', { name: /^Поездка/ }).click();
+  await button(page, 'Начать урок · 3 слова').click();
+  await finishSession(page);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: /^Поездка/ })).toHaveAccessibleName(/0 новых/);
+});

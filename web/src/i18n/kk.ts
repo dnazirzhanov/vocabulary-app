@@ -390,7 +390,6 @@ export const kk: Messages = {
   statThisWeek: 'осы аптада',
   statLearning: 'үйреніп жүрмін',
   yourOwn: 'Өзіңіз',
-  continueTitle: 'Жалғастыру',
   profile: 'Жеке деректер',
   soundAndNotifications: 'Дыбыс және хабарландырулар',
   tooManyReports: 'Бүгін хабарлама тым көп. Ертең қайталаңыз.',

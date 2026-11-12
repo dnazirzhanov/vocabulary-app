@@ -9,7 +9,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, describeError } from '../lib/api.ts';
 import { deadlineLeft, localToday } from '../lib/deadline.ts';
 import { wordsLabel } from '../lib/pace.ts';
-import { studyLabel } from '../lib/today.ts';
 import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { BackIcon, FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
@@ -24,8 +23,6 @@ interface HomeScreenProps {
   onOpenDeck: (deckId: string) => void;
   /** The course: English words level by level. */
   onOpenCourse?: () => void;
-  /** Straight into a deck's lesson (the «Продолжить» card). */
-  onStudy?: (deckId: string) => Promise<void>;
   /** Only the decks made from readings («Из чтения»), with a way back home. */
   reading?: boolean;
   onBack?: () => void;
@@ -42,7 +39,6 @@ export function HomeScreen({
   onOpenPage,
   onOpenDeck,
   onOpenCourse,
-  onStudy,
   reading = false,
   onBack,
   onOpenReadingDecks,
@@ -147,10 +143,13 @@ export function HomeScreen({
   const mine = allMine.filter(here);
   const fromGroups = library.from_groups.filter(here);
   const readingCount = reading ? 0 : allMine.length - mine.length + library.from_groups.length - fromGroups.length;
-  // Something to study today: new words in its pace or cards due.
-  const next = reading
-    ? undefined
-    : [...allMine, ...library.from_groups].find((deck) => deck.new_today + deck.learning_count + deck.review_count > 0);
+  // The «Из чтения» row adds up its decks' numbers, as Anki's parent decks do.
+  const readingDecks = [...allMine, ...library.from_groups].filter((deck) => deck.reading_ref);
+  const readingTotals = {
+    new_today: readingDecks.reduce((sum, deck) => sum + deck.new_today, 0),
+    learning_count: readingDecks.reduce((sum, deck) => sum + deck.learning_count, 0),
+    review_count: readingDecks.reduce((sum, deck) => sum + deck.review_count, 0),
+  };
   const onlyHere = new Set(
     mine.filter((deck) => !library.mine.some((item) => item.id === deck.id)).map((deck) => deck.id),
   );
@@ -196,20 +195,6 @@ export function HomeScreen({
             </h1>
           </div>
 
-          {/* The deck to go on with, first and largest, as study apps open: one tap into its lesson. */}
-          {next && onStudy && (
-            <section className={styles.next} aria-label={t.continueTitle}>
-              <DeckText deck={next} source={null} />
-              <PrimaryButton type="button" disabled={busy} onClick={() => void run(() => onStudy(next.id))}>
-                {studyLabel({
-                  due: next.learning_count + next.review_count,
-                  fresh: next.new_today,
-                  started: next.introduced_count > 0,
-                  bonus: false,
-                }) ?? t.study}
-              </PrimaryButton>
-            </section>
-          )}
           {reading ? null : naming ? (
             <form className={styles.newDeck} onSubmit={create}>
               <label className={styles.field}>
@@ -252,6 +237,7 @@ export function HomeScreen({
             <h2 id="mine-title" className="visually-hidden">
               {t.createdByMe}
             </h2>
+            {mine.length > 0 && <ColumnNames withEdit />}
             {mine.length === 0 ? (
               !reading && <p className={styles.empty}>{t.noDecksOfYourOwnYet}</p>
             ) : (
@@ -260,6 +246,7 @@ export function HomeScreen({
                   <li key={deck.id} className={styles.row}>
                     <button type="button" className={styles.study} disabled={busy} onClick={() => open(deck, true)}>
                       <DeckText deck={deck} source={sharedLine(deck)} />
+                      <TodayCounts deck={deck} />
                       <ForwardIcon className={styles.chevron} aria-hidden="true" />
                     </button>
                     <button
@@ -286,6 +273,7 @@ export function HomeScreen({
                       <strong>{t.fromReading}</strong>
                       <span className={styles.meta}>{t.decksCount(readingCount)}</span>
                     </span>
+                    <TodayCounts deck={readingTotals} />
                     <ForwardIcon className={styles.chevron} aria-hidden="true" />
                   </button>
                 </li>
@@ -295,9 +283,12 @@ export function HomeScreen({
 
           {fromGroups.length > 0 && (
             <section aria-labelledby="groups-title" className={styles.section}>
-              <h2 id="groups-title" className={styles.sectionTitle}>
-                {t.fromMyGroups}
-              </h2>
+              <div className={styles.sectionHead}>
+                <h2 id="groups-title" className={styles.sectionTitle}>
+                  {t.fromMyGroups}
+                </h2>
+                <ColumnNames />
+              </div>
               <ul className={styles.list}>
                 {fromGroups.map((deck) => (
                   <li key={deck.id} className={styles.row}>
@@ -308,6 +299,7 @@ export function HomeScreen({
                           deck.author ? t.from(deck.author, deck.group_name ?? '') : t.group(deck.group_name ?? '')
                         }
                       />
+                      <TodayCounts deck={deck} />
                       <ForwardIcon className={styles.chevron} aria-hidden="true" />
                     </button>
                   </li>
@@ -362,6 +354,42 @@ function DeckText({ deck, source }: { deck: LibraryDeck; source: string | null }
           {deadlineLeft(deck.due_on, localToday(), deck.word_count - deck.introduced_count)}
         </span>
       )}
+    </span>
+  );
+}
+
+type Today = Pick<LibraryDeck, 'new_today' | 'learning_count' | 'review_count'>;
+
+/**
+ * Anki's three numbers for today, in their colours (the course list's): new words in the pace,
+ * cards in learning steps, reviews due. A zero steps back in grey; each says its name to a reader.
+ */
+function TodayCounts({ deck }: { deck: Today }) {
+  return (
+    <span className={styles.counts}>
+      <Count value={deck.new_today} className={styles.fresh} name={t.newWords} />
+      <Count value={deck.learning_count} className={styles.learning} name={t.inLearning} />
+      <Count value={deck.review_count} className={styles.review} name={t.toReviewLabel} />
+    </span>
+  );
+}
+
+function Count({ value, className, name }: { value: number; className: string; name: string }) {
+  return (
+    <span className={`${styles.count} ${className}`} data-zero={value === 0 || undefined}>
+      {value}
+      <span className="visually-hidden"> {name}</span>
+    </span>
+  );
+}
+
+/** The columns' short names above a list, over its numbers (a row with a pencil sits further in). */
+function ColumnNames({ withEdit = false }: { withEdit?: boolean }) {
+  return (
+    <span className={styles.columnNames} data-edit={withEdit || undefined} aria-hidden="true">
+      <span className={styles.fresh}>{t.new}</span>
+      <span className={styles.learning}>{t.lrn}</span>
+      <span className={styles.review}>{t.rev}</span>
     </span>
   );
 }

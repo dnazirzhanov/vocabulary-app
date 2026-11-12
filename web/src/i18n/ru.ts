@@ -386,7 +386,6 @@ export const ru = {
   statThisWeek: 'за неделю',
   statLearning: 'учу',
   yourOwn: 'Своё',
-  continueTitle: 'Продолжить',
   profile: 'Профиль',
   soundAndNotifications: 'Звук и уведомления',
   tooManyReports: 'Слишком много сообщений за сегодня. Попробуйте завтра.',
