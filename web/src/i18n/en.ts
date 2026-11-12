@@ -325,6 +325,8 @@ export const en: Messages = {
   afterTheLevel: (a: Arg) => `after the level “${a}”`,
   locked: 'locked',
   showMore: 'Show more',
+  fromReading: 'From reading',
+  decksCount: (n: number) => `${n}\u00a0${n === 1 ? 'deck' : 'decks'}`,
   addToWords: 'Add to my words',
   inBasket: 'In this article’s words',
   removeWord: 'Remove',

@@ -34,6 +34,9 @@ import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
 const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
 
+/** Where a deck's page was opened from, for its «Назад». */
+type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
+
 type Screen =
   | { name: 'home' }
   | { name: 'session'; session: Session }
@@ -46,12 +49,15 @@ type Screen =
   | { name: 'deck-test'; groupId: string; deckId: string }
   | { name: 'test-run'; groupId: string; deckId: string; attemptId: string; initial?: TestAttempt }
   | { name: 'course' }
+  // Decks made from readings, apart from the others on home.
+  | { name: 'reading-decks' }
   // A deck's page (ADR 0020); `from`: where «Назад» leads.
-  | { name: 'deck-page'; deckId: string; from: 'home' | 'course' | 'progress' }
-  | { name: 'words'; deckId: string; title: string; mine: boolean; from: 'home' | 'course' | 'progress' }
+  | { name: 'deck-page'; deckId: string; from: PageFrom }
+  | { name: 'words'; deckId: string; title: string; mine: boolean; from: PageFrom }
   // A deck's editor (ADR 0019); `groupId`: opened from that group's board, so «Назад» returns there;
   // `from`: opened from the deck's words (ADR 0051), which «Назад» returns to.
-  | { name: 'deck'; deckId: string; groupId: string | null; from?: 'home' | 'course' | 'progress' }
+  // `from`: opened from a deck page's words. `back`: opened from the decks made from readings.
+  | { name: 'deck'; deckId: string; groupId: string | null; from?: PageFrom; back?: 'reading-decks' }
   | { name: 'join'; code: string }
   | { name: 'reading' }
   | { name: 'article'; articleId: string };
@@ -215,9 +221,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   // The deck a study session was started for, so «Дальше» keeps to it and leaving returns to its
   // page; and where that page was opened from, for its «Назад».
   const [scope, setScope] = useState<string | null>(null);
-  const [pageFrom, setPageFrom] = useState<'home' | 'course' | 'progress'>('home');
+  const [pageFrom, setPageFrom] = useState<PageFrom>('home');
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
-  const openPage = useCallback((deckId: string, from: 'home' | 'course' | 'progress') => {
+  const openPage = useCallback((deckId: string, from: PageFrom) => {
     setPageFrom(from);
     setScreen({ name: 'deck-page', deckId, from });
   }, []);
@@ -411,13 +417,14 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       );
     }
     if (screen.name === 'deck') {
-      const { deckId, groupId, from } = screen;
-      const leaveEditor = (): Screen => (groupId ? { name: 'board', groupId } : { name: 'home' });
+      const { deckId, groupId, from, back } = screen;
+      const leaveEditor = (): Screen =>
+        groupId ? { name: 'board', groupId } : back ? { name: 'reading-decks' } : { name: 'home' };
       return (
         <DeckEditor
           key={deckId}
           deckId={deckId}
-          backLabel={from ? t.deckWords : groupId ? t.toTheGroup : t.myDecks}
+          backLabel={from ? t.deckWords : groupId ? t.toTheGroup : back ? t.fromReading : t.myDecks}
           onDone={(title) => setScreen(from ? { name: 'words', deckId, title, mine: true, from } : leaveEditor())}
           onDeleted={() => setScreen(leaveEditor())}
           onStudy={(session) => startSession(session, deckId)}
@@ -437,7 +444,15 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         <DeckScreen
           key={deckId}
           deckId={deckId}
-          backLabel={from === 'course' ? t.course : from === 'progress' ? t.progress : t.myDecks}
+          backLabel={
+            from === 'course'
+              ? t.course
+              : from === 'progress'
+                ? t.progress
+                : from === 'reading-decks'
+                  ? t.fromReading
+                  : t.myDecks
+          }
           onBack={() => setScreen(backTo(from))}
           onSession={startSession}
           onWords={(id, title, mine) => setScreen({ name: 'words', deckId: id, title, mine, from })}
@@ -456,17 +471,25 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         />
       );
     }
+    // Home, or its decks made from readings: the same list, filtered (Reading Mode).
+    const from: PageFrom = screen.name === 'reading-decks' ? 'reading-decks' : 'home';
     return (
       <HomeScreen
-        onOpenPage={(deckId) => openPage(deckId, 'home')}
-        onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: null })}
+        key={from}
+        reading={from === 'reading-decks'}
+        onBack={from === 'reading-decks' ? goHome : undefined}
+        onOpenReadingDecks={() => setScreen({ name: 'reading-decks' })}
+        onOpenPage={(deckId) => openPage(deckId, from)}
+        onOpenDeck={(deckId) =>
+          setScreen({ name: 'deck', deckId, groupId: null, ...(from === 'reading-decks' && { back: from }) })
+        }
         onOpenCourse={decks.length > 0 ? () => setScreen({ name: 'course' }) : undefined}
         onStudy={async (deckId) => {
-          setPageFrom('home');
+          setPageFrom(from);
           try {
             startSession(await study.startStudySession(deckId), deckId);
           } catch {
-            openPage(deckId, 'home'); // the page says what is in the way
+            openPage(deckId, from); // the page says what is in the way
           }
         }}
       />
@@ -476,8 +499,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
 
 /** The navigation entry a screen belongs to: decks and their words are part of today. */
 /** Where a deck's page goes back to. */
-function backTo(from: 'home' | 'course' | 'progress'): Screen {
+function backTo(from: PageFrom): Screen {
   if (from === 'course') return { name: 'course' };
+  if (from === 'reading-decks') return { name: 'reading-decks' };
   if (from === 'progress') return { name: 'progress' };
   return { name: 'home' };
 }

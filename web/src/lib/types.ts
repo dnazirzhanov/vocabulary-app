@@ -481,6 +481,8 @@ export interface LibraryDeck {
   groups: AssignedGroup[];
   group_name: string | null;
   author: string | null;
+  /** Made from a reading (`library:<article id>`): home lists it under «Из чтения». */
+  reading_ref?: string | null;
 }
 
 export interface Library {

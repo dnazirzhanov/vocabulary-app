@@ -50,6 +50,9 @@ class Deck(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # A user deck made from a reading (Reading Mode): `library:<article id>`. Home lists these
+    # under «Из чтения», apart from the other decks.
+    reading_ref: Mapped[str | None] = mapped_column(String(80))
     # Photos its words were drafted from, read in the author's browser (ADR 0029): at most 8.
     photos_used: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
     # Sync (ADR 0061): the title's version, and a number from `sync_change_seq` renewed by every

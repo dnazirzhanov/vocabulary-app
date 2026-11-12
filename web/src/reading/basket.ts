@@ -26,11 +26,20 @@ function remember(account: string, articleId: string, deckId: string) {
   }
 }
 
-/** The article's deck if it exists: by the id kept here, else (another device) by its title. */
+/** How a deck names the library article it was made from (`decks.reading_ref` on the server). */
+export const readingRef = (articleId: string) => `library:${articleId}`;
+
+/**
+ * The article's deck if it exists: by the reading it was made from; a deck made before decks
+ * said so, by the id kept here, else (another device) by its title.
+ */
 export async function findDeck(db: AccountDb, account: string, articleId: string, title: string) {
   const decks = await myDecks(db);
   const kept = readMap(account)[articleId];
-  const deck = decks.find((one) => one.id === kept) ?? decks.find((one) => one.title === deckTitle(title));
+  const deck =
+    decks.find((one) => one.readingRef === readingRef(articleId)) ??
+    decks.find((one) => one.id === kept) ??
+    decks.find((one) => !one.readingRef && one.title === deckTitle(title));
   if (deck) remember(account, articleId, deck.id);
   return deck?.id ?? null;
 }
@@ -55,7 +64,7 @@ export async function addWord(
 ): Promise<string> {
   const deckId =
     (await findDeck(db, account, article.id, article.title)) ??
-    (await createDeck(db, deckTitle(article.title), 'ru')).id;
+    (await createDeck(db, deckTitle(article.title), 'ru', new Date(), readingRef(article.id))).id;
   remember(account, article.id, deckId);
   await addCard(db, deckId, {
     headword: meaning.l,

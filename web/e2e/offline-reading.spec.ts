@@ -64,13 +64,16 @@ test("a word kept offline is in the article's deck on the server once online", a
   await context.setOffline(true);
   await page.locator('article [data-f="planet"]').first().click();
   await button(page, 'Добавить в слова').click();
-  await expect(page.getByRole('button', { name: 'Слова из статьи: 1' })).toBeVisible();
+  await expect(button(page, 'Учить · 1')).toBeVisible();
   expect(await onServer(context.request)).toEqual({});
 
   await context.setOffline(false);
   await expect
     .poll(() => onServer(context.request), { timeout: 15_000 })
     .toEqual({ 'Why Is Mars Red?': ['planet=планета'] });
+  // It says which reading it came from, so home lists it under «Из чтения».
+  const library = await (await context.request.get('/api/decks/library')).json();
+  expect(library.mine.map((deck: { reading_ref: string }) => deck.reading_ref)).toEqual(['library:mars-red-color']);
 });
 
 test("another account on this device never sees this one's reading words", async ({ page, context }) => {
@@ -78,7 +81,7 @@ test("another account on this device never sees this one's reading words", async
   await openMars(page);
   await page.locator('article [data-f="dust"]').first().click();
   await button(page, 'Добавить в слова').click();
-  await expect(page.getByRole('button', { name: 'Слова из статьи: 1' })).toBeVisible();
+  await expect(button(page, 'Учить · 1')).toBeVisible();
   await expect.poll(() => onServer(context.request), { timeout: 15_000 }).toHaveProperty('Why Is Mars Red?');
 
   // Someone else signs in on the same phone: no words in the article, no deck of mine.

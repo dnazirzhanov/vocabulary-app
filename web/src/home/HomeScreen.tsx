@@ -12,7 +12,7 @@ import { wordsLabel } from '../lib/pace.ts';
 import { studyLabel } from '../lib/today.ts';
 import type { Library, LibraryDeck } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import { FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
+import { BackIcon, FlameIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './HomeScreen.module.css';
 import { t } from '../i18n/index.ts';
@@ -26,6 +26,11 @@ interface HomeScreenProps {
   onOpenCourse?: () => void;
   /** Straight into a deck's lesson (the «Продолжить» card). */
   onStudy?: (deckId: string) => Promise<void>;
+  /** Only the decks made from readings («Из чтения»), with a way back home. */
+  reading?: boolean;
+  onBack?: () => void;
+  /** Home's one row for the decks made from readings. */
+  onOpenReadingDecks?: () => void;
 }
 
 /**
@@ -33,7 +38,15 @@ interface HomeScreenProps {
  * groups were given; each opens its page (ADR 0020). The course, level by level, is offered
  * below it, one tap away.
  */
-export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: HomeScreenProps) {
+export function HomeScreen({
+  onOpenPage,
+  onOpenDeck,
+  onOpenCourse,
+  onStudy,
+  reading = false,
+  onBack,
+  onOpenReadingDecks,
+}: HomeScreenProps) {
   const [library, setLibrary] = useState<Library | null>(null);
   // Weeks with the promise kept (ADR 0015); secondary, so home works without it.
   const [streak, setStreak] = useState<number | null>(null);
@@ -128,11 +141,16 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
       onOpenDeck(deck.id);
     });
   };
-  const mine = mergeMine(library.mine, kept?.decks ?? null, kept?.pulled ?? false);
+  const allMine = mergeMine(library.mine, kept?.decks ?? null, kept?.pulled ?? false);
+  // Decks made from readings live behind one row, so home lists only the others (Reading Mode).
+  const here = (deck: LibraryDeck) => Boolean(deck.reading_ref) === reading;
+  const mine = allMine.filter(here);
+  const fromGroups = library.from_groups.filter(here);
+  const readingCount = reading ? 0 : allMine.length - mine.length + library.from_groups.length - fromGroups.length;
   // Something to study today: new words in its pace or cards due.
-  const next = [...mine, ...library.from_groups].find(
-    (deck) => deck.new_today + deck.learning_count + deck.review_count > 0,
-  );
+  const next = reading
+    ? undefined
+    : [...allMine, ...library.from_groups].find((deck) => deck.new_today + deck.learning_count + deck.review_count > 0);
   const onlyHere = new Set(
     mine.filter((deck) => !library.mine.some((item) => item.id === deck.id)).map((deck) => deck.id),
   );
@@ -144,15 +162,21 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        {/* "0 weeks" would only greet newcomers with a zero. */}
-        <span className={styles.streak}>
-          {streak !== null && streak > 0 && (
-            <>
-              <FlameIcon aria-hidden="true" />
-              {t.weeksInARow(streak)}
-            </>
-          )}
-        </span>
+        {onBack ? (
+          <button type="button" className={styles.back} onClick={onBack}>
+            <BackIcon aria-hidden="true" /> {t.myDecks}
+          </button>
+        ) : (
+          // "0 weeks" would only greet newcomers with a zero.
+          <span className={styles.streak}>
+            {streak !== null && streak > 0 && (
+              <>
+                <FlameIcon aria-hidden="true" />
+                {t.weeksInARow(streak)}
+              </>
+            )}
+          </span>
+        )}
       </header>
       <main className={styles.main}>
         <div className={styles.column}>
@@ -168,7 +192,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
           )}
           <div className={styles.head}>
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              {t.myDecks}
+              {reading ? t.fromReading : t.myDecks}
             </h1>
           </div>
 
@@ -186,7 +210,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
               </PrimaryButton>
             </section>
           )}
-          {naming ? (
+          {reading ? null : naming ? (
             <form className={styles.newDeck} onSubmit={create}>
               <label className={styles.field}>
                 <span>{t.newDeckSName}</span>
@@ -229,7 +253,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
               {t.createdByMe}
             </h2>
             {mine.length === 0 ? (
-              <p className={styles.empty}>{t.noDecksOfYourOwnYet}</p>
+              !reading && <p className={styles.empty}>{t.noDecksOfYourOwnYet}</p>
             ) : (
               <ul className={styles.list}>
                 {mine.map((deck) => (
@@ -252,13 +276,30 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
             )}
           </section>
 
-          {library.from_groups.length > 0 && (
+          {/* Decks made from readings: one row here, their own list behind it (Reading Mode). */}
+          {readingCount > 0 && onOpenReadingDecks && (
+            <section className={styles.section}>
+              <ul className={styles.list}>
+                <li className={styles.row}>
+                  <button type="button" className={styles.study} onClick={onOpenReadingDecks}>
+                    <span className={styles.text}>
+                      <strong>{t.fromReading}</strong>
+                      <span className={styles.meta}>{t.decksCount(readingCount)}</span>
+                    </span>
+                    <ForwardIcon className={styles.chevron} aria-hidden="true" />
+                  </button>
+                </li>
+              </ul>
+            </section>
+          )}
+
+          {fromGroups.length > 0 && (
             <section aria-labelledby="groups-title" className={styles.section}>
               <h2 id="groups-title" className={styles.sectionTitle}>
                 {t.fromMyGroups}
               </h2>
               <ul className={styles.list}>
-                {library.from_groups.map((deck) => (
+                {fromGroups.map((deck) => (
                   <li key={deck.id} className={styles.row}>
                     <button type="button" className={styles.study} disabled={busy} onClick={() => open(deck, false)}>
                       <DeckText
@@ -277,7 +318,7 @@ export function HomeScreen({ onOpenPage, onOpenDeck, onOpenCourse, onStudy }: Ho
 
           {/* The course, level by level: offered, one tap away (ADR 0021). */}
           {/* Only for those studying in Russian, the language it is written in (ADR 0055). */}
-          {onOpenCourse && (
+          {onOpenCourse && !reading && (
             <section className={styles.section}>
               <ul className={styles.list}>
                 <li className={styles.row}>

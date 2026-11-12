@@ -301,3 +301,22 @@
   font-size: var(--text-title);
   font-weight: var(--weight-display);
 }
+
+/* «Мои колоды» on the decks made from readings, as on the course's page. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: rgb(38 38 38 / 0.06);
+}

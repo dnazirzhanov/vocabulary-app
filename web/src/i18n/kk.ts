@@ -324,6 +324,8 @@ export const kk: Messages = {
   afterTheLevel: (a: Arg) => `«${a}» деңгейінен кейін`,
   locked: 'жабық',
   showMore: 'Тағы көрсету',
+  fromReading: 'Оқудан',
+  decksCount: (n: number) => `${n}\u00a0жинақ`,
   addToWords: 'Сөздерге қосу',
   inBasket: 'Мақала сөздерінде',
   removeWord: 'Алып тастау',

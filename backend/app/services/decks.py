@@ -355,7 +355,13 @@ def bury(
 
 
 def new_deck(
-    db: Session, user: User, deck_id: str, title: str, language: str | None, now: datetime
+    db: Session,
+    user: User,
+    deck_id: str,
+    title: str,
+    language: str | None,
+    now: datetime,
+    reading_ref: str | None = None,
 ) -> Deck:
     """A deck of the learner's own (ADR 0019); the caller commits."""
     lock_owner(db, user.id)
@@ -374,6 +380,7 @@ def new_deck(
         level_order=0,
         kind="user",
         owner_id=user.id,
+        reading_ref=reading_ref,
         created_at=now,
         updated_at=now,
     )

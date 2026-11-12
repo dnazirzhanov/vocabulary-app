@@ -86,7 +86,7 @@ def _create_deck(db: Session, user: User, op: DeckCreate, now: datetime) -> OpRe
         return _result(op, "duplicate") if mine else _result(op, "rejected", code="id_taken")
     if _tombstone(db, "deck", op.deck_id) is not None:
         return _result(op, "gone")
-    decks.new_deck(db, user, op.deck_id, op.title, op.language, now)
+    decks.new_deck(db, user, op.deck_id, op.title, op.language, now, op.reading_ref)
     return _result(op, "applied")
 
 
@@ -291,6 +291,7 @@ def _deck_out(db: Session, deck: Deck) -> SyncDeckOut:
         status=deck.status,
         version=deck.version,
         created_at=deck.created_at,
+        reading_ref=deck.reading_ref,
         cards=[
             SyncCardOut(
                 id=word.id,
