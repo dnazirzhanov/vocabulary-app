@@ -77,6 +77,10 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
   const { password, setPassword, repeat, setRepeat, onLeave, matches, mismatch } = useRepeatedPassword();
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  // An address that looks like a slip («…@gamil.com»), stopped before a code is sent to it, and
+  // the one the person said is right after all.
+  const [checking, setChecking] = useState(false);
+  const [rightAfterAll, setRightAfterAll] = useState<string | null>(null);
   const { busy, error, setError, call } = useAuthCall();
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), [step]);
@@ -87,6 +91,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
   }, [resendIn]);
 
   const address = email.trim();
+  const suggested = suggestEmail(email);
   const goTo = (next: Step) => {
     setStep(next);
     setError(null);
@@ -100,6 +105,11 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy || !supabase) return;
+    // A code sent to a mistyped address never arrives, and nothing tells the app: ask once first.
+    if ((step === 'signUp' || step === 'forgot') && suggestEmail(address) && rightAfterAll !== address) {
+      setChecking(true);
+      return;
+    }
     if (step === 'signUp') {
       let session = false;
       const { failed } = await call(async () => {
@@ -149,6 +159,15 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         <p className={styles.lead}>
           {step === 'confirm' ? t.weSentACodeTo(address) : t.ifThatAccountExistsWeSent(address)}
         </p>
+        {/* The code went to this address: one that looks mistyped is said again, and changing it is
+            one tap back, the address kept to correct. */}
+        {suggested && <p className={styles.check}>{t.didYouMean(suggested)}</p>}
+        <p className={styles.switch}>
+          {t.wrongAddress}
+          <button type="button" onClick={() => goTo(step === 'confirm' ? 'signUp' : 'forgot')}>
+            {t.edit}
+          </button>
+        </p>
         <label className={styles.field}>
           <span>{t.codeFromTheEmail}</span>
           <input
@@ -181,7 +200,22 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
     );
   }
 
-  const suggested = suggestEmail(email);
+  // Stopped before sending: the address and its likely fix, side by side, with both answers.
+  const addressCheck = checking && suggested && (
+    <div className={styles.check} role="alert">
+      <p>{t.checkTheAddress(address)}</p>
+      <button type="button" className={styles.checkFix} onClick={() => (setEmail(suggested), setChecking(false))}>
+        {t.fixTo(suggested)}
+      </button>
+      <button
+        type="button"
+        className={styles.checkKeep}
+        onClick={() => (setRightAfterAll(address), setChecking(false))}
+      >
+        {t.addressIsRight}
+      </button>
+    </div>
+  );
   const emailField = (
     <label className={styles.field}>
       <span>E-mail</span>
@@ -196,7 +230,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         aria-describedby={suggested ? 'email-suggestion' : undefined}
       />
       {/* A slip in the domain («gamil.com»): the code would go nowhere, so the fix is one tap. */}
-      {suggested && (
+      {suggested && !checking && (
         <button id="email-suggestion" type="button" className={styles.suggestion} onClick={() => setEmail(suggested)}>
           {t.didYouMean(suggested)}
         </button>
@@ -210,6 +244,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
         {heading}
         <p className={styles.lead}>{t.enterYourAccountSEmailAnd}</p>
         {emailField}
+        {addressCheck}
         {problem}
         <PrimaryButton type="submit" disabled={busy || !address} aria-busy={busy}>
           {busy ? t.pleaseWait : t.sendCode}
@@ -229,6 +264,7 @@ export function AuthScreen({ invited = false }: { invited?: boolean }) {
       {invited && <p className={styles.invited}>{t.youVeBeenInvitedToA}</p>}
       {step === 'signUp' && <p className={styles.lead}>{t.soYourProgressIsSavedOn}</p>}
       {emailField}
+      {addressCheck}
       <PasswordField
         label={t.password}
         value={password}
