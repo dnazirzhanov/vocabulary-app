@@ -363,7 +363,6 @@ export const en: Messages = {
   statThisWeek: 'this week',
   statLearning: 'learning',
   yourOwn: 'Own',
-  continueTitle: 'Continue',
   profile: 'Profile',
   soundAndNotifications: 'Sound and notifications',
   tooManyReports: 'Too many reports today. Try again tomorrow.',

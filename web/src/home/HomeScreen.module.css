@@ -31,6 +31,12 @@
 }
 
 .main {
+  /* A deck row's sizes, shared with the column names above it so they line up (small phones below). */
+  --row-pad: var(--space-4);
+  --row-gap: var(--space-2);
+  --chevron: 20px;
+  --edit: 56px;
+  --col: 2.5rem;
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-3) var(--gutter) max(var(--space-7), env(safe-area-inset-bottom));
@@ -158,10 +164,10 @@
   display: flex;
   flex: 1;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--row-gap);
   min-width: 0;
   min-height: 60px;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--row-pad);
   border: 0;
   background: transparent;
   color: var(--color-text);
@@ -197,7 +203,8 @@
   font-size: var(--text-option);
   font-weight: var(--weight-strong);
   line-height: var(--leading-tight);
-  overflow-wrap: anywhere;
+  /* A long word breaks only when it alone is wider than the room; short names stay whole. */
+  overflow-wrap: break-word;
 }
 
 .meta {
@@ -218,8 +225,8 @@
 
 .chevron {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: var(--chevron);
+  height: var(--chevron);
   color: var(--color-text-muted);
 }
 
@@ -227,7 +234,7 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 56px;
+  width: var(--edit);
   border: 0;
   border-left: 1px solid var(--color-border);
   background: transparent;
@@ -285,22 +292,6 @@
 }
 
 /* «Продолжить»: the deck to go on with, above everything else, with the screen's one main button. */
-.next {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow:
-    0 1px 2px rgb(38 38 38 / 0.06),
-    0 8px 24px rgb(38 38 38 / 0.06);
-}
-
-.next .text strong {
-  font-size: var(--text-title);
-  font-weight: var(--weight-display);
-}
 
 /* «Мои колоды» on the decks made from readings, as on the course's page. */
 .back {
@@ -319,4 +310,82 @@
 
 .back:hover {
   background: rgb(38 38 38 / 0.06);
+}
+
+/* --- today's numbers on each deck, Anki's: new, learning, review ------------------------------ */
+
+.counts {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(3, var(--col));
+  text-align: center;
+}
+
+.count {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.fresh {
+  color: var(--color-count-new);
+}
+
+.learning {
+  color: var(--color-count-learning);
+}
+
+.review {
+  color: var(--color-count-review);
+}
+
+.count[data-zero] {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+}
+
+/* Over the numbers: the row's padding, its chevron and the gap before it, and a pencil if any. */
+.columnNames {
+  display: grid;
+  grid-template-columns: repeat(3, var(--col));
+  width: max-content;
+  margin: 0 0 var(--space-1) auto;
+  padding-right: calc(var(--row-pad) + var(--chevron) + var(--row-gap) + 1px);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.columnNames[data-edit] {
+  padding-right: calc(var(--row-pad) + var(--chevron) + var(--row-gap) + var(--edit) + 1px);
+}
+
+/* Small phones: tighter rows, so a deck's name keeps the room it needs beside its numbers. */
+@media (max-width: 359px) {
+  .main {
+    --row-pad: var(--space-3);
+    --row-gap: var(--space-1);
+    --chevron: 16px;
+    --edit: 44px;
+    --col: 1.9rem;
+  }
+
+  .count {
+    font-size: var(--text-body);
+  }
+
+  .columnNames {
+    font-size: 0.6875rem;
+  }
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sectionHead .columnNames {
+  margin-bottom: var(--space-1);
 }

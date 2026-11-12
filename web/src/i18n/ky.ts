@@ -362,7 +362,6 @@ export const ky: Messages = {
   statThisWeek: 'бул жумада',
   statLearning: 'үйрөнүп жатам',
   yourOwn: 'Өзүңүз',
-  continueTitle: 'Улантуу',
   profile: 'Жеке маалымат',
   soundAndNotifications: 'Үн жана билдирмелер',
   tooManyReports: 'Бүгүн өтө көп билдирүү. Эртең кайра аракет кылыңыз.',

@@ -362,7 +362,6 @@ export const uz: Messages = {
   statThisWeek: 'shu haftada',
   statLearning: 'o‘rganyapman',
   yourOwn: 'O‘zingiz',
-  continueTitle: 'Davom etish',
   profile: 'Profil',
   soundAndNotifications: 'Ovoz va bildirishnomalar',
   tooManyReports: 'Bugun xabarlar juda ko‘p. Ertaga qayta urinib ko‘ring.',

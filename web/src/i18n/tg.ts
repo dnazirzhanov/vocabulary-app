@@ -362,7 +362,6 @@ export const tg: Messages = {
   statThisWeek: 'дар ин ҳафта',
   statLearning: 'меомӯзам',
   yourOwn: 'Худатон',
-  continueTitle: 'Идома додан',
   profile: 'Профил',
   soundAndNotifications: 'Садо ва огоҳиномаҳо',
   tooManyReports: 'Имрӯз хабарҳо аз ҳад зиёд. Фардо боз кӯшиш кунед.',
