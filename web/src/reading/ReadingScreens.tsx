@@ -49,6 +49,7 @@ import {
 } from './articles.ts';
 import { loadAnswerCounts } from './answers.ts';
 import { addWord, basketCards, cardFor, findDeck, readingRef, removeWord } from './basket.ts';
+import { GroupAnswers } from './GroupAnswers.tsx';
 import { Questions } from './Questions.tsx';
 import { ordered, readNotes, saveNotes } from './notes.ts';
 import { contains, coverage, quoteOf, runs, sentenceAt, snap, type Highlight, type Point } from './text.ts';
@@ -525,6 +526,7 @@ export function Reader({
 }) {
   const [article, setArticle] = useState<Article | null>(null);
   const [given, setGiven] = useState<ReadingAssignment | null>(null);
+  const [groupAnswers, setGroupAnswers] = useState(false);
   useEffect(() => {
     if (!assignmentId) return;
     let live = true;
@@ -914,6 +916,9 @@ export function Reader({
                   {t.wordsForText(given.words)} · {t.study}
                 </button>
               )}
+              <button type="button" className={styles.givenAnswers} onClick={() => setGroupAnswers(true)}>
+                {t.groupAnswers}
+              </button>
             </div>
           )}
           {article.own?.status === 'drafting' && (
@@ -1179,6 +1184,10 @@ export function Reader({
             </button>
           )}
         </Dialog>
+      )}
+
+      {groupAnswers && given && (
+        <GroupAnswers given={given} onClose={() => setGroupAnswers(false)} onTakenBack={onBack} />
       )}
 
       {deleting && article && (

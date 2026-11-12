@@ -83,3 +83,81 @@ test('with no group yet, «Дать группе» says how to get one', async (
   await button(page, 'Дать группе').click();
   await expect(page.getByText(/Чтобы дать текст группе, сначала вступите в группу/)).toBeVisible();
 });
+
+test('the giver reads the answers; others see who answered; the giver can take it back', async ({
+  page,
+  context,
+  browser,
+}) => {
+  const group = await (
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б' } })
+  ).json();
+  const masha = await classmate(browser, group.invite_code, 'Маша');
+  const given = await (
+    await context.request.post('/api/reading-assignments', {
+      data: {
+        group_id: group.id,
+        reading_ref: 'library:tea',
+        words: [],
+        questions: [
+          { kind: 'choice', q: 'What is tea made from?', options: ['Leaves', 'Beans', 'Roots'], answer: 0 },
+          { kind: 'open', q: 'Why do people drink tea?', min: 3, max: 50 },
+        ],
+      },
+    })
+  ).json();
+  const answer = (question: string, fields: Record<string, unknown>) =>
+    masha.request.post('/api/sync/push', {
+      data: {
+        ops: [
+          {
+            op_id: crypto.randomUUID(),
+            kind: 'reading.answer',
+            question_ref: question,
+            answered_at: new Date().toISOString(),
+            ...fields,
+          },
+        ],
+        pulled_at: new Date().toISOString(),
+      },
+    });
+  await answer(given.questions[0].id, { choice: 1 });
+  await answer(given.questions[1].id, { text: 'Because it is warm and tasty.' });
+
+  // Olga gave it: Masha's answers, the wrong pick marked.
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^От групп/ }).click();
+  await page.getByRole('button', { name: /^Tea/ }).click();
+  await button(page, 'Ответы группы').click();
+  const panel = page.getByRole('dialog', { name: 'Ответы группы' });
+  // Me first, then by name; never ranked.
+  await expect(panel.getByRole('listitem').first()).toContainText('Ольга');
+  const mashaRow = panel.getByRole('button', { name: /^Маша/ });
+  await expect(mashaRow).toContainText('Ответы · 2/2 · верно 0/1');
+  await mashaRow.click();
+  await expect(panel).toContainText('Because it is warm and tasty.');
+  await expect(panel).toContainText('Beans');
+
+  // Masha sees who answered how many, not what.
+  const mashaPage = await masha.newPage();
+  await mashaPage.goto('/');
+  await mashaPage.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await mashaPage.getByRole('button', { name: /^От групп/ }).click();
+  await mashaPage.getByRole('button', { name: /^Tea/ }).click();
+  await button(mashaPage, 'Ответы группы').click();
+  const hers = mashaPage.getByRole('dialog', { name: 'Ответы группы' });
+  await expect(hers.getByRole('button', { name: /^Маша/ })).toContainText('Ответы · 2/2');
+  await expect(hers.getByRole('button', { name: /^Маша/ })).toBeDisabled();
+  await expect(hers).not.toContainText('верно');
+  await expect(hers.getByRole('button', { name: 'Забрать у группы' })).toHaveCount(0);
+
+  // Olga takes it back: gone from the group.
+  await panel.getByRole('button', { name: 'Забрать у группы' }).click();
+  await panel.getByRole('button', { name: 'Забрать у группы' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Чтение' })).toBeVisible();
+  await mashaPage.reload();
+  await mashaPage.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await expect(mashaPage.getByRole('button', { name: /^От групп/ })).toHaveCount(0);
+  await masha.close();
+});

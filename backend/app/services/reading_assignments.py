@@ -20,11 +20,19 @@ from app.models import (
     Group,
     GroupMember,
     Reading,
+    ReadingAnswer,
     ReadingAssignment,
     ReadingQuestion,
     User,
 )
-from app.schemas.readings import AssignmentOut, GiveReadingIn, QuestionOut
+from app.schemas.readings import (
+    AnswerOut,
+    AssignmentOut,
+    GivenAnswersOut,
+    GiveReadingIn,
+    MemberAnswersOut,
+    QuestionOut,
+)
 from app.services import decks
 from app.services.groups import membership
 from app.services.reading import library_titles
@@ -226,3 +234,78 @@ def may_answer(db: Session, user: User, assignment_id: uuid.UUID) -> bool:
     except ApiError:
         return False
     return True
+
+
+def answers_of(db: Session, user: User, assignment_id: uuid.UUID) -> GivenAnswersOut:
+    """The group's answers to a reading given to it: what each member answered, for its giver and
+    the group's owner; for everyone else, who answered how many. Me first, then by name: never
+    ranked (the owner's rule for anything social)."""
+    assignment, group, role = _visible(db, user, assignment_id)
+    may_see = assignment.given_by == user.id or role == "owner"
+    questions = _questions(db, assignment.id)
+    members = (
+        db.execute(
+            select(User)
+            .join(GroupMember, GroupMember.user_id == User.id)
+            .where(GroupMember.group_id == group.id)
+        )
+        .scalars()
+        .all()
+    )
+    rows = db.scalars(
+        select(ReadingAnswer).where(
+            ReadingAnswer.reading_ref == f"assignment:{assignment.id}",
+            ReadingAnswer.user_id.in_([member.id for member in members]),
+        )
+    ).all()
+    by_member: dict[uuid.UUID, list[ReadingAnswer]] = {}
+    for row in rows:
+        by_member.setdefault(row.user_id, []).append(row)
+    words = len(decks._deck_word_ids(db, assignment.deck_id)) if assignment.deck_id else 0
+    met = (
+        decks.member_deck_progress(db, [assignment.deck_id], [member.id for member in members])
+        if may_see and assignment.deck_id
+        else {}
+    )
+    order = {question.id: question.position for question in questions}
+
+    def place(answer: ReadingAnswer) -> int:
+        return order.get(uuid.UUID(answer.question_ref.removeprefix("question:")), 99)
+
+    out: list[MemberAnswersOut] = []
+    for member in members:
+        given = sorted(by_member.get(member.id, []), key=place)
+        out.append(
+            MemberAnswersOut(
+                name=member.name,
+                me=member.id == user.id,
+                answered=len(given),
+                correct=sum(1 for one in given if one.correct) if may_see else None,
+                words_met=met.get((assignment.deck_id, member.id), (0, 0))[0]
+                if may_see and assignment.deck_id
+                else None,
+                answers=[
+                    AnswerOut(
+                        question_ref=one.question_ref,
+                        question_text=one.question_text,
+                        text=one.text,
+                        words=one.words,
+                        sent_at=one.sent_at,
+                        updated_at=one.updated_at,
+                        choice=one.choice,
+                        correct=one.correct,
+                    )
+                    for one in given
+                ]
+                if may_see
+                else [],
+            )
+        )
+    out.sort(key=lambda one: (not one.me, (one.name or "").lower()))
+    return GivenAnswersOut(
+        questions=len(questions),
+        choice_questions=sum(1 for one in questions if one.kind == "choice"),
+        words=words,
+        may_see=may_see,
+        members=out,
+    )

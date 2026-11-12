@@ -763,3 +763,21 @@ export interface ReadingAssignment {
   given_at: string;
   questions: ReadingQuestion[];
 }
+
+/** A member and their answers to a given reading (only its giver and the group's owner see them). */
+export interface MemberAnswers {
+  name: string | null;
+  me: boolean;
+  answered: number;
+  correct: number | null;
+  words_met: number | null;
+  answers: ReadingAnswer[];
+}
+
+export interface GivenAnswers {
+  questions: number;
+  choice_questions: number;
+  words: number;
+  may_see: boolean;
+  members: MemberAnswers[];
+}

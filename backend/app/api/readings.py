@@ -15,6 +15,7 @@ from app.schemas.readings import (
     AssignmentOut,
     CategoryIn,
     CategoryOut,
+    GivenAnswersOut,
     GiveReadingIn,
     NewReadingIn,
     ReadingChangeIn,
@@ -144,3 +145,10 @@ def reading_given(assignment_id: UUID, user: CurrentUser, db: DbSession) -> Assi
 def take_back_reading(assignment_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> Response:
     reading_assignments.take_back(db, user, assignment_id, now)
     return Response(status_code=204)
+
+
+@router.get("/reading-assignments/{assignment_id}/answers")
+def given_answers(assignment_id: UUID, user: CurrentUser, db: DbSession) -> GivenAnswersOut:
+    """The group's answers: what each member answered for its giver and the group's owner, who
+    answered how many for the others."""
+    return reading_assignments.answers_of(db, user, assignment_id)

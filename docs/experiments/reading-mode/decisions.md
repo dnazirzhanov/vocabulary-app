@@ -260,6 +260,15 @@ How it works:
 - **A text of one's own given to a group** becomes readable by that group; only the author's own
   texts can be given.
 
-## 36. The giver's view of answers comes next (R2-D2)
-The giver and the group's owner will read the members' answers; other members will see only who
-answered. Shown to the owner first, as the plan says.
+## 36. «Ответы группы» (R2-D2)
+A given reading has «Ответы группы» under its title, for every member. It lists the group's
+members, me first and then by name, never ranked:
+- **every member** sees how many questions each answered («Ответы · 2/3»), or «пока без ответов»;
+- **the giver and the group's owner** also see how many choice questions each got right and how
+  many of its words they have met, and can tap a name to read the answers, with each pick marked
+  right or wrong;
+- **the giver and the group's owner** can «Забрать у группы» there, after a confirmation; answers
+  and learned words stay.
+
+`GET /api/reading-assignments/{id}/answers` sends the answers themselves only to them; others
+get names and counts.

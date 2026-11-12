@@ -32,6 +32,7 @@ import type {
   Progress,
   PromiseInfo,
   Rating,
+  GivenAnswers,
   GivenQuestion,
   GivenWord,
   ReadingAnswer,
@@ -253,6 +254,7 @@ export const api = {
   readingAssignments: () => request<ReadingAssignment[]>('GET', '/reading-assignments'),
   readingAssignment: (id: string) => request<ReadingAssignment>('GET', `/reading-assignments/${id}`),
   takeBackReading: (id: string) => request<null>('DELETE', `/reading-assignments/${id}`),
+  givenAnswers: (id: string) => request<GivenAnswers>('GET', `/reading-assignments/${id}/answers`),
   putAnswer: (questionRef: string, text: string, choice: number | null = null) =>
     request<null>('PUT', '/reading-answers', { question_ref: questionRef, text, ...(choice !== null && { choice }) }),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */

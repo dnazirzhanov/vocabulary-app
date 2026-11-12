@@ -165,3 +165,25 @@ class AssignmentOut(BaseModel):
     due_on: date | None
     given_at: datetime
     questions: list[QuestionOut]
+
+
+class MemberAnswersOut(BaseModel):
+    """A member and their answers to a given reading. Only its giver and the group's owner see
+    what was answered; others see who answered how many."""
+
+    name: str | None
+    me: bool
+    answered: int
+    # Seen by the giver and the group's owner only.
+    correct: int | None = None
+    words_met: int | None = None
+    answers: list[AnswerOut] = []
+
+
+class GivenAnswersOut(BaseModel):
+    questions: int
+    choice_questions: int
+    words: int
+    # Whether I see what each member answered (its giver, the group's owner).
+    may_see: bool
+    members: list[MemberAnswersOut]

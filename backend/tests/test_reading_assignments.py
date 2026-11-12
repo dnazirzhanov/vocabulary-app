@@ -164,3 +164,44 @@ def test_giving_has_its_rules(client: TestClient) -> None:
     # No words, no deck; no deadline is fine.
     bare = give(client, group["id"], words=[], due_on=None).json()
     assert (bare["deck_id"], bare["words"], bare["due_on"]) == (None, 0, None)
+
+
+def test_the_giver_and_the_owner_read_the_answers_others_see_who_answered(
+    client: TestClient,
+) -> None:
+    group = group_of(client)
+    out = give(client, group["id"]).json()
+    choice, open_ = (q["id"] for q in out["questions"])
+    answer(client, choice, "masha", choice=1)
+    answer(client, open_, "masha", text="People like its warm taste.")
+    answer(client, choice, "olga", choice=0)
+    url = f"/api/reading-assignments/{out['id']}/answers"
+
+    # Pavel gave it: everyone's answers, right ones counted; me first, then by name.
+    seen = client.get(url, headers=as_("pavel")).json()
+    assert (seen["may_see"], seen["questions"], seen["choice_questions"], seen["words"]) == (
+        True,
+        2,
+        1,
+        1,
+    )
+    names = [(m["name"], m["me"], m["answered"], m["correct"]) for m in seen["members"]]
+    assert names == [("Павел", True, 0, 0), ("Маша", False, 2, 0), ("Ольга", False, 1, 1)]
+    masha = seen["members"][1]
+    assert [a["question_ref"] for a in masha["answers"]] == [choice, open_]
+    assert masha["answers"][1]["text"] == "People like its warm taste."
+    assert masha["words_met"] == 0
+
+    # The group's owner too.
+    assert client.get(url, headers=as_("olga")).json()["may_see"] is True
+
+    # Masha sees who answered how many, never what.
+    plain = client.get(url, headers=as_("masha")).json()
+    assert plain["may_see"] is False
+    assert [(m["name"], m["answered"], m["correct"], m["answers"]) for m in plain["members"]] == [
+        ("Маша", 2, None, []),
+        ("Ольга", 1, None, []),
+        ("Павел", 0, None, []),
+    ]
+    # Nobody outside the group.
+    assert client.get(url, headers=as_("boris")).status_code == 404
