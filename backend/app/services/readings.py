@@ -188,6 +188,13 @@ def create(db: Session, user: User, body: NewReadingIn, now: datetime) -> Readin
 
 
 def get(db: Session, user: User, reading_id: uuid.UUID) -> ReadingOut:
+    """A text of mine, or one given to a group of mine (its questions are then the giving's)."""
+    reading = db.get(Reading, reading_id)
+    if reading is not None and reading.owner_id != user.id:
+        from app.services.reading_assignments import may_read
+
+        if may_read(db, user, reading_id):
+            return _out(reading)
     reading = _own(db, user, reading_id)
     return _out(reading, _questions(db, reading))
 

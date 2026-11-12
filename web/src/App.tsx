@@ -33,6 +33,7 @@ import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
 const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
+const ReadingGive = lazy(() => import('./reading/GiveReading.tsx').then((m) => ({ default: m.GiveReading })));
 const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({ default: m.OwnText })));
 
 /** Where a deck's page was opened from, for its «Назад». */
@@ -61,7 +62,9 @@ type Screen =
   | { name: 'deck'; deckId: string; groupId: string | null; from?: PageFrom; back?: 'reading-decks' }
   | { name: 'join'; code: string }
   | { name: 'reading' }
-  | { name: 'article'; articleId: string }
+  | { name: 'article'; articleId: string; assignmentId?: string }
+  // «Дать группе» for a text (round 2, D).
+  | { name: 'give-reading'; articleId: string }
   // «Свой текст»: a text of one's own for Reading Mode, into this category (round 2).
   | { name: 'own-text'; categoryId: string | null };
 
@@ -278,14 +281,25 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       </Suspense>
     );
   }
+  if (screen.name === 'give-reading') {
+    const { articleId } = screen;
+    return (
+      <Suspense fallback={null}>
+        <ReadingGive account={me.id} articleId={articleId} onBack={() => setScreen({ name: 'article', articleId })} />
+      </Suspense>
+    );
+  }
   if (screen.name === 'article') {
     return (
       <Suspense fallback={null}>
         <ReadingArticle
+          key={`${screen.articleId}:${screen.assignmentId ?? ''}`}
           account={me.id}
           articleId={screen.articleId}
+          assignmentId={screen.assignmentId}
           onBack={() => setScreen({ name: 'reading' })}
           onStudy={(session, deckId) => startSession(session, deckId)}
+          onGive={(articleId) => setScreen({ name: 'give-reading', articleId })}
         />
       </Suspense>
     );
@@ -380,7 +394,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         <Suspense fallback={null}>
           <ReadingLibrary
             account={me.id}
-            onOpen={(articleId) => setScreen({ name: 'article', articleId })}
+            onOpen={(articleId, assignmentId) => setScreen({ name: 'article', articleId, assignmentId })}
             onAddText={(categoryId) => setScreen({ name: 'own-text', categoryId })}
           />
         </Suspense>
@@ -518,7 +532,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (screen.name === 'reading' || screen.name === 'article' || screen.name === 'own-text') return 'reading';
+  if (['reading', 'article', 'own-text', 'give-reading'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';
   if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';

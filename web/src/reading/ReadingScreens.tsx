@@ -4,9 +4,10 @@ import { api, describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { partOfSpeech } from '../lib/partOfSpeech.ts';
-import type { OwnReadings, Session } from '../lib/types.ts';
+import type { OwnReadings, ReadingAssignment, Session } from '../lib/types.ts';
 import type { LocalCard } from '../local/db.ts';
-import { localDb } from '../local/session.ts';
+import { localDb, withSnapshot } from '../local/session.ts';
+import { dueLabel } from '../lib/deadline.ts';
 import { syncSoon, useLocalVersion } from '../local/sync.ts';
 import { study } from '../study/device.ts';
 import {
@@ -91,6 +92,9 @@ interface Row {
   drafting?: boolean;
   /** Questions it asks; how many I answered shows once I start. */
   questions?: number;
+  /** A reading given to a group: which giving, and who gave it by when. */
+  assignmentId?: string;
+  givenLine?: string;
 }
 
 /** A section: one of my categories (or my texts outside any), or one of the library's topics. */
@@ -115,12 +119,13 @@ export function Library({
   onAddText,
 }: {
   account: string;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, assignmentId?: string) => void;
   onAddText: (categoryId: string | null) => void;
 }) {
   const [cards, setCards] = useState<ArticleCard[] | null>(null);
   const [own, setOwn] = useState<OwnReadings | null>(null);
   const [answered, setAnswered] = useState<Record<string, number>>({});
+  const [given, setGiven] = useState<ReadingAssignment[]>([]);
   const [failed, setFailed] = useState(false);
   const [level, setLevel] = useState<Level | null>(null);
   const [open, setOpen] = useState<string | null>(lastOpen);
@@ -132,6 +137,11 @@ export function Library({
     // Mine are a bonus to the library: without them (offline, never loaded), it still shows.
     loadOwn().then(setOwn, () => setOwn({ categories: [], readings: [] }));
     void loadAnswerCounts().then(setAnswered);
+    // Readings given to my groups; without a connection, as last seen.
+    void withSnapshot('reading-assignments', api.readingAssignments).then(
+      ({ value }) => setGiven(value),
+      () => undefined,
+    );
   }, []);
   useEffect(load, [load]);
   const retry = () => {
@@ -159,6 +169,29 @@ export function Library({
   });
   const mine = own?.readings.filter((reading) => fits(reading.level)) ?? [];
   const sections: Section[] = [
+    // Readings given to my groups first: what a teacher or friend asked me to read.
+    ...(given.length > 0
+      ? [
+          {
+            key: 'given',
+            name: t.fromGroups,
+            rows: given.map((one) => ({
+              id: one.reading_ref.replace(/^(library|reading):/, ''),
+              title: one.title,
+              level: null,
+              minutes: 0,
+              questions: one.questions.length,
+              assignmentId: one.id,
+              givenLine: [
+                one.given_by ? t.from(one.given_by, one.group_name) : t.group(one.group_name),
+                one.due_on ? `${t.dueDate.toLowerCase()} ${dueLabel(one.due_on)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            })),
+          },
+        ]
+      : []),
     // My categories, even an empty one: it is where the next text goes.
     ...(own?.categories ?? []).map((category) => ({
       key: `category:${category.id}`,
@@ -231,12 +264,14 @@ export function Library({
                       {section.rows.length === 0 && <p className={styles.emptySection}>{t.emptyCategory}</p>}
                       <ul className={styles.cards}>
                         {visible.map((row) => (
-                          <li key={row.id}>
+                          <li key={row.assignmentId ?? row.id}>
                             <ArticleRow
                               row={row}
                               read={progress[row.id]}
-                              answered={answered[readingRef(row.id)] ?? 0}
-                              onOpen={() => onOpen(row.id)}
+                              answered={
+                                answered[row.assignmentId ? `assignment:${row.assignmentId}` : readingRef(row.id)] ?? 0
+                              }
+                              onOpen={() => onOpen(row.id, row.assignmentId)}
                             />
                           </li>
                         ))}
@@ -353,7 +388,7 @@ function ArticleRow({
         </span>
       )}
       <span className={styles.cardMeta}>
-        {[row.level, t.min(row.minutes)].filter(Boolean).join(' · ')}
+        {row.givenLine ?? [row.level, t.min(row.minutes)].filter(Boolean).join(' · ')}
         {row.drafting && <span> · {t.meaningsComing}</span>}
         {answered > 0 && row.questions ? <span> · {t.answersOf(answered, row.questions)}</span> : null}
         {read?.doneAt && (
@@ -474,15 +509,33 @@ interface Tapped {
 export function Reader({
   account,
   articleId,
+  assignmentId,
   onBack,
   onStudy,
+  onGive,
 }: {
   account: string;
   articleId: string;
+  /** Opened from «От групп»: the reading as given to a group, with its questions and words. */
+  assignmentId?: string;
   onBack: () => void;
   onStudy: (session: Session, deckId: string) => void;
+  /** «Дать группе» for this text. */
+  onGive?: (articleId: string) => void;
 }) {
   const [article, setArticle] = useState<Article | null>(null);
+  const [given, setGiven] = useState<ReadingAssignment | null>(null);
+  useEffect(() => {
+    if (!assignmentId) return;
+    let live = true;
+    void withSnapshot(`assignment:${assignmentId}`, () => api.readingAssignment(assignmentId)).then(
+      ({ value }) => live && setGiven(value),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [assignmentId]);
   const [failed, setFailed] = useState(false);
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
   const [panel, setPanel] = useState<'appearance' | 'words' | 'notes' | null>(null);
@@ -724,6 +777,14 @@ export function Reader({
     syncSoon();
     setCards(await basketCards(db, deckId));
   };
+  // The words given with the reading: their own deck, the group's.
+  const learnGiven = async (givenDeck: string) => {
+    try {
+      onStudy(await study.startStudySession(givenDeck), givenDeck);
+    } catch (error) {
+      setProblem(describeError(error));
+    }
+  };
   const learn = async () => {
     if (!deckId) return;
     try {
@@ -842,6 +903,19 @@ export function Reader({
           </p>
           <h1 className={styles.title}>{article.title}</h1>
           {article.subtitle && <p className={styles.subtitle}>{article.subtitle}</p>}
+          {given && (
+            <div className={styles.given} lang="ru">
+              <p>
+                {given.given_by ? t.from(given.given_by, given.group_name) : t.group(given.group_name)}
+                {given.due_on && ` · ${t.dueDate.toLowerCase()} ${dueLabel(given.due_on)}`}
+              </p>
+              {given.deck_id && given.words > 0 && (
+                <button type="button" className={styles.givenWords} onClick={() => void learnGiven(given.deck_id!)}>
+                  {t.wordsForText(given.words)} · {t.study}
+                </button>
+              )}
+            </div>
+          )}
           {article.own?.status === 'drafting' && (
             <p className={styles.ownNote} role="status">
               {t.meaningsComing}
@@ -868,7 +942,13 @@ export function Reader({
               />
             ))}
           </div>
-          <Questions account={account} readingRef={readingRef(article.id)} questions={article.questions} />
+          {given ? (
+            <Questions account={account} readingRef={`assignment:${given.id}`} questions={given.questions} />
+          ) : (
+            !assignmentId && (
+              <Questions account={account} readingRef={readingRef(article.id)} questions={article.questions} />
+            )
+          )}
           <footer className={styles.end} lang="ru">
             {article.source && (
               <p className={styles.source}>
@@ -903,6 +983,11 @@ export function Reader({
             >
               {t.readingDone}
             </button>
+            {onGive && !assignmentId && (
+              <button type="button" className={styles.giveLink} onClick={() => onGive(article.id)}>
+                {t.giveToAGroup}
+              </button>
+            )}
           </footer>
         </article>
       )}

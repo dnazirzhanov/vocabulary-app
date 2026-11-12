@@ -1247,3 +1247,45 @@
 .verdictWrong {
   color: var(--color-error);
 }
+
+/* A reading given to a group: who gave it, by when, and its words, under the title. */
+.given {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  color: var(--ink-muted);
+}
+
+.given p {
+  margin: 0;
+}
+
+.givenWords {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--page);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+/* «Дать группе» at the end of a text: quiet, under «Готово». */
+.giveLink {
+  align-self: center;
+  min-height: 44px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

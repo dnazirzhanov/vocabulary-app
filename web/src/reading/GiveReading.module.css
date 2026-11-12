@@ -1,0 +1,351 @@
+/* «Дать группе»: one column — group and deadline, words, questions — then the one button. */
+
+.screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+.topbar {
+  width: 100%;
+  max-width: calc(var(--width-column) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: max(var(--space-2), env(safe-area-inset-top)) var(--gutter) 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.main {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--gutter) max(var(--space-7), env(safe-area-inset-bottom));
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--width-column);
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-weight: var(--weight-strong);
+}
+
+.field input,
+.field textarea,
+.naming input {
+  min-height: 48px;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-body);
+}
+
+/* The text is what this screen is for: it gets the room. */
+.field textarea {
+  min-height: 12rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus,
+.naming input:focus {
+  border-color: var(--color-primary-strong);
+}
+
+.field textarea[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+.optional {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
+}
+
+.under {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.count,
+.over,
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.over {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}
+
+.outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge-hover);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.outline:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.outline svg {
+  width: 20px;
+  height: 20px;
+}
+
+progress {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+/* The category: the ones I have as chips, «Без категории» first, «＋ Новая» last. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.block legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-weight: var(--weight-strong);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chips button[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+  font-weight: var(--weight-strong);
+}
+
+.chips .newChip {
+  border-style: dashed;
+  color: var(--color-primary-strong);
+}
+
+.chips svg {
+  width: 18px;
+  height: 18px;
+}
+
+.naming {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.naming input {
+  flex: 1;
+  min-width: 0;
+}
+
+.problem {
+  color: var(--color-error);
+}
+
+.subtitle {
+  margin: calc(-1 * var(--space-3)) 0 0;
+  color: var(--color-text-muted);
+  font-family: 'Literata Reader', Georgia, serif;
+}
+
+.due {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  max-width: 14rem;
+  font-weight: var(--weight-strong);
+}
+
+.due input,
+.questionHead textarea,
+.option input:not([type='radio']),
+.limits input {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-body);
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.more svg {
+  width: 18px;
+  height: 18px;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.questionHead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.questionHead textarea {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  font-weight: var(--weight-strong);
+}
+
+.drop {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.drop svg {
+  width: 18px;
+  height: 18px;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.option {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.option input[type='radio'] {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-success);
+}
+
+.option input:not([type='radio']) {
+  flex: 1;
+  min-width: 0;
+}
+
+.limits {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.limits label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.limits input {
+  width: 6rem;
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--text-option);
+}

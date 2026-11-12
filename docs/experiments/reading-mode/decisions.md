@@ -236,3 +236,30 @@ is right at once after answering, and offline.
 ## 34. Refused changes are logged (R2-C2)
 "Were my answers received?" had no answer in the logs: a refused sync change was silent. The
 server now logs each refused one by kind and reason (never its content).
+
+## 35. A reading given to a group, in one step (R2-D1)
+`reading_assignments` (additive migration, RLS on) holds:
+- the group and the text (a library article, or the giver's own);
+- the giver, an optional deadline, and when it was given or taken back;
+- the deck its words became.
+
+How it works:
+- **Who gives:** any member gives a reading to their group (owner's decision). Its giver and the
+  group's owner may take it back, and its deck goes with it; what was learned and answered stays.
+- **Where:** «Дать группе» is a quiet link at the end of every text. It opens one screen, filled in
+  so most givers only pick the group:
+  - the group (the only one already picked) and a deadline;
+  - the words to learn from the text, as chips: the giver's own kept words picked, and the text's
+    others offered, everyday words left out;
+  - the questions, copied from the text's, to change, drop or add (limits for open ones).
+- **The words** become a deck of the giver's given to the group. It is learned like any group
+  deck and is listed under «Из чтения» (`decks.reading_ref = assignment:<id>`).
+- **Members** find it first on the Reading tab, under «От групп» («от Ольга · 7Б · срок …»). It
+  opens with its words button («Слова к тексту · N · Учить») and the giving's questions; answers
+  are kept under `assignment:<id>`, apart from the same text read alone.
+- **A text of one's own given to a group** becomes readable by that group; only the author's own
+  texts can be given.
+
+## 36. The giver's view of answers comes next (R2-D2)
+The giver and the group's owner will read the members' answers; other members will see only who
+answered. Shown to the owner first, as the plan says.
