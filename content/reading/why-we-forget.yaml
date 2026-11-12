@@ -31,3 +31,15 @@ glossary:
   review: {ru: "повторяют", pos: verb, def: "look at or study something again"}
   reviews: {ru: "повторения", pos: noun, lemma: review}
   pauses: {ru: "паузы, перерывы", pos: noun, lemma: pause}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "What did Hermann Ebbinghaus discover about forgetting?"
+    min: 20
+    max: 100
+  - q: "What is the difference between the spacing effect and the testing effect?"
+    min: 20
+    max: 100
+  - q: "How will you study new English words after reading this text?"
+    min: 20
+    max: 120

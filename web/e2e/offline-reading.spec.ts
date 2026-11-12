@@ -116,3 +116,34 @@ test('a text of my own opened once opens offline, its meanings too', async ({ pa
   await page.locator('article [data-f="oven"]').click();
   await expect(page.getByRole('region', { name: 'oven' })).toContainText('перевод «oven» (демо)');
 });
+
+test('an answer written offline stays on the phone and reaches the server once online', async ({ page, context }) => {
+  await visitOnline(page);
+  await openMars(page);
+  await context.setOffline(true);
+  const box = page.getByRole('textbox', { name: /What does finding ferrihydrite tell us/ });
+  const answer =
+    'It tells us that Mars probably had a lot of liquid water in the past, because ferrihydrite forms in water-rich places.';
+  await box.fill(answer);
+  const item = page.getByRole('region', { name: 'Вопросы к тексту' }).getByRole('listitem').nth(1);
+  await item.getByRole('button', { name: 'Отправить' }).click();
+  await expect(item).toContainText(answer);
+
+  // A reload offline: still there.
+  await page.reload();
+  await openMars(page);
+  await expect(page.getByRole('region', { name: 'Вопросы к тексту' }).getByRole('listitem').nth(1)).toContainText(
+    answer,
+  );
+
+  await context.setOffline(false);
+  await expect
+    .poll(
+      async () =>
+        (await (await context.request.get('/api/reading-answers?reading=library%3Amars-red-color')).json()).map(
+          (one: { text: string }) => one.text,
+        ),
+      { timeout: 15_000 },
+    )
+    .toEqual([answer]);
+});

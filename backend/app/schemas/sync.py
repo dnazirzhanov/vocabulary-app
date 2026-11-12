@@ -130,6 +130,16 @@ class PaceExtra(_Op):
     added_at: datetime
 
 
+class ReadingAnswerOp(_Op):
+    """An answer to a comprehension question (Reading Mode, round 2), written on the device."""
+
+    kind: Literal["reading.answer"]
+    question_ref: Annotated[str, StringConstraints(max_length=80)]
+    text: Annotated[str, StringConstraints(max_length=10_000)]
+    # When it was written: an older edit arriving after a newer one is kept out.
+    answered_at: datetime
+
+
 class StudyAnswer(_Op):
     """One answer in a lesson planned on the device (ADR 0062): re-applied by the server with the
     same rules, at the moment it was given. The first answer of a session creates it."""
@@ -173,6 +183,7 @@ Op = Annotated[
     | SettingsChange
     | PaceExtra
     | CardReportOp
+    | ReadingAnswerOp
     | StudyAnswer
     | StudyFinish,
     Field(discriminator="kind"),

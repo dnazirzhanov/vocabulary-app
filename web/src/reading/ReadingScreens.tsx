@@ -46,7 +46,9 @@ import {
   type Theme,
   type Topic,
 } from './articles.ts';
-import { addWord, basketCards, cardFor, findDeck, removeWord } from './basket.ts';
+import { loadAnswerCounts } from './answers.ts';
+import { addWord, basketCards, cardFor, findDeck, readingRef, removeWord } from './basket.ts';
+import { Questions } from './Questions.tsx';
 import { ordered, readNotes, saveNotes } from './notes.ts';
 import { contains, coverage, quoteOf, runs, sentenceAt, snap, type Highlight, type Point } from './text.ts';
 import styles from './Reading.module.css';
@@ -87,6 +89,8 @@ interface Row {
   level: string | null;
   minutes: number;
   drafting?: boolean;
+  /** Questions it asks; how many I answered shows once I start. */
+  questions?: number;
 }
 
 /** A section: one of my categories (or my texts outside any), or one of the library's topics. */
@@ -116,6 +120,7 @@ export function Library({
 }) {
   const [cards, setCards] = useState<ArticleCard[] | null>(null);
   const [own, setOwn] = useState<OwnReadings | null>(null);
+  const [answered, setAnswered] = useState<Record<string, number>>({});
   const [failed, setFailed] = useState(false);
   const [level, setLevel] = useState<Level | null>(null);
   const [open, setOpen] = useState<string | null>(lastOpen);
@@ -126,6 +131,7 @@ export function Library({
     loadIndex().then(setCards, () => setFailed(true));
     // Mine are a bonus to the library: without them (offline, never loaded), it still shows.
     loadOwn().then(setOwn, () => setOwn({ categories: [], readings: [] }));
+    void loadAnswerCounts().then(setAnswered);
   }, []);
   useEffect(load, [load]);
   const retry = () => {
@@ -149,6 +155,7 @@ export function Library({
     level: reading.level,
     minutes: reading.minutes,
     drafting: reading.status === 'drafting',
+    questions: reading.questions_count,
   });
   const mine = own?.readings.filter((reading) => fits(reading.level)) ?? [];
   const sections: Section[] = [
@@ -225,7 +232,12 @@ export function Library({
                       <ul className={styles.cards}>
                         {visible.map((row) => (
                           <li key={row.id}>
-                            <ArticleRow row={row} read={progress[row.id]} onOpen={() => onOpen(row.id)} />
+                            <ArticleRow
+                              row={row}
+                              read={progress[row.id]}
+                              answered={answered[readingRef(row.id)] ?? 0}
+                              onOpen={() => onOpen(row.id)}
+                            />
                           </li>
                         ))}
                       </ul>
@@ -321,10 +333,12 @@ function CategoryDialog({
 function ArticleRow({
   row,
   read,
+  answered,
   onOpen,
 }: {
   row: Row;
   read: ReturnType<typeof readProgress>[string] | undefined;
+  answered: number;
   onOpen: () => void;
 }) {
   const share = read && !read.doneAt && read.of > 0 ? (read.at + 1) / read.of : 0;
@@ -341,6 +355,7 @@ function ArticleRow({
       <span className={styles.cardMeta}>
         {[row.level, t.min(row.minutes)].filter(Boolean).join(' · ')}
         {row.drafting && <span> · {t.meaningsComing}</span>}
+        {answered > 0 && row.questions ? <span> · {t.answersOf(answered, row.questions)}</span> : null}
         {read?.doneAt && (
           <span className={styles.finished}>
             {' '}
@@ -853,6 +868,7 @@ export function Reader({
               />
             ))}
           </div>
+          <Questions readingRef={readingRef(article.id)} questions={article.questions} />
           <footer className={styles.end} lang="ru">
             {article.source && (
               <p className={styles.source}>

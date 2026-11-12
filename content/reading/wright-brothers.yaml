@@ -33,3 +33,15 @@ glossary:
   th: {ru: "-е (число: 17th = семнадцатое)", pos: "other"}
   war: {ru: "военный, война", pos: "noun"}
   department: {ru: "министерство, отдел", pos: "noun", def: "a part of a government or company"}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "When and where did the Wright brothers make their first flight?"
+    min: 10
+    max: 60
+  - q: "How long was Orville's first flight, and how far did the plane go?"
+    min: 5
+    max: 40
+  - q: "Which invention changed the world the most, in your opinion? Why?"
+    min: 15
+    max: 80

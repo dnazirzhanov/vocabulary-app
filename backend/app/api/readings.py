@@ -10,6 +10,8 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now
 from app.core.ratelimit import limit_generations
 from app.schemas.readings import (
+    AnswerIn,
+    AnswerOut,
     CategoryIn,
     CategoryOut,
     NewReadingIn,
@@ -17,7 +19,7 @@ from app.schemas.readings import (
     ReadingListOut,
     ReadingOut,
 )
-from app.services import readings
+from app.services import reading_answers, readings
 from app.services.generation import Provider
 
 router = APIRouter(tags=["readings"])
@@ -93,4 +95,24 @@ def rename_category(
 @router.delete("/reading-categories/{category_id}", status_code=204)
 def delete_category(category_id: UUID, user: CurrentUser, db: DbSession) -> Response:
     readings.delete_category(db, user, category_id)
+    return Response(status_code=204)
+
+
+@router.get("/reading-answers")
+def my_answers(reading: str, user: CurrentUser, db: DbSession) -> list[AnswerOut]:
+    """My answers to one text's questions (`library:<article>` or `reading:<id>`)."""
+    return reading_answers.answers(db, user, reading)
+
+
+@router.get("/reading-answers/counts")
+def my_answer_counts(user: CurrentUser, db: DbSession) -> dict[str, int]:
+    """How many questions of each text I have answered, for the library's rows."""
+    return reading_answers.counts(db, user)
+
+
+@router.put("/reading-answers", status_code=204)
+def answer(body: AnswerIn, user: CurrentUser, db: DbSession, now: Now) -> Response:
+    """An answer sent straight away (a device without its own store uses the outbox otherwise)."""
+    reading_answers.answer(db, user, body.question_ref, body.text, now)
+    db.commit()
     return Response(status_code=204)

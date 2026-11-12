@@ -52,6 +52,17 @@ class ReadingCardOut(BaseModel):
     # Its meanings are being written (a tap shows them once ready), or that failed.
     status: Literal["drafting", "ready", "failed"]
     created_at: datetime
+    # How many questions it asks (none until its meanings are ready).
+    questions_count: int = 0
+
+
+class QuestionOut(BaseModel):
+    """A comprehension question, as the library's articles carry theirs."""
+
+    id: str
+    q: str
+    min: int
+    max: int
 
 
 class ReadingOut(ReadingCardOut):
@@ -61,6 +72,25 @@ class ReadingOut(ReadingCardOut):
     language: str
     # Word form → {l, p, t, d}: lemma, part of speech (null for a name), meaning, explanation.
     glossary: dict[str, dict[str, str | None]]
+    # Drafted with the meanings: none until they are ready.
+    questions: list[QuestionOut] = []
+
+
+class AnswerOut(BaseModel):
+    """A reader's latest answer to a question, with the question as it was answered."""
+
+    question_ref: str
+    question_text: str
+    text: str
+    words: int
+    sent_at: datetime
+    updated_at: datetime
+
+
+class AnswerIn(_Input):
+    question_ref: Annotated[str, StringConstraints(max_length=80)]
+    # Checked in words (at most 500) once received; the characters only bound the request.
+    text: Annotated[str, StringConstraints(max_length=10_000)]
 
 
 class ReadingListOut(BaseModel):

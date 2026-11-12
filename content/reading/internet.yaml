@@ -52,3 +52,15 @@ glossary:
   attachments: {ru: "вложения", pos: noun, lemma: attachment, def: "files sent together with an e-mail"}
   computer: {ru: "компьютер", pos: noun}
   computers: {ru: "компьютеры", pos: noun, lemma: computer}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "Where and when did the Internet and the World Wide Web begin?"
+    min: 15
+    max: 80
+  - q: "What are the two biggest uses of the Internet, according to the text?"
+    min: 10
+    max: 60
+  - q: "What dangers of the Internet does the text describe? How do you keep yourself safe online?"
+    min: 20
+    max: 120

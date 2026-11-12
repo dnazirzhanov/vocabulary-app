@@ -1,5 +1,5 @@
 import { api } from '../lib/api.ts';
-import type { OwnReading, OwnReadings } from '../lib/types.ts';
+import type { OwnReading, OwnReadings, ReadingQuestion } from '../lib/types.ts';
 import { withSnapshot } from '../local/session.ts';
 
 /**
@@ -29,6 +29,8 @@ export interface ArticleCard {
   topic: Topic;
   level: Level;
   minutes: number;
+  /** How many questions it asks. */
+  questions?: number;
 }
 
 /** One word form's meaning: lemma, part of speech (null for a name), meaning, explanation. */
@@ -55,6 +57,8 @@ export interface Article {
   glossary: Record<string, Meaning>;
   /** The language its meanings are in: the library's Russian, or the owner's card language. */
   language: string;
+  /** What a reader answers after reading (round 2, C). */
+  questions: ReadingQuestion[];
   /** A text of my own: whether its meanings are ready yet. */
   own?: { status: OwnReading['status']; categoryId: string | null };
 }
@@ -105,6 +109,7 @@ export const ownArticle = (reading: OwnReading): Article => ({
   body: reading.body,
   glossary: reading.glossary,
   language: reading.language,
+  questions: reading.questions ?? [],
   own: { status: reading.status, categoryId: reading.category_id },
 });
 

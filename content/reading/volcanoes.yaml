@@ -49,3 +49,15 @@ glossary:
   sides: {ru: "склоны", pos: noun, lemma: side}
   side: {ru: "сбоку, сторона", pos: noun}
   top: {ru: "вершина, верх", pos: noun}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "How are volcanoes formed, and what comes out of an active volcano?"
+    min: 20
+    max: 100
+  - q: "Describe Mauna Loa: where it is, how tall it is, and how it was created."
+    min: 20
+    max: 100
+  - q: "Would you like to visit a volcano? Explain why or why not."
+    min: 30
+    max: 150

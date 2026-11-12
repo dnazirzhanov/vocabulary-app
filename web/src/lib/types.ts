@@ -682,6 +682,7 @@ export interface OwnReadingCard {
   minutes: number;
   status: 'drafting' | 'ready' | 'failed';
   created_at: string;
+  questions_count: number;
 }
 
 /** The text as the reader opens it: word form → {l, p, t, d}, `t` in `language`. */
@@ -689,6 +690,26 @@ export interface OwnReading extends OwnReadingCard {
   body: string[];
   language: string;
   glossary: Record<string, { l: string; p: string | null; t: string; d: string | null }>;
+  questions: ReadingQuestion[];
+}
+
+/** A comprehension question and the words a good answer takes (round 2, C). */
+export interface ReadingQuestion {
+  /** `library:<article>:<n>` or `question:<id>`: what an answer names. */
+  id: string;
+  q: string;
+  min: number;
+  max: number;
+}
+
+/** My latest answer to a question, with the question as I answered it. */
+export interface ReadingAnswer {
+  question_ref: string;
+  question_text: string;
+  text: string;
+  words: number;
+  sent_at: string;
+  updated_at: string;
 }
 
 export interface OwnReadings {

@@ -38,3 +38,15 @@ glossary:
   co: {ru: "со- (co-writer — соавтор)", pos: other}
   writer: {ru: "автор", pos: noun}
   opening: {ru: "открывающий", pos: adjective}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "Which mineral do scientists now think makes Mars red, and what did earlier studies suggest?"
+    min: 20
+    max: 100
+  - q: "What does finding ferrihydrite tell us about the past of Mars?"
+    min: 20
+    max: 100
+  - q: "How did the scientists collect their data? Why do you think they used several methods?"
+    min: 30
+    max: 150

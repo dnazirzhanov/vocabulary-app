@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { pieces, quoteOf, runs, sentenceAt, snap, type Highlight } from './text.ts';
+import { countWords } from '../lib/tokens.ts';
+import { capWords, MAX_ANSWER_WORDS, pieces, quoteOf, runs, sentenceAt, snap, type Highlight } from './text.ts';
 
 const body = [
   "The Wright brothers' plane didn't fly far. It flew 36 meters!",
@@ -56,4 +57,14 @@ test('a saved word keeps the sentence it was read in', () => {
   assert.equal(sentenceAt(body[0], 4), "The Wright brothers' plane didn't fly far.");
   assert.equal(sentenceAt(body[1], 0), body[1]);
   assert.equal(sentenceAt('a '.repeat(200), 0, 20).length, 20);
+});
+
+test('an answer counts words as the server does, and holds at most 500', () => {
+  // The same sentence as backend/tests/test_reading_answers.py: numbers and dashes are not words.
+  assert.equal(countWords("It's red, because 2 oxides — iron's!"), 5);
+  const long = Array.from({ length: 520 }, (_, n) => `w${String.fromCharCode(97 + (n % 26))}`).join(' ');
+  assert.equal(countWords(capWords(long)), MAX_ANSWER_WORDS);
+  assert.equal(capWords('Short answer.'), 'Short answer.');
+  // Cut after a whole word, never inside one.
+  assert.equal(capWords('one two three', 2), 'one two');
 });
