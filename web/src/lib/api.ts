@@ -32,7 +32,11 @@ import type {
   Progress,
   PromiseInfo,
   Rating,
+  GivenAnswers,
+  GivenQuestion,
+  GivenWord,
   ReadingAnswer,
+  ReadingAssignment,
   ReadingCategory,
   ReportedCard,
   Session,
@@ -239,6 +243,18 @@ export const api = {
   readingAnswers: (readingRef: string) =>
     request<ReadingAnswer[]>('GET', `/reading-answers?reading=${encodeURIComponent(readingRef)}`),
   answerCounts: () => request<Record<string, number>>('GET', '/reading-answers/counts'),
+  /** A reading given to one of my groups, with its words and questions (round 2, D). */
+  giveReading: (body: {
+    group_id: string;
+    reading_ref: string;
+    words: GivenWord[];
+    questions: GivenQuestion[];
+    due_on: string | null;
+  }) => request<ReadingAssignment>('POST', '/reading-assignments', body),
+  readingAssignments: () => request<ReadingAssignment[]>('GET', '/reading-assignments'),
+  readingAssignment: (id: string) => request<ReadingAssignment>('GET', `/reading-assignments/${id}`),
+  takeBackReading: (id: string) => request<null>('DELETE', `/reading-assignments/${id}`),
+  givenAnswers: (id: string) => request<GivenAnswers>('GET', `/reading-assignments/${id}/answers`),
   putAnswer: (questionRef: string, text: string, choice: number | null = null) =>
     request<null>('PUT', '/reading-answers', { question_ref: questionRef, text, ...(choice !== null && { choice }) }),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */

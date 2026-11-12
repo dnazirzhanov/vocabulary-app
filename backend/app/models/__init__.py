@@ -23,7 +23,13 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
-from app.models.reading import Reading, ReadingAnswer, ReadingCategory, ReadingQuestion
+from app.models.reading import (
+    Reading,
+    ReadingAnswer,
+    ReadingAssignment,
+    ReadingCategory,
+    ReadingQuestion,
+)
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     CardReport,
@@ -59,6 +65,7 @@ __all__ = [
     "PushSubscription",
     "Reading",
     "ReadingAnswer",
+    "ReadingAssignment",
     "ReadingCategory",
     "ReadingQuestion",
     "ReviewAttempt",

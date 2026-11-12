@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import Reading, ReadingAnswer, ReadingQuestion, User
 from app.schemas.readings import AnswerOut
+from app.services import reading_assignments
 from app.services.content import TOKEN
 from app.services.reading import MAX_ANSWER_WORDS, library_questions
 
@@ -42,30 +43,29 @@ def question(db: Session, user: User, question_ref: str) -> Asked:
     if question_ref.startswith("library:"):
         found = library_questions().get(question_ref)
         if found is not None:
-            reading_ref, one = found
+            article_ref, one = found
             if one.kind == "choice":
                 return Asked(
-                    reading_ref, one.q, "choice", options=tuple(one.options or ()), right=one.right
+                    article_ref, one.q, "choice", options=tuple(one.options or ()), right=one.right
                 )
-            return Asked(reading_ref, one.q, min_words=one.min or 1, max_words=one.max or 1)
+            return Asked(article_ref, one.q, min_words=one.min or 1, max_words=one.max or 1)
     elif question_ref.startswith("question:"):
         try:
             question_id = uuid.UUID(question_ref.removeprefix("question:"))
         except ValueError:
             question_id = None
-        row = (
-            db.execute(
-                select(ReadingQuestion, Reading.owner_id)
-                .join(Reading, Reading.id == ReadingQuestion.reading_id)
-                .where(ReadingQuestion.id == question_id)
-            ).first()
-            if question_id
-            else None
-        )
-        # A text of the reader's own (round 2, D adds texts given to their groups).
-        if row is not None and row[1] == user.id:
-            asked = row[0]
-            reading_ref = f"reading:{asked.reading_id}"
+        asked = db.get(ReadingQuestion, question_id) if question_id else None
+        reading_ref: str | None = None
+        if asked is not None and asked.assignment_id is not None:
+            # A question of a reading given to one of my groups.
+            if reading_assignments.may_answer(db, user, asked.assignment_id):
+                reading_ref = f"assignment:{asked.assignment_id}"
+        elif asked is not None and asked.reading_id is not None:
+            # A question of a text of my own.
+            reading = db.get(Reading, asked.reading_id)
+            if reading is not None and reading.owner_id == user.id:
+                reading_ref = f"reading:{asked.reading_id}"
+        if asked is not None and reading_ref is not None:
             if asked.kind == "choice":
                 return Asked(
                     reading_ref,

@@ -12,14 +12,17 @@ from app.core.ratelimit import limit_generations
 from app.schemas.readings import (
     AnswerIn,
     AnswerOut,
+    AssignmentOut,
     CategoryIn,
     CategoryOut,
+    GivenAnswersOut,
+    GiveReadingIn,
     NewReadingIn,
     ReadingChangeIn,
     ReadingListOut,
     ReadingOut,
 )
-from app.services import reading_answers, readings
+from app.services import reading_answers, reading_assignments, readings
 from app.services.generation import Provider
 
 router = APIRouter(tags=["readings"])
@@ -116,3 +119,36 @@ def answer(body: AnswerIn, user: CurrentUser, db: DbSession, now: Now) -> Respon
     reading_answers.answer(db, user, body.question_ref, body.text, now, body.choice)
     db.commit()
     return Response(status_code=204)
+
+
+# --- readings given to groups (round 2, D) -------------------------------------------------------
+
+
+@router.post("/reading-assignments", status_code=201)
+def give_reading(body: GiveReadingIn, user: CurrentUser, db: DbSession, now: Now) -> AssignmentOut:
+    """A reading given to one of my groups: its text, its words as a deck, its questions."""
+    return reading_assignments.give(db, user, body, now)
+
+
+@router.get("/reading-assignments")
+def readings_given(user: CurrentUser, db: DbSession) -> list[AssignmentOut]:
+    """Readings given to my groups, newest first."""
+    return reading_assignments.mine(db, user)
+
+
+@router.get("/reading-assignments/{assignment_id}")
+def reading_given(assignment_id: UUID, user: CurrentUser, db: DbSession) -> AssignmentOut:
+    return reading_assignments.get(db, user, assignment_id)
+
+
+@router.delete("/reading-assignments/{assignment_id}", status_code=204)
+def take_back_reading(assignment_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> Response:
+    reading_assignments.take_back(db, user, assignment_id, now)
+    return Response(status_code=204)
+
+
+@router.get("/reading-assignments/{assignment_id}/answers")
+def given_answers(assignment_id: UUID, user: CurrentUser, db: DbSession) -> GivenAnswersOut:
+    """The group's answers: what each member answered for its giver and the group's owner, who
+    answered how many for the others."""
+    return reading_assignments.answers_of(db, user, assignment_id)

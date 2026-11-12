@@ -5,11 +5,12 @@ private until given to a group (round 2, R2-D).
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -71,6 +72,30 @@ class Reading(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class ReadingAssignment(Base):
+    """A reading given to a group (round 2, D): its text (a library article or someone's own), the
+    words to learn from it (a deck given to the group with it), its questions and a deadline.
+    Any member may give one; the giver and the group's owner may take it back."""
+
+    __tablename__ = "reading_assignments"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), index=True
+    )
+    # `library:<article>` or `reading:<id>`.
+    reading_ref: Mapped[str] = mapped_column(String(80))
+    title: Mapped[str] = mapped_column(String(120))
+    given_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    # The words chosen from it, as a deck given to the group (none when no words were chosen).
+    deck_id: Mapped[str | None] = mapped_column(ForeignKey("decks.id", ondelete="SET NULL"))
+    due_on: Mapped[date | None] = mapped_column(Date)
+    given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class ReadingQuestion(Base):
     """A comprehension question on a text of someone's own: drafted with its meanings (round 2).
     The library's articles keep theirs in content/reading/."""
@@ -82,11 +107,17 @@ class ReadingQuestion(Base):
             " AND min_words <= max_words AND max_words <= 500)",
             name="kinds",
         ),
+        CheckConstraint("reading_id IS NOT NULL OR assignment_id IS NOT NULL", name="belongs"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    reading_id: Mapped[uuid.UUID] = mapped_column(
+    # A text of someone's own (drafted with it), or a reading given to a group (its own copy, the
+    # giver's to change): one of the two.
+    reading_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("readings.id", ondelete="CASCADE"), index=True
+    )
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("reading_assignments.id", ondelete="CASCADE"), index=True
     )
     position: Mapped[int] = mapped_column(SmallInteger)
     # 'choice': on the text's facts, with `options` and the right one's place (`answer`); 'open':

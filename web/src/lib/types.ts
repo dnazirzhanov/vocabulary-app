@@ -725,3 +725,59 @@ export interface OwnReadings {
   categories: ReadingCategory[];
   readings: OwnReadingCard[];
 }
+
+// --- a reading given to a group (round 2, D) ---------------------------------------------------
+
+/** A word given with a reading: a card of the deck the group learns from it. */
+export interface GivenWord {
+  headword: string;
+  pos: string;
+  translation: string;
+  example: string;
+  language: string;
+}
+
+/** A question as the giver leaves it. */
+export interface GivenQuestion {
+  kind: 'choice' | 'open';
+  q: string;
+  options?: string[];
+  answer?: number;
+  min?: number;
+  max?: number;
+}
+
+/** A reading given to one of my groups. */
+export interface ReadingAssignment {
+  id: string;
+  group_id: string;
+  group_name: string;
+  reading_ref: string;
+  title: string;
+  given_by: string | null;
+  mine: boolean;
+  can_take_back: boolean;
+  deck_id: string | null;
+  words: number;
+  due_on: string | null;
+  given_at: string;
+  questions: ReadingQuestion[];
+}
+
+/** A member and their answers to a given reading (only its giver and the group's owner see them). */
+export interface MemberAnswers {
+  name: string | null;
+  me: boolean;
+  answered: number;
+  correct: number | null;
+  words_met: number | null;
+  answers: ReadingAnswer[];
+}
+
+export interface GivenAnswers {
+  questions: number;
+  choice_questions: number;
+  words: number;
+  may_see: boolean;
+  members: MemberAnswers[];
+}

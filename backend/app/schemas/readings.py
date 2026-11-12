@@ -1,10 +1,12 @@
 """Texts people add to Reading Mode themselves (round 2), and their categories."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+from app.schemas.decks import DeckWordIn, ReadingRef
 
 ReadingTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
@@ -105,3 +107,83 @@ class AnswerIn(_Input):
 class ReadingListOut(BaseModel):
     categories: list[CategoryOut]
     readings: list[ReadingCardOut]
+
+
+# --- a reading given to a group (round 2, D) ----------------------------------------------------
+
+
+class GiveQuestionIn(_Input):
+    """A question as the giver leaves it: with options and the right one's place, or open."""
+
+    kind: Literal["choice", "open"]
+    q: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+    options: (
+        list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]]
+        | None
+    ) = None
+    answer: int | None = None
+    min: int | None = Field(default=None, ge=1, le=500)
+    max: int | None = Field(default=None, ge=1, le=500)
+
+    @model_validator(mode="after")
+    def _whole(self) -> "GiveQuestionIn":
+        if self.kind == "choice":
+            options = self.options or []
+            if not 3 <= len(options) <= 4 or len(set(options)) != len(options):
+                raise ValueError("3 or 4 different options")
+            if self.answer is None or not 0 <= self.answer < len(options):
+                raise ValueError("answer must be an option's place")
+        elif self.min is None or self.max is None or self.min > self.max:
+            raise ValueError("an open question has min ≤ max")
+        return self
+
+
+class GiveReadingIn(_Input):
+    group_id: UUID
+    reading_ref: ReadingRef
+    # The words to learn from it: a deck given to the group with it.
+    words: list[DeckWordIn] = Field(default_factory=list, max_length=50)
+    questions: list[GiveQuestionIn] = Field(default_factory=list, max_length=10)
+    due_on: date | None = None
+
+
+class AssignmentOut(BaseModel):
+    """A reading given to one of my groups."""
+
+    id: UUID
+    group_id: UUID
+    group_name: str
+    reading_ref: str
+    title: str
+    # Who gave it (their name in the group), and whether it was me.
+    given_by: str | None
+    mine: bool
+    # Whether I may take it back: its giver, or the group's owner.
+    can_take_back: bool
+    deck_id: str | None
+    words: int
+    due_on: date | None
+    given_at: datetime
+    questions: list[QuestionOut]
+
+
+class MemberAnswersOut(BaseModel):
+    """A member and their answers to a given reading. Only its giver and the group's owner see
+    what was answered; others see who answered how many."""
+
+    name: str | None
+    me: bool
+    answered: int
+    # Seen by the giver and the group's owner only.
+    correct: int | None = None
+    words_met: int | None = None
+    answers: list[AnswerOut] = []
+
+
+class GivenAnswersOut(BaseModel):
+    questions: int
+    choice_questions: int
+    words: int
+    # Whether I see what each member answered (its giver, the group's owner).
+    may_see: bool
+    members: list[MemberAnswersOut]

@@ -335,3 +335,12 @@ def library_questions() -> dict[str, tuple[str, Question]]:
         for n, one in enumerate(article.questions, start=1):
             found[question_ref(article.id, n)] = (f"library:{article.id}", one)
     return found
+
+
+@cache
+def library_titles() -> dict[str, str]:
+    """Each library article's title by its ref (`library:<id>`)."""
+    return {
+        f"library:{article.id}": article.title
+        for article in (_parse(path) for path in sorted(reading_dir().glob("[!_]*.yaml")))
+    }
