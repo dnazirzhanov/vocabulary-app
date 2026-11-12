@@ -32,6 +32,7 @@ import type {
   Progress,
   PromiseInfo,
   Rating,
+  ReadingAnswer,
   ReadingCategory,
   ReportedCard,
   Session,
@@ -235,6 +236,11 @@ export const api = {
   renameReadingCategory: (id: string, name: string) =>
     request<ReadingCategory>('PATCH', `/reading-categories/${id}`, { name }),
   deleteReadingCategory: (id: string) => request<null>('DELETE', `/reading-categories/${id}`),
+  readingAnswers: (readingRef: string) =>
+    request<ReadingAnswer[]>('GET', `/reading-answers?reading=${encodeURIComponent(readingRef)}`),
+  answerCounts: () => request<Record<string, number>>('GET', '/reading-answers/counts'),
+  putAnswer: (questionRef: string, text: string) =>
+    request<null>('PUT', '/reading-answers', { question_ref: questionRef, text }),
   /** My deck, for good: its cards, the progress on them, its unfinished lessons (ADR 0019). */
   deleteDeck: (deckId: string) => request<null>('DELETE', `/decks/${deckId}`),
   /** Full cards from the words named, saved to the deck. */
@@ -323,6 +329,8 @@ const MESSAGES: Record<string, string> = {
   reviews_first: t.firstReviewTheWordsThatAre,
   too_many_decks: t.tooManyDecks,
   reading_too_long: t.readingTooLong,
+  answer_too_short: t.answerTooShort,
+  answer_too_long: t.answerTooLong,
   reading_empty: t.readingEmpty,
   category_exists: t.categoryExists,
   too_many_readings: t.tooManyReadings,

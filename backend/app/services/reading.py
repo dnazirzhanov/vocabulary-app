@@ -4,11 +4,19 @@ its meaning prepared here, so a tap in the reader is a lookup on the device, nev
 
 import json
 import math
+from functools import cache
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 
 from app.services.content import (
     TOKEN,
@@ -54,6 +62,26 @@ class ArticleWord(BaseModel):
     )
 
 
+# An answer is at most this many words, whatever a question allows (the owner's limit).
+MAX_ANSWER_WORDS = 500
+
+
+class Question(BaseModel):
+    """A comprehension question, answered in writing or by voice within its word limits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: Annotated[Text, StringConstraints(max_length=300)]
+    min: int = Field(ge=1, le=MAX_ANSWER_WORDS)
+    max: int = Field(ge=1, le=MAX_ANSWER_WORDS)
+
+    @model_validator(mode="after")
+    def _in_order(self) -> "Question":
+        if self.min > self.max:
+            raise ValueError("min must not be above max")
+        return self
+
+
 class Article(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -68,6 +96,13 @@ class Article(BaseModel):
     glossary: dict[str, ArticleWord] = Field(default_factory=dict)
     # People and places, as written: tapped, they say «имя или название» and can't become cards.
     names: list[Annotated[Text, StringConstraints(max_length=40)]] = Field(default_factory=list)
+    # What a reader answers after reading (round 2): every article asks some.
+    questions: list[Question] = Field(min_length=2, max_length=5)
+
+
+def question_ref(article_id: str, number: int) -> str:
+    """How an answer names a library question: `library:<article>:<1-based number>`."""
+    return f"library:{article_id}:{number}"
 
 
 def body_tokens(article: Article) -> list[str]:
@@ -198,6 +233,8 @@ def build(
             "topic": article.topic,
             "level": article.level,
             "minutes": minutes,
+            # How many questions it asks: the library's row says how many are answered.
+            "questions": len(article.questions),
         }
         index.append(card)
         files[f"{article.id}.json"] = {
@@ -206,6 +243,10 @@ def build(
             "source": article.source.model_dump(exclude_none=True),
             "body": article.body,
             "glossary": words,
+            "questions": [
+                {"id": question_ref(article.id, n), "q": one.q, "min": one.min, "max": one.max}
+                for n, one in enumerate(article.questions, start=1)
+            ],
         }
     if problems:
         raise ContentError(problems)
@@ -229,3 +270,24 @@ def write(files: dict[str, Any], out_dir: Path) -> list[str]:
     for name, data in files.items():
         (out_dir / name).write_text(render(data), encoding="utf-8")
     return sorted(files)
+
+
+def reading_dir() -> Path:
+    """content/reading/: beside the backend in the image (/app/content), above it in the repo."""
+    here = Path(__file__).resolve().parents[2]
+    for base in (here / "content", here.parent / "content"):
+        if (base / "reading").is_dir():
+            return base / "reading"
+    raise FileNotFoundError("content/reading/ not found")
+
+
+@cache
+def library_questions() -> dict[str, tuple[str, Question]]:
+    """Every library question by its ref, with its article's ref: what an answer is checked
+    against. Read once; the articles change only with a deploy."""
+    found: dict[str, tuple[str, Question]] = {}
+    for path in sorted(reading_dir().glob("[!_]*.yaml")):
+        article = _parse(path)
+        for n, one in enumerate(article.questions, start=1):
+            found[question_ref(article.id, n)] = (f"library:{article.id}", one)
+    return found

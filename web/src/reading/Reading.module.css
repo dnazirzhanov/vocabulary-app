@@ -1001,3 +1001,176 @@
   font: inherit;
   font-weight: var(--weight-body);
 }
+
+/* --- «Вопросы к тексту»: after the text, before «Готово» (round 2, C) ------------------------ */
+
+.questions {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+}
+
+.questionsTitle {
+  margin: 0 0 var(--space-4);
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 1.25em;
+  font-weight: 650;
+}
+
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.questionList > li::marker {
+  color: var(--ink-muted);
+  font-weight: var(--weight-strong);
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.questionText {
+  margin: 0;
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* An answer already sent: read like the text, not like a form. */
+.answerText {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--rule);
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 0.95em;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.answerBox {
+  width: 100%;
+  min-height: 7rem;
+  padding: var(--space-3);
+  border: var(--border-control) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--sheet);
+  color: var(--ink);
+  font-family: 'Literata Reader', Georgia, serif;
+  font-size: 0.95em;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.answerBox:focus {
+  border-color: var(--ink-muted);
+  outline: none;
+}
+
+.answerBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The count: muted until it fits the limits, then green; red over the top. Words say it too. */
+.under,
+.fits,
+.over {
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.under {
+  color: var(--ink-muted);
+}
+
+.fits {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.over {
+  color: var(--color-error);
+  font-weight: var(--weight-strong);
+}
+
+.mic {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.mic svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mic[aria-pressed='true'] {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.listening {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+}
+
+.answerActions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.answerSend {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--page);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.answerSend:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.answerCancel,
+.answerEdit {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.answerEdit {
+  align-self: flex-start;
+}

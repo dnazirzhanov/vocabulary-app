@@ -39,13 +39,14 @@ from app.schemas.sync import (
     PullOut,
     PushIn,
     PushOut,
+    ReadingAnswerOp,
     SettingsChange,
     StudyAnswer,
     StudyFinish,
     SyncCardOut,
     SyncDeckOut,
 )
-from app.services import card_reports, decks, me, pace, study_sync
+from app.services import card_reports, decks, me, pace, reading_answers, study_sync
 from app.services.scheduling import local_date
 from app.services.study_days import zone_of
 
@@ -237,6 +238,9 @@ def _apply(db: Session, user: User, op: Op, now: datetime, time_zone: ZoneInfo) 
         return _result(op, "applied")
     if isinstance(op, PaceExtra):
         return _extra_words(db, user, op, now)
+    if isinstance(op, ReadingAnswerOp):
+        reading_answers.answer(db, user, op.question_ref, op.text, min(op.answered_at, now))
+        return _result(op, "applied")
     if isinstance(op, StudyAnswer):
         return study_sync.apply_answer(db, user, op, now)
     if isinstance(op, StudyFinish):

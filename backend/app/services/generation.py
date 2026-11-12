@@ -76,9 +76,18 @@ class Gloss(BaseModel):
         return value if value in allowed else "other"
 
 
+class DraftQuestion(BaseModel):
+    """A comprehension question drafted for a text, with the words a good answer takes."""
+
+    question: str
+    min_words: int = 20
+    max_words: int = 100
+
+
 class Glossary(BaseModel):
     level: Level | None = None
     forms: dict[str, Gloss]
+    questions: list[DraftQuestion] = []
 
 
 class Provider(Protocol):
@@ -98,8 +107,9 @@ class Provider(Protocol):
         """Cards for the words a learner needs to talk about a topic (ADR 0019)."""
         ...
 
-    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
-        """Each of `forms` as it is used in `text`, and the text's level (Reading Mode)."""
+    def gloss(self, text: str, forms: list[str], language: str, questions: int = 0) -> Glossary:
+        """Each of `forms` as it is used in `text`, the text's level, and `questions`
+        comprehension questions about it (Reading Mode)."""
         ...
 
 
@@ -330,6 +340,13 @@ Also give the text's CEFR level, one of A1, A2, B1, B2, C1, as "level".
 Answer in JSON: {"level": "B1", "forms": {"<form>": {"lemma": "...", "pos": "...",
 "meaning": "...", "explanation": "..."}}}, with every listed form as a key, exactly as listed."""
 
+QUESTIONS = """
+
+Also write {COUNT} comprehension questions about the whole text, in simple English for a learner
+at its level: the first ones answered from the text, the last one asking the reader's own opinion
+or experience. For each, how many words a good answer takes: "min_words" and "max_words", between
+5 and 300. Add them as "questions": [{"question": "...", "min_words": 20, "max_words": 100}]."""
+
 
 def prompt_for(template: str, kind: str, language: str) -> str:
     name, script, cards = _LANGUAGES[language]
@@ -387,9 +404,11 @@ class DeepSeekProvider:
         )
         return self._cards(prompt_for(TOPIC, "topic", language), prompt)[:count]
 
-    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+    def gloss(self, text: str, forms: list[str], language: str, questions: int = 0) -> Glossary:
         name, script, _ = _LANGUAGES[language]
         system = GLOSS.replace("{LANGUAGE}", name).replace("{SCRIPT}", script)
+        if questions:
+            system += QUESTIONS.replace("{COUNT}", str(questions))
         listed = "\n".join(f"- {form}" for form in forms)
         prompt = f"<text>\n{text}\n</text>\n\n<forms>\n{listed}\n</forms>"
         for _ in range(2):
@@ -518,7 +537,7 @@ class DemoProvider:
     def fill(self, words: list[str], level: Level, language: str) -> list[DraftCard]:
         return _demo_fill(words, language)
 
-    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+    def gloss(self, text: str, forms: list[str], language: str, questions: int = 0) -> Glossary:
         # No model here: every form is its own dictionary form, labelled as demo.
         return Glossary(
             level="B1",
@@ -526,6 +545,10 @@ class DemoProvider:
                 form: Gloss(lemma=form, pos="other", meaning=_demo_translation(form, language))
                 for form in forms
             },
+            questions=[
+                DraftQuestion(question=f"Demo question {n}: what is the text about?", min_words=5)
+                for n in range(1, questions + 1)
+            ],
         )
 
     def topic(

@@ -26,3 +26,15 @@ body:
 names: [Robert, Goddard, NASA, Orville, Wilbur, Wright, Earth, U.S., Smithsonian, Smithsonian Institution]
 glossary:
   propulsion: {ru: "реактивное движение, тяга", pos: noun, def: "a force that pushes something forward"}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "What did Robert Goddard do in 1926, and why was it important?"
+    min: 15
+    max: 80
+  - q: "Why did many people think Goddard was foolish? Were they right?"
+    min: 20
+    max: 100
+  - q: "Goddard said: \"The dream of yesterday is the hope of today and the reality of tomorrow.\" What does this mean to you?"
+    min: 20
+    max: 120

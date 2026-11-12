@@ -179,3 +179,30 @@ on the device (`snapshots`) and opens offline (`e2e/offline-reading.spec.ts`).
 The reader reads `t` and the article's `language`; the library's built files keep `ru`, mapped on
 load. A deck made from a text takes that language for its cards, so a text added by someone who
 studies in Uzbek gives Uzbek cards.
+
+## 27. Every text asks questions (R2-C)
+The 7 library articles carry 3 questions each in their YAML (written by me, the last one asking
+for the reader's own view), with word limits that suit the level; the build refuses an article
+with fewer than 2 or limits out of order. A text of one's own gets 3 questions drafted in the same
+model call as its meanings' first batch, so they cost no call of their own. Changing them is the
+giver's tool (R2-D).
+
+## 28. Answers: the latest one, within limits, kept on the server (R2-C)
+`reading_answers` keeps each reader's latest answer to each question, with the question as it
+was answered. The server checks its limits (min–max, and never over 500 words), counting words
+as the reader does (the shared tokenizer). Answers travel through the outbox (`reading.answer`),
+so one written offline arrives later; an older edit arriving after a newer one is kept out. They
+show under the article («Вопросы к тексту», «Изменить»), and the library's row says «Ответы · n/m».
+
+## 29. Voice: the browser's own recognition first (R2-C)
+«Сказать» uses the Web Speech API (English): what is heard appears in the box as it is heard,
+after anything typed, to be corrected before «Отправить». No audio reaches us. A refused
+microphone is said, with typing offered; where the browser has no recognition, no button shows
+(the keyboard's microphone still works). Android's web view has no Web Speech API, so the app's
+own recognizer comes with R2-E.
+
+## 30. Answers loading late never undo one just written (R2-C)
+Found by a flaky offline test and made exact with a held reply: the server's list, asked when the
+article opened, could come back after an answer was written and replace it, on screen and in the
+device's copy. Now the questions show at once from the device's copy, and every list that arrives
+is merged by time, each question keeping its newer answer.

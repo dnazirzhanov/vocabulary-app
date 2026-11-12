@@ -118,3 +118,17 @@ export function sentenceAt(text: string, offset: number, max = 300): string {
 /** Does a highlight contain this place? */
 export const contains = (highlight: Highlight, point: Point) =>
   !before(point, highlight.from) && before(point, highlight.to);
+
+/** An answer is at most this many words, whatever a question allows (the owner's limit). */
+export const MAX_ANSWER_WORDS = 500;
+
+/** Text cut after its `max`-th word: the box never holds more than an answer may have. */
+export function capWords(text: string, max = MAX_ANSWER_WORDS): string {
+  let words = 0;
+  let at = 0;
+  for (const part of tokenize(text)) {
+    if (part.key && (words += 1) > max) return text.slice(0, at).trimEnd();
+    at += part.text.length;
+  }
+  return text;
+}

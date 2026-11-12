@@ -37,7 +37,7 @@ class ContextProvider(DemoProvider):
     def __init__(self) -> None:
         self.asked: list[list[str]] = []
 
-    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+    def gloss(self, text: str, forms: list[str], language: str, questions: int = 0) -> Glossary:
         self.asked.append(forms)
         known = {
             "went": Gloss(lemma="go", pos="verb", meaning="пошли", explanation="moved somewhere"),
@@ -52,7 +52,7 @@ class ContextProvider(DemoProvider):
 
 
 class BrokenProvider(DemoProvider):
-    def gloss(self, text: str, forms: list[str], language: str) -> Glossary:
+    def gloss(self, text: str, forms: list[str], language: str, questions: int = 0) -> Glossary:
         raise ApiError(502, "generation_failed", "The drafting service did not answer")
 
 

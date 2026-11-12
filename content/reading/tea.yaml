@@ -37,3 +37,15 @@ glossary:
   brewed: {ru: "заваривают", pos: verb, lemma: brew, def: "made a hot drink by putting leaves in hot water"}
   user: {ru: "потребитель", pos: noun}
   maker: {ru: "производитель", pos: noun}
+
+# Comprehension questions (round 2): answered in writing or by voice, within the word limits.
+questions:
+  - q: "What are the three main types of tea, and how is each one made?"
+    min: 20
+    max: 100
+  - q: "Why is black tea also called \"red tea\" in China?"
+    min: 10
+    max: 60
+  - q: "Which tea do you like most, or which would you like to try? Why?"
+    min: 20
+    max: 120

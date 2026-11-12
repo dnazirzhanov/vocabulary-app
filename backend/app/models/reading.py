@@ -7,7 +7,18 @@ private until given to a group (round 2, R2-D).
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,3 +68,47 @@ class Reading(Base):
     status: Mapped[str] = mapped_column(String(10))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ReadingQuestion(Base):
+    """A comprehension question on a text of someone's own: drafted with its meanings (round 2).
+    The library's articles keep theirs in content/reading/."""
+
+    __tablename__ = "reading_questions"
+    __table_args__ = (
+        CheckConstraint(
+            "min_words >= 1 AND min_words <= max_words AND max_words <= 500", name="limits"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    reading_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("readings.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(SmallInteger)
+    text: Mapped[str] = mapped_column(String(300))
+    min_words: Mapped[int] = mapped_column(SmallInteger)
+    max_words: Mapped[int] = mapped_column(SmallInteger)
+
+
+class ReadingAnswer(Base):
+    """A reader's answer to a question, the latest one: theirs to read again whenever they like."""
+
+    __tablename__ = "reading_answers"
+    __table_args__ = (UniqueConstraint("user_id", "question_ref"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # `library:<article>:<n>`, or `question:<id>` for one on a text of someone's own.
+    question_ref: Mapped[str] = mapped_column(String(80))
+    # `library:<article>` or `reading:<id>`: the answers of one text are read together.
+    reading_ref: Mapped[str] = mapped_column(String(80))
+    # The question as it was answered: it may be changed later, the answer keeps its own.
+    question_text: Mapped[str] = mapped_column(String(300))
+    text: Mapped[str] = mapped_column(Text)
+    words: Mapped[int] = mapped_column(SmallInteger)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+Index("ix_reading_answers_user_reading", ReadingAnswer.user_id, ReadingAnswer.reading_ref)

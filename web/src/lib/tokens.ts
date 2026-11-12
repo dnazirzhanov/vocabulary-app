@@ -18,3 +18,6 @@ export function tokenize(sentence: string): Part[] {
 
 /** The audio file name of a glossary form: lowercase letters only ("can't" → "cant"). */
 export const glossarySlug = (form: string) => form.toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, '');
+
+/** Words as the server counts an answer (`count_words` in backend/app/services/reading_answers.py). */
+export const countWords = (text: string) => tokenize(text).filter((part) => part.key).length;

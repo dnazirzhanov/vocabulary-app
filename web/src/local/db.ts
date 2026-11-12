@@ -71,6 +71,7 @@ export type OpKind =
   | 'me.update'
   | 'pace.extra'
   | 'card.report'
+  | 'reading.answer'
   | 'study.answer'
   | 'study.finish';
 
