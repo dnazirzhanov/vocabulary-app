@@ -207,3 +207,35 @@ progress {
 .problem {
   color: var(--color-error);
 }
+
+/* «Темы библиотеки»: the library's topics, folded until wanted; the chevron turns when open. */
+.topicsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.topicsToggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-state) var(--ease-out);
+}
+
+.topicsToggle[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+.picked {
+  color: var(--color-primary-strong);
+}

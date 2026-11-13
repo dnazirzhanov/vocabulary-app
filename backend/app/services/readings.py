@@ -74,6 +74,7 @@ def _card(reading: Reading) -> ReadingCardOut:
         id=reading.id,
         title=reading.title,
         category_id=reading.category_id,
+        topic=reading.topic,
         level=reading.level,
         words=reading.words,
         minutes=_minutes(reading.words, reading.level),
@@ -173,6 +174,7 @@ def create(db: Session, user: User, body: NewReadingIn, now: datetime) -> Readin
         id=uuid.uuid4(),
         owner_id=user.id,
         category_id=body.category_id,
+        topic=body.topic,
         title=body.title,
         body=parts,
         words=words,
@@ -209,7 +211,12 @@ def change(
     if "category_id" in body.model_fields_set:
         if body.category_id is not None:
             _own_category(db, user, body.category_id)
+            reading.topic = None
         reading.category_id = body.category_id
+    if "topic" in body.model_fields_set:
+        reading.topic = body.topic
+        if body.topic is not None:
+            reading.category_id = None
     reading.updated_at = now
     db.commit()
     return _out(reading, _questions(db, reading))

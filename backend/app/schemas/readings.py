@@ -20,10 +20,24 @@ class _Input(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# The library's topics a text of one's own may be filed under (`Topic` in services/reading.py).
+LibraryTopic = Literal[
+    "science", "technology", "nature", "society", "psychology", "history", "culture"
+]
+
+
 class NewReadingIn(_Input):
     title: ReadingTitle
     text: ReadingText
+    # Filed under a category of mine, or one of the library's topics, or neither: never both.
     category_id: UUID | None = None
+    topic: LibraryTopic | None = None
+
+    @model_validator(mode="after")
+    def _one_place(self) -> "NewReadingIn":
+        if self.category_id is not None and self.topic is not None:
+            raise ValueError("a category or a topic, not both")
+        return self
 
 
 class ReadingChangeIn(_Input):
@@ -31,6 +45,7 @@ class ReadingChangeIn(_Input):
 
     title: ReadingTitle | None = None
     category_id: UUID | None = None
+    topic: LibraryTopic | None = None
 
 
 class CategoryIn(_Input):
@@ -48,6 +63,7 @@ class ReadingCardOut(BaseModel):
     id: UUID
     title: str
     category_id: UUID | None
+    topic: str | None = None
     level: str | None
     words: int
     minutes: int

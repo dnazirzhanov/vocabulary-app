@@ -1,6 +1,7 @@
 import { api } from '../lib/api.ts';
 import type { OwnReading, OwnReadings, ReadingQuestion } from '../lib/types.ts';
 import { withSnapshot } from '../local/session.ts';
+import { t } from '../i18n/index.ts';
 
 /**
  * Reading Mode's data (docs/product/reading-mode-architecture.md): articles are static files built
@@ -21,6 +22,17 @@ export const TOPICS: readonly Topic[] = [
   'history',
   'culture',
 ];
+
+/** Each topic's name, in the app's language. */
+export const TOPIC_NAME: Record<Topic, () => string> = {
+  science: () => t.topicScience,
+  technology: () => t.topicTechnology,
+  nature: () => t.topicNature,
+  society: () => t.topicSociety,
+  psychology: () => t.topicPsychology,
+  history: () => t.topicHistory,
+  culture: () => t.topicCulture,
+};
 
 export interface ArticleCard {
   id: string;
@@ -103,6 +115,7 @@ export async function loadArticle(id: string): Promise<Article> {
 export const ownArticle = (reading: OwnReading): Article => ({
   id: reading.id,
   title: reading.title,
+  topic: (reading.topic as Topic | null) ?? undefined,
   level: (reading.level as Level | null) ?? null,
   minutes: reading.minutes,
   words: reading.words,

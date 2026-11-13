@@ -338,6 +338,7 @@ export const ru = {
   photographPage: 'Сфотографировать страницу',
   category: 'Категория',
   noCategory: 'Без категории',
+  libraryTopics: 'Темы библиотеки',
   newCategory: 'Новая',
   categoryName: 'Название категории',
   editCategory: 'Изменить категорию',

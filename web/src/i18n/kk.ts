@@ -342,6 +342,7 @@ export const kk: Messages = {
   photographPage: 'Бетті суретке түсіру',
   category: 'Санат',
   noCategory: 'Санатсыз',
+  libraryTopics: 'Кітапхана тақырыптары',
   newCategory: 'Жаңа',
   categoryName: 'Санат атауы',
   editCategory: 'Санатты өзгерту',

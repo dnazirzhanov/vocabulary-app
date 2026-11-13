@@ -115,3 +115,29 @@ test('the library articles have no «Удалить текст»', async ({ page
   await page.getByRole('button', { name: 'Вид текста' }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Удалить текст' })).toHaveCount(0);
 });
+
+test('a text of my own filed under one of the library’s topics shows inside it', async ({ page }) => {
+  await page.goto('/');
+  await tab(page).click();
+  await section(page, 'Свой текст').click();
+  await page.getByRole('textbox', { name: 'Текст на английском' }).fill(TEXT);
+  await page.getByRole('textbox', { name: /Название/ }).fill('My family history');
+  // The library's topics are folded until wanted.
+  await expect(button(page, 'История')).toHaveCount(0);
+  await page.getByRole('button', { name: /Темы библиотеки/ }).click();
+  await button(page, 'История').click();
+  await expect(button(page, 'История')).toHaveAttribute('aria-pressed', 'true');
+  await expect(button(page, 'Без категории')).toHaveAttribute('aria-pressed', 'false');
+  await button(page, 'Готово').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'My family history' })).toBeVisible();
+  await expect(page.getByText(/· История ·/)).toBeVisible();
+
+  // In the library: inside «История», beside its article; no «Мои тексты».
+  await page.getByRole('button', { name: 'Назад' }).click();
+  await expect(section(page, 'История')).toContainText('2');
+  await section(page, 'История').click();
+  const history = page.getByRole('region', { name: 'История' });
+  await expect(history).toContainText('My family history');
+  await expect(history).toContainText('Wilbur and Orville');
+  await expect(section(page, 'Мои тексты')).toHaveCount(0);
+});

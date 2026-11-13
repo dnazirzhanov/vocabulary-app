@@ -169,3 +169,29 @@ def test_categories_hold_texts_and_deleting_one_keeps_them(client: TestClient) -
     assert [(one["id"], one["category_id"]) for one in listed["readings"]] == [(made["id"], None)]
     assert client.delete(url, headers=as_("anna")).status_code == 204
     assert client.get(url, headers=as_("anna")).status_code == 404
+
+
+def test_a_text_can_be_filed_under_one_of_the_librarys_topics(client: TestClient) -> None:
+    made = add(client, topic="history")
+    assert (made["topic"], made["category_id"]) == ("history", None)
+    listed = client.get("/api/readings", headers=as_("anna")).json()["readings"]
+    assert [one["topic"] for one in listed] == ["history"]
+    # A category or a topic, never both; moving to one leaves the other.
+    lessons = client.post(
+        "/api/reading-categories", json={"name": "Уроки"}, headers=as_("anna")
+    ).json()
+    both = client.post(
+        "/api/readings",
+        json={"title": "X", "text": TEXT, "topic": "science", "category_id": lessons["id"]},
+        headers=as_("anna"),
+    )
+    assert both.status_code == 422
+    url = f"/api/readings/{made['id']}"
+    moved = client.patch(url, json={"category_id": lessons["id"]}, headers=as_("anna")).json()
+    assert (moved["topic"], moved["category_id"]) == (None, lessons["id"])
+    back = client.patch(url, json={"topic": "culture"}, headers=as_("anna")).json()
+    assert (back["topic"], back["category_id"]) == ("culture", None)
+    unknown = client.post(
+        "/api/readings", json={"title": "X", "text": TEXT, "topic": "cooking"}, headers=as_("anna")
+    )
+    assert unknown.status_code == 422

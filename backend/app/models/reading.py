@@ -58,6 +58,9 @@ class Reading(Base):
         ForeignKey("reading_categories.id", ondelete="SET NULL"), index=True
     )
     title: Mapped[str] = mapped_column(String(120))
+    # One of the library's topics it is filed under (science, history…), instead of a category of
+    # the owner's: it shows inside that topic in the library.
+    topic: Mapped[str | None] = mapped_column(String(16))
     # Paragraphs, in order.
     body: Mapped[list[str]] = mapped_column(JSONB)
     words: Mapped[int] = mapped_column(Integer)
