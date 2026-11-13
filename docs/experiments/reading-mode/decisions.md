@@ -272,3 +272,14 @@ members, me first and then by name, never ranked:
 
 `GET /api/reading-assignments/{id}/answers` sends the answers themselves only to them; others
 get names and counts.
+
+## 37. One's own questions: changed, added, true or false (owner, 2026-11-13)
+On a text of one's own, «Изменить вопросы» (beside «Вопросы к тексту») opens the same editor
+«Дать группе» uses:
+- the AI's questions reworded, their options and right one changed, or dropped;
+- new ones added in three kinds: «С вариантами» (2–4 options), «Верно / неверно» (the options
+  «True» and «False», nothing to add) and «Открытый» (with word limits).
+
+A question kept from before is changed in place (`PUT /api/readings/{id}/questions`, by its id),
+so the answers to it stay; one dropped takes its answers out of the text's list. A true-or-false
+question is one with options, marked at once and answered once like the others.

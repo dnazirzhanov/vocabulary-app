@@ -113,8 +113,11 @@ class ReadingListOut(BaseModel):
 
 
 class GiveQuestionIn(_Input):
-    """A question as the giver leaves it: with options and the right one's place, or open."""
+    """A question as its writer leaves it: with options and the right one's place (two of them,
+    «True» and «False», for a true-or-false one), or open, with word limits."""
 
+    # A question kept from before (`question:<id>`): changed in place, its answers kept with it.
+    id: Annotated[str, StringConstraints(max_length=80)] | None = None
     kind: Literal["choice", "open"]
     q: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
     options: (
@@ -129,13 +132,19 @@ class GiveQuestionIn(_Input):
     def _whole(self) -> "GiveQuestionIn":
         if self.kind == "choice":
             options = self.options or []
-            if not 3 <= len(options) <= 4 or len(set(options)) != len(options):
-                raise ValueError("3 or 4 different options")
+            if not 2 <= len(options) <= 4 or len(set(options)) != len(options):
+                raise ValueError("2 to 4 different options")
             if self.answer is None or not 0 <= self.answer < len(options):
                 raise ValueError("answer must be an option's place")
         elif self.min is None or self.max is None or self.min > self.max:
             raise ValueError("an open question has min ≤ max")
         return self
+
+
+class QuestionsIn(_Input):
+    """A text's questions as its owner leaves them, in order (round 2: changed, added, dropped)."""
+
+    questions: list[GiveQuestionIn] = Field(max_length=10)
 
 
 class GiveReadingIn(_Input):

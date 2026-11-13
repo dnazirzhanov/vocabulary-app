@@ -514,6 +514,7 @@ export function Reader({
   onBack,
   onStudy,
   onGive,
+  onEditQuestions,
 }: {
   account: string;
   articleId: string;
@@ -523,6 +524,8 @@ export function Reader({
   onStudy: (session: Session, deckId: string) => void;
   /** «Дать группе» for this text. */
   onGive?: (articleId: string) => void;
+  /** «Изменить вопросы» for a text of my own. */
+  onEditQuestions?: (articleId: string) => void;
 }) {
   const [article, setArticle] = useState<Article | null>(null);
   const [given, setGiven] = useState<ReadingAssignment | null>(null);
@@ -951,7 +954,12 @@ export function Reader({
             <Questions account={account} readingRef={`assignment:${given.id}`} questions={given.questions} />
           ) : (
             !assignmentId && (
-              <Questions account={account} readingRef={readingRef(article.id)} questions={article.questions} />
+              <Questions
+                account={account}
+                readingRef={readingRef(article.id)}
+                questions={article.questions}
+                onEdit={article.own && onEditQuestions ? () => onEditQuestions(article.id) : undefined}
+              />
             )
           )}
           <footer className={styles.end} lang="ru">

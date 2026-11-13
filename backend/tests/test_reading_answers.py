@@ -185,3 +185,67 @@ def test_an_answer_can_be_sent_straight_away_too(client: TestClient) -> None:
         headers=as_("anna"),
     )
     assert (too_short.status_code, too_short.json()["error"]["code"]) == (422, "answer_too_short")
+
+
+def test_my_texts_questions_are_mine_to_change_add_and_drop(client: TestClient) -> None:
+    made = client.post(
+        "/api/readings",
+        json={"title": "The oven", "text": "My grandmother showed me how to bake bread."},
+        headers=as_("anna"),
+    ).json()
+    url = f"/api/readings/{made['id']}"
+    drafted = client.get(url, headers=as_("anna")).json()["questions"]
+    first, fourth = drafted[0], drafted[3]
+    assert send(client, fourth["id"], "It is about baking bread at home.")["status"] == "applied"
+
+    # The fourth reworded (its answer stays), a true-or-false one added, the others dropped.
+    mine = [
+        {
+            "id": fourth["id"],
+            "kind": "open",
+            "q": "What did you learn from her?",
+            "min": 3,
+            "max": 80,
+        },
+        {
+            "kind": "choice",
+            "q": "The bread was baked in an oven.",
+            "options": ["True", "False"],
+            "answer": 0,
+        },
+        {
+            "id": first["id"],
+            "kind": "choice",
+            "q": "Who baked?",
+            "options": ["Grandmother", "Me", "Nobody"],
+            "answer": 0,
+        },
+    ]
+    saved = client.put(f"{url}/questions", json={"questions": mine}, headers=as_("anna"))
+    assert saved.status_code == 200, saved.text
+    got = saved.json()["questions"]
+    assert [q["q"] for q in got] == [
+        "What did you learn from her?",
+        "The bread was baked in an oven.",
+        "Who baked?",
+    ]
+    assert got[0]["id"] == fourth["id"] and got[2]["id"] == first["id"]
+    assert got[1]["options"] == ["True", "False"]
+    (kept,) = client.get(
+        "/api/reading-answers", params={"reading": f"reading:{made['id']}"}, headers=as_("anna")
+    ).json()
+    assert kept["question_ref"] == fourth["id"]
+
+    # True or false: marked like any question with options.
+    assert send(client, got[1]["id"], choice=1)["status"] == "applied"
+    answers = client.get(
+        "/api/reading-answers", params={"reading": f"reading:{made['id']}"}, headers=as_("anna")
+    ).json()
+    assert {a["question_ref"]: a["correct"] for a in answers}[got[1]["id"]] is False
+
+    # Only the owner, and only sound questions.
+    other = client.put(f"{url}/questions", json={"questions": mine}, headers=as_("boris"))
+    assert other.status_code == 404
+    one_option = [{"kind": "choice", "q": "Which?", "options": ["Only"], "answer": 0}]
+    bad = client.put(f"{url}/questions", json={"questions": one_option}, headers=as_("anna"))
+    assert bad.status_code == 422

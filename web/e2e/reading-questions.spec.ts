@@ -240,3 +240,59 @@ test.describe('with no service worker', () => {
     await expect(item(page, 3)).toContainText(answer);
   });
 });
+
+test('my own text’s questions are mine: the AI’s changed, mine added, true or false too', async ({ page }) => {
+  await page.request.post('/api/readings', {
+    data: { title: 'The oven', text: 'My grandmother showed me how to bake bread in an old oven.' },
+  });
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Мои тексты/ }).click();
+  await page.getByRole('button', { name: /^The oven/ }).click();
+  await page.getByRole('button', { name: 'Изменить вопросы' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Изменить вопросы' })).toBeVisible();
+
+  // The AI's fourth reworded; its fifth dropped.
+  await page.getByRole('textbox', { name: 'Вопросы к тексту 4' }).fill('What do you cook with your family?');
+  await page.getByRole('button', { name: 'Убрать вопрос 5' }).click();
+  // A true-or-false one: «False» is right.
+  await page.getByRole('button', { name: 'Верно / неверно' }).click();
+  await page.getByRole('textbox', { name: 'Вопросы к тексту 5' }).fill('The bread was baked in a new oven.');
+  await page.getByRole('radio', { name: 'Верный: Вариант 2' }).last().click();
+  // One with options, written from scratch: three, then a fourth added and dropped.
+  await page.getByRole('button', { name: 'С вариантами' }).click();
+  await page.getByRole('textbox', { name: 'Вопросы к тексту 6' }).fill('Who showed me how to bake?');
+  await page.getByRole('textbox', { name: 'Вариант 1 (6)' }).fill('My grandmother');
+  await page.getByRole('textbox', { name: 'Вариант 2 (6)' }).fill('My teacher');
+  await page.getByRole('textbox', { name: 'Вариант 3 (6)' }).fill('A friend');
+  await page.getByRole('button', { name: 'Добавить вариант' }).last().click();
+  await expect(page.getByRole('textbox', { name: 'Вариант 4 (6)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Убрать вариант: Вариант 4 (6)' }).click();
+  await page.getByRole('button', { name: 'Сохранить' }).click();
+
+  // Back in the text: the questions as left, the true-or-false one marked like the others.
+  const questions = page.getByRole('region', { name: 'Вопросы к тексту' });
+  await expect(questions.getByRole('listitem')).toHaveCount(6);
+  await expect(questions.getByRole('listitem').nth(3)).toContainText('What do you cook with your family?');
+  const trueFalse = questions.getByRole('listitem').nth(4);
+  await trueFalse.getByRole('radio', { name: 'True' }).click();
+  await trueFalse.getByRole('button', { name: 'Проверить' }).click();
+  await expect(trueFalse.getByRole('status')).toHaveText('Неверно. Правильный ответ: False');
+  await expect(questions.getByRole('listitem').nth(5).getByRole('radio')).toHaveCount(3);
+});
+
+test('a question with an empty option is not saved', async ({ page }) => {
+  await page.request.post('/api/readings', {
+    data: { title: 'The oven', text: 'My grandmother showed me how to bake bread in an old oven.' },
+  });
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Мои тексты/ }).click();
+  await page.getByRole('button', { name: /^The oven/ }).click();
+  await page.getByRole('button', { name: 'Изменить вопросы' }).click();
+  await page.getByRole('button', { name: 'С вариантами' }).click();
+  await page.getByRole('textbox', { name: 'Вопросы к тексту 6' }).fill('Which one?');
+  await page.getByRole('button', { name: 'Сохранить' }).click();
+  await expect(page.getByRole('alert')).toContainText('Проверьте вопросы');
+  await expect(page.getByRole('heading', { level: 1, name: 'Изменить вопросы' })).toBeVisible();
+});

@@ -265,10 +265,18 @@ progress {
   padding-left: 1.25em;
 }
 
+/* Numbered, as the reader will see them. */
 .question {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: list-item;
+}
+
+.question > * + * {
+  margin-top: var(--space-2);
+}
+
+.question::marker {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
 }
 
 .questionHead {
@@ -348,4 +356,37 @@ progress {
   flex-direction: column;
   gap: var(--space-4);
   font-size: var(--text-option);
+}
+
+/* Adding a question: its three kinds side by side, as quiet links. */
+.addKinds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.addKinds button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.addKinds svg {
+  width: 18px;
+  height: 18px;
+}
+
+.option .drop {
+  width: 36px;
+  height: 36px;
 }

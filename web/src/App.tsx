@@ -34,6 +34,9 @@ import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
 const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
 const ReadingGive = lazy(() => import('./reading/GiveReading.tsx').then((m) => ({ default: m.GiveReading })));
+const ReadingEditQuestions = lazy(() =>
+  import('./reading/EditQuestions.tsx').then((m) => ({ default: m.EditQuestions })),
+);
 const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({ default: m.OwnText })));
 
 /** Where a deck's page was opened from, for its «Назад». */
@@ -65,6 +68,8 @@ type Screen =
   | { name: 'article'; articleId: string; assignmentId?: string }
   // «Дать группе» for a text (round 2, D).
   | { name: 'give-reading'; articleId: string }
+  // «Изменить вопросы» for a text of one's own.
+  | { name: 'edit-questions'; articleId: string }
   // «Свой текст»: a text of one's own for Reading Mode, into this category (round 2).
   | { name: 'own-text'; categoryId: string | null };
 
@@ -281,6 +286,14 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       </Suspense>
     );
   }
+  if (screen.name === 'edit-questions') {
+    const { articleId } = screen;
+    return (
+      <Suspense fallback={null}>
+        <ReadingEditQuestions readingId={articleId} onDone={() => setScreen({ name: 'article', articleId })} />
+      </Suspense>
+    );
+  }
   if (screen.name === 'give-reading') {
     const { articleId } = screen;
     return (
@@ -300,6 +313,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           onBack={() => setScreen({ name: 'reading' })}
           onStudy={(session, deckId) => startSession(session, deckId)}
           onGive={(articleId) => setScreen({ name: 'give-reading', articleId })}
+          onEditQuestions={(articleId) => setScreen({ name: 'edit-questions', articleId })}
         />
       </Suspense>
     );
@@ -532,7 +546,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'progress') return 'progress';
-  if (['reading', 'article', 'own-text', 'give-reading'].includes(screen.name)) return 'reading';
+  if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';
   if (screen.name === 'deck') return screen.groupId ? 'friends' : 'today';
   return 'today';
