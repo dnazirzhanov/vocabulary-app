@@ -18,6 +18,7 @@ from app.schemas.readings import (
     GivenAnswersOut,
     GiveReadingIn,
     NewReadingIn,
+    QuestionsIn,
     ReadingChangeIn,
     ReadingListOut,
     ReadingOut,
@@ -60,6 +61,14 @@ def change_reading(
     reading_id: UUID, body: ReadingChangeIn, user: CurrentUser, db: DbSession, now: Now
 ) -> ReadingOut:
     return readings.change(db, user, reading_id, body, now)
+
+
+@router.put("/readings/{reading_id}/questions")
+def set_questions(
+    reading_id: UUID, body: QuestionsIn, user: CurrentUser, db: DbSession, now: Now
+) -> ReadingOut:
+    """My text's questions, changed, added to or dropped: the AI's draft is only a start."""
+    return readings.set_questions(db, user, reading_id, body.questions, now)
 
 
 @router.delete("/readings/{reading_id}", status_code=204)

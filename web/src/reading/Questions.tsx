@@ -18,10 +18,13 @@ export function Questions({
   account,
   readingRef,
   questions,
+  onEdit,
 }: {
   account: string;
   readingRef: string;
   questions: ReadingQuestion[];
+  /** A text of my own: its questions are mine to change. */
+  onEdit?: () => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, ReadingAnswer>>({});
   // The device's copy at once, the server's when it comes: each question's newer answer wins, so
@@ -35,13 +38,20 @@ export function Questions({
       live = false;
     };
   }, [readingRef]);
-  if (questions.length === 0) return null;
+  if (questions.length === 0 && !onEdit) return null;
   const saved = (answer: ReadingAnswer) => setAnswers((before) => ({ ...before, [answer.question_ref]: answer }));
   return (
     <section className={styles.questions} aria-labelledby="questions-title" lang="ru">
-      <h2 id="questions-title" className={styles.questionsTitle}>
-        {t.questionsTitle}
-      </h2>
+      <div className={styles.questionsHead}>
+        <h2 id="questions-title" className={styles.questionsTitle}>
+          {t.questionsTitle}
+        </h2>
+        {onEdit && (
+          <button type="button" className={styles.answerEdit} onClick={onEdit}>
+            {t.editQuestions}
+          </button>
+        )}
+      </div>
       <ol className={styles.questionList}>
         {questions.map((question) => (
           // An answer arriving (or changing) shows as sent; one being written isn't replaced.

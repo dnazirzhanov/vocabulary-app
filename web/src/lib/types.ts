@@ -737,8 +737,9 @@ export interface GivenWord {
   language: string;
 }
 
-/** A question as the giver leaves it. */
+/** A question as its writer leaves it; `id` when it is one kept from before (its answers stay). */
 export interface GivenQuestion {
+  id?: string;
   kind: 'choice' | 'open';
   q: string;
   options?: string[];

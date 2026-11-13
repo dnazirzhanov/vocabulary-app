@@ -3,12 +3,13 @@ import { api, describeError } from '../lib/api.ts';
 import { localToday } from '../lib/deadline.ts';
 import type { GivenQuestion, GivenWord, GroupSummary } from '../lib/types.ts';
 import { localDb } from '../local/session.ts';
-import { BackIcon, CloseIcon, PlusIcon } from '../ui/icons.tsx';
+import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t } from '../i18n/index.ts';
 import { HEADING, loadArticle, type Article } from './articles.ts';
 import { basketCards, findDeck, readingRef } from './basket.ts';
 import { pieces, sentenceAt } from './text.ts';
+import { editable, QuestionsEditor, sound } from './QuestionsEditor.tsx';
 import styles from './GiveReading.module.css';
 
 /** Words offered before «Показать ещё»: the giver's own kept ones first, then the text's. */
@@ -47,23 +48,6 @@ function candidates(article: Article, kept: ReadonlySet<string>): GivenWord[] {
   return [...found.values()];
 }
 
-/** The reading's questions as the giver starts from: theirs to change. */
-const draftOf = (article: Article): GivenQuestion[] =>
-  article.questions.map((one) =>
-    one.kind === 'choice'
-      ? { kind: 'choice', q: one.q, options: [...(one.options ?? [])], answer: one.answer ?? 0 }
-      : { kind: 'open', q: one.q, min: one.min ?? 30, max: one.max ?? 150 },
-  );
-
-function sound(question: GivenQuestion): boolean {
-  if (!question.q.trim()) return false;
-  if (question.kind === 'choice') {
-    const options = (question.options ?? []).map((option) => option.trim());
-    return options.every(Boolean) && new Set(options).size === options.length && options.length >= 3;
-  }
-  return (question.min ?? 0) >= 1 && (question.min ?? 0) <= (question.max ?? 0) && (question.max ?? 0) <= 500;
-}
-
 /**
  * «Дать группе» (round 2, D): one screen, top to bottom — the group and a deadline, the words to
  * learn from the text, the questions (the giver's to change, add or drop), then «Дать группе».
@@ -99,7 +83,7 @@ export function GiveReading({
         const [loaded, mine] = await Promise.all([loadArticle(articleId), api.groups()]);
         if (!live) return;
         setArticle(loaded);
-        setQuestions(draftOf(loaded));
+        setQuestions(editable(loaded.questions));
         setGroups(mine);
         if (mine.length === 1) setGroupId(mine[0].id);
         // The words the giver kept from this text are picked to start with.
@@ -136,8 +120,6 @@ export function GiveReading({
       else next.add(headword);
       return next;
     });
-  const change = (index: number, update: Partial<GivenQuestion>) =>
-    setQuestions((before) => before.map((one, at) => (at === index ? { ...one, ...update } : one)));
 
   const give = async () => {
     if (!article || !groupId) return;
@@ -240,86 +222,7 @@ export function GiveReading({
 
                   <fieldset className={styles.block}>
                     <legend>{t.questionsTitle}</legend>
-                    <ol className={styles.questions}>
-                      {questions.map((question, index) => (
-                        <li key={index} className={styles.question}>
-                          <div className={styles.questionHead}>
-                            <textarea
-                              lang="en"
-                              rows={2}
-                              value={question.q}
-                              aria-label={`${t.questionsTitle} ${index + 1}`}
-                              onChange={(event) => change(index, { q: event.target.value })}
-                            />
-                            <button
-                              type="button"
-                              className={styles.drop}
-                              aria-label={`${t.dropQuestion} ${index + 1}`}
-                              onClick={() => setQuestions((before) => before.filter((_, at) => at !== index))}
-                            >
-                              <CloseIcon aria-hidden="true" />
-                            </button>
-                          </div>
-                          {question.kind === 'choice' ? (
-                            <div className={styles.options} role="radiogroup" aria-label={t.theRightOne}>
-                              {(question.options ?? []).map((option, at) => (
-                                <div key={at} className={styles.option}>
-                                  <input
-                                    type="radio"
-                                    name={`right-${index}`}
-                                    checked={question.answer === at}
-                                    aria-label={`${t.theRightOne}: ${t.optionN(at + 1)}`}
-                                    onChange={() => change(index, { answer: at })}
-                                  />
-                                  <input
-                                    lang="en"
-                                    value={option}
-                                    aria-label={t.optionN(at + 1)}
-                                    onChange={(event) =>
-                                      change(index, {
-                                        options: (question.options ?? []).map((one, i) =>
-                                          i === at ? event.target.value : one,
-                                        ),
-                                      })
-                                    }
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className={styles.limits}>
-                              <label>
-                                <span>{t.minWordsLabel}</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={500}
-                                  value={question.min ?? 1}
-                                  onChange={(event) => change(index, { min: Number(event.target.value) })}
-                                />
-                              </label>
-                              <label>
-                                <span>{t.maxWordsLabel}</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={500}
-                                  value={question.max ?? 150}
-                                  onChange={(event) => change(index, { max: Number(event.target.value) })}
-                                />
-                              </label>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                    <button
-                      type="button"
-                      className={styles.more}
-                      onClick={() => setQuestions((before) => [...before, { kind: 'open', q: '', min: 30, max: 150 }])}
-                    >
-                      <PlusIcon aria-hidden="true" /> {t.addQuestion}
-                    </button>
+                    <QuestionsEditor questions={questions} onChange={setQuestions} />
                   </fieldset>
                 </>
               )}

@@ -158,7 +158,7 @@ def test_giving_has_its_rules(client: TestClient) -> None:
     bad = give(
         client,
         group["id"],
-        questions=[{"kind": "choice", "q": "Which?", "options": ["a", "b"], "answer": 0}],
+        questions=[{"kind": "choice", "q": "Which?", "options": ["a"], "answer": 0}],
     )
     assert bad.status_code == 422
     # No words, no deck; no deadline is fine.

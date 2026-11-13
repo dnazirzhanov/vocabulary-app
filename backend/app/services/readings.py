@@ -22,6 +22,7 @@ from app.models import GlossaryForm, Reading, ReadingCategory, ReadingQuestion, 
 from app.schemas.readings import (
     CategoryIn,
     CategoryOut,
+    GiveQuestionIn,
     NewReadingIn,
     QuestionOut,
     ReadingCardOut,
@@ -209,6 +210,32 @@ def change(
         if body.category_id is not None:
             _own_category(db, user, body.category_id)
         reading.category_id = body.category_id
+    reading.updated_at = now
+    db.commit()
+    return _out(reading, _questions(db, reading))
+
+
+def set_questions(
+    db: Session, user: User, reading_id: uuid.UUID, questions: list[GiveQuestionIn], now: datetime
+) -> ReadingOut:
+    """A text's questions as its owner leaves them: one kept from before (by its id) is changed in
+    place, so its answers stay with it; a new one is added; one left out is gone."""
+    reading = _own(db, user, reading_id)
+    kept = {f"question:{one.id}": one for one in _questions(db, reading)}
+    for position, one in enumerate(questions):
+        row = kept.pop(one.id, None) if one.id else None
+        if row is None:
+            row = ReadingQuestion(id=uuid.uuid4(), reading_id=reading.id)
+            db.add(row)
+        row.position = position
+        row.kind = one.kind
+        row.text = one.q
+        row.options = one.options if one.kind == "choice" else None
+        row.answer = one.answer if one.kind == "choice" else None
+        row.min_words = one.min if one.kind == "open" else None
+        row.max_words = one.max if one.kind == "open" else None
+    for gone in kept.values():
+        db.delete(gone)
     reading.updated_at = now
     db.commit()
     return _out(reading, _questions(db, reading))

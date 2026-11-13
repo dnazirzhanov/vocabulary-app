@@ -235,6 +235,9 @@ export const api = {
   changeReading: (id: string, change: { title?: string; category_id?: string | null }) =>
     request<OwnReading>('PATCH', `/readings/${id}`, change),
   deleteReading: (id: string) => request<null>('DELETE', `/readings/${id}`),
+  /** My text's questions, as I leave them (changed, added, dropped). */
+  setReadingQuestions: (id: string, questions: GivenQuestion[]) =>
+    request<OwnReading>('PUT', `/readings/${id}/questions`, { questions }),
   redraftReading: (id: string) => request<OwnReading>('POST', `/readings/${id}/draft`),
   addReadingCategory: (name: string) => request<ReadingCategory>('POST', '/reading-categories', { name }),
   renameReadingCategory: (id: string, name: string) =>
