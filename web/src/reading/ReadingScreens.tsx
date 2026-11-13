@@ -31,6 +31,7 @@ import {
   MAX_SIZE,
   MIN_SIZE,
   TOPICS,
+  TOPIC_NAME,
   loadArticle,
   loadIndex,
   loadOwn,
@@ -45,7 +46,6 @@ import {
   type Level,
   type Meaning,
   type Theme,
-  type Topic,
 } from './articles.ts';
 import { loadAnswerCounts } from './answers.ts';
 import { addWord, basketCards, cardFor, findDeck, readingRef, removeWord } from './basket.ts';
@@ -64,16 +64,6 @@ if (typeof FontFace !== 'undefined' && typeof document !== 'undefined') {
   document.fonts.add(face);
   void face.load().catch(() => undefined);
 }
-
-const TOPIC_NAME: Record<Topic, () => string> = {
-  science: () => t.topicScience,
-  technology: () => t.topicTechnology,
-  nature: () => t.topicNature,
-  society: () => t.topicSociety,
-  psychology: () => t.topicPsychology,
-  history: () => t.topicHistory,
-  culture: () => t.topicCulture,
-};
 
 /** Articles a section shows when opened, before «Показать ещё». */
 const FIRST_ARTICLES = 5;
@@ -200,20 +190,24 @@ export function Library({
       rows: mine.filter((reading) => reading.category_id === category.id).map(ownRow),
       mine: { categoryId: category.id },
     })),
-    ...(mine.some((reading) => reading.category_id === null)
+    ...(mine.some((reading) => reading.category_id === null && !reading.topic)
       ? [
           {
             key: 'mine',
             name: t.myTexts,
-            rows: mine.filter((reading) => reading.category_id === null).map(ownRow),
+            rows: mine.filter((reading) => reading.category_id === null && !reading.topic).map(ownRow),
             mine: { categoryId: null },
           },
         ]
       : []),
+    // The library's topics, with my texts filed under them first.
     ...TOPICS.map((topic) => ({
       key: topic,
       name: TOPIC_NAME[topic](),
-      rows: (cards ?? []).filter((card) => card.topic === topic && fits(card.level)),
+      rows: [
+        ...mine.filter((reading) => reading.topic === topic).map(ownRow),
+        ...(cards ?? []).filter((card) => card.topic === topic && fits(card.level)),
+      ],
     })).filter((section) => section.rows.length > 0),
   ];
   const renameCategory = (id: string, name: string) =>

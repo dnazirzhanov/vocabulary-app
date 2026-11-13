@@ -342,6 +342,7 @@ export const uz: Messages = {
   photographPage: 'Sahifani suratga olish',
   category: 'Toifa',
   noCategory: 'Toifasiz',
+  libraryTopics: 'Kutubxona mavzulari',
   newCategory: 'Yangi',
   categoryName: 'Toifa nomi',
   editCategory: 'Toifani o‘zgartirish',

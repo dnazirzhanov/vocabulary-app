@@ -342,6 +342,7 @@ export const ky: Messages = {
   photographPage: 'Баракты сүрөткө тартуу',
   category: 'Категория',
   noCategory: 'Категориясыз',
+  libraryTopics: 'Китепкананын темалары',
   newCategory: 'Жаңы',
   categoryName: 'Категориянын аталышы',
   editCategory: 'Категорияны өзгөртүү',

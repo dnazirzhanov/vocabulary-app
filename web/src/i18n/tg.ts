@@ -342,6 +342,7 @@ export const tg: Messages = {
   photographPage: 'Акс гирифтани саҳифа',
   category: 'Категория',
   noCategory: 'Бе категория',
+  libraryTopics: 'Мавзӯъҳои китобхона',
   newCategory: 'Нав',
   categoryName: 'Номи категория',
   editCategory: 'Тағйир додани категория',

@@ -230,8 +230,8 @@ export const api = {
   // Reading Mode: texts people add themselves, and their categories (round 2).
   readings: () => request<OwnReadings>('GET', '/readings'),
   reading: (id: string) => request<OwnReading>('GET', `/readings/${id}`),
-  addReading: (title: string, text: string, categoryId: string | null) =>
-    request<OwnReading>('POST', '/readings', { title, text, category_id: categoryId }),
+  addReading: (title: string, text: string, categoryId: string | null, topic: string | null = null) =>
+    request<OwnReading>('POST', '/readings', { title, text, category_id: categoryId, topic }),
   changeReading: (id: string, change: { title?: string; category_id?: string | null }) =>
     request<OwnReading>('PATCH', `/readings/${id}`, change),
   deleteReading: (id: string) => request<null>('DELETE', `/readings/${id}`),

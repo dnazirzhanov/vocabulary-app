@@ -283,3 +283,10 @@ On a text of one's own, «Изменить вопросы» (beside «Вопро
 A question kept from before is changed in place (`PUT /api/readings/{id}/questions`, by its id),
 so the answers to it stay; one dropped takes its answers out of the text's list. A true-or-false
 question is one with options, marked at once and answered once like the others.
+
+## 38. A text of one's own can live in a library topic (owner, 2026-11-13)
+In «Свой текст», under the owner's own categories, «Темы библиотеки» opens the library's topics
+(Наука, История…) as chips. A text goes into one topic or one category, never both (the server
+refuses both). One filed under a topic shows inside that topic in the library, before its
+articles, and its kicker names the topic. `readings.topic` is a nullable column added by an
+additive migration.

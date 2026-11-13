@@ -3,10 +3,10 @@ import { api, describeError } from '../lib/api.ts';
 import { readPhotos } from '../lib/ocr.ts';
 import { tokenize } from '../lib/tokens.ts';
 import type { ReadingCategory } from '../lib/types.ts';
-import { BackIcon, CameraIcon, PlusIcon } from '../ui/icons.tsx';
+import { BackIcon, CameraIcon, ForwardIcon, PlusIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t } from '../i18n/index.ts';
-import { loadOwn } from './articles.ts';
+import { loadOwn, TOPICS, TOPIC_NAME, type Topic } from './articles.ts';
 import styles from './OwnText.module.css';
 
 /** The server's limit on a text (`MAX_WORDS` in backend/app/services/readings.py). */
@@ -40,6 +40,11 @@ export function OwnText({
 }) {
   const [categories, setCategories] = useState<ReadingCategory[]>([]);
   const [category, setCategory] = useState<string | null>(categoryId);
+  // Or one of the library's topics (science, history…): the text shows inside it. One or the other.
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [topicsOpen, setTopicsOpen] = useState(false);
+  const pickCategory = (id: string | null) => (setCategory(id), setTopic(null));
+  const pickTopic = (one: Topic) => (setTopic(one), setCategory(null));
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState('');
   const [title, setTitle] = useState('');
@@ -66,7 +71,7 @@ export function OwnText({
     try {
       const made = await api.addReadingCategory(name);
       setCategories((before) => [...before, made]);
-      setCategory(made.id);
+      pickCategory(made.id);
       setNaming(false);
       setNewName('');
       setProblem(null);
@@ -99,7 +104,7 @@ export function OwnText({
     setBusy(true);
     setProblem(null);
     try {
-      const made = await api.addReading(title.trim() || titleFrom(text), text, category);
+      const made = await api.addReading(title.trim() || titleFrom(text), text, category, topic);
       onSaved(made.id);
     } catch (error) {
       setProblem(describeError(error));
@@ -182,8 +187,8 @@ export function OwnText({
                 <button
                   key={one.id ?? 'none'}
                   type="button"
-                  aria-pressed={category === one.id}
-                  onClick={() => setCategory(one.id)}
+                  aria-pressed={topic === null && category === one.id}
+                  onClick={() => pickCategory(one.id)}
                 >
                   {one.name}
                 </button>
@@ -218,6 +223,26 @@ export function OwnText({
                 >
                   {t.create}
                 </button>
+              </div>
+            )}
+            {/* The library's topics, folded away until wanted: a text of mine can live in one. */}
+            <button
+              type="button"
+              className={styles.topicsToggle}
+              aria-expanded={topicsOpen || topic !== null}
+              aria-controls="own-text-topics"
+              onClick={() => setTopicsOpen(!(topicsOpen || topic !== null))}
+            >
+              <ForwardIcon aria-hidden="true" /> {t.libraryTopics}
+              {topic && <span className={styles.picked}>· {TOPIC_NAME[topic]()}</span>}
+            </button>
+            {(topicsOpen || topic !== null) && (
+              <div id="own-text-topics" className={styles.chips}>
+                {TOPICS.map((one) => (
+                  <button key={one} type="button" aria-pressed={topic === one} onClick={() => pickTopic(one)}>
+                    {TOPIC_NAME[one]()}
+                  </button>
+                ))}
               </div>
             )}
           </fieldset>

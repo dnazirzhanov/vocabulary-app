@@ -343,6 +343,7 @@ export const en: Messages = {
   photographPage: 'Photograph a page',
   category: 'Category',
   noCategory: 'No category',
+  libraryTopics: 'Library topics',
   newCategory: 'New',
   categoryName: 'Category name',
   editCategory: 'Edit category',

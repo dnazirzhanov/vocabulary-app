@@ -677,6 +677,8 @@ export interface OwnReadingCard {
   id: string;
   title: string;
   category_id: string | null;
+  /** One of the library's topics it is filed under, instead of a category of mine. */
+  topic: string | null;
   level: string | null;
   words: number;
   minutes: number;
