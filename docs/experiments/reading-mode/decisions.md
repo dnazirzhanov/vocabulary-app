@@ -290,3 +290,16 @@ In «Свой текст», under the owner's own categories, «Темы биб�
 refuses both). One filed under a topic shows inside that topic in the library, before its
 articles, and its kicker names the topic. `readings.topic` is a nullable column added by an
 additive migration.
+
+## 39. «Сказать» in the Android app: the phone's own recognizer (R2-E)
+Android's web view has no Web Speech API, so in the app «Сказать» uses the phone's recognizer through
+`@capacitor-community/speech-recognition` 7.0.1 (it accepts Capacitor 7 and later; it builds with our
+8.5.3 on JDK 21, as `docs/android.md` says). The plugin is loaded only when «Сказать» is first
+pressed. Its manifest adds the microphone permission and the speech service query (Android 11+), and
+the app asks for the microphone on first use. It is English, with partial results: words appear as
+they are said, and it stops at a pause. A second tap goes on after what was said; a refused
+microphone says so; no recognizer means «Не удалось распознать речь», and typing still works. No
+audio reaches us.
+
+Not yet seen on a device: the emulator would not start with 1.3 GB free on this Mac. The owner's
+phone, with the next APK, is the check.
