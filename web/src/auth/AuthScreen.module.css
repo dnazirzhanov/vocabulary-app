@@ -178,3 +178,55 @@
   top: calc(env(safe-area-inset-top) + var(--space-2));
   right: var(--gutter);
 }
+
+/* «Возможно, вы имели в виду …@gmail.com?»: one tap puts it in the field. */
+.suggestion {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-body);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* An address that looks mistyped, stopped before a code is sent: the fix first, then «it's right». */
+.check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  color: var(--color-text);
+}
+
+.check p {
+  margin: 0;
+}
+
+.checkFix,
+.checkKeep {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.checkFix {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-text);
+}
+
+.checkKeep {
+  border: var(--border-control) solid var(--color-option-edge);
+  background: var(--color-surface);
+  color: var(--color-text);
+}

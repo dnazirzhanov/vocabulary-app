@@ -438,3 +438,52 @@ test('on a computer the picture is beside the form, whole, with the language in 
   expect(language.y).toBeLessThan(40);
   expect(language.y + language.height).toBeLessThanOrEqual(form.y);
 });
+
+test('a slip in the e-mail domain is pointed out, and fixed in one tap', async ({ page }) => {
+  // A pilot student signed up as …@gamil.com: the code went nowhere.
+  await mockSupabase(page);
+  await page.goto('/');
+  const email = page.getByRole('textbox', { name: 'E-mail' });
+  await email.fill('kitkatbro886@gamil.com');
+  const hint = page.getByRole('button', { name: 'Возможно, вы имели в виду kitkatbro886@gmail.com?' });
+  await hint.click();
+  await expect(email).toHaveValue('kitkatbro886@gmail.com');
+  await expect(hint).toHaveCount(0);
+  // A right address says nothing.
+  await email.fill('teacher@school.kg');
+  await expect(page.getByRole('button', { name: /Возможно, вы имели в виду/ })).toHaveCount(0);
+});
+
+test('a likely typo stops the sign-up once: fixed in a tap, before any code is sent', async ({ page }) => {
+  await mockSupabase(page, { confirming: true });
+  const signups: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/signup')) signups.push((request.postDataJSON() as { email: string }).email);
+  });
+  await page.goto('/');
+  await signUp(page, 'kitkatbro886@gamil.com', 'long-enough-1');
+  await expect(page.getByRole('alert')).toContainText('Проверьте адрес: kitkatbro886@gamil.com');
+  expect(signups).toEqual([]);
+  await page.getByRole('button', { name: 'Исправить на kitkatbro886@gmail.com' }).click();
+  await expect(page.getByLabel('E-mail')).toHaveValue('kitkatbro886@gmail.com');
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await expect(page.getByText(/kitkatbro886@gmail\.com/)).toBeVisible();
+  expect(signups).toEqual(['kitkatbro886@gmail.com']);
+});
+
+test('an unusual address said to be right is sent; a wrong one is changed from the code screen', async ({ page }) => {
+  await mockSupabase(page, { confirming: true });
+  await page.goto('/');
+  await signUp(page, 'kitkatbro886@gamil.com', 'long-enough-1');
+  await page.getByRole('button', { name: 'Адрес верный' }).click();
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  // On the code screen: said again, and the way back.
+  await expect(page.getByText('Возможно, вы имели в виду kitkatbro886@gmail.com?')).toBeVisible();
+  await page.getByRole('button', { name: 'Изменить' }).click();
+  await expect(page.getByLabel('E-mail')).toHaveValue('kitkatbro886@gamil.com');
+  await page.getByRole('button', { name: 'Возможно, вы имели в виду kitkatbro886@gmail.com?' }).click();
+  await page.getByLabel('Пароль', { exact: true }).fill('long-enough-1');
+  await page.getByLabel('Повторите пароль').fill('long-enough-1');
+  await page.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await expect(page.getByText(/kitkatbro886@gmail\.com/)).toBeVisible();
+});
