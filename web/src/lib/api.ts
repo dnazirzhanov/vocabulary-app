@@ -324,6 +324,7 @@ export const api = {
     ),
   /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
+  mentorChat: (message: string) => request<{ reply: string; created_at: string }>('POST', '/mentor/chat', { message }),
 };
 
 // Errors the learner can act on, by the server's error code.

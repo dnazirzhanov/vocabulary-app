@@ -19,3 +19,22 @@ test("the Mentor tab shows a greeting, a tip, and today's plan", async ({ page }
   // Plan section is always rendered with its heading — empty state or cards beneath it.
   await expect(page.getByRole('heading', { level: 2, name: 'План на сегодня' })).toBeVisible();
 });
+
+test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Спросить наставника' })).toBeVisible();
+
+  // Suggested prompts appear before the first message.
+  await expect(page.getByRole('button', { name: 'С чего начать сегодня?' })).toBeVisible();
+
+  // Click a suggested prompt; the chip sends the message and a reply appears.
+  await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
+  // After the reply, the log region is visible with both messages.
+  const log = page.getByRole('log');
+  await expect(log).toBeVisible();
+  await expect(log).toContainText('С чего начать сегодня?');
+  // The demo reply contains text from locale.py mentor_demo_reply (ru default).
+  await expect(log).toContainText('Загляни в «Сегодня»');
+});

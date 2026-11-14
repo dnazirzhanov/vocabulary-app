@@ -889,6 +889,14 @@ export const ru = {
   mentorPlanReadingTitle: (title: Arg) => `Прочитать «${title}»`,
   mentorPlanReadingReason: (minutes: number, level: Arg) => `${minutes}\u00a0мин · ${level}`,
   mentorPlanReadingCta: 'Читать',
+  mentorChatHeading: 'Спросить наставника',
+  mentorChatPlaceholder: 'Напишите вопрос…',
+  mentorChatSend: 'Отправить',
+  mentorChatSuggestion1: 'С чего начать сегодня?',
+  mentorChatSuggestion2: 'Как улучшить результаты?',
+  mentorChatSuggestion3: 'Объясни, как работает повторение',
+  mentorChatLimitReached: 'На сегодня вопросов достаточно — возвращайтесь завтра.',
+  mentorChatUnavailable: 'Наставник сейчас недоступен. Попробуйте позже.',
 };
 
 export type Messages = typeof ru;

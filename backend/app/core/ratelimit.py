@@ -65,6 +65,20 @@ def limit_generations(
     )
 
 
+def limit_mentor_chats(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """Each mentor chat message costs a model call."""
+    _check(
+        "mentor_chats",
+        user.id,
+        settings.mentor_chats_per_day,
+        "Too many mentor chats today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="mentor_chat_limit",
+    )
+
+
 def reset_limits() -> None:
     """For tests."""
     with _lock:

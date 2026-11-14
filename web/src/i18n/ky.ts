@@ -869,4 +869,13 @@ export const ky: Messages = {
   mentorPlanReadingTitle: (title: Arg) => `Read "${title}"`,
   mentorPlanReadingReason: (minutes: number, level: Arg) => `${minutes} min · ${level}`,
   mentorPlanReadingCta: 'Read',
+  // TODO: replace with faithful Kyrgyz translation
+  mentorChatHeading: 'Ask your mentor',
+  mentorChatPlaceholder: 'Type a question…',
+  mentorChatSend: 'Send',
+  mentorChatSuggestion1: 'Where should I start today?',
+  mentorChatSuggestion2: 'How can I improve my results?',
+  mentorChatSuggestion3: 'Explain how spaced repetition works',
+  mentorChatLimitReached: "That's enough questions for today — come back tomorrow.",
+  mentorChatUnavailable: 'Your mentor is unavailable right now. Try again later.',
 };

@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     reading_testers: str = ""
     # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
     mentor_testers: str = ""
+    # Mentor chat messages per user per day: each costs a model call.
+    mentor_chats_per_day: int = 20
 
     @field_validator("database_url")
     @classmethod

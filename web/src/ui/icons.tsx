@@ -244,3 +244,10 @@ export const MarkerIcon = (props: IconProps) => (
     <path d="M4 22h16" />
   </svg>
 );
+
+/** Send a chat message. */
+export const SendIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" />
+  </svg>
+);

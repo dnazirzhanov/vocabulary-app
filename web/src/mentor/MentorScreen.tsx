@@ -6,6 +6,7 @@ import { BulbIcon, FlameIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t } from '../i18n/index.ts';
 import { collectMentorInput } from './inputs.ts';
+import { MentorChat } from './MentorChat.tsx';
 import { planToday } from './plan.ts';
 import { PlanCard } from './PlanCard.tsx';
 import { pickTip } from './tip.ts';
@@ -140,6 +141,8 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
               </ul>
             )}
           </section>
+
+          <MentorChat />
         </div>
       </div>
     </main>
