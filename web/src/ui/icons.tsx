@@ -231,6 +231,13 @@ export const CardsIcon = (props: IconProps) => (
   </svg>
 );
 
+/** A four-point star for the Mentor tab: friendly, calm, no eye-bot. */
+export const SparkleIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M12 3.5l1.6 4.6a3 3 0 0 0 1.8 1.8L20 11.5l-4.6 1.6a3 3 0 0 0-1.8 1.8L12 19.5l-1.6-4.6a3 3 0 0 0-1.8-1.8L4 11.5l4.6-1.6a3 3 0 0 0 1.8-1.8z" />
+  </svg>
+);
+
 export const MarkerIcon = (props: IconProps) => (
   <svg {...base} {...props}>
     <path d="m14.5 4.5 5 5L10 19H5v-5l9.5-9.5Z" />

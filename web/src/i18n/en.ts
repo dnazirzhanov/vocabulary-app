@@ -855,4 +855,35 @@ export const en: Messages = {
   ofTotal: (a: Arg) => `of ${a}`,
   testResultsWillBeDeleted: (a: Arg) => `The test's results will be deleted: ${a}. Everyone takes it again.`,
   allWithCount: (a: Arg) => `All (${a})`,
+
+  // --- Mentor tab (PR 1: dashboard; no LLM chat yet) ------------------------------------------
+  mentor: 'Mentor',
+  mentorGreetingMorning: 'Good morning',
+  mentorGreetingAfternoon: 'Good afternoon',
+  mentorGreetingEvening: 'Good evening',
+  mentorGreetingNight: 'Good night',
+  mentorTipHeading: 'Tip',
+  mentorTipFirstRun: 'Start with your first deck — then there is something to review.',
+  mentorTipStreakMilestone: (weeks: number) => `${weeks} weeks in a row — keep it up!`,
+  mentorTipStreakKeep: (weeks: number) => `${weeks}-week streak. Don't break it today.`,
+  mentorTipBigBacklog: (total: number) => `${total} cards waiting — clear some today.`,
+  mentorTipDueInDeck: (count: number, deckTitle: Arg) =>
+    `"${deckTitle}" has ${count} ${count === 1 ? 'card' : 'cards'} due — start there.`,
+  mentorTipSpellingAwaits: (count: number) =>
+    `${count} ${count === 1 ? 'word is' : 'words are'} waiting to be spelled.`,
+  mentorTipReadingFresh: 'Nothing to review — read something in English instead.',
+  mentorTipDefault: 'A few minutes a day and the language grows on its own.',
+  mentorPlanHeading: "Today's plan",
+  mentorPlanEmpty: "You're all caught up. Open a deck or a text for a bonus session.",
+  mentorPlanVocabTitle: (deckTitle: Arg) => `Review "${deckTitle}"`,
+  mentorPlanVocabReason: (count: number, minutes: number) =>
+    `${count} ${count === 1 ? 'card' : 'cards'} · ${minutes} min`,
+  mentorPlanVocabCta: 'Study',
+  mentorPlanSpellingTitle: (deckTitle: Arg) => `Spelling in "${deckTitle}"`,
+  mentorPlanSpellingReason: (count: number, minutes: number) =>
+    `${count} ${count === 1 ? 'word' : 'words'} · ${minutes} min`,
+  mentorPlanSpellingCta: 'Spell',
+  mentorPlanReadingTitle: (title: Arg) => `Read "${title}"`,
+  mentorPlanReadingReason: (minutes: number, level: Arg) => `${minutes} min · ${level}`,
+  mentorPlanReadingCta: 'Read',
 };

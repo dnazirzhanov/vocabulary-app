@@ -337,6 +337,23 @@ async function completeNow(sessionId: string): Promise<Summary> {
 const local = () => localDb() !== null;
 
 /** The lesson calls: on the device where it can keep things, else the server's as before. */
+/** A deck's due counts as the Mentor reads them, without starting a session. */
+export interface MentorDeckSummary {
+  id: string;
+  title: string;
+  level: string | null;
+  levelOrder: number | null;
+  kind: 'course' | 'mine' | 'group';
+  /** Cards whose next review is now or earlier (learning or review). */
+  dueCount: number;
+  /** Words whose spelling ladder is due now or earlier. */
+  spellingDue: number;
+}
+
+export interface MentorLearnerSnapshot {
+  decks: MentorDeckSummary[];
+}
+
 export const study = {
   async activeSession(): Promise<{ session: Session | null }> {
     if (!local()) return api.activeSession();
@@ -382,6 +399,42 @@ export const study = {
 
   /** Practice on this device only: the screens offer it where there is one (`onDevice`). */
   onDevice: () => local(),
+
+  /**
+   * The Mentor's view of the learner: due vocab and spelling per deck, read from the in-memory
+   * pack. Null when this device has no pack yet (first run with no connection). Never starts a
+   * session; never fetches when a pack is already kept.
+   */
+  async learnerSnapshot(): Promise<MentorLearnerSnapshot | null> {
+    if (!local()) return null;
+    try {
+      const { learner } = await load(localDb()!);
+      const nowMs = now();
+      const decks: MentorDeckSummary[] = [];
+      for (const deck of learner.decks.values()) {
+        let dueCount = 0;
+        let spellingDue = 0;
+        for (const wordId of deck.word_ids) {
+          const progress = learner.progress.get(wordId);
+          if (progress && progress.dueAt <= nowMs) dueCount += 1;
+          const ladder = learner.ladder.get(wordId);
+          if (ladder && ladder.dueAt <= nowMs) spellingDue += 1;
+        }
+        decks.push({
+          id: deck.id,
+          title: deck.title,
+          level: deck.level,
+          levelOrder: deck.level_order,
+          kind: deck.kind,
+          dueCount,
+          spellingDue,
+        });
+      }
+      return { decks };
+    } catch {
+      return null;
+    }
+  },
 
   /** Headwords (lowercase) of the words I already study: «Уже учите» in Reading Mode. */
   async learningHeadwords(): Promise<Set<string>> {

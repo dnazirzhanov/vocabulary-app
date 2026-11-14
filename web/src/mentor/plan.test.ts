@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { estimateSpellingMinutes, estimateVocabMinutes, levelFits, planToday } from './plan.ts';
+import type { MentorInput } from './types.ts';
+
+const base: MentorInput = {
+  phase: 'morning',
+  name: 'Ira',
+  streakWeeks: 0,
+  decks: [],
+  articles: [],
+  readIds: new Set(),
+  userLevel: 'A2',
+};
+
+test('an empty state yields an empty plan — nothing is invented', () => {
+  assert.deepEqual(planToday(base), []);
+});
+
+test('one deck with due cards yields one vocab item', () => {
+  const plan = planToday({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 7, spellingDue: 0 }],
+  });
+  assert.equal(plan.length, 1);
+  assert.deepEqual(plan[0], { kind: 'vocab', deckId: 'd1', title: 'Family', count: 7, minutes: 2 });
+});
+
+test('vocab, spelling, and reading combine in that order', () => {
+  const plan = planToday({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 3 }],
+    articles: [{ id: 'bees', title: 'How bees dance', level: 'A2', minutes: 4 }],
+  });
+  assert.deepEqual(
+    plan.map((item) => item.kind),
+    ['vocab', 'spelling', 'reading'],
+  );
+});
+
+test('deck with the most due cards wins — ties broken by level, then title', () => {
+  const plan = planToday({
+    ...base,
+    decks: [
+      { id: 'd1', title: 'Zoo', level: 'A2', levelOrder: 2, dueCount: 5, spellingDue: 0 },
+      { id: 'd2', title: 'Apple', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 0 },
+      { id: 'd3', title: 'Birds', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 0 },
+    ],
+  });
+  assert.equal(plan[0].kind, 'vocab');
+  assert.equal((plan[0] as { deckId: string }).deckId, 'd2');
+});
+
+test('zero due means no vocab item (nothing is invented)', () => {
+  const plan = planToday({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 0 }],
+  });
+  assert.deepEqual(plan, []);
+});
+
+test('reading prefers an exact level, then the shortest within one step', () => {
+  const plan = planToday({
+    ...base,
+    userLevel: 'B1',
+    articles: [
+      { id: 'a', title: 'Bees', level: 'A2', minutes: 3 },
+      { id: 'b', title: 'Cells', level: 'B1', minutes: 8 },
+      { id: 'c', title: 'Cities', level: 'B1', minutes: 5 },
+      { id: 'd', title: 'Comets', level: 'C1', minutes: 2 },
+    ],
+  });
+  const reading = plan.find((item) => item.kind === 'reading');
+  assert.ok(reading);
+  assert.equal((reading as { articleId: string }).articleId, 'c');
+});
+
+test('reading falls back to ±1 level when nothing at the exact level is left', () => {
+  const plan = planToday({
+    ...base,
+    userLevel: 'B1',
+    articles: [
+      { id: 'a', title: 'Bees', level: 'A2', minutes: 3 },
+      { id: 'b', title: 'Cells', level: 'C1', minutes: 2 },
+    ],
+  });
+  const reading = plan.find((item) => item.kind === 'reading');
+  assert.equal((reading as { articleId: string } | undefined)?.articleId, 'a');
+});
+
+test('articles already read are skipped', () => {
+  const plan = planToday({
+    ...base,
+    userLevel: 'A2',
+    articles: [{ id: 'bees', title: 'Bees', level: 'A2', minutes: 4 }],
+    readIds: new Set(['bees']),
+  });
+  assert.equal(
+    plan.find((item) => item.kind === 'reading'),
+    undefined,
+  );
+});
+
+test('level-fits allows at most one step away', () => {
+  assert.equal(levelFits('A2', 'A2'), true);
+  assert.equal(levelFits('A1', 'A2'), true);
+  assert.equal(levelFits('B1', 'A2'), true);
+  assert.equal(levelFits('B2', 'A2'), false);
+  assert.equal(levelFits('C1', 'A1'), false);
+});
+
+test('minute estimates stay within sensible bounds', () => {
+  assert.equal(estimateVocabMinutes(1), 1);
+  assert.equal(estimateVocabMinutes(6), 1);
+  assert.equal(estimateVocabMinutes(30), 5);
+  assert.equal(estimateVocabMinutes(1000), 15);
+  assert.equal(estimateSpellingMinutes(1), 1);
+  assert.equal(estimateSpellingMinutes(10), 3);
+});

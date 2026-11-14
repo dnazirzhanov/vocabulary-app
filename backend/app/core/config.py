@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     content_editors: str = ""
     # Sign-ins (auth subjects or bare UIDs, comma-separated) who see Reading Mode (an experiment).
     reading_testers: str = ""
+    # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
+    mentor_testers: str = ""
 
     @field_validator("database_url")
     @classmethod

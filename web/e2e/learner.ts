@@ -19,6 +19,7 @@ export const test = base.extend<{
   languageChosen: boolean;
   named: string | null;
   reader: boolean;
+  mentor: boolean;
 }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
@@ -28,8 +29,11 @@ export const test = base.extend<{
   named: ['Тест', { option: true }],
   // `test.use({ reader: true })`: one of Reading Mode's testers (the e2e API lists e2e-reader-*).
   reader: [false, { option: true }],
-  context: async ({ context, onboarded, languageChosen, named, reader }, use) => {
-    const id = `e2e-${reader ? 'reader-' : ''}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  // `test.use({ mentor: true })`: one of the Mentor tab's testers (the e2e API lists e2e-mentor-*).
+  mentor: [false, { option: true }],
+  context: async ({ context, onboarded, languageChosen, named, reader, mentor }, use) => {
+    const prefix = reader ? 'reader-' : mentor ? 'mentor-' : '';
+    const id = `e2e-${prefix}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.

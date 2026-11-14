@@ -858,6 +858,37 @@ export const ru = {
   ofTotal: (a: Arg) => `из ${a}`,
   testResultsWillBeDeleted: (a: Arg) => `Результаты теста будут удалены: ${a}. Все пройдут его заново.`,
   allWithCount: (a: Arg) => `Все (${a})`,
+
+  // --- Mentor tab (PR 1: dashboard; no LLM chat yet) ------------------------------------------
+  mentor: 'Наставник',
+  mentorGreetingMorning: 'Доброе утро',
+  mentorGreetingAfternoon: 'Добрый день',
+  mentorGreetingEvening: 'Добрый вечер',
+  mentorGreetingNight: 'Доброй ночи',
+  mentorTipHeading: 'Совет',
+  mentorTipFirstRun: 'Начните с первой колоды — так появится, что повторять.',
+  mentorTipStreakMilestone: (weeks: number) => `Уже ${weeks}\u00a0${weeksWord(weeks)} подряд — так держать!`,
+  mentorTipStreakKeep: (weeks: number) => `Серия: ${weeks}\u00a0${weeksWord(weeks)} подряд. Не прерывайте её сегодня.`,
+  mentorTipBigBacklog: (total: number) =>
+    `Накопилось ${total}\u00a0${cardsWord(total)} — пройдите хотя бы часть сегодня.`,
+  mentorTipDueInDeck: (count: number, deckTitle: Arg) =>
+    `В колоде «${deckTitle}» ждёт ${count}\u00a0${cardsWord(count)} — начните с неё.`,
+  mentorTipSpellingAwaits: (count: number) =>
+    `${count}\u00a0${plural(count, { one: 'слово', few: 'слова', many: 'слов' })} ждёт написания.`,
+  mentorTipReadingFresh: 'Повторять нечего — почитайте что-нибудь по-английски.',
+  mentorTipDefault: 'Пара минут в день — и язык вырастет сам.',
+  mentorPlanHeading: 'План на сегодня',
+  mentorPlanEmpty: 'Всё на сегодня сделано. Можно открыть колоду или текст, чтобы позаниматься впрок.',
+  mentorPlanVocabTitle: (deckTitle: Arg) => `Повторить «${deckTitle}»`,
+  mentorPlanVocabReason: (count: number, minutes: number) => `${count}\u00a0${cardsWord(count)} · ${minutes}\u00a0мин`,
+  mentorPlanVocabCta: 'Учить',
+  mentorPlanSpellingTitle: (deckTitle: Arg) => `Написание в «${deckTitle}»`,
+  mentorPlanSpellingReason: (count: number, minutes: number) =>
+    `${count}\u00a0${plural(count, { one: 'слово', few: 'слова', many: 'слов' })} · ${minutes}\u00a0мин`,
+  mentorPlanSpellingCta: 'Писать',
+  mentorPlanReadingTitle: (title: Arg) => `Прочитать «${title}»`,
+  mentorPlanReadingReason: (minutes: number, level: Arg) => `${minutes}\u00a0мин · ${level}`,
+  mentorPlanReadingCta: 'Читать',
 };
 
 export type Messages = typeof ru;

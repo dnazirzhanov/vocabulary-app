@@ -39,11 +39,16 @@ const ReadingEditQuestions = lazy(() =>
 );
 const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({ default: m.OwnText })));
 
+// Mentor tab: loaded only when its tab is opened, so home does not pull the mentor's
+// deterministic planner and its view of the reading index.
+const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
+
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
 
 type Screen =
   | { name: 'home' }
+  | { name: 'mentor' }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -376,6 +381,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   // Every other screen sits in the navigation, which stays mounted while the screens change.
   const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
+    else if (tab === 'mentor') setScreen({ name: 'mentor' });
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
     // «Друзья» always opens the list of groups first (ADR 0023).
@@ -397,6 +403,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       }}
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
       reading={me.reading === true}
+      mentor={me.mentor === true}
     >
       {tabScreen()}
     </NavShell>
@@ -478,6 +485,17 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         />
       );
     }
+    if (screen.name === 'mentor') {
+      return (
+        <Suspense fallback={null}>
+          <MentorScreen
+            account={me.id}
+            onOpenArticle={(articleId) => setScreen({ name: 'article', articleId })}
+            onStartSession={startSession}
+          />
+        </Suspense>
+      );
+    }
     if (screen.name === 'progress') {
       return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
@@ -545,6 +563,7 @@ function backTo(from: PageFrom): Screen {
 }
 
 function tabOf(screen: Screen): NavTab {
+  if (screen.name === 'mentor') return 'mentor';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

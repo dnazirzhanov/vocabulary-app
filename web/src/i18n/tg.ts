@@ -840,4 +840,35 @@ export const tg: Messages = {
   ofTotal: (a: Arg) => `аз ${a}`,
   testResultsWillBeDeleted: (a: Arg) => `Натиҷаҳои санҷиш нест мешаванд: ${a}. Ҳама онро аз нав месупоранд.`,
   allWithCount: (a: Arg) => `Ҳама (${a})`,
+
+  // --- Mentor tab (PR 1). English placeholders — replace with faithful Tajik translation. -----
+  mentor: 'Mentor',
+  mentorGreetingMorning: 'Good morning',
+  mentorGreetingAfternoon: 'Good afternoon',
+  mentorGreetingEvening: 'Good evening',
+  mentorGreetingNight: 'Good night',
+  mentorTipHeading: 'Tip',
+  mentorTipFirstRun: 'Start with your first deck.',
+  mentorTipStreakMilestone: (weeks: number) => `${weeks} weeks in a row — keep it up!`,
+  mentorTipStreakKeep: (weeks: number) => `${weeks}-week streak. Keep it going today.`,
+  mentorTipBigBacklog: (total: number) => `${total} cards waiting — clear some today.`,
+  mentorTipDueInDeck: (count: number, deckTitle: Arg) =>
+    `"${deckTitle}" has ${count} ${count === 1 ? 'card' : 'cards'} due — start there.`,
+  mentorTipSpellingAwaits: (count: number) =>
+    `${count} ${count === 1 ? 'word is' : 'words are'} waiting to be spelled.`,
+  mentorTipReadingFresh: 'Nothing to review — read something in English instead.',
+  mentorTipDefault: 'A few minutes a day and the language grows on its own.',
+  mentorPlanHeading: "Today's plan",
+  mentorPlanEmpty: "You're all caught up.",
+  mentorPlanVocabTitle: (deckTitle: Arg) => `Review "${deckTitle}"`,
+  mentorPlanVocabReason: (count: number, minutes: number) =>
+    `${count} ${count === 1 ? 'card' : 'cards'} · ${minutes} daq`,
+  mentorPlanVocabCta: 'Study',
+  mentorPlanSpellingTitle: (deckTitle: Arg) => `Spelling in "${deckTitle}"`,
+  mentorPlanSpellingReason: (count: number, minutes: number) =>
+    `${count} ${count === 1 ? 'word' : 'words'} · ${minutes} daq`,
+  mentorPlanSpellingCta: 'Spell',
+  mentorPlanReadingTitle: (title: Arg) => `Read "${title}"`,
+  mentorPlanReadingReason: (minutes: number, level: Arg) => `${minutes} daq · ${level}`,
+  mentorPlanReadingCta: 'Read',
 };
