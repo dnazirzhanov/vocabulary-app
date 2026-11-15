@@ -878,6 +878,7 @@ export const ru = {
   mentorTipReadingFresh: 'Повторять нечего — почитайте что-нибудь по-английски.',
   mentorTipDefault: 'Пара минут в день — и язык вырастет сам.',
   mentorPlanHeading: 'План на сегодня',
+  mentorPlanRefresh: 'Обновить план',
   mentorPlanEmpty: 'Всё на сегодня сделано. Можно открыть колоду или текст, чтобы позаниматься впрок.',
   mentorPlanVocabTitle: (deckTitle: Arg) => `Повторить «${deckTitle}»`,
   mentorPlanVocabReason: (count: number, minutes: number) => `${count}\u00a0${cardsWord(count)} · ${minutes}\u00a0мин`,

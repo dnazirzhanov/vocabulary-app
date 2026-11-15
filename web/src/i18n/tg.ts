@@ -859,6 +859,7 @@ export const tg: Messages = {
   mentorTipReadingFresh: 'Nothing to review — read something in English instead.',
   mentorTipDefault: 'A few minutes a day and the language grows on its own.',
   mentorPlanHeading: "Today's plan",
+  mentorPlanRefresh: 'Refresh plan',
   mentorPlanEmpty: "You're all caught up.",
   mentorPlanVocabTitle: (deckTitle: Arg) => `Review "${deckTitle}"`,
   mentorPlanVocabReason: (count: number, minutes: number) =>

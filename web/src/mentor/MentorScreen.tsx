@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, describeError } from '../lib/api.ts';
 import type { Session } from '../lib/types.ts';
 import { study } from '../study/device.ts';
-import { BulbIcon, FlameIcon } from '../ui/icons.tsx';
+import { BulbIcon, FlameIcon, RepeatIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t } from '../i18n/index.ts';
 import { collectMentorInput } from './inputs.ts';
@@ -31,6 +31,7 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
   const [input, setInput] = useState<MentorInput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [planRefreshing, setPlanRefreshing] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
@@ -128,9 +129,23 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
           </section>
 
           <section className={styles.plan} aria-labelledby="mentor-plan-heading">
-            <h2 className={styles.planHead} id="mentor-plan-heading">
-              {t.mentorPlanHeading}
-            </h2>
+            <div className={styles.planHeadRow}>
+              <h2 className={styles.planHead} id="mentor-plan-heading">
+                {t.mentorPlanHeading}
+              </h2>
+              <button
+                type="button"
+                className={`${styles.refreshBtn}${planRefreshing ? ` ${styles.refreshing}` : ''}`}
+                aria-label={t.mentorPlanRefresh}
+                disabled={planRefreshing || busy}
+                onClick={() => {
+                  setPlanRefreshing(true);
+                  void load().finally(() => setPlanRefreshing(false));
+                }}
+              >
+                <RepeatIcon aria-hidden="true" />
+              </button>
+            </div>
             {items.length === 0 ? (
               <p className={styles.empty}>{t.mentorPlanEmpty}</p>
             ) : (

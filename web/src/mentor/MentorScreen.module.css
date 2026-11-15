@@ -98,10 +98,54 @@
   gap: var(--space-3);
 }
 
+.planHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .planHead {
   margin: 0;
   font-size: var(--text-title);
   font-weight: var(--weight-strong);
+}
+
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: var(--space-1);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+
+.refreshBtn:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.refreshBtn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.refreshBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refreshing svg {
+  animation: spin 0.7s linear infinite;
 }
 
 .empty {
