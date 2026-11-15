@@ -11,6 +11,7 @@ const base: MentorInput = {
   articles: [],
   readIds: new Set(),
   userLevel: 'A2',
+  daysSinceLastStudy: null,
 };
 
 test('an empty state yields an empty plan — nothing is invented', () => {

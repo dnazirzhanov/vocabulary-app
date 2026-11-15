@@ -8,6 +8,11 @@ import { study, type MentorDeckSummary } from '../study/device.ts';
 import { phaseFor } from './greeting.ts';
 import type { MentorArticle, MentorDeck, MentorInput } from './types.ts';
 
+interface ProgressData {
+  streakWeeks: number | null;
+  daysSinceLastStudy: number | null;
+}
+
 const DEFAULT_LEVEL: Level = 'A2';
 
 /**
@@ -19,7 +24,7 @@ const DEFAULT_LEVEL: Level = 'A2';
 export async function collectMentorInput(account: string): Promise<MentorInput> {
   const db = localDb();
   const me = db ? ((await readSnapshot<Me>(db, 'me').catch(() => null))?.value ?? null) : null;
-  const streakWeeks = await loadStreak();
+  const { streakWeeks, daysSinceLastStudy } = await loadProgressData();
   const snapshot = await study.learnerSnapshot();
   const articles = await loadArticles();
   const readIds = new Set(doneArticleIds(account));
@@ -32,15 +37,22 @@ export async function collectMentorInput(account: string): Promise<MentorInput> 
     articles,
     readIds,
     userLevel: pickUserLevel(decks),
+    daysSinceLastStudy,
   };
 }
 
-async function loadStreak(): Promise<number | null> {
+async function loadProgressData(): Promise<ProgressData> {
   try {
     const { value } = await withSnapshot<Progress>('progress', api.progress);
-    return value.streak_weeks;
+    const streakWeeks = value.streak_weeks;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastStudied = [...value.activity].reverse().find((day) => day.studied);
+    if (!lastStudied) return { streakWeeks, daysSinceLastStudy: null };
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const days = Math.round((new Date(todayStr).getTime() - new Date(lastStudied.date).getTime()) / msPerDay);
+    return { streakWeeks, daysSinceLastStudy: days };
   } catch {
-    return null;
+    return { streakWeeks: null, daysSinceLastStudy: null };
   }
 }
 

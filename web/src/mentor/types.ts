@@ -37,6 +37,8 @@ export interface MentorInput {
   readIds: ReadonlySet<string>;
   /** The learner's reading level, derived from the course deck they are on. */
   userLevel: Level;
+  /** Calendar days since the last completed study session; null when no history or data unavailable. */
+  daysSinceLastStudy: number | null;
 }
 
 /** One card on «Today's plan». */
@@ -54,6 +56,7 @@ export type TipId =
   | 'bigBacklog'
   | 'dueInDeck'
   | 'spellingAwaits'
+  | 'returner'
   | 'allCaughtUp'
   | 'readingFresh'
   | 'default';
@@ -65,4 +68,5 @@ export interface Tip {
   total?: number;
   count?: number;
   deckTitle?: string;
+  days?: number;
 }

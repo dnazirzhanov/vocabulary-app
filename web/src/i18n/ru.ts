@@ -869,6 +869,7 @@ export const ru = {
   mentorTipFirstRun: 'Начните с первой колоды — так появится, что повторять.',
   mentorTipNewLearner:
     'Хорошее начало! Занимайтесь понемногу каждый день — несколько минут в день складываются в большой результат.',
+  mentorTipReturner: 'С возвращением! Начните с небольшого повторения — и снова войдёте в ритм.',
   mentorTipStreakMilestone: (weeks: number) => `Уже ${weeks}\u00a0${weeksWord(weeks)} подряд — так держать!`,
   mentorTipStreakKeep: (weeks: number) => `Серия: ${weeks}\u00a0${weeksWord(weeks)} подряд. Не прерывайте её сегодня.`,
   mentorTipBigBacklog: (total: number) =>

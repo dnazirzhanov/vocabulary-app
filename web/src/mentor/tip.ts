@@ -36,6 +36,15 @@ export function pickTip(input: MentorInput): Tip {
   if (totalSpelling >= SPELLING_AWAITS) {
     return { id: 'spellingAwaits', count: totalSpelling };
   }
+  // Welcome back a learner who has been away for 3+ days (and therefore has no active streak).
+  if (
+    input.decks.length > 0 &&
+    (input.streakWeeks ?? 0) === 0 &&
+    input.daysSinceLastStudy !== null &&
+    input.daysSinceLastStudy >= 3
+  ) {
+    return { id: 'returner', days: input.daysSinceLastStudy };
+  }
   // A first-week learner with a modest backlog: more encouraging than the generic default.
   if (input.decks.length > 0 && (input.streakWeeks ?? 0) === 0 && totalDue > 0) {
     return { id: 'newLearner' };

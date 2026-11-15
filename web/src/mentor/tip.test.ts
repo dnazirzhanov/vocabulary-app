@@ -11,6 +11,7 @@ const base: MentorInput = {
   articles: [],
   readIds: new Set(),
   userLevel: 'A2',
+  daysSinceLastStudy: null,
 };
 
 test('a fresh account with no decks and no streak gets the first-run tip', () => {
@@ -118,4 +119,37 @@ test('new-learner requires vocab due — no-vocab learner bypasses it', () => {
 test('the first-run rule needs both no decks and no streak', () => {
   // A learner with a streak but no decks today still gets the streak keep-it-up, not first-run.
   assert.deepEqual(pickTip({ ...base, streakWeeks: 2 }), { id: 'streakKeep', weeks: 2 });
+});
+
+test('a learner back after 3+ days with no streak gets the returner tip', () => {
+  const tip = pickTip({
+    ...base,
+    daysSinceLastStudy: 5,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 3, spellingDue: 0 }],
+  });
+  assert.deepEqual(tip, { id: 'returner', days: 5 });
+});
+
+test('returner fires even when vocab due is 0 (all caught up after returning)', () => {
+  const tip = pickTip({
+    ...base,
+    daysSinceLastStudy: 10,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 0 }],
+  });
+  assert.deepEqual(tip, { id: 'returner', days: 10 });
+});
+
+test('returner does not fire when away fewer than 3 days', () => {
+  const tip = pickTip({
+    ...base,
+    daysSinceLastStudy: 2,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 0 }],
+  });
+  // 2 days away falls through to newLearner since streak is 0 and totalDue > 0
+  assert.deepEqual(tip, { id: 'newLearner' });
+});
+
+test('returner does not fire when no decks', () => {
+  const tip = pickTip({ ...base, daysSinceLastStudy: 7 });
+  assert.deepEqual(tip, { id: 'firstRun' });
 });

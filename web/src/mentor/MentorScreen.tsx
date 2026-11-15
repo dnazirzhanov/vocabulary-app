@@ -201,6 +201,8 @@ function tipText(tip: Tip): string {
       return t.mentorTipFirstRun;
     case 'newLearner':
       return t.mentorTipNewLearner;
+    case 'returner':
+      return t.mentorTipReturner;
     case 'streakMilestone':
       return t.mentorTipStreakMilestone(tip.weeks ?? 0);
     case 'streakKeep':
