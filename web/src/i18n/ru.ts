@@ -875,6 +875,7 @@ export const ru = {
     `В колоде «${deckTitle}» ждёт ${count}\u00a0${cardsWord(count)} — начните с неё.`,
   mentorTipSpellingAwaits: (count: number) =>
     `${count}\u00a0${plural(count, { one: 'слово', few: 'слова', many: 'слов' })} ждёт написания.`,
+  mentorTipAllCaughtUp: 'Всё сделано — сегодня повторять нечего! Почитайте что-нибудь или откройте новую колоду.',
   mentorTipReadingFresh: 'Повторять нечего — почитайте что-нибудь по-английски.',
   mentorTipDefault: 'Пара минут в день — и язык вырастет сам.',
   mentorPlanHeading: 'План на сегодня',

@@ -53,6 +53,7 @@ export type TipId =
   | 'bigBacklog'
   | 'dueInDeck'
   | 'spellingAwaits'
+  | 'allCaughtUp'
   | 'readingFresh'
   | 'default';
 

@@ -36,6 +36,9 @@ export function pickTip(input: MentorInput): Tip {
   if (totalSpelling >= SPELLING_AWAITS) {
     return { id: 'spellingAwaits', count: totalSpelling };
   }
+  if (input.decks.length > 0 && totalDue === 0 && totalSpelling === 0) {
+    return { id: 'allCaughtUp' };
+  }
   if (totalDue === 0 && hasReading(input)) {
     return { id: 'readingFresh' };
   }

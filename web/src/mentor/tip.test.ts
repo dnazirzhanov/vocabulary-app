@@ -55,19 +55,36 @@ test('spelling-awaits appears when five or more words want spelling and nothing 
   assert.deepEqual(tip, { id: 'spellingAwaits', count: 6 });
 });
 
-test('with no vocabulary due but a fresh article, suggest reading', () => {
+test('all caught up fires when a learner has decks but zero vocab and spelling due', () => {
+  const tip = pickTip({
+    ...base,
+    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 0 }],
+  });
+  assert.deepEqual(tip, { id: 'allCaughtUp' });
+});
+
+test('all caught up beats reading-fresh when nothing is due and articles exist', () => {
   const tip = pickTip({
     ...base,
     decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 0 }],
     articles: [{ id: 'bees', title: 'Bees', level: 'A2', minutes: 4 }],
   });
+  assert.deepEqual(tip, { id: 'allCaughtUp' });
+});
+
+test('with no vocabulary due and some (not enough) spelling, suggest reading', () => {
+  const tip = pickTip({
+    ...base,
+    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 2 }],
+    articles: [{ id: 'bees', title: 'Bees', level: 'A2', minutes: 4 }],
+  });
   assert.deepEqual(tip, { id: 'readingFresh' });
 });
 
-test('with everything quiet, the default encouragement shows', () => {
+test('with a small due backlog and no streak, the default encouragement shows', () => {
   const tip = pickTip({
     ...base,
-    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 0 }],
+    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 3, spellingDue: 2 }],
   });
   assert.deepEqual(tip, { id: 'default' });
 });

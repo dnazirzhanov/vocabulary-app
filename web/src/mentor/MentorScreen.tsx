@@ -203,6 +203,8 @@ function tipText(tip: Tip): string {
       return t.mentorTipDueInDeck(tip.count ?? 0, tip.deckTitle ?? '');
     case 'spellingAwaits':
       return t.mentorTipSpellingAwaits(tip.count ?? 0);
+    case 'allCaughtUp':
+      return t.mentorTipAllCaughtUp;
     case 'readingFresh':
       return t.mentorTipReadingFresh;
     case 'default':

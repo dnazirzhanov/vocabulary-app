@@ -854,6 +854,7 @@ export const ky: Messages = {
     `"${deckTitle}" has ${count} ${count === 1 ? 'card' : 'cards'} due — start there.`,
   mentorTipSpellingAwaits: (count: number) =>
     `${count} ${count === 1 ? 'word is' : 'words are'} waiting to be spelled.`,
+  mentorTipAllCaughtUp: 'All caught up — nothing due today! Use the bonus time to read or explore a new deck.',
   mentorTipReadingFresh: 'Nothing to review — read something in English instead.',
   mentorTipDefault: 'A few minutes a day and the language grows on its own.',
   mentorPlanHeading: "Today's plan",
