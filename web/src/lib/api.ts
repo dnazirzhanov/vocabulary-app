@@ -346,8 +346,12 @@ interface MentorPlanItem {
 }
 
 /** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
-export async function* mentorChatStream(message: string, plan?: MentorPlanItem[]): AsyncGenerator<MentorStreamEvent> {
-  const response = await send('POST', '/mentor/chat/stream', { message, plan }, 180_000);
+export async function* mentorChatStream(
+  message: string,
+  plan?: MentorPlanItem[],
+  tip_id?: string,
+): AsyncGenerator<MentorStreamEvent> {
+  const response = await send('POST', '/mentor/chat/stream', { message, plan, tip_id }, 180_000);
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null);
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;

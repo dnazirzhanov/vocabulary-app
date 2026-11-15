@@ -72,6 +72,7 @@ class LearnerContext:
     top_spelling_deck: tuple[str, int] | None = None
     total_decks: int = 0
     studying_since: str = "unknown"
+    tip_id: str | None = None
 
 
 _SYSTEM = """\
@@ -100,6 +101,7 @@ Current learner state (use this to give personal, relevant advice):
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
 {PLAN_SECTION}\
+{TIP_LINE}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -319,6 +321,7 @@ def _system_prompt(
         plan_section = "Today's recommended plan:\n" + "\n".join(plan_lines) + "\n"
     else:
         plan_section = ""
+    tip_line = f"Tip shown to learner: {ctx.tip_id}\n" if ctx.tip_id else ""
     if ctx.today_promised:
         studied = ctx.sessions_today != "none"
         promise_line = (
@@ -376,6 +379,7 @@ def _system_prompt(
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
         .replace("{READING_SECTION}", reading_section)
         .replace("{PLAN_SECTION}", plan_section)
+        .replace("{TIP_LINE}", tip_line)
     )
 
 
@@ -591,6 +595,7 @@ def _build_context(
     now: datetime,
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
     ctx = _learner_state(db, user, now, time_zone)
@@ -605,6 +610,7 @@ def _build_context(
         db, user, now, time_zone
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
+    ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)
     demo = settings.mentor_chat_demo or (
@@ -627,10 +633,11 @@ def chat(
     now: datetime,
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
 ) -> str:
     """Send a message to the mentor and return the assistant's reply."""
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan
+        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
     )
     if is_demo:
         _persist(db, user, message, demo_reply, now)
@@ -648,11 +655,12 @@ def stream_chat(
     now: datetime,
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
 ) -> Generator[str]:
     """Yield text chunks from DeepSeek (or a word-by-word demo reply), then persist."""
 
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan
+        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
     )
     if is_demo:
         _persist(db, user, message, demo_reply, now)

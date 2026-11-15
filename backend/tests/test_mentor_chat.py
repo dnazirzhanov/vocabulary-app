@@ -667,3 +667,26 @@ def test_system_prompt_studying_since_unknown_when_no_sessions() -> None:
     user = User(ui_language="en", name="Ira")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(studying_since="unknown"))
     assert "Studying since: unknown" in prompt
+
+
+def test_system_prompt_tip_line_shown_when_tip_id_provided() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id="bigBacklog"))
+    assert "Tip shown to learner: bigBacklog" in prompt
+
+
+def test_system_prompt_tip_line_absent_when_no_tip_id() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Tip shown to learner" not in prompt
+    assert "{TIP_LINE}" not in prompt
+
+
+def test_chat_accepts_tip_id_in_body(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.post(
+        "/api/mentor/chat",
+        json={"message": "Как дела?", "tip_id": "allCaughtUp"},
+        headers=as_("alice"),
+    )
+    assert resp.status_code == 200

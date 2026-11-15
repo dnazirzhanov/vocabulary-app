@@ -23,6 +23,7 @@ class PlanItemIn(BaseModel):
 class MentorChatIn(BaseModel):
     message: MessageText
     plan: list[PlanItemIn] | None = None
+    tip_id: str | None = None
 
 
 class MentorChatOut(BaseModel):
