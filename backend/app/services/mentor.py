@@ -81,6 +81,7 @@ class LearnerContext:
     studying_since: str = "unknown"
     tip_id: str | None = None
     words_mastered: int = 0
+    words_nearly_mastered: int = 0
     active_weeks: int = 0
     days_studied_month: int = 0
     sample_due_words: list[str] = dataclasses.field(default_factory=list)
@@ -103,6 +104,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
+- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
 - New words learned today: {WORDS_TODAY}
 - New words learned this week: {WORDS_THIS_WEEK}
 - New words learned last week: {WORDS_LAST_WEEK}
@@ -314,6 +316,23 @@ def _mature_words(db: Session, user: User, now: datetime) -> int:
                 UserWordProgress.user_id == user.id,
                 UserWordProgress.first_recalled_at.is_not(None),
                 UserWordProgress.due_at >= cutoff,
+            )
+        )
+        or 0
+    )
+
+
+def _nearly_mastered_words(db: Session, user: User, now: datetime) -> int:
+    """Words with a 14–21-day SRS interval: one good review away from long-term mastery."""
+    low = now + timedelta(days=14)
+    high = now + timedelta(days=21)
+    return (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.first_recalled_at.is_not(None),
+                UserWordProgress.due_at >= low,
+                UserWordProgress.due_at < high,
             )
         )
         or 0
@@ -532,6 +551,7 @@ def _system_prompt(
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
         .replace("{WORDS_LEARNED}", str(ctx.words_learned))
         .replace("{WORDS_MASTERED}", str(ctx.words_mastered))
+        .replace("{WORDS_NEARLY_MASTERED}", str(ctx.words_nearly_mastered))
         .replace("{WORDS_TODAY}", str(ctx.words_today))
         .replace("{WORDS_THIS_WEEK}", str(ctx.words_this_week))
         .replace("{WORDS_LAST_WEEK}", str(ctx.words_last_week))
@@ -843,6 +863,7 @@ def _build_context(
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
     ctx.words_mastered = _mature_words(db, user, now)
+    ctx.words_nearly_mastered = _nearly_mastered_words(db, user, now)
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
     ctx.sample_due_words = _sample_due_words(db, user, now)
     ctx.struggling_words = _struggling_words(db, user, now)

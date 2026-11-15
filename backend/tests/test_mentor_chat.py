@@ -806,6 +806,13 @@ def test_system_prompt_sessions_this_week() -> None:
     assert "Study sessions completed this week: 4" in prompt
 
 
+def test_system_prompt_words_nearly_mastered() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_nearly_mastered=20))
+    assert "nearly mastered" in prompt
+    assert "20" in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
