@@ -1,7 +1,7 @@
 """API contracts for the Mentor chat tab."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
 
@@ -12,8 +12,17 @@ MessageText = Annotated[str, StringConstraints(strip_whitespace=True, min_length
 GoalText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
 
 
+class PlanItemIn(BaseModel):
+    kind: Literal["vocab", "spelling", "reading"]
+    title: str
+    count: int | None = None
+    minutes: int
+    level: str | None = None
+
+
 class MentorChatIn(BaseModel):
     message: MessageText
+    plan: list[PlanItemIn] | None = None
 
 
 class MentorChatOut(BaseModel):

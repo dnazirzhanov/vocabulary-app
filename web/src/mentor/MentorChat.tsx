@@ -135,7 +135,12 @@ export function MentorChat({ items = [] }: MentorChatProps) {
     let streamStarted = false;
     try {
       let accumulated = '';
-      for await (const event of mentorChatStream(trimmed)) {
+      const planPayload = items.map((item) =>
+        item.kind === 'reading'
+          ? { kind: 'reading' as const, title: item.title, minutes: item.minutes, level: item.level }
+          : { kind: item.kind, title: item.title, count: item.count, minutes: item.minutes },
+      );
+      for await (const event of mentorChatStream(trimmed, planPayload)) {
         if (event.delta) {
           accumulated += event.delta;
           if (!streamStarted) {

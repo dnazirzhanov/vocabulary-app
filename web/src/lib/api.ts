@@ -337,9 +337,17 @@ export const api = {
 export type MentorStreamEvent =
   { delta: string; done?: never } | { done: true; delta?: never; created_at: string; chats_remaining: number };
 
+interface MentorPlanItem {
+  kind: 'vocab' | 'spelling' | 'reading';
+  title: string;
+  count?: number;
+  minutes: number;
+  level?: string;
+}
+
 /** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
-export async function* mentorChatStream(message: string): AsyncGenerator<MentorStreamEvent> {
-  const response = await send('POST', '/mentor/chat/stream', { message }, 180_000);
+export async function* mentorChatStream(message: string, plan?: MentorPlanItem[]): AsyncGenerator<MentorStreamEvent> {
+  const response = await send('POST', '/mentor/chat/stream', { message, plan }, 180_000);
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null);
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;

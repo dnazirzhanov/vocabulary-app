@@ -544,6 +544,27 @@ def test_system_prompt_includes_day_of_week() -> None:
     assert "Saturday" in prompt
 
 
+def test_system_prompt_plan_section_shown_when_plan_provided() -> None:
+    user = User(ui_language="en", name="Alex")
+    plan = [
+        {"kind": "vocab", "title": "Family", "count": 7, "minutes": 2},
+        {"kind": "spelling", "title": "Animals", "count": 3, "minutes": 1},
+        {"kind": "reading", "title": "How bees dance", "minutes": 4, "level": "A2"},
+    ]
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(), plan=plan)
+    assert "Today's recommended plan" in prompt
+    assert 'Vocabulary: "Family"' in prompt
+    assert 'Spelling: "Animals"' in prompt
+    assert 'Reading: "How bees dance" (A2)' in prompt
+
+
+def test_system_prompt_plan_section_absent_when_no_plan() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Today's recommended plan" not in prompt
+    assert "{PLAN_SECTION}" not in prompt
+
+
 def test_system_prompt_reading_section_includes_last_read_label() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(reading_total=3, reading_recent=["Bees", "Cells"], reading_last="yesterday")

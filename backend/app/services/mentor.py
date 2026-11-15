@@ -5,6 +5,7 @@ import dataclasses
 import time
 from collections.abc import Generator
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, func, select
@@ -96,6 +97,7 @@ Current learner state (use this to give personal, relevant advice):
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
+{PLAN_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -243,7 +245,13 @@ def _course_level(db: Session, user: User) -> str | None:
     return row[0] if row else None
 
 
-def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext) -> str:
+def _system_prompt(
+    user: User,
+    now: datetime,
+    time_zone: ZoneInfo,
+    ctx: LearnerContext,
+    plan: list[dict[str, Any]] | None = None,
+) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
     streak_text = (
@@ -276,6 +284,23 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         total_decks_line = f"- Total vocabulary decks: {ctx.total_decks} {deck_label}\n"
     else:
         total_decks_line = ""
+    if plan:
+        plan_lines: list[str] = []
+        for item in plan:
+            kind = item.get("kind", "")
+            title = item.get("title", "")
+            minutes = item.get("minutes", 0)
+            if kind in ("vocab", "spelling"):
+                count = item.get("count") or 0
+                kind_name = "Vocabulary" if kind == "vocab" else "Spelling"
+                plan_lines.append(f'  - {kind_name}: "{title}" — {count} words (~{minutes} min)')
+            else:
+                level = item.get("level") or ""
+                level_part = f" ({level})" if level else ""
+                plan_lines.append(f'  - Reading: "{title}"{level_part} — {minutes} min')
+        plan_section = "Today's recommended plan:\n" + "\n".join(plan_lines) + "\n"
+    else:
+        plan_section = ""
     if ctx.today_promised:
         studied = ctx.sessions_today != "none"
         promise_line = (
@@ -331,6 +356,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{DECK_SECTION}", deck_section)
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
         .replace("{READING_SECTION}", reading_section)
+        .replace("{PLAN_SECTION}", plan_section)
     )
 
 
@@ -539,6 +565,7 @@ def _build_context(
     settings: Settings,
     now: datetime,
     time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
     ctx = _learner_state(db, user, now, time_zone)
@@ -553,7 +580,7 @@ def _build_context(
         db, user, now, time_zone
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
-    system = _system_prompt(user, now, time_zone, ctx)
+    system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)
     demo = settings.mentor_chat_demo or (
         not settings.deepseek_api_key and settings.environment != "production"
@@ -574,9 +601,12 @@ def chat(
     settings: Settings,
     now: datetime,
     time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
 ) -> str:
     """Send a message to the mentor and return the assistant's reply."""
-    system, msgs, demo_reply, is_demo = _build_context(db, user, message, settings, now, time_zone)
+    system, msgs, demo_reply, is_demo = _build_context(
+        db, user, message, settings, now, time_zone, plan=plan
+    )
     if is_demo:
         _persist(db, user, message, demo_reply, now)
         return demo_reply
@@ -592,10 +622,13 @@ def stream_chat(
     settings: Settings,
     now: datetime,
     time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
 ) -> Generator[str]:
     """Yield text chunks from DeepSeek (or a word-by-word demo reply), then persist."""
 
-    system, msgs, demo_reply, is_demo = _build_context(db, user, message, settings, now, time_zone)
+    system, msgs, demo_reply, is_demo = _build_context(
+        db, user, message, settings, now, time_zone, plan=plan
+    )
     if is_demo:
         _persist(db, user, message, demo_reply, now)
         delay = settings.mentor_demo_stream_delay_ms / 1000

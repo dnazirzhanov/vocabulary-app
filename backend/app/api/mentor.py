@@ -78,7 +78,8 @@ def mentor_chat(
     time_zone: TimeZone,
     settings: DepSettings,
 ) -> MentorChatOut:
-    reply = mentor.chat(db, user, body.message, settings, now, time_zone)
+    plan = [item.model_dump() for item in body.plan] if body.plan else None
+    reply = mentor.chat(db, user, body.message, settings, now, time_zone, plan=plan)
     used = mentor_chats_used(user.id)
     remaining = max(0, settings.mentor_chats_per_day - used)
     return MentorChatOut(reply=reply, created_at=now, chats_remaining=remaining)
@@ -105,5 +106,6 @@ def mentor_chat_stream(
         done_event = {"done": True, "created_at": now.isoformat(), "chats_remaining": remaining}
         yield f"data: {json.dumps(done_event)}\n\n"
 
-    chunks = mentor.stream_chat(db, user, body.message, settings, now, time_zone)
+    plan = [item.model_dump() for item in body.plan] if body.plan else None
+    chunks = mentor.stream_chat(db, user, body.message, settings, now, time_zone, plan=plan)
     return StreamingResponse(_sse(chunks), media_type="text/event-stream")
