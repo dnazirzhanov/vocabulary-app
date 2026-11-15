@@ -77,6 +77,18 @@ export function MentorChat() {
     }
   }, [messages]);
 
+  // Escape stops voice recording.
+  useEffect(() => {
+    if (!listening) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        dictationRef.current?.stop();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [listening]);
+
   // Auto-resize textarea as the user types.
   useEffect(() => {
     const el = inputRef.current;
@@ -93,15 +105,14 @@ export function MentorChat() {
     setSending(true);
     const userMsg: ChatMessage = { role: 'user', text: trimmed, sentAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
+    let streamStarted = false;
     try {
       let accumulated = '';
-      let started = false;
       for await (const event of mentorChatStream(trimmed)) {
         if (event.delta) {
           accumulated += event.delta;
-          if (!started) {
-            // First chunk: add the assistant message; typing indicator hides automatically.
-            started = true;
+          if (!streamStarted) {
+            streamStarted = true;
             setMessages((prev) => [...prev, { role: 'assistant', text: accumulated, sentAt: new Date() }]);
           } else {
             setMessages((prev) => {
@@ -121,13 +132,17 @@ export function MentorChat() {
         }
       }
     } catch (caught) {
-      setMessages((prev) => prev.slice(0, -1));
+      if (!streamStarted) {
+        // No chunks received yet — remove user message and restore draft so the user can retry.
+        setMessages((prev) => prev.slice(0, -1));
+        setDraft(trimmed);
+      }
+      // If streaming had started, keep the partial assistant text; just surface the error below.
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
         setError(t.mentorChatLimitReached);
       } else {
         setError(t.mentorChatUnavailable);
       }
-      setDraft(trimmed);
     } finally {
       setSending(false);
       inputRef.current?.focus();
