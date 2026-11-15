@@ -800,6 +800,12 @@ def test_system_prompt_overdue_part_absent_when_zero() -> None:
     assert "{OVERDUE_VOCAB_PART}" not in prompt
 
 
+def test_system_prompt_sessions_this_week() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(sessions_this_week=4))
+    assert "Study sessions completed this week: 4" in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -57,6 +57,7 @@ class LearnerContext:
     words_today: int = 0
     words_this_week: int = 0
     words_last_week: int = 0
+    sessions_this_week: int = 0
     reviews_this_week: int = 0
     due_vocab: int = 0
     due_vocab_overdue: int = 0
@@ -105,6 +106,7 @@ Current learner state (use this to give personal, relevant advice):
 - New words learned today: {WORDS_TODAY}
 - New words learned this week: {WORDS_THIS_WEEK}
 - New words learned last week: {WORDS_LAST_WEEK}
+- Study sessions completed this week: {SESSIONS_THIS_WEEK}
 - Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words{OVERDUE_VOCAB_PART}
 - Spelling due today: {DUE_SPELLING} words
@@ -533,6 +535,7 @@ def _system_prompt(
         .replace("{WORDS_TODAY}", str(ctx.words_today))
         .replace("{WORDS_THIS_WEEK}", str(ctx.words_this_week))
         .replace("{WORDS_LAST_WEEK}", str(ctx.words_last_week))
+        .replace("{SESSIONS_THIS_WEEK}", str(ctx.sessions_this_week))
         .replace("{REVIEWS_THIS_WEEK}", str(ctx.reviews_this_week))
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace(
@@ -692,6 +695,19 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         or 0
     )
 
+    week_start, _ = local_day_bounds(week_of(today)[0], time_zone)
+    sessions_this_week = (
+        db.scalar(
+            select(func.count()).where(
+                LearningSession.user_id == user.id,
+                LearningSession.completed_at >= week_start,
+                LearningSession.completed_at < now,
+                LearningSession.kind.in_(["study", "hard"]),
+            )
+        )
+        or 0
+    )
+
     retention_row = db.execute(
         select(
             func.count(ReviewAttempt.id).label("total"),
@@ -745,6 +761,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         words_today=int(words_today),
         words_this_week=int(words_this_week),
         words_last_week=int(words_last_week),
+        sessions_this_week=int(sessions_this_week),
         reviews_this_week=int(reviews_this_week),
         studying_since=studying_since_str,
     )
