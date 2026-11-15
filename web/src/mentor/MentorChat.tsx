@@ -3,6 +3,7 @@ import { ApiError } from '../lib/api.ts';
 import { api } from '../lib/api.ts';
 import { t } from '../i18n/index.ts';
 import { SendIcon } from '../ui/icons.tsx';
+import { MentorMarkdown } from './MentorMarkdown.tsx';
 import styles from './MentorChat.module.css';
 
 interface ChatMessage {
@@ -147,7 +148,9 @@ export function MentorChat() {
         >
           {messages.map((msg, i) => (
             <div key={i} className={msg.role === 'user' ? styles.userWrap : styles.assistantWrap}>
-              <div className={msg.role === 'user' ? styles.user : styles.assistant}>{msg.text}</div>
+              <div className={msg.role === 'user' ? styles.user : styles.assistant}>
+                {msg.role === 'user' ? msg.text : <MentorMarkdown text={msg.text} />}
+              </div>
               <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
                 {formatTime(msg.sentAt)}
               </time>

@@ -122,17 +122,49 @@
   font-size: var(--text-sm);
   line-height: 1.5;
   max-width: 85%;
-  white-space: pre-wrap;
 }
 
 .user {
   background: var(--brand-tint);
   color: var(--text-primary);
+  white-space: pre-wrap;
 }
 
 .assistant {
   background: var(--surface-elevated);
   color: var(--text-primary);
+}
+
+/* Markdown elements inside assistant bubbles */
+.assistant p {
+  margin: 0 0 var(--space-2) 0;
+}
+
+.assistant p:last-child {
+  margin-bottom: 0;
+}
+
+.assistant ul,
+.assistant ol {
+  margin: var(--space-1) 0 var(--space-2) 0;
+  padding-left: var(--space-5);
+}
+
+.assistant ul:last-child,
+.assistant ol:last-child {
+  margin-bottom: 0;
+}
+
+.assistant li {
+  margin-bottom: 2px;
+}
+
+.assistant code {
+  font-family: ui-monospace, monospace;
+  background: var(--surface);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.875em;
 }
 
 /* Typing indicator: three bouncing dots */
