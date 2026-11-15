@@ -89,6 +89,25 @@ def _ctx(**kwargs: Any) -> LearnerContext:
     return LearnerContext(**defaults)
 
 
+def test_system_prompt_has_no_unfilled_placeholders() -> None:
+    """Every {PLACEHOLDER} in _SYSTEM must be replaced; catch regressions where a new placeholder
+    is added to the template but its .replace() call is forgotten."""
+    import re
+
+    user = User(ui_language="en", name="Alex", daily_target_words=5, mentor_goal="B2 by June")
+    ctx = _ctx(
+        course_level="B1",
+        total_decks=3,
+        deck_rows=[("Family", 10), ("Animals", 3)],
+        top_spelling_deck=("Family", 5),
+        reading_total=5,
+        reading_recent=["The Zoo", "Home Life"],
+    )
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    unfilled = re.findall(r"\{[A-Z_]+\}", prompt)
+    assert unfilled == [], f"Unfilled template placeholders: {unfilled}"
+
+
 def test_system_prompt_includes_deck_names_when_due() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(

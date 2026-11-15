@@ -65,6 +65,19 @@ test('the goal widget lets the learner set and clear a learning goal', async ({ 
   await expect(page.getByText('Например: хочу дойти до B2 к лету')).toBeVisible();
 });
 
+test('follow-up chips appear after the assistant replies', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
+  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+
+  // Send a message so the assistant replies.
+  await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
+  await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
+
+  // After the reply, follow-up chips should appear.
+  await expect(page.getByRole('button', { name: 'Дай ещё один совет' })).toBeVisible();
+});
+
 test('clearing the chat removes all messages', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
