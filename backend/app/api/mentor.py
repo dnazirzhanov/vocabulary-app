@@ -9,7 +9,7 @@ from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.core.ratelimit import limit_mentor_chats
-from app.schemas.mentor import MentorChatIn, MentorChatOut
+from app.schemas.mentor import MentorChatIn, MentorChatOut, MentorHistoryItem, MentorHistoryOut
 from app.services import mentor
 from app.services.card_reports import listed
 
@@ -21,6 +21,17 @@ DepSettings = Annotated[Settings, Depends(get_settings)]
 def _require_mentor(user: CurrentUser, settings: DepSettings) -> None:
     if not listed(user, settings.mentor_testers):
         raise ApiError(403, "not_a_mentor_tester", "Mentor chat is not available for this account")
+
+
+@router.get("/mentor/history", dependencies=[Depends(_require_mentor)])
+def mentor_history(user: CurrentUser, db: DbSession) -> MentorHistoryOut:
+    messages = mentor.history(db, user)
+    return MentorHistoryOut(
+        messages=[
+            MentorHistoryItem(role=m.role, content=m.content, created_at=m.created_at)
+            for m in messages
+        ]
+    )
 
 
 @router.post("/mentor/chat", dependencies=[Depends(limit_mentor_chats), Depends(_require_mentor)])

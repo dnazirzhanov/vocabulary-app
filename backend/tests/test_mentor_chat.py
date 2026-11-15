@@ -90,6 +90,35 @@ def test_system_prompt_omits_deck_section_when_no_due() -> None:
     assert "{DECK_SECTION}" not in prompt
 
 
+def test_history_returns_empty_before_first_message(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.get("/api/mentor/history", headers=as_("diana"))
+    assert resp.status_code == 200
+    assert resp.json()["messages"] == []
+
+
+def test_history_returns_messages_after_chat(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "Hello"}, headers=as_("evan"))
+    resp = client.get("/api/mentor/history", headers=as_("evan"))
+    assert resp.status_code == 200
+    items = resp.json()["messages"]
+    assert len(items) == 2  # user + assistant
+    assert items[0]["role"] == "user"
+    assert items[0]["content"] == "Hello"
+    assert items[1]["role"] == "assistant"
+    assert "created_at" in items[0]
+
+
+def test_history_requires_tester_flag(client: TestClient) -> None:
+    resp = client.get("/api/mentor/history", headers=as_("frank"))
+    assert resp.status_code == 403
+
+
 def test_chat_rate_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _enable_mentor(monkeypatch)
     monkeypatch.setattr(get_settings(), "mentor_chats_per_day", 2)

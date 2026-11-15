@@ -131,14 +131,28 @@ def _recent_history(db: Session, user: User) -> list[MentorMessage]:
     )[::-1]
 
 
+def history(db: Session, user: User) -> list[MentorMessage]:
+    """The last 20 messages for display in the chat UI."""
+    return list(
+        db.scalars(
+            select(MentorMessage)
+            .where(MentorMessage.user_id == user.id)
+            .order_by(MentorMessage.created_at.desc())
+            .limit(20)
+        )
+    )[::-1]
+
+
 def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: datetime) -> None:
     db.add(MentorMessage(user_id=user.id, role="user", content=user_text, created_at=now))
+    # +1 µs so the assistant message always sorts after the user message even when both are saved
+    # with the same clock reading (which happens in tests and can happen in fast demo mode).
     db.add(
         MentorMessage(
             user_id=user.id,
             role="assistant",
             content=assistant_text,
-            created_at=now,
+            created_at=now + timedelta(microseconds=1),
         )
     )
     db.commit()

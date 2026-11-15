@@ -22,11 +22,24 @@ const FOLLOW_UPS = [() => t.mentorChatFollowUp1, () => t.mentorChatFollowUp2, ()
 
 export function MentorChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    api
+      .mentorHistory()
+      .then(({ messages: items }) => {
+        setMessages(items.map((m) => ({ role: m.role as 'user' | 'assistant', text: m.content })));
+      })
+      .catch(() => {
+        // History is best-effort; a network error just starts the chat fresh.
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -63,7 +76,7 @@ export function MentorChat() {
     setError(null);
   }
 
-  const hasMessages = messages.length > 0;
+  const hasMessages = !loading && messages.length > 0;
   // Show follow-up chips after the last assistant message, when not currently sending.
   const lastIsAssistant = hasMessages && messages[messages.length - 1].role === 'assistant';
   const showFollowUps = lastIsAssistant && !sending;
@@ -84,7 +97,9 @@ export function MentorChat() {
         )}
       </div>
 
-      {!hasMessages && (
+      {loading && <div className={styles.loadingBar} aria-hidden="true" />}
+
+      {!loading && !hasMessages && (
         <div className={styles.suggestions}>
           {SUGGESTIONS.map((s) => (
             <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
@@ -94,7 +109,7 @@ export function MentorChat() {
         </div>
       )}
 
-      {hasMessages && (
+      {!loading && hasMessages && (
         <div className={styles.messages} role="log" aria-live="polite" aria-label={t.mentorChatHeading}>
           {messages.map((msg, i) => (
             <div key={i} className={msg.role === 'user' ? styles.user : styles.assistant}>

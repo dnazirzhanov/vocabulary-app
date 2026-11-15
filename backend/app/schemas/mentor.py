@@ -16,3 +16,13 @@ class MentorChatIn(BaseModel):
 class MentorChatOut(BaseModel):
     reply: str
     created_at: datetime
+
+
+class MentorHistoryItem(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
+
+
+class MentorHistoryOut(BaseModel):
+    messages: list[MentorHistoryItem]
