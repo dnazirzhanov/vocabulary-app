@@ -880,4 +880,8 @@ export const tg: Messages = {
   mentorChatSuggestion3: 'Explain how spaced repetition works',
   mentorChatLimitReached: "That's enough questions for today — come back tomorrow.",
   mentorChatUnavailable: 'Your mentor is unavailable right now. Try again later.',
+  mentorChatFollowUp1: 'Give me one more tip',
+  mentorChatFollowUp2: 'What should I study next?',
+  mentorChatFollowUp3: 'How can I remember this faster?',
+  mentorChatClear: 'Clear chat',
 };

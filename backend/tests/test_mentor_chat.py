@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
+from app.models import User
+from app.services.mentor import _system_prompt
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
@@ -70,6 +72,22 @@ def test_chat_tester_gate_by_prefix(client: TestClient, monkeypatch: pytest.Monk
         headers=as_("other-user"),
     )
     assert resp.status_code == 403
+
+
+def test_system_prompt_includes_deck_names_when_due() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, 3, 20, 5, [("Animals", 15), ("Food", 5)])
+    assert "Animals: 15 words" in prompt
+    assert "Food: 5 words" in prompt
+    assert "Top decks due today" in prompt
+
+
+def test_system_prompt_omits_deck_section_when_no_due() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, 0, 0, 0, [])
+    assert "Top decks due today" not in prompt
+    # Placeholder is fully consumed — no stray {DECK_SECTION} in output.
+    assert "{DECK_SECTION}" not in prompt
 
 
 def test_chat_rate_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

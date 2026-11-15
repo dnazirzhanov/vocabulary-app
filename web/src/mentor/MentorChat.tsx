@@ -18,6 +18,8 @@ const SUGGESTIONS = [
   () => t.mentorChatSuggestion3,
 ] as const;
 
+const FOLLOW_UPS = [() => t.mentorChatFollowUp1, () => t.mentorChatFollowUp2, () => t.mentorChatFollowUp3] as const;
+
 export function MentorChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -45,8 +47,6 @@ export function MentorChat() {
       setMessages((prev) => prev.slice(0, -1));
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
         setError(t.mentorChatLimitReached);
-      } else if (caught instanceof ApiError && caught.status >= 500) {
-        setError(t.mentorChatUnavailable);
       } else {
         setError(t.mentorChatUnavailable);
       }
@@ -57,16 +57,34 @@ export function MentorChat() {
     }
   }
 
+  function clear() {
+    setMessages([]);
+    setDraft('');
+    setError(null);
+  }
+
+  const hasMessages = messages.length > 0;
+  // Show follow-up chips after the last assistant message, when not currently sending.
+  const lastIsAssistant = hasMessages && messages[messages.length - 1].role === 'assistant';
+  const showFollowUps = lastIsAssistant && !sending;
+
   const overLimit = draft.length > MAX_LENGTH;
   const canSend = draft.trim().length > 0 && !overLimit && !sending;
 
   return (
     <section className={styles.chat} aria-labelledby="mentor-chat-heading">
-      <h2 className={styles.heading} id="mentor-chat-heading">
-        {t.mentorChatHeading}
-      </h2>
+      <div className={styles.headingRow}>
+        <h2 className={styles.heading} id="mentor-chat-heading">
+          {t.mentorChatHeading}
+        </h2>
+        {hasMessages && (
+          <button type="button" className={styles.clearBtn} onClick={clear}>
+            {t.mentorChatClear}
+          </button>
+        )}
+      </div>
 
-      {messages.length === 0 && (
+      {!hasMessages && (
         <div className={styles.suggestions}>
           {SUGGESTIONS.map((s) => (
             <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
@@ -76,7 +94,7 @@ export function MentorChat() {
         </div>
       )}
 
-      {messages.length > 0 && (
+      {hasMessages && (
         <div className={styles.messages} role="log" aria-live="polite" aria-label={t.mentorChatHeading}>
           {messages.map((msg, i) => (
             <div key={i} className={msg.role === 'user' ? styles.user : styles.assistant}>
@@ -85,6 +103,16 @@ export function MentorChat() {
           ))}
           {sending && <div className={styles.typing} aria-hidden="true" />}
           <div ref={bottomRef} />
+        </div>
+      )}
+
+      {showFollowUps && (
+        <div className={styles.followUps}>
+          {FOLLOW_UPS.map((s) => (
+            <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
+              {s()}
+            </button>
+          ))}
         </div>
       )}
 

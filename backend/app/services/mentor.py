@@ -11,7 +11,7 @@ from app.core.config import Settings
 from app.core.errors import ApiError
 from app.core.locale import texts_for
 from app.core.logging import logger
-from app.models import MentorMessage, SpellingProgress, User, UserWordProgress
+from app.models import Deck, DeckWord, MentorMessage, SpellingProgress, User, UserWordProgress
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak
 from app.services.scheduling import local_date
@@ -40,9 +40,27 @@ Current learner state (use this to give personal, relevant advice):
 - Study streak: {STREAK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-
+{DECK_SECTION}
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
+
+
+def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int]]:
+    """Top 5 decks by due vocab count, returned as (title, count) pairs."""
+    rows = db.execute(
+        select(Deck.title, func.count(UserWordProgress.word_id).label("n"))
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.due_at <= now,
+        )
+        .group_by(Deck.id, Deck.title, Deck.level_order)
+        .order_by(func.count(UserWordProgress.word_id).desc(), Deck.level_order)
+        .limit(5)
+    ).all()
+    return [(row.title, row.n) for row in rows]
 
 
 def _system_prompt(
@@ -50,17 +68,24 @@ def _system_prompt(
     streak_weeks: int,
     due_vocab: int,
     due_spelling: int,
+    deck_rows: list[tuple[str, int]],
 ) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
     streak_text = t.mentor_streak_none if streak_weeks == 0 else t.mentor_streak_weeks(streak_weeks)
     name = user.name or t.mentor_learner_name
+    if deck_rows:
+        lines = "\n".join(f"  - {title}: {n} words" for title, n in deck_rows)
+        deck_section = f"Top decks due today (most due first):\n{lines}\n"
+    else:
+        deck_section = ""
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
         .replace("{STREAK}", streak_text)
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
+        .replace("{DECK_SECTION}", deck_section)
     )
 
 
@@ -129,7 +154,8 @@ def chat(
 ) -> str:
     """Send a message to the mentor and return the assistant's reply."""
     streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
-    system = _system_prompt(user, streak, due_vocab, due_spelling)
+    deck_rows = _deck_context(db, user, now)
+    system = _system_prompt(user, streak, due_vocab, due_spelling, deck_rows)
     history = _recent_history(db, user)
 
     # No DeepSeek key → demo reply (dev/test; never reaches production without a key because
