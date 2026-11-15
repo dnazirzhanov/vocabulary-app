@@ -13,7 +13,13 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
 from app.models import MentorMessage, User
-from app.services.mentor import LearnerContext, _format_tenure, _sample_due_words, _system_prompt
+from app.services.mentor import (
+    LearnerContext,
+    _format_tenure,
+    _sample_due_words,
+    _struggling_words,
+    _system_prompt,
+)
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
@@ -885,3 +891,85 @@ def test_system_prompt_urgency_hint_absent_in_morning() -> None:
     prompt = _system_prompt(user, morning, _TZ, _ctx(today_promised=True, sessions_today="none"))
     assert "{URGENCY_HINT}" not in prompt
     assert "it is already" not in prompt
+
+
+def test_system_prompt_includes_struggling_words() -> None:
+    user = User(ui_language="en", name="Ira")
+    words = ["criterion (критерий)", "ephemeral (мимолётный)"]
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(struggling_words=words))
+    assert "criterion" in prompt
+    assert "struggling with" in prompt
+
+
+def test_system_prompt_no_struggling_line_when_empty() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "struggling with" not in prompt
+    assert "{STRUGGLING_LINE}" not in prompt
+
+
+def test_struggling_words_integration(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.models import ReviewAttempt, UserWordProgress, Word
+
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "hi"}, headers=as_("struggle-tester"))
+    user = db.scalar(select(User).where(User.auth_subject == "dev|struggle-tester"))
+    assert user is not None
+
+    word_id = "test-struggle-word-1"
+    db.add(
+        Word(
+            id=word_id,
+            headword="criterion",
+            pos="noun",
+            translation="критерий",
+            also_accept=[],
+            example="The main criterion is quality.",
+            example_translation="Основной критерий — качество.",
+            language="en",
+        )
+    )
+    db.add(
+        UserWordProgress(
+            word_id=word_id,
+            user_id=user.id,
+            introduced_at=MOMENT - timedelta(days=5),
+            last_seen_at=MOMENT - timedelta(days=1),
+            due_at=MOMENT + timedelta(days=1),
+        )
+    )
+    # Two "again" ratings in the last 7 days.
+    import uuid
+
+    from app.models import LearningSession
+
+    session_id = uuid.uuid4()
+    db.add(
+        LearningSession(
+            id=session_id,
+            user_id=user.id,
+            kind="study",
+            plan=[],
+            started_at=MOMENT - timedelta(days=3),
+            completed_at=MOMENT - timedelta(days=3),
+        )
+    )
+    db.flush()
+    for i in range(2):
+        db.add(
+            ReviewAttempt(
+                session_id=session_id,
+                user_id=user.id,
+                word_id=word_id,
+                exercise_id=f"e{i}",
+                exercise_type="card",
+                answered_at=MOMENT - timedelta(days=i + 1),
+                rating=1,
+            )
+        )
+    db.commit()
+
+    result = _struggling_words(db, user, MOMENT)
+    assert any("criterion" in entry for entry in result)

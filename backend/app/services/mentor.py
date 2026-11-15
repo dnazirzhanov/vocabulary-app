@@ -77,6 +77,7 @@ class LearnerContext:
     words_mastered: int = 0
     active_weeks: int = 0
     sample_due_words: list[str] = dataclasses.field(default_factory=list)
+    struggling_words: list[str] = dataclasses.field(default_factory=list)
 
 
 _SYSTEM = """\
@@ -100,7 +101,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-{SAMPLE_DUE_LINE}- Promised study days this week: {PROMISED_DAYS}
+{SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
 - Weeks active in last 4 weeks: {ACTIVE_WEEKS}
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
@@ -318,6 +319,25 @@ def _sample_due_words(db: Session, user: User, now: datetime, n: int = 5) -> lis
     return [f"{row.headword} ({row.translation})" for row in rows]
 
 
+def _struggling_words(db: Session, user: User, now: datetime, n: int = 3) -> list[str]:
+    """Words rated 'again' (rating=1) at least twice in the last 7 days."""
+    week_ago = now - timedelta(days=7)
+    rows = db.execute(
+        select(Word.headword, Word.translation, func.count().label("fails"))
+        .join(ReviewAttempt, ReviewAttempt.word_id == Word.id)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.answered_at >= week_ago,
+            ReviewAttempt.rating == 1,
+        )
+        .group_by(Word.id, Word.headword, Word.translation)
+        .having(func.count() >= 2)
+        .order_by(func.count().desc())
+        .limit(n)
+    ).all()
+    return [f"{row.headword} ({row.translation})" for row in rows]
+
+
 def _course_level(db: Session, user: User) -> str | None:
     """The level string of the highest course deck the learner has started (e.g. 'B1')."""
     row = db.execute(
@@ -428,6 +448,13 @@ def _system_prompt(
         sample_due_line = f"- Sample words due today (most overdue first): {words_str}\n"
     else:
         sample_due_line = ""
+    if ctx.struggling_words:
+        struggling_str = ", ".join(ctx.struggling_words)
+        struggling_line = (
+            f"- Words the learner has been struggling with this week: {struggling_str}\n"
+        )
+    else:
+        struggling_line = ""
     if ctx.today_promised and ctx.sessions_today == "none" and time_label in ("evening", "night"):
         urgency_hint = (
             f"Note: it is already {time_label} and the learner has not studied today"
@@ -452,6 +479,7 @@ def _system_prompt(
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{SAMPLE_DUE_LINE}", sample_due_line)
+        .replace("{STRUGGLING_LINE}", struggling_line)
         .replace("{PROMISED_DAYS}", ctx.promised_days)
         .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
         .replace("{ACTIVE_WEEKS}", str(ctx.active_weeks))
@@ -704,6 +732,7 @@ def _build_context(
     ctx.words_mastered = _mature_words(db, user, now)
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
     ctx.sample_due_words = _sample_due_words(db, user, now)
+    ctx.struggling_words = _struggling_words(db, user, now)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)
