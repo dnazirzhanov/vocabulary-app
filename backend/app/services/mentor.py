@@ -303,7 +303,13 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         last_local = local_date(last_at, time_zone)
         delta = (today - last_local).days
         if delta == 0:
-            last_study_label = "today"
+            hours_ago = int((now - last_at).total_seconds() / 3600)
+            if hours_ago == 0:
+                last_study_label = "less than an hour ago"
+            elif hours_ago == 1:
+                last_study_label = "1 hour ago"
+            else:
+                last_study_label = f"{hours_ago} hours ago"
         elif delta == 1:
             last_study_label = "yesterday"
         else:

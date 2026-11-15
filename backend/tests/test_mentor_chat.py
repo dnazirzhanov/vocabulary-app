@@ -167,6 +167,13 @@ def test_system_prompt_includes_last_study_days_ago() -> None:
     assert "3 days ago" in prompt
 
 
+def test_system_prompt_includes_last_study_hour_precision() -> None:
+    user = User(ui_language="en", name="Alex")
+    for label in ("less than an hour ago", "1 hour ago", "5 hours ago"):
+        prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study=label))
+        assert label in prompt
+
+
 def test_system_prompt_includes_last_study_never() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study="never"))
