@@ -56,6 +56,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
+- Promised study days this week: {PROMISED_DAYS}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
@@ -172,6 +173,7 @@ def _system_prompt(
     words_learned: int,
     due_vocab: int,
     due_spelling: int,
+    promised_days: str,
     course_level: str | None,
     deck_rows: list[tuple[str, int]],
     reading_total: int,
@@ -215,6 +217,7 @@ def _system_prompt(
         .replace("{WORDS_LEARNED}", str(words_learned))
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
+        .replace("{PROMISED_DAYS}", promised_days)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
@@ -223,15 +226,23 @@ def _system_prompt(
     )
 
 
+_DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
 def _learner_state(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[int, int, int]:
-    """(streak_weeks, due_vocab, due_spelling)."""
+) -> tuple[int, int, int, str]:
+    """(streak_weeks, due_vocab, due_spelling, promised_days_str)."""
     today = local_date(now, time_zone)
     since, _ = local_day_bounds(today - timedelta(days=HISTORY_DAYS), time_zone)
     days = days_by_user(db, [user], since, time_zone)[user.id]
     promise = promise_of(db, user)
     streak = week_streak(promise, days, today)
+
+    from app.services.promise import weekdays_of
+
+    promised = weekdays_of(promise.mask_on(today))
+    promised_days_str = ", ".join(_DAY_NAMES[d] for d in promised) if promised else "none"
 
     due_vocab = (
         db.scalar(
@@ -251,7 +262,7 @@ def _learner_state(
         )
         or 0
     )
-    return streak, int(due_vocab), int(due_spelling)
+    return streak, int(due_vocab), int(due_spelling), promised_days_str
 
 
 def _recent_history(db: Session, user: User) -> list[MentorMessage]:
@@ -309,7 +320,7 @@ def _build_context(
     time_zone: ZoneInfo,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
+    streak, due_vocab, due_spelling, promised_days = _learner_state(db, user, now, time_zone)
     words_in_progress, words_learned = _vocab_summary(db, user)
     course_level = _course_level(db, user)
     deck_rows = _deck_context(db, user, now)
@@ -325,6 +336,7 @@ def _build_context(
         words_learned,
         due_vocab,
         due_spelling,
+        promised_days,
         course_level,
         deck_rows,
         reading_total,
