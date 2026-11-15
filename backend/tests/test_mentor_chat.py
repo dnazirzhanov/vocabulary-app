@@ -768,6 +768,19 @@ def test_system_prompt_includes_words_last_week() -> None:
     assert "New words learned last week: 12" in prompt
 
 
+def test_system_prompt_last_studied_deck_shown() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_studied_deck="IELTS Vocabulary"))
+    assert "Last studied deck: IELTS Vocabulary" in prompt
+
+
+def test_system_prompt_last_studied_deck_absent_when_none() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Last studied deck" not in prompt
+    assert "{LAST_STUDIED_DECK_LINE}" not in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

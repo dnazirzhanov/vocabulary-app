@@ -73,6 +73,7 @@ class LearnerContext:
     reading_library_size: int = 0
     reading_recent: list[str] = dataclasses.field(default_factory=list)
     reading_last: str | None = None
+    last_studied_deck: str | None = None
     top_spelling_deck: tuple[str, int] | None = None
     total_decks: int = 0
     studying_since: str = "unknown"
@@ -111,7 +112,7 @@ Current learner state (use this to give personal, relevant advice):
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 - Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
@@ -229,6 +230,23 @@ def _top_spelling_deck(db: Session, user: User, now: datetime) -> tuple[str, int
         .limit(1)
     ).first()
     return (row.title, int(row.n)) if row else None
+
+
+def _last_studied_deck(db: Session, user: User) -> str | None:
+    """Title of the most recently completed study/spelling session's deck, or None."""
+    row = db.execute(
+        select(Deck.title)
+        .select_from(LearningSession)
+        .join(Deck, Deck.id == LearningSession.deck_id)
+        .where(
+            LearningSession.user_id == user.id,
+            LearningSession.completed_at.is_not(None),
+            LearningSession.kind.in_(["study", "hard", "spelling"]),
+        )
+        .order_by(LearningSession.completed_at.desc())
+        .limit(1)
+    ).first()
+    return row[0] if row else None
 
 
 def _reading_context(
@@ -423,6 +441,9 @@ def _system_prompt(
         total_decks_line = f"- Total vocabulary decks: {ctx.total_decks} {deck_label}\n"
     else:
         total_decks_line = ""
+    last_studied_deck_line = (
+        f"- Last studied deck: {ctx.last_studied_deck}\n" if ctx.last_studied_deck else ""
+    )
     if plan:
         plan_lines: list[str] = []
         for item in plan:
@@ -527,6 +548,7 @@ def _system_prompt(
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
         .replace("{TOTAL_DECKS_LINE}", total_decks_line)
+        .replace("{LAST_STUDIED_DECK_LINE}", last_studied_deck_line)
         .replace("{DECK_SECTION}", deck_section)
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
         .replace("{READING_SECTION}", reading_section)
@@ -773,6 +795,7 @@ def _build_context(
     ctx.total_decks = _total_decks(db, user)
     ctx.deck_rows = _deck_context(db, user, now)
     ctx.top_spelling_deck = _top_spelling_deck(db, user, now)
+    ctx.last_studied_deck = _last_studied_deck(db, user)
     ctx.reading_total, ctx.reading_library_size, ctx.reading_recent, ctx.reading_last = (
         _reading_context(db, user, now, time_zone)
     )
