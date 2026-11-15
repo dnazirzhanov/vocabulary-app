@@ -34,7 +34,7 @@ from app.services.scheduling import local_date
 from app.services.study_days import HISTORY_DAYS, days_by_user, week_of
 
 # How many recent turns are sent as context in each API call.
-_HISTORY_TURNS = 6
+_HISTORY_TURNS = 10
 
 _LANGUAGE_NAMES: dict[str, str] = {
     "ru": "Russian",

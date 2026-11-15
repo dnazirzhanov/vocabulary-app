@@ -423,6 +423,35 @@ def test_history_strips_orphaned_trailing_user_message(
     assert all(m["content"] != "orphaned" for m in items)
 
 
+def test_history_context_capped_at_ten_turns(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_recent_history returns at most _HISTORY_TURNS * 2 = 20 messages for LLM context."""
+    from app.models import MentorMessage
+    from app.services.mentor import _HISTORY_TURNS, _recent_history
+
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "seed"}, headers=as_("iris"))
+    user = db.scalar(select(User).where(User.auth_subject == "dev|iris"))
+    assert user is not None
+
+    # Insert 25 extra messages so the total is well above the 20-message cap.
+    base_time = MOMENT + timedelta(seconds=10)
+    for i in range(25):
+        db.add(
+            MentorMessage(
+                user_id=user.id,
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"msg {i}",
+                created_at=base_time + timedelta(seconds=i),
+            )
+        )
+    db.commit()
+
+    messages = _recent_history(db, user)
+    assert len(messages) <= _HISTORY_TURNS * 2
+
+
 def test_history_requires_tester_flag(client: TestClient) -> None:
     resp = client.get("/api/mentor/history", headers=as_("frank"))
     assert resp.status_code == 403
