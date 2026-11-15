@@ -25,10 +25,10 @@ from app.models import (
     UserWordProgress,
 )
 from app.services.progress import local_day_bounds
-from app.services.promise import promise_of, week_streak
+from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles
 from app.services.scheduling import local_date
-from app.services.study_days import HISTORY_DAYS, days_by_user
+from app.services.study_days import HISTORY_DAYS, days_by_user, week_of
 
 # How many recent turns are sent as context in each API call.
 _HISTORY_TURNS = 6
@@ -55,6 +55,7 @@ class LearnerContext:
     due_vocab: int = 0
     due_spelling: int = 0
     promised_days: str = "none"
+    days_this_week: str = "0 days"
     last_study: str = "never"
     course_level: str | None = None
     deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
@@ -80,6 +81,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
 - Promised study days this week: {PROMISED_DAYS}
+- Days studied this week: {DAYS_THIS_WEEK}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
@@ -229,6 +231,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{PROMISED_DAYS}", ctx.promised_days)
+        .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
         .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
@@ -249,10 +252,16 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     promise = promise_of(db, user)
     streak = week_streak(promise, days, today)
 
-    from app.services.promise import weekdays_of
-
     promised = weekdays_of(promise.mask_on(today))
     promised_days_str = ", ".join(_DAY_NAMES[d] for d in promised) if promised else "none"
+
+    this_week = week_of(today)
+    studied_count = sum(1 for d in this_week if d in days and days[d].studied)
+    promised_count = sum(1 for d in this_week if d.weekday() in promised)
+    if promised_count > 0:
+        days_this_week_str = f"{studied_count} of {promised_count} promised"
+    else:
+        days_this_week_str = f"{studied_count} {'day' if studied_count == 1 else 'days'}"
 
     due_vocab = (
         db.scalar(
@@ -304,6 +313,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         due_vocab=int(due_vocab),
         due_spelling=int(due_spelling),
         promised_days=promised_days_str,
+        days_this_week=days_this_week_str,
         last_study=last_study_label,
         words_today=int(words_today),
     )

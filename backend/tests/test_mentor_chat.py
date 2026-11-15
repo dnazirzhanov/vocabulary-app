@@ -179,6 +179,19 @@ def test_system_prompt_includes_words_today() -> None:
     assert "7" in prompt
 
 
+def test_system_prompt_includes_days_this_week_with_promise() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(days_this_week="2 of 3 promised"))
+    assert "2 of 3 promised" in prompt
+    assert "Days studied this week" in prompt
+
+
+def test_system_prompt_includes_days_this_week_no_promise() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(days_this_week="1 day"))
+    assert "1 day" in prompt
+
+
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
