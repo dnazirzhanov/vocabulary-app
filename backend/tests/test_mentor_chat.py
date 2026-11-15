@@ -162,6 +162,20 @@ def test_system_prompt_omits_level_when_none() -> None:
     assert "{LEVEL_LINE}" not in prompt
 
 
+def test_system_prompt_includes_daily_target_when_set() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=10)
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
+    assert "10 new words/day" in prompt
+    assert "Daily target" in prompt
+
+
+def test_system_prompt_omits_daily_target_when_null() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=None)
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
+    assert "Daily target" not in prompt
+    assert "{PACE_LINE}" not in prompt
+
+
 def test_history_returns_empty_before_first_message(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

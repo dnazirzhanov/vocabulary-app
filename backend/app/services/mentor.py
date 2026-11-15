@@ -56,7 +56,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -184,6 +184,11 @@ def _system_prompt(
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
+    pace_line = (
+        f"- Daily target: {user.daily_target_words} new words/day\n"
+        if user.daily_target_words
+        else ""
+    )
     level_line = f"- Current course level: {course_level}\n" if course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
     if deck_rows:
@@ -210,6 +215,7 @@ def _system_prompt(
         .replace("{WORDS_LEARNED}", str(words_learned))
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
+        .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
         .replace("{DECK_SECTION}", deck_section)
