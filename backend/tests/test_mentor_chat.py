@@ -86,8 +86,11 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
         _TZ,
         3,
         "2 (1 study, 1 spelling)",
+        0,
+        0,
         20,
         5,
+        None,
         [("Animals", 15), ("Food", 5)],
         0,
         [],
@@ -99,7 +102,7 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
 
 def test_system_prompt_omits_deck_section_when_no_due() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "Top decks due today" not in prompt
     assert "{DECK_SECTION}" not in prompt
 
@@ -107,7 +110,7 @@ def test_system_prompt_omits_deck_section_when_no_due() -> None:
 def test_system_prompt_includes_reading_when_engaged() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(
-        user, MOMENT, _TZ, 2, "none", 10, 0, [], 5, ["The Internet", "Volcanoes"]
+        user, MOMENT, _TZ, 2, "none", 0, 0, 10, 0, None, [], 5, ["The Internet", "Volcanoes"]
     )
     assert "Library articles read: 5" in prompt
     assert '"The Internet"' in prompt
@@ -116,7 +119,7 @@ def test_system_prompt_includes_reading_when_engaged() -> None:
 
 def test_system_prompt_omits_reading_when_none() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "Library articles" not in prompt
     assert "{READING_SECTION}" not in prompt
 
@@ -124,15 +127,38 @@ def test_system_prompt_omits_reading_when_none() -> None:
 def test_system_prompt_includes_time_of_day() -> None:
     user = User(ui_language="en", name="Alex")
     # MOMENT = 2026-11-14 10:00 UTC = 16:00 Bishkek (+6)
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "16:00" in prompt
     assert "afternoon" in prompt
 
 
 def test_system_prompt_includes_sessions_today() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "3 (2 study, 1 spelling)", 0, 0, [], 0, [])
+    prompt = _system_prompt(
+        user, MOMENT, _TZ, 0, "3 (2 study, 1 spelling)", 0, 0, 0, 0, None, [], 0, []
+    )
     assert "3 (2 study, 1 spelling)" in prompt
+
+
+def test_system_prompt_includes_vocab_counts() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 320, 150, 0, 0, None, [], 0, [])
+    assert "320" in prompt
+    assert "150" in prompt
+
+
+def test_system_prompt_includes_course_level() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "B1", [], 0, [])
+    assert "B1" in prompt
+    assert "Current course level" in prompt
+
+
+def test_system_prompt_omits_level_when_none() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
+    assert "Current course level" not in prompt
+    assert "{LEVEL_LINE}" not in prompt
 
 
 def test_history_returns_empty_before_first_message(
@@ -233,13 +259,13 @@ def test_goal_requires_tester_flag(client: TestClient) -> None:
 
 def test_system_prompt_includes_goal_when_set() -> None:
     user = User(ui_language="en", name="Alex", mentor_goal="Reach B2 by June")
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "Reach B2 by June" in prompt
     assert "Learning goal" in prompt
 
 
 def test_system_prompt_omits_goal_when_null() -> None:
     user = User(ui_language="en", name="Alex", mentor_goal=None)
-    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "Learning goal" not in prompt
     assert "{GOAL_LINE}" not in prompt

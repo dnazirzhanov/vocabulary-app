@@ -51,9 +51,11 @@ Current learner state (use this to give personal, relevant advice):
 - Local time: {LOCAL_TIME} ({TIME_OF_DAY})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
+- Vocabulary in progress: {WORDS_IN_PROGRESS} words
+- Vocabulary recalled at least once: {WORDS_LEARNED} words
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
+{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -126,14 +128,50 @@ def _reading_context(db: Session, user: User) -> tuple[int, list[str]]:
     return total, recent
 
 
+def _vocab_summary(db: Session, user: User) -> tuple[int, int]:
+    """(words_in_progress, words_learned) where learned = recalled at least once."""
+    in_progress = db.scalar(select(func.count()).where(UserWordProgress.user_id == user.id)) or 0
+    learned = (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.first_recalled_at.is_not(None),
+            )
+        )
+        or 0
+    )
+    return int(in_progress), int(learned)
+
+
+def _course_level(db: Session, user: User) -> str | None:
+    """The level string of the highest course deck the learner has started (e.g. 'B1')."""
+    row = db.execute(
+        select(Deck.level)
+        .select_from(UserWordProgress)
+        .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(
+            UserWordProgress.user_id == user.id,
+            Deck.kind == "course",
+            Deck.level.is_not(None),
+        )
+        .order_by(Deck.level_order.desc())
+        .limit(1)
+    ).first()
+    return row[0] if row else None
+
+
 def _system_prompt(
     user: User,
     now: datetime,
     time_zone: ZoneInfo,
     streak_weeks: int,
     sessions_today: str,
+    words_in_progress: int,
+    words_learned: int,
     due_vocab: int,
     due_spelling: int,
+    course_level: str | None,
     deck_rows: list[tuple[str, int]],
     reading_total: int,
     reading_recent: list[str],
@@ -145,6 +183,7 @@ def _system_prompt(
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
+    level_line = f"- Current course level: {course_level}\n" if course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
     if deck_rows:
         lines = "\n".join(f"  - {title}: {n} words" for title, n in deck_rows)
@@ -166,8 +205,11 @@ def _system_prompt(
         .replace("{TIME_OF_DAY}", time_label)
         .replace("{STREAK}", streak_text)
         .replace("{SESSIONS_TODAY}", sessions_today)
+        .replace("{WORDS_IN_PROGRESS}", str(words_in_progress))
+        .replace("{WORDS_LEARNED}", str(words_learned))
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
+        .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
         .replace("{DECK_SECTION}", deck_section)
         .replace("{READING_SECTION}", reading_section)
@@ -261,6 +303,8 @@ def _build_context(
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
     streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
+    words_in_progress, words_learned = _vocab_summary(db, user)
+    course_level = _course_level(db, user)
     deck_rows = _deck_context(db, user, now)
     reading_total, reading_recent = _reading_context(db, user)
     sessions_today = _sessions_today(db, user, now, time_zone)
@@ -270,8 +314,11 @@ def _build_context(
         time_zone,
         streak,
         sessions_today,
+        words_in_progress,
+        words_learned,
         due_vocab,
         due_spelling,
+        course_level,
         deck_rows,
         reading_total,
         reading_recent,
