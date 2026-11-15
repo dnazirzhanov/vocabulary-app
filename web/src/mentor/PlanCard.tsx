@@ -23,8 +23,14 @@ export function PlanCard({ item, onStart, busy }: PlanCardProps) {
         <p className={styles.title}>{title}</p>
         <p className={styles.reason}>{reason}</p>
       </div>
-      <button type="button" className={styles.action} onClick={onStart} disabled={busy}>
-        <span>{cta}</span>
+      <button
+        type="button"
+        className={styles.action}
+        onClick={onStart}
+        disabled={busy}
+        aria-label={`${cta} — ${title}`}
+      >
+        <span aria-hidden="true">{cta}</span>
         <ForwardIcon aria-hidden="true" />
       </button>
     </li>
