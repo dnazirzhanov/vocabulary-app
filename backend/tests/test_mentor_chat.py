@@ -544,6 +544,28 @@ def test_system_prompt_includes_day_of_week() -> None:
     assert "Saturday" in prompt
 
 
+def test_system_prompt_promise_line_shown_when_promised_and_not_studied() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(today_promised=True, sessions_today="none"))
+    assert "promised study day" in prompt
+    assert "not yet studied" in prompt
+
+
+def test_system_prompt_promise_line_shown_when_promised_and_studied() -> None:
+    user = User(ui_language="en", name="Alex")
+    ctx = _ctx(today_promised=True, sessions_today="2 (1 vocab, 1 spelling)")
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    assert "promised study day" in prompt
+    assert "sessions done" in prompt
+
+
+def test_system_prompt_promise_line_absent_when_not_promised() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(today_promised=False))
+    assert "promised study day" not in prompt
+    assert "{PROMISE_LINE}" not in prompt
+
+
 def test_system_prompt_pace_line_shows_progress_when_words_today_nonzero() -> None:
     user = User(ui_language="en", name="Alex", daily_target_words=5)
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=3))
