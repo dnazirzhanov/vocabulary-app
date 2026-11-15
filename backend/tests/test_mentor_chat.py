@@ -756,6 +756,23 @@ def test_system_prompt_tone_hint_shown_for_known_tip() -> None:
 
 def test_system_prompt_tone_hint_absent_for_unknown_tip() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id="default"))
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id="nonexistent"))
     assert "Tone: " not in prompt
     assert "{TONE_HINT}" not in prompt
+
+
+@pytest.mark.parametrize(
+    ("tip_id", "fragment"),
+    [
+        ("streakKeep", "streak"),
+        ("dueInDeck", "deck"),
+        ("spellingAwaits", "fluency"),
+        ("readingFresh", "enrichment"),
+        ("default", "steady"),
+    ],
+)
+def test_system_prompt_tone_hint_new_tips(tip_id: str, fragment: str) -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id=tip_id))
+    assert "Tone:" in prompt
+    assert fragment in prompt

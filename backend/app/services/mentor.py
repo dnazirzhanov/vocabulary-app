@@ -129,6 +129,11 @@ _TONE_HINTS: dict[str, str] = {
     "streakMilestone": "Tone: celebratory — a genuine milestone worth marking.",
     "bigBacklog": "Tone: pragmatic and calm — help them prioritize without feeling overwhelmed.",
     "allCaughtUp": "Tone: upbeat — they finished everything, suggest what's next.",
+    "streakKeep": "Tone: affirming — acknowledge the active streak and reinforce the habit.",
+    "dueInDeck": "Tone: focused — there is a clear deck to tackle; help them commit to it.",
+    "spellingAwaits": "Tone: confident — spelling practice builds real fluency; be matter-of-fact.",
+    "readingFresh": "Tone: inviting — reading is enrichment; suggest it gently.",
+    "default": "Tone: warm and steady — no particular urgency; just consistent encouragement.",
 }
 
 
