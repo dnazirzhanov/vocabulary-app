@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     mentor_chat_demo: bool = False
     # Milliseconds between words when streaming a demo reply; set to 0 in tests for instant output.
     mentor_demo_stream_delay_ms: int = 50
+    # Sampling temperature for the mentor LLM (0–2); lower = more deterministic.
+    mentor_temperature: float = 0.7
+    # Hard token ceiling per mentor reply; keeps costs predictable.
+    mentor_max_tokens: int = 512
 
     @field_validator("database_url")
     @classmethod

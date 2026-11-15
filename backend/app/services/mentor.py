@@ -794,7 +794,8 @@ def _stream_deepseek(
     try:
         stream = client.chat.completions.create(
             model=settings.deepseek_model,
-            max_tokens=512,
+            max_tokens=settings.mentor_max_tokens,
+            temperature=settings.mentor_temperature,
             messages=all_messages,
             extra_body={"thinking": {"type": "disabled"}},
             stream=True,
@@ -842,7 +843,8 @@ def _call_deepseek(system: str, messages: list[dict[str, str]], settings: Settin
     try:
         response = client.chat.completions.create(
             model=settings.deepseek_model,
-            max_tokens=512,
+            max_tokens=settings.mentor_max_tokens,
+            temperature=settings.mentor_temperature,
             messages=all_messages,
             extra_body={"thinking": {"type": "disabled"}},
         )
