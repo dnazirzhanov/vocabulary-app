@@ -6,7 +6,7 @@ import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
 import { CopyIcon, MicIcon, SendIcon } from '../ui/icons.tsx';
 import { MentorGoal } from './MentorGoal.tsx';
 import { MentorMarkdown } from './MentorMarkdown.tsx';
-import type { PlanItem } from './types.ts';
+import type { PlanItem, Tip } from './types.ts';
 import styles from './MentorChat.module.css';
 
 const UI_LANG_BCP47: Record<string, string> = {
@@ -36,25 +36,43 @@ const FALLBACK_SUGGESTIONS = [
   () => t.mentorChatSuggestion3,
 ];
 
-function suggestionsFor(items: readonly PlanItem[]): Array<() => string> {
+function tipSuggestion(tip: Tip): (() => string) | null {
+  switch (tip.id) {
+    case 'firstRun':
+      return () => t.mentorChatSuggestionFirstRun;
+    case 'returner':
+      return () => t.mentorChatSuggestionReturner;
+    case 'allCaughtUp':
+      return () => t.mentorChatSuggestionAllCaughtUp;
+    case 'bigBacklog':
+      return () => t.mentorChatSuggestionBacklog;
+    default:
+      return null;
+  }
+}
+
+function suggestionsFor(items: readonly PlanItem[], tip: Tip): Array<() => string> {
   const chips: Array<() => string> = [];
   for (const item of items) {
     if (item.kind === 'vocab' && chips.length < 3) chips.push(() => t.mentorChatSuggestionVocab(item.title));
     else if (item.kind === 'spelling' && chips.length < 3) chips.push(() => t.mentorChatSuggestionSpelling(item.title));
     else if (item.kind === 'reading' && chips.length < 3) chips.push(() => t.mentorChatSuggestionReading(item.title));
   }
-  // Fill up to 3 with fallbacks if the plan has fewer than 3 items.
-  const fallbacks = FALLBACK_SUGGESTIONS.filter((_, i) => i >= chips.length);
-  return [...chips, ...fallbacks].slice(0, 3);
+  // When the plan has no items, prefer a tip-specific suggestion over generic fallbacks.
+  const specific = chips.length === 0 ? tipSuggestion(tip) : null;
+  const extra = specific ? [specific] : [];
+  const fallbacks = FALLBACK_SUGGESTIONS.filter((_, i) => i >= chips.length + extra.length);
+  return [...chips, ...extra, ...fallbacks].slice(0, 3);
 }
 
 const FOLLOW_UPS = [() => t.mentorChatFollowUp1, () => t.mentorChatFollowUp2, () => t.mentorChatFollowUp3] as const;
 
 interface MentorChatProps {
   items?: readonly PlanItem[];
+  tip: Tip;
 }
 
-export function MentorChat({ items = [] }: MentorChatProps) {
+export function MentorChat({ items = [], tip }: MentorChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
@@ -243,7 +261,7 @@ export function MentorChat({ items = [] }: MentorChatProps) {
 
       {!loading && !hasMessages && (
         <div className={styles.suggestions}>
-          {suggestionsFor(items).map((s) => (
+          {suggestionsFor(items, tip).map((s) => (
             <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
               {s()}
             </button>

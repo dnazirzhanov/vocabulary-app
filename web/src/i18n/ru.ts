@@ -920,6 +920,10 @@ export const ru = {
   mentorChatSuggestionVocab: (deckTitle: Arg) => `Нужно повторить «${deckTitle}» — с чего начать?`,
   mentorChatSuggestionSpelling: (deckTitle: Arg) => `Как лучше подойти к тесту по написанию «${deckTitle}»?`,
   mentorChatSuggestionReading: (title: Arg) => `Хочу прочитать «${title}» — на что обращать внимание?`,
+  mentorChatSuggestionFirstRun: 'Как устроено это приложение?',
+  mentorChatSuggestionReturner: 'Как лучше всего вернуться к занятиям после перерыва?',
+  mentorChatSuggestionAllCaughtUp: 'Всё сделано — чем ещё можно заняться сегодня?',
+  mentorChatSuggestionBacklog: 'Как справиться с большим объёмом накопленного материала?',
 };
 
 export type Messages = typeof ru;
