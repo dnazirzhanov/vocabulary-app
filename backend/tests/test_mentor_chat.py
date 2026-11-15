@@ -76,7 +76,7 @@ def test_chat_tester_gate_by_prefix(client: TestClient, monkeypatch: pytest.Monk
 
 def test_system_prompt_includes_deck_names_when_due() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, 3, 20, 5, [("Animals", 15), ("Food", 5)])
+    prompt = _system_prompt(user, 3, 20, 5, [("Animals", 15), ("Food", 5)], 0, [])
     assert "Animals: 15 words" in prompt
     assert "Food: 5 words" in prompt
     assert "Top decks due today" in prompt
@@ -84,10 +84,25 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
 
 def test_system_prompt_omits_deck_section_when_no_due() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, 0, 0, 0, [])
+    prompt = _system_prompt(user, 0, 0, 0, [], 0, [])
     assert "Top decks due today" not in prompt
     # Placeholder is fully consumed — no stray {DECK_SECTION} in output.
     assert "{DECK_SECTION}" not in prompt
+
+
+def test_system_prompt_includes_reading_when_engaged() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, 2, 10, 0, [], 5, ["The Internet", "Volcanoes"])
+    assert "Library articles read: 5" in prompt
+    assert '"The Internet"' in prompt
+    assert '"Volcanoes"' in prompt
+
+
+def test_system_prompt_omits_reading_when_none() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, 0, 0, 0, [], 0, [])
+    assert "Library articles" not in prompt
+    assert "{READING_SECTION}" not in prompt
 
 
 def test_history_returns_empty_before_first_message(

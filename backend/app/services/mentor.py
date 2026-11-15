@@ -11,9 +11,18 @@ from app.core.config import Settings
 from app.core.errors import ApiError
 from app.core.locale import texts_for
 from app.core.logging import logger
-from app.models import Deck, DeckWord, MentorMessage, SpellingProgress, User, UserWordProgress
+from app.models import (
+    Deck,
+    DeckWord,
+    MentorMessage,
+    ReadingAnswer,
+    SpellingProgress,
+    User,
+    UserWordProgress,
+)
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak
+from app.services.reading import library_titles
 from app.services.scheduling import local_date
 from app.services.study_days import HISTORY_DAYS, days_by_user
 
@@ -40,7 +49,7 @@ Current learner state (use this to give personal, relevant advice):
 - Study streak: {STREAK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-{DECK_SECTION}
+{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -63,12 +72,33 @@ def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int
     return [(row.title, row.n) for row in rows]
 
 
+def _reading_context(db: Session, user: User) -> tuple[int, list[str]]:
+    """(total_library_articles_engaged, recent_titles_newest_first[0:2])."""
+    rows = db.execute(
+        select(ReadingAnswer.reading_ref, func.max(ReadingAnswer.sent_at).label("last"))
+        .where(
+            ReadingAnswer.user_id == user.id,
+            ReadingAnswer.reading_ref.like("library:%"),
+        )
+        .group_by(ReadingAnswer.reading_ref)
+        .order_by(func.max(ReadingAnswer.sent_at).desc())
+    ).all()
+    if not rows:
+        return 0, []
+    titles = library_titles()
+    total = len(rows)
+    recent = [titles[row.reading_ref] for row in rows[:2] if row.reading_ref in titles]
+    return total, recent
+
+
 def _system_prompt(
     user: User,
     streak_weeks: int,
     due_vocab: int,
     due_spelling: int,
     deck_rows: list[tuple[str, int]],
+    reading_total: int,
+    reading_recent: list[str],
 ) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
@@ -79,6 +109,14 @@ def _system_prompt(
         deck_section = f"Top decks due today (most due first):\n{lines}\n"
     else:
         deck_section = ""
+    if reading_total > 0:
+        recent_str = ", ".join(f'"{t}"' for t in reading_recent)
+        reading_section = f"Library articles read: {reading_total}"
+        if recent_str:
+            reading_section += f" (most recent: {recent_str})"
+        reading_section += "\n"
+    else:
+        reading_section = ""
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
@@ -86,6 +124,7 @@ def _system_prompt(
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
         .replace("{DECK_SECTION}", deck_section)
+        .replace("{READING_SECTION}", reading_section)
     )
 
 
@@ -177,7 +216,10 @@ def chat(
     """Send a message to the mentor and return the assistant's reply."""
     streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
     deck_rows = _deck_context(db, user, now)
-    system = _system_prompt(user, streak, due_vocab, due_spelling, deck_rows)
+    reading_total, reading_recent = _reading_context(db, user)
+    system = _system_prompt(
+        user, streak, due_vocab, due_spelling, deck_rows, reading_total, reading_recent
+    )
     history = _recent_history(db, user)
 
     # Demo mode: no key, or MENTOR_CHAT_DEMO=true (used in e2e tests for determinism).
