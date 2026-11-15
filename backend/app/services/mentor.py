@@ -53,7 +53,7 @@ Current learner state (use this to give personal, relevant advice):
 - Sessions completed today: {SESSIONS_TODAY}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-{DECK_SECTION}{READING_SECTION}\
+{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -145,6 +145,7 @@ def _system_prompt(
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
+    goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
     if deck_rows:
         lines = "\n".join(f"  - {title}: {n} words" for title, n in deck_rows)
         deck_section = f"Top decks due today (most due first):\n{lines}\n"
@@ -167,6 +168,7 @@ def _system_prompt(
         .replace("{SESSIONS_TODAY}", sessions_today)
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
+        .replace("{GOAL_LINE}", goal_line)
         .replace("{DECK_SECTION}", deck_section)
         .replace("{READING_SECTION}", reading_section)
     )

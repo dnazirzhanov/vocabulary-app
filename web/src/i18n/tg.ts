@@ -887,4 +887,9 @@ export const tg: Messages = {
   mentorChatLowCredit: (n: number) => `${n} questions left today`,
   mentorChatVoiceStart: 'Speak',
   mentorChatVoiceStop: 'Stop recording',
+  mentorGoalHeading: 'My goal',
+  mentorGoalPlaceholder: 'e.g. I want to reach B2 by June',
+  mentorGoalSave: 'Save',
+  mentorGoalSaved: 'Saved',
+  mentorGoalEdit: 'Edit goal',
 };

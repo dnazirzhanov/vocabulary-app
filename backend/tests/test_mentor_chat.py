@@ -192,3 +192,54 @@ def test_chat_rate_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch) ->
     assert refused.status_code == 429
     assert refused.json()["error"]["code"] == "mentor_chat_limit"
     reset_limits()
+
+
+def test_goal_starts_null(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.get("/api/mentor/goal", headers=as_("iris"))
+    assert resp.status_code == 200
+    assert resp.json()["goal"] is None
+
+
+def test_goal_set_and_retrieve(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.put("/api/mentor/goal", json={"goal": "Reach B2 by June"}, headers=as_("jack"))
+    assert resp.status_code == 200
+    assert resp.json()["goal"] == "Reach B2 by June"
+    resp = client.get("/api/mentor/goal", headers=as_("jack"))
+    assert resp.json()["goal"] == "Reach B2 by June"
+
+
+def test_goal_clear_with_empty_string(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    client.put("/api/mentor/goal", json={"goal": "Some goal"}, headers=as_("kim"))
+    resp = client.put("/api/mentor/goal", json={"goal": ""}, headers=as_("kim"))
+    assert resp.status_code == 200
+    assert resp.json()["goal"] is None
+
+
+def test_goal_too_long_rejected(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.put("/api/mentor/goal", json={"goal": "x" * 201}, headers=as_("leo"))
+    assert resp.status_code == 422
+
+
+def test_goal_requires_tester_flag(client: TestClient) -> None:
+    resp = client.get("/api/mentor/goal", headers=as_("mike"))
+    assert resp.status_code == 403
+    resp = client.put("/api/mentor/goal", json={"goal": "hi"}, headers=as_("mike"))
+    assert resp.status_code == 403
+
+
+def test_system_prompt_includes_goal_when_set() -> None:
+    user = User(ui_language="en", name="Alex", mentor_goal="Reach B2 by June")
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    assert "Reach B2 by June" in prompt
+    assert "Learning goal" in prompt
+
+
+def test_system_prompt_omits_goal_when_null() -> None:
+    user = User(ui_language="en", name="Alex", mentor_goal=None)
+    prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, [], 0, [])
+    assert "Learning goal" not in prompt
+    assert "{GOAL_LINE}" not in prompt

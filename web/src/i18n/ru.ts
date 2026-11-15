@@ -904,6 +904,11 @@ export const ru = {
   mentorChatLowCredit: (n: number) => `Осталось вопросов на сегодня: ${n}`,
   mentorChatVoiceStart: 'Говорить',
   mentorChatVoiceStop: 'Остановить запись',
+  mentorGoalHeading: 'Моя цель',
+  mentorGoalPlaceholder: 'Например: хочу дойти до B2 к лету',
+  mentorGoalSave: 'Сохранить',
+  mentorGoalSaved: 'Сохранено',
+  mentorGoalEdit: 'Изменить цель',
 };
 
 export type Messages = typeof ru;

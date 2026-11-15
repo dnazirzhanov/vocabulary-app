@@ -10,6 +10,7 @@ from sqlalchemy import (
     Index,
     SmallInteger,
     String,
+    Text,
     func,
     text,
 )
@@ -48,6 +49,8 @@ class User(Base):
     notify_afternoon: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     notify_report: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     notify_deadline: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # A short learning goal the user can set for the mentor; shown in the system prompt.
+    mentor_goal: Mapped[str | None] = mapped_column(Text)
 
 
 class DeletedLogin(Base):

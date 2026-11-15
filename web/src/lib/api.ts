@@ -329,6 +329,8 @@ export const api = {
   mentorClearHistory: () => request<null>('DELETE', '/mentor/history'),
   mentorChat: (message: string) =>
     request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
+  mentorGoal: () => request<{ goal: string | null }>('GET', '/mentor/goal'),
+  mentorSetGoal: (goal: string) => request<{ goal: string | null }>('PUT', '/mentor/goal', { goal }),
 };
 
 export type MentorStreamEvent =

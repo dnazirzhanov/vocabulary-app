@@ -4,6 +4,7 @@ import { api } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
 import { MicIcon, SendIcon } from '../ui/icons.tsx';
+import { MentorGoal } from './MentorGoal.tsx';
 import { MentorMarkdown } from './MentorMarkdown.tsx';
 import styles from './MentorChat.module.css';
 
@@ -187,6 +188,7 @@ export function MentorChat() {
 
   return (
     <section className={styles.chat} aria-labelledby="mentor-chat-heading">
+      <MentorGoal />
       <div className={styles.headingRow}>
         <h2 className={styles.heading} id="mentor-chat-heading">
           {t.mentorChatHeading}

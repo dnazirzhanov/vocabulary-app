@@ -12,7 +12,14 @@ from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.core.ratelimit import limit_mentor_chats, mentor_chats_used
-from app.schemas.mentor import MentorChatIn, MentorChatOut, MentorHistoryItem, MentorHistoryOut
+from app.schemas.mentor import (
+    MentorChatIn,
+    MentorChatOut,
+    MentorGoalIn,
+    MentorGoalOut,
+    MentorHistoryItem,
+    MentorHistoryOut,
+)
 from app.services import mentor
 from app.services.card_reports import listed
 
@@ -24,6 +31,18 @@ DepSettings = Annotated[Settings, Depends(get_settings)]
 def _require_mentor(user: CurrentUser, settings: DepSettings) -> None:
     if not listed(user, settings.mentor_testers):
         raise ApiError(403, "not_a_mentor_tester", "Mentor chat is not available for this account")
+
+
+@router.get("/mentor/goal", dependencies=[Depends(_require_mentor)])
+def mentor_get_goal(user: CurrentUser) -> MentorGoalOut:
+    return MentorGoalOut(goal=user.mentor_goal)
+
+
+@router.put("/mentor/goal", dependencies=[Depends(_require_mentor)])
+def mentor_set_goal(body: MentorGoalIn, user: CurrentUser, db: DbSession) -> MentorGoalOut:
+    user.mentor_goal = body.goal or None
+    db.commit()
+    return MentorGoalOut(goal=user.mentor_goal)
 
 
 @router.get("/mentor/history", dependencies=[Depends(_require_mentor)])
