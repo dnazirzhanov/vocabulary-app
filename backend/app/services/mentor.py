@@ -88,6 +88,7 @@ class LearnerContext:
     days_studied_month: int = 0
     sample_due_words: list[str] = dataclasses.field(default_factory=list)
     struggling_words: list[str] = dataclasses.field(default_factory=list)
+    reading_level_counts: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
 
 
 _SYSTEM = """\
@@ -124,7 +125,7 @@ Current learner state (use this to give personal, relevant advice):
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 - Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
@@ -382,6 +383,34 @@ def _reading_accuracy(db: Session, user: User) -> str:
     return "no data yet"
 
 
+def _reading_level_breakdown(db: Session, user: User) -> dict[str, tuple[int, int]]:
+    """For each level in the library, return (articles_read, articles_available)."""
+    articles = library_titles_with_level()
+    available: dict[str, int] = {}
+    for _ref, (_title, level) in articles.items():
+        available[level] = available.get(level, 0) + 1
+    if not available:
+        return {}
+    read_refs = set(
+        db.scalars(
+            select(ReadingAnswer.reading_ref)
+            .distinct()
+            .where(
+                ReadingAnswer.user_id == user.id,
+                ReadingAnswer.reading_ref.like("library:%"),
+            )
+        ).all()
+    )
+    read_by_level: dict[str, int] = {}
+    for ref, (_title, level) in articles.items():
+        if ref in read_refs:
+            read_by_level[level] = read_by_level.get(level, 0) + 1
+    level_order = ["A1", "A2", "B1", "B2", "C1"]
+    return {
+        lvl: (read_by_level.get(lvl, 0), available[lvl]) for lvl in level_order if lvl in available
+    }
+
+
 def _active_weeks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> int:
     """How many of the last 4 calendar weeks had at least one completed study session."""
     four_weeks_ago = now - timedelta(days=28)
@@ -566,6 +595,11 @@ def _system_prompt(
         reading_section += "\n"
     else:
         reading_section = ""
+    if ctx.reading_level_counts:
+        parts = [f"{lvl} {r}/{a}" for lvl, (r, a) in ctx.reading_level_counts.items()]
+        reading_level_line = f"Reading library by level (read/available): {', '.join(parts)}\n"
+    else:
+        reading_level_line = ""
     if ctx.sample_due_words:
         words_str = ", ".join(ctx.sample_due_words)
         sample_due_line = f"- Sample words due today (most overdue first): {words_str}\n"
@@ -631,6 +665,7 @@ def _system_prompt(
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
         .replace("{STRUGGLE_DECK_LINE}", struggle_deck_line)
         .replace("{READING_SECTION}", reading_section)
+        .replace("{READING_LEVEL_LINE}", reading_level_line)
         .replace("{PLAN_SECTION}", plan_section)
         .replace("{TIP_LINE}", tip_line)
         .replace("{TONE_HINT}", tone_hint)
@@ -929,6 +964,7 @@ def _build_context(
     ctx.sample_due_words = _sample_due_words(db, user, now)
     ctx.struggling_words = _struggling_words(db, user, now)
     ctx.reading_accuracy = _reading_accuracy(db, user)
+    ctx.reading_level_counts = _reading_level_breakdown(db, user)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)

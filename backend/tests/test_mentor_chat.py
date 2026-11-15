@@ -1125,3 +1125,17 @@ def test_system_prompt_struggle_deck_absent_when_none() -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "most 'again'" not in prompt
     assert "{STRUGGLE_DECK_LINE}" not in prompt
+
+
+def test_system_prompt_reading_level_line_shown() -> None:
+    user = User(ui_language="en", name="Ira")
+    counts = {"A1": (3, 5), "B1": (1, 4)}
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_level_counts=counts))
+    assert "Reading library by level (read/available): A1 3/5, B1 1/4" in prompt
+
+
+def test_system_prompt_reading_level_line_absent_when_empty() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Reading library by level" not in prompt
+    assert "{READING_LEVEL_LINE}" not in prompt
