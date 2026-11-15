@@ -65,7 +65,17 @@ function suggestionsFor(items: readonly PlanItem[], tip: Tip): Array<() => strin
   return [...chips, ...extra, ...fallbacks].slice(0, 3);
 }
 
-const FOLLOW_UPS = [() => t.mentorChatFollowUp1, () => t.mentorChatFollowUp2, () => t.mentorChatFollowUp3] as const;
+const FOLLOW_UPS = [() => t.mentorChatFollowUp1, () => t.mentorChatFollowUp2, () => t.mentorChatFollowUp3];
+
+function followUpsFor(items: readonly PlanItem[]): Array<() => string> {
+  const chips: Array<() => string> = [];
+  for (const item of items) {
+    if (item.kind === 'vocab' && chips.length < 1) chips.push(() => t.mentorChatFollowUpVocabTip);
+    else if (item.kind === 'spelling' && chips.length < 1) chips.push(() => t.mentorChatFollowUpSpellingTip);
+    else if (item.kind === 'reading' && chips.length < 1) chips.push(() => t.mentorChatFollowUpReadingTip);
+  }
+  return [...chips, ...FOLLOW_UPS.filter((_, i) => i >= chips.length)].slice(0, 3);
+}
 
 interface MentorChatProps {
   items?: readonly PlanItem[];
@@ -316,7 +326,7 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
 
       {showFollowUps && (
         <div className={styles.followUps}>
-          {FOLLOW_UPS.map((s) => (
+          {followUpsFor(items).map((s) => (
             <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
               {s()}
             </button>
