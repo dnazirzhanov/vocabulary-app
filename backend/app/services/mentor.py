@@ -180,9 +180,11 @@ def chat(
     system = _system_prompt(user, streak, due_vocab, due_spelling, deck_rows)
     history = _recent_history(db, user)
 
-    # No DeepSeek key → demo reply (dev/test; never reaches production without a key because
-    # production without a key returns generation_unavailable from provider_for).
-    if not settings.deepseek_api_key and settings.environment != "production":
+    # Demo mode: no key, or MENTOR_CHAT_DEMO=true (used in e2e tests for determinism).
+    demo = settings.mentor_chat_demo or (
+        not settings.deepseek_api_key and settings.environment != "production"
+    )
+    if demo:
         reply = texts_for(user.ui_language).mentor_demo_reply
         _persist(db, user, message, reply, now)
         return reply

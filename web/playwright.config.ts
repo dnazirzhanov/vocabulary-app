@@ -48,6 +48,8 @@ export default defineConfig({
         ...process.env,
         READING_TESTERS: 'e2e-reader-*',
         MENTOR_TESTERS: 'e2e-mentor-*',
+        // Force demo replies in mentor chat so e2e tests are deterministic and cost-free.
+        MENTOR_CHAT_DEMO: 'true',
       } as Record<string, string>,
       url: 'http://localhost:8000/api/health/ready',
       reuseExistingServer: !ci,

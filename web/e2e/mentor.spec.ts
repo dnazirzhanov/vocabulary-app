@@ -36,5 +36,6 @@ test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
   await expect(log).toBeVisible();
   await expect(log).toContainText('С чего начать сегодня?');
   // The demo reply contains text from locale.py mentor_demo_reply (ru default).
-  await expect(log).toContainText('Загляни в «Сегодня»');
+  // The Playwright server forces demo mode (DEEPSEEK_API_KEY='') for deterministic tests.
+  await expect(log).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
 });

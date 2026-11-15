@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     mentor_testers: str = ""
     # Mentor chat messages per user per day: each costs a model call.
     mentor_chats_per_day: int = 20
+    # Set to true in e2e tests (via MENTOR_CHAT_DEMO=true) to force demo replies without a key.
+    mentor_chat_demo: bool = False
 
     @field_validator("database_url")
     @classmethod
