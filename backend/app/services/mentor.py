@@ -441,13 +441,23 @@ def _system_prompt(
     time_label = _time_of_day(local_dt.hour)
     day_of_week = local_dt.strftime("%A")
     if user.daily_target_words:
-        if ctx.words_today > 0:
+        target = user.daily_target_words
+        if ctx.words_today >= target:
+            if ctx.words_today == target:
+                status = " — target reached ✓"
+            else:
+                status = f" — exceeded ({ctx.words_today - target} bonus)"
             pace_line = (
-                f"- Daily target: {user.daily_target_words} new words/day"
-                f" ({ctx.words_today} completed today)\n"
+                f"- Daily target: {target} new words/day ({ctx.words_today} today{status})\n"
+            )
+        elif ctx.words_today > 0:
+            remaining = target - ctx.words_today
+            pace_line = (
+                f"- Daily target: {target} new words/day"
+                f" ({ctx.words_today} today, {remaining} remaining)\n"
             )
         else:
-            pace_line = f"- Daily target: {user.daily_target_words} new words/day\n"
+            pace_line = f"- Daily target: {target} new words/day (none yet today)\n"
     else:
         pace_line = ""
     level_line = f"- Current course level: {ctx.course_level}\n" if ctx.course_level else ""

@@ -687,14 +687,27 @@ def test_system_prompt_pace_line_shows_progress_when_words_today_nonzero() -> No
     user = User(ui_language="en", name="Alex", daily_target_words=5)
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=3))
     assert "5 new words/day" in prompt
-    assert "3 completed today" in prompt
+    assert "3 today" in prompt
+    assert "2 remaining" in prompt
+
+
+def test_system_prompt_pace_line_target_reached() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=5)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=5))
+    assert "target reached ✓" in prompt
+
+
+def test_system_prompt_pace_line_target_exceeded() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=5)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=8))
+    assert "exceeded (3 bonus)" in prompt
 
 
 def test_system_prompt_pace_line_omits_progress_when_words_today_zero() -> None:
     user = User(ui_language="en", name="Alex", daily_target_words=5)
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=0))
     assert "5 new words/day" in prompt
-    assert "completed today)" not in prompt
+    assert "none yet today" in prompt
 
 
 def test_format_tenure_returns_expected_labels() -> None:
