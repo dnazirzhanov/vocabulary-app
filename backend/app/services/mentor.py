@@ -7,7 +7,7 @@ from collections.abc import Generator
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -20,6 +20,7 @@ from app.models import (
     LearningSession,
     MentorMessage,
     ReadingAnswer,
+    ReviewAttempt,
     SpellingProgress,
     User,
     UserWordProgress,
@@ -56,6 +57,7 @@ class LearnerContext:
     due_spelling: int = 0
     promised_days: str = "none"
     days_this_week: str = "0 days"
+    retention: str = "no data yet"
     last_study: str = "never"
     course_level: str | None = None
     deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
@@ -82,6 +84,7 @@ Current learner state (use this to give personal, relevant advice):
 - Spelling due today: {DUE_SPELLING} words
 - Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
+- Vocabulary retention rate (last 7 days): {RETENTION}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
@@ -232,6 +235,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{PROMISED_DAYS}", ctx.promised_days)
         .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
+        .replace("{RETENTION}", ctx.retention)
         .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
@@ -308,12 +312,30 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         or 0
     )
 
+    week_ago = now - timedelta(days=7)
+    retention_row = db.execute(
+        select(
+            func.count(ReviewAttempt.id).label("total"),
+            func.sum(case((ReviewAttempt.rating >= 2, 1), else_=0)).label("retained"),
+        ).where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.answered_at >= week_ago,
+            ReviewAttempt.rating.is_not(None),
+        )
+    ).first()
+    if retention_row and retention_row.total:
+        pct = round(100 * (retention_row.retained or 0) / retention_row.total)
+        retention_str = f"{pct}%"
+    else:
+        retention_str = "no data yet"
+
     return LearnerContext(
         streak_weeks=streak,
         due_vocab=int(due_vocab),
         due_spelling=int(due_spelling),
         promised_days=promised_days_str,
         days_this_week=days_this_week_str,
+        retention=retention_str,
         last_study=last_study_label,
         words_today=int(words_today),
     )

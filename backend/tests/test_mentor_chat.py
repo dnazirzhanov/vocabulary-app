@@ -192,6 +192,19 @@ def test_system_prompt_includes_days_this_week_no_promise() -> None:
     assert "1 day" in prompt
 
 
+def test_system_prompt_includes_retention_when_known() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(retention="82%"))
+    assert "82%" in prompt
+    assert "retention rate" in prompt
+
+
+def test_system_prompt_includes_retention_no_data() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "no data yet" in prompt
+
+
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
