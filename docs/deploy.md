@@ -94,6 +94,25 @@ fly secrets set READING_TESTERS=<UID>,<UID> --app slovar-kg
 ```
 Then reload the app. To turn it off, unset the secret.
 
+### 3d. Personal Study Mentor (experiment)
+The «Наставник» tab appears only for accounts in `MENTOR_TESTERS` (same format as `READING_TESTERS`).
+When enabled it shows a deterministic daily plan for free; the **chat** feature also requires a
+DeepSeek key.
+
+```
+fly secrets set MENTOR_TESTERS=<UID>,<UID> --app slovar-kg
+fly secrets set DEEPSEEK_API_KEY=<key> --app slovar-kg   # skip for plan-only mode
+```
+
+Optional tuning (defaults shown):
+```
+fly secrets set MENTOR_CHATS_PER_DAY=20 --app slovar-kg   # chat calls per user per day
+```
+
+Without `DEEPSEEK_API_KEY` the chat replies with a fixed demo message instead of calling DeepSeek.
+The in-process rate counter resets when the machine restarts (ADR 0044); single-machine deploys mean
+this only happens on deploys, which is acceptable.
+
 ### 3b. A new REMINDERS_TOKEN (if it was never copied)
 Run this in your own Terminal. It sets a new token in Fly and shows it once, on your screen only, for the GitHub secret:
 ```sh
