@@ -104,7 +104,7 @@ def test_system_prompt_has_no_unfilled_placeholders() -> None:
     ctx = _ctx(
         course_level="B1",
         total_decks=3,
-        deck_rows=[("Family", 10), ("Animals", 3)],
+        deck_rows=[("Family", 10, 10), ("Animals", 3, 3)],
         top_spelling_deck=("Family", 5),
         reading_total=5,
         reading_recent=["The Zoo", "Home Life"],
@@ -127,7 +127,7 @@ def test_system_prompt_has_no_unfilled_placeholders_all_optional_sections() -> N
     ctx = _ctx(
         course_level="B1",
         total_decks=3,
-        deck_rows=[("Family", 10), ("Animals", 3)],
+        deck_rows=[("Family", 10, 10), ("Animals", 3, 3)],
         top_spelling_deck=("Family", 5),
         reading_total=5,
         reading_recent=["The Zoo", "Home Life"],
@@ -152,12 +152,20 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
         sessions_today="2 (1 study, 1 spelling)",
         due_vocab=20,
         due_spelling=5,
-        deck_rows=[("Animals", 15), ("Food", 5)],
+        deck_rows=[("Animals", 15, 80), ("Food", 5, 5)],
     )
     prompt = _system_prompt(user, MOMENT, _TZ, ctx)
-    assert "Animals: 15 words" in prompt
-    assert "Food: 5 words" in prompt
+    assert "Animals: 15 due / 80 in progress" in prompt
+    assert "Food: 5 due" in prompt
     assert "Top decks due today" in prompt
+
+
+def test_system_prompt_deck_hides_started_when_equal_to_due() -> None:
+    user = User(ui_language="en", name="Alex")
+    ctx = _ctx(deck_rows=[("Grammar", 7, 7)])
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    assert "Grammar: 7 due" in prompt
+    assert "Grammar: 7 due / 7 in progress" not in prompt
 
 
 def test_system_prompt_omits_deck_section_when_no_due() -> None:

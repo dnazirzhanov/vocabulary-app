@@ -66,7 +66,7 @@ class LearnerContext:
     last_study: str = "never"
     today_promised: bool = False
     course_level: str | None = None
-    deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
+    deck_rows: list[tuple[str, int, int]] = dataclasses.field(default_factory=list)
     reading_total: int = 0
     reading_library_size: int = 0
     reading_recent: list[str] = dataclasses.field(default_factory=list)
@@ -178,22 +178,22 @@ def _sessions_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo)
     return f"{total} ({parts})"
 
 
-def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int]]:
-    """Top 5 decks by due vocab count, returned as (title, count) pairs."""
+def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int, int]]:
+    """Top 5 decks by due vocab count: (title, due_count, started_count)."""
+    n_due = func.count(case((UserWordProgress.due_at <= now, 1), else_=None))
+    n_started = func.count(UserWordProgress.word_id)
     rows = db.execute(
-        select(Deck.title, func.count(UserWordProgress.word_id).label("n"))
+        select(Deck.title, n_due.label("n_due"), n_started.label("n_started"))
         .select_from(UserWordProgress)
         .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
         .join(Deck, Deck.id == DeckWord.deck_id)
-        .where(
-            UserWordProgress.user_id == user.id,
-            UserWordProgress.due_at <= now,
-        )
+        .where(UserWordProgress.user_id == user.id)
         .group_by(Deck.id, Deck.title, Deck.level_order)
-        .order_by(func.count(UserWordProgress.word_id).desc(), Deck.level_order)
+        .having(n_due >= 1)
+        .order_by(n_due.desc(), Deck.level_order)
         .limit(5)
     ).all()
-    return [(row.title, row.n) for row in rows]
+    return [(row.title, int(row.n_due), int(row.n_started)) for row in rows]
 
 
 def _total_decks(db: Session, user: User) -> int:
@@ -388,8 +388,13 @@ def _system_prompt(
     level_line = f"- Current course level: {ctx.course_level}\n" if ctx.course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
     if ctx.deck_rows:
-        lines = "\n".join(f"  - {title}: {n} words" for title, n in ctx.deck_rows)
-        deck_section = f"Top decks due today (most due first):\n{lines}\n"
+        deck_lines: list[str] = []
+        for title, n_due, n_started in ctx.deck_rows:
+            if n_started > n_due:
+                deck_lines.append(f"  - {title}: {n_due} due / {n_started} in progress")
+            else:
+                deck_lines.append(f"  - {title}: {n_due} due")
+        deck_section = "Top decks due today (most due first):\n" + "\n".join(deck_lines) + "\n"
     else:
         deck_section = ""
     if ctx.total_decks > 0:
