@@ -245,6 +245,18 @@ def test_system_prompt_omits_spelling_deck_line_when_none() -> None:
     assert "Top deck for spelling" not in prompt
 
 
+def test_system_prompt_includes_total_decks_when_set() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(total_decks=4))
+    assert "Total vocabulary decks: 4 decks" in prompt
+
+
+def test_system_prompt_omits_total_decks_line_when_zero() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(total_decks=0))
+    assert "Total vocabulary decks" not in prompt
+
+
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))

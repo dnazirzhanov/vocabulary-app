@@ -67,6 +67,7 @@ class LearnerContext:
     reading_total: int = 0
     reading_recent: list[str] = dataclasses.field(default_factory=list)
     top_spelling_deck: tuple[str, int] | None = None
+    total_decks: int = 0
 
 
 _SYSTEM = """\
@@ -92,7 +93,7 @@ Current learner state (use this to give personal, relevant advice):
 - Days studied this week: {DAYS_THIS_WEEK}
 - Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -144,6 +145,19 @@ def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int
         .limit(5)
     ).all()
     return [(row.title, row.n) for row in rows]
+
+
+def _total_decks(db: Session, user: User) -> int:
+    """How many distinct decks this learner has any vocabulary progress in."""
+    return (
+        db.scalar(
+            select(func.count(func.distinct(DeckWord.deck_id)))
+            .select_from(UserWordProgress)
+            .join(DeckWord, DeckWord.word_id == UserWordProgress.word_id)
+            .where(UserWordProgress.user_id == user.id)
+        )
+        or 0
+    )
 
 
 def _top_spelling_deck(db: Session, user: User, now: datetime) -> tuple[str, int] | None:
@@ -238,6 +252,11 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         deck_section = f"Top decks due today (most due first):\n{lines}\n"
     else:
         deck_section = ""
+    if ctx.total_decks > 0:
+        deck_label = "deck" if ctx.total_decks == 1 else "decks"
+        total_decks_line = f"- Total vocabulary decks: {ctx.total_decks} {deck_label}\n"
+    else:
+        total_decks_line = ""
     if ctx.top_spelling_deck:
         spell_title, spell_count = ctx.top_spelling_deck
         word_label = "word" if spell_count == 1 else "words"
@@ -276,6 +295,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
+        .replace("{TOTAL_DECKS_LINE}", total_decks_line)
         .replace("{DECK_SECTION}", deck_section)
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
         .replace("{READING_SECTION}", reading_section)
@@ -492,6 +512,7 @@ def _build_context(
     ctx.words_in_progress = words_in_progress
     ctx.words_learned = words_learned
     ctx.course_level = _course_level(db, user)
+    ctx.total_decks = _total_decks(db, user)
     ctx.deck_rows = _deck_context(db, user, now)
     ctx.top_spelling_deck = _top_spelling_deck(db, user, now)
     ctx.reading_total, ctx.reading_recent = _reading_context(db, user)
