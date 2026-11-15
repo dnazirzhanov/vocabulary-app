@@ -80,6 +80,7 @@ class LearnerContext:
     tip_id: str | None = None
     words_mastered: int = 0
     active_weeks: int = 0
+    days_studied_month: int = 0
     sample_due_words: list[str] = dataclasses.field(default_factory=list)
     struggling_words: list[str] = dataclasses.field(default_factory=list)
 
@@ -109,6 +110,7 @@ Current learner state (use this to give personal, relevant advice):
 {SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
 - Weeks active in last 4 weeks: {ACTIVE_WEEKS}
+- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 - Reading comprehension accuracy (all time): {READING_ACCURACY}
@@ -538,6 +540,7 @@ def _system_prompt(
         .replace("{PROMISED_DAYS}", ctx.promised_days)
         .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
         .replace("{ACTIVE_WEEKS}", str(ctx.active_weeks))
+        .replace("{DAYS_STUDIED_MONTH}", str(ctx.days_studied_month))
         .replace("{PROMISE_LINE}", promise_line)
         .replace("{RETENTION}", ctx.retention)
         .replace("{SPELLING_ACCURACY}", ctx.spelling_accuracy)
@@ -581,6 +584,11 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         days_this_week_str = f"{studied_count} of {promised_count} promised"
     else:
         days_this_week_str = f"{studied_count} {'day' if studied_count == 1 else 'days'}"
+
+    month_ago = today - timedelta(days=30)
+    days_studied_month = sum(
+        1 for d, s in days.items() if d > month_ago and d <= today and s.studied
+    )
 
     due_vocab = (
         db.scalar(
@@ -713,6 +721,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         due_spelling=int(due_spelling),
         promised_days=promised_days_str,
         days_this_week=days_this_week_str,
+        days_studied_month=days_studied_month,
         today_promised=today_promised,
         retention=retention_str,
         spelling_accuracy=spelling_accuracy_str,

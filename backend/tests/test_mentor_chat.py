@@ -781,6 +781,12 @@ def test_system_prompt_last_studied_deck_absent_when_none() -> None:
     assert "{LAST_STUDIED_DECK_LINE}" not in prompt
 
 
+def test_system_prompt_days_studied_month() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(days_studied_month=18))
+    assert "Days studied in last 30 days: 18" in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
