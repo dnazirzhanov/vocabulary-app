@@ -703,3 +703,9 @@ def test_system_prompt_words_mastered_zero_when_none() -> None:
     user = User(ui_language="en", name="Ira")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "long-term (≥21-day interval): 0" in prompt
+
+
+def test_system_prompt_includes_active_weeks() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(active_weeks=3))
+    assert "Weeks active in last 4 weeks: 3" in prompt
