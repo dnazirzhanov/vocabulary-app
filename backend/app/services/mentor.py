@@ -106,6 +106,7 @@ Current learner state (use this to give personal, relevant advice):
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
 {PLAN_SECTION}\
 {TIP_LINE}\
+{TONE_HINT}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -119,6 +120,16 @@ def _time_of_day(hour: int) -> str:
     if 17 <= hour < 21:
         return "evening"
     return "night"
+
+
+_TONE_HINTS: dict[str, str] = {
+    "firstRun": "Tone: welcoming and simple — the learner is brand new.",
+    "newLearner": "Tone: encouraging — first week, build confidence.",
+    "returner": "Tone: warm and forward-looking — acknowledge the absence without judgment.",
+    "streakMilestone": "Tone: celebratory — a genuine milestone worth marking.",
+    "bigBacklog": "Tone: pragmatic and calm — help them prioritize without feeling overwhelmed.",
+    "allCaughtUp": "Tone: upbeat — they finished everything, suggest what's next.",
+}
 
 
 def _format_tenure(first_at: datetime, now: datetime) -> str:
@@ -356,6 +367,7 @@ def _system_prompt(
     else:
         plan_section = ""
     tip_line = f"Tip shown to learner: {ctx.tip_id}\n" if ctx.tip_id else ""
+    tone_hint = _TONE_HINTS[ctx.tip_id] + "\n" if ctx.tip_id in _TONE_HINTS else ""
     if ctx.today_promised:
         studied = ctx.sessions_today != "none"
         promise_line = (
@@ -416,6 +428,7 @@ def _system_prompt(
         .replace("{READING_SECTION}", reading_section)
         .replace("{PLAN_SECTION}", plan_section)
         .replace("{TIP_LINE}", tip_line)
+        .replace("{TONE_HINT}", tone_hint)
     )
 
 

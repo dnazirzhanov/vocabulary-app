@@ -711,7 +711,9 @@ def test_system_prompt_includes_active_weeks() -> None:
     assert "Weeks active in last 4 weeks: 3" in prompt
 
 
-def test_active_weeks_integration(client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_active_weeks_integration(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import uuid
 
     from app.models import LearningSession
@@ -724,9 +726,9 @@ def test_active_weeks_integration(client: TestClient, db: Session, monkeypatch: 
     assert user is not None
 
     # Add completed sessions in 3 distinct ISO weeks within the last 28 days.
-    week1 = MOMENT - timedelta(days=21)   # ~3 weeks ago
-    week2 = MOMENT - timedelta(days=14)   # ~2 weeks ago
-    week3 = MOMENT - timedelta(days=7)    # ~1 week ago
+    week1 = MOMENT - timedelta(days=21)  # ~3 weeks ago
+    week2 = MOMENT - timedelta(days=14)  # ~2 weeks ago
+    week3 = MOMENT - timedelta(days=7)  # ~1 week ago
     for ts in [week1, week2, week3]:
         db.add(
             LearningSession(
@@ -743,3 +745,17 @@ def test_active_weeks_integration(client: TestClient, db: Session, monkeypatch: 
     result = _active_weeks(db, user, MOMENT, _TZ)
     # Sessions are in 3 distinct ISO weeks; MOMENT itself has no session → still 3.
     assert result == 3
+
+
+def test_system_prompt_tone_hint_shown_for_known_tip() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id="returner"))
+    assert "Tone:" in prompt
+    assert "forward-looking" in prompt
+
+
+def test_system_prompt_tone_hint_absent_for_unknown_tip() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id="default"))
+    assert "Tone: " not in prompt
+    assert "{TONE_HINT}" not in prompt
