@@ -73,6 +73,7 @@ class LearnerContext:
     total_decks: int = 0
     studying_since: str = "unknown"
     tip_id: str | None = None
+    words_mastered: int = 0
 
 
 _SYSTEM = """\
@@ -90,6 +91,7 @@ Current learner state (use this to give personal, relevant advice):
 - Last study session: {LAST_STUDY}
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
+- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
 - New words learned today: {WORDS_TODAY}
 - New words learned this week: {WORDS_THIS_WEEK}
 - Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
@@ -247,6 +249,21 @@ def _vocab_summary(db: Session, user: User) -> tuple[int, int]:
     return int(in_progress), int(learned)
 
 
+def _mature_words(db: Session, user: User, now: datetime) -> int:
+    """Words whose SRS interval is at least 21 days — a proxy for long-term retention."""
+    cutoff = now + timedelta(days=21)
+    return (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.first_recalled_at.is_not(None),
+                UserWordProgress.due_at >= cutoff,
+            )
+        )
+        or 0
+    )
+
+
 def _course_level(db: Session, user: User) -> str | None:
     """The level string of the highest course deck the learner has started (e.g. 'B1')."""
     row = db.execute(
@@ -359,6 +376,7 @@ def _system_prompt(
         .replace("{SESSIONS_TODAY}", ctx.sessions_today)
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
         .replace("{WORDS_LEARNED}", str(ctx.words_learned))
+        .replace("{WORDS_MASTERED}", str(ctx.words_mastered))
         .replace("{WORDS_TODAY}", str(ctx.words_today))
         .replace("{WORDS_THIS_WEEK}", str(ctx.words_this_week))
         .replace("{REVIEWS_THIS_WEEK}", str(ctx.reviews_this_week))
@@ -610,6 +628,7 @@ def _build_context(
         db, user, now, time_zone
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
+    ctx.words_mastered = _mature_words(db, user, now)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)

@@ -690,3 +690,16 @@ def test_chat_accepts_tip_id_in_body(client: TestClient, monkeypatch: pytest.Mon
         headers=as_("alice"),
     )
     assert resp.status_code == 200
+
+
+def test_system_prompt_includes_words_mastered() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_mastered=42))
+    assert "42" in prompt
+    assert "long-term" in prompt
+
+
+def test_system_prompt_words_mastered_zero_when_none() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "long-term (≥21-day interval): 0" in prompt
