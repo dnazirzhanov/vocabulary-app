@@ -1,6 +1,7 @@
 """Personal Study Mentor chat: answers the learner's questions about their own progress,
 plans, and vocabulary, using DeepSeek when a key is configured and a canned reply otherwise."""
 
+import time
 from collections.abc import Generator
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -362,12 +363,18 @@ def stream_chat(
     now: datetime,
     time_zone: ZoneInfo,
 ) -> Generator[str]:
-    """Yield text chunks from DeepSeek (or the full demo reply as one chunk), then persist."""
+    """Yield text chunks from DeepSeek (or a word-by-word demo reply), then persist."""
 
     system, msgs, demo_reply, is_demo = _build_context(db, user, message, settings, now, time_zone)
     if is_demo:
         _persist(db, user, message, demo_reply, now)
-        yield demo_reply
+        delay = settings.mentor_demo_stream_delay_ms / 1000
+        words = demo_reply.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == len(words) - 1 else word + " "
+            if delay > 0:
+                time.sleep(delay)
+            yield chunk
         return
     accumulated: list[str] = []
     for chunk in _stream_deepseek(system, msgs, settings):

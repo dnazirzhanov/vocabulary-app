@@ -1,5 +1,6 @@
 """Mentor chat endpoint: tester gate, demo reply, rate limit, message persistence."""
 
+import json
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -269,3 +270,62 @@ def test_system_prompt_omits_goal_when_null() -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, None, [], 0, [])
     assert "Learning goal" not in prompt
     assert "{GOAL_LINE}" not in prompt
+
+
+def _parse_sse(raw: str) -> list[dict[str, object]]:
+    events: list[dict[str, object]] = []
+    for block in raw.strip().split("\n\n"):
+        for line in block.splitlines():
+            if line.startswith("data: "):
+                events.append(json.loads(line[6:]))
+    return events
+
+
+def test_stream_endpoint_emits_delta_and_done(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    monkeypatch.setattr(get_settings(), "mentor_demo_stream_delay_ms", 0)
+    resp = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("nancy"))
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(resp.text)
+    deltas = [e for e in events if "delta" in e]
+    done_events = [e for e in events if e.get("done")]
+    assert len(deltas) > 0, "expected at least one delta event"
+    assert len(done_events) == 1, "expected exactly one done event"
+    assert "created_at" in done_events[0]
+    assert "chats_remaining" in done_events[0]
+
+
+def test_stream_endpoint_full_text_matches_demo_reply(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    monkeypatch.setattr(get_settings(), "mentor_demo_stream_delay_ms", 0)
+    resp = client.post("/api/mentor/chat/stream", json={"message": "hello"}, headers=as_("olivia"))
+    events = _parse_sse(resp.text)
+    full_text = "".join(str(e["delta"]) for e in events if "delta" in e)
+    # Non-streaming endpoint gives the same demo reply; compare via history.
+    history_resp = client.get("/api/mentor/history", headers=as_("olivia"))
+    items = history_resp.json()["messages"]
+    assistant_reply = next(m["content"] for m in items if m["role"] == "assistant")
+    assert full_text == assistant_reply
+
+
+def test_stream_endpoint_rate_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    monkeypatch.setattr(get_settings(), "mentor_chats_per_day", 1)
+    monkeypatch.setattr(get_settings(), "mentor_demo_stream_delay_ms", 0)
+    reset_limits()
+    resp = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("peter"))
+    assert resp.status_code == 200
+    refused = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("peter"))
+    assert refused.status_code == 429
+    assert refused.json()["error"]["code"] == "mentor_chat_limit"
+    reset_limits()
+
+
+def test_stream_endpoint_requires_tester_flag(client: TestClient) -> None:
+    resp = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("quinn"))
+    assert resp.status_code == 403
