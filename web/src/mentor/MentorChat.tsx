@@ -44,6 +44,7 @@ export function MentorChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatsRemaining, setChatsRemaining] = useState<number | null>(null);
+  const [chatsLimit, setChatsLimit] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const dictationRef = useRef<Dictation | null>(null);
@@ -52,7 +53,7 @@ export function MentorChat() {
   const messagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api
+    const historyPromise = api
       .mentorHistory()
       .then(({ messages: items }) => {
         setMessages(
@@ -65,8 +66,15 @@ export function MentorChat() {
       })
       .catch(() => {
         // History is best-effort; a network error just starts the chat fresh.
+      });
+    const statusPromise = api
+      .mentorStatus()
+      .then(({ chats_remaining, chats_limit }) => {
+        setChatsRemaining(chats_remaining);
+        setChatsLimit(chats_limit);
       })
-      .finally(() => setLoading(false));
+      .catch(() => undefined);
+    void Promise.all([historyPromise, statusPromise]).finally(() => setLoading(false));
   }, []);
 
   // Auto-scroll only when the user is already near the bottom (within 80 px).
@@ -325,9 +333,9 @@ export function MentorChat() {
           {draft.length}/{MAX_LENGTH}
         </p>
       )}
-      {!overLimit && chatsRemaining !== null && chatsRemaining <= 5 && (
-        <p className={styles.lowCredit} role="status">
-          {t.mentorChatLowCredit(chatsRemaining)}
+      {!overLimit && chatsRemaining !== null && chatsLimit !== null && (
+        <p className={chatsRemaining <= 5 ? styles.lowCredit : styles.budget} role="status">
+          {chatsRemaining <= 5 ? t.mentorChatLowCredit(chatsRemaining) : t.mentorChatBudget(chatsRemaining, chatsLimit)}
         </p>
       )}
     </section>

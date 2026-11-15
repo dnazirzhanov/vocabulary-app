@@ -38,3 +38,8 @@ class MentorGoalOut(BaseModel):
 
 class MentorGoalIn(BaseModel):
     goal: GoalText
+
+
+class MentorStatusOut(BaseModel):
+    chats_remaining: int
+    chats_limit: int

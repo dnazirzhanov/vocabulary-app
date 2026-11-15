@@ -378,3 +378,11 @@
   text-align: right;
   margin: 0;
 }
+
+.budget {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary, var(--text-secondary));
+  text-align: right;
+  margin: 0;
+  opacity: 0.6;
+}

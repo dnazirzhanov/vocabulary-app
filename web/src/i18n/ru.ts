@@ -902,6 +902,7 @@ export const ru = {
   mentorChatFollowUp3: 'Как это запомнить быстрее?',
   mentorChatClear: 'Очистить чат',
   mentorChatLowCredit: (n: number) => `Осталось вопросов на сегодня: ${n}`,
+  mentorChatBudget: (remaining: number, limit: number) => `Вопросов сегодня: ${remaining} из ${limit}`,
   mentorChatVoiceStart: 'Говорить',
   mentorChatVoiceStop: 'Остановить запись',
   mentorGoalHeading: 'Моя цель',

@@ -262,6 +262,35 @@ def test_system_prompt_omits_daily_target_when_null() -> None:
     assert "{PACE_LINE}" not in prompt
 
 
+def test_status_returns_full_budget_before_any_chat(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_chats_per_day", 10)
+    reset_limits()
+    _enable_mentor(monkeypatch)
+    resp = client.get("/api/mentor/status", headers=as_("ulla"))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["chats_remaining"] == 10
+    assert body["chats_limit"] == 10
+    reset_limits()
+
+
+def test_status_decrements_after_chat(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_chats_per_day", 5)
+    reset_limits()
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "hi"}, headers=as_("vince"))
+    resp = client.get("/api/mentor/status", headers=as_("vince"))
+    assert resp.json()["chats_remaining"] == 4
+    reset_limits()
+
+
+def test_status_requires_tester_flag(client: TestClient) -> None:
+    resp = client.get("/api/mentor/status", headers=as_("wendy"))
+    assert resp.status_code == 403
+
+
 def test_history_returns_empty_before_first_message(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

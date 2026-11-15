@@ -19,6 +19,7 @@ from app.schemas.mentor import (
     MentorGoalOut,
     MentorHistoryItem,
     MentorHistoryOut,
+    MentorStatusOut,
 )
 from app.services import mentor
 from app.services.card_reports import listed
@@ -43,6 +44,13 @@ def mentor_set_goal(body: MentorGoalIn, user: CurrentUser, db: DbSession) -> Men
     user.mentor_goal = body.goal or None
     db.commit()
     return MentorGoalOut(goal=user.mentor_goal)
+
+
+@router.get("/mentor/status", dependencies=[Depends(_require_mentor)])
+def mentor_status(user: CurrentUser, settings: DepSettings) -> MentorStatusOut:
+    used = mentor_chats_used(user.id)
+    remaining = max(0, settings.mentor_chats_per_day - used)
+    return MentorStatusOut(chats_remaining=remaining, chats_limit=settings.mentor_chats_per_day)
 
 
 @router.get("/mentor/history", dependencies=[Depends(_require_mentor)])

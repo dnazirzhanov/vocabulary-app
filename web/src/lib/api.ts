@@ -331,6 +331,7 @@ export const api = {
     request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
   mentorGoal: () => request<{ goal: string | null }>('GET', '/mentor/goal'),
   mentorSetGoal: (goal: string) => request<{ goal: string | null }>('PUT', '/mentor/goal', { goal }),
+  mentorStatus: () => request<{ chats_remaining: number; chats_limit: number }>('GET', '/mentor/status'),
 };
 
 export type MentorStreamEvent =

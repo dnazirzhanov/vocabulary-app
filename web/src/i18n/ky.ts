@@ -883,6 +883,7 @@ export const ky: Messages = {
   mentorChatFollowUp3: 'How can I remember this faster?',
   mentorChatClear: 'Clear chat',
   mentorChatLowCredit: (n: number) => `${n} questions left today`,
+  mentorChatBudget: (remaining: number, limit: number) => `${remaining} of ${limit} questions today`,
   mentorChatVoiceStart: 'Speak',
   mentorChatVoiceStop: 'Stop recording',
   mentorGoalHeading: 'My goal',
