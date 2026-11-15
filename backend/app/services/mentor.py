@@ -99,7 +99,7 @@ spelling practice, reading library articles (comprehension questions included).
 
 Current learner state (use this to give personal, relevant advice):
 - Name: {NAME}
-- Local time: {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
+- Local date and time: {LOCAL_DATE} {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
 - Studying since: {STUDYING_SINCE}
@@ -439,6 +439,7 @@ def _system_prompt(
     )
     name = user.name or t.mentor_learner_name
     local_dt = now.astimezone(time_zone)
+    local_date_str = local_dt.strftime("%Y-%m-%d")
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
     day_of_week = local_dt.strftime("%A")
@@ -557,6 +558,7 @@ def _system_prompt(
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
+        .replace("{LOCAL_DATE}", local_date_str)
         .replace("{LOCAL_TIME}", local_time)
         .replace("{TIME_OF_DAY}", time_label)
         .replace("{DAY_OF_WEEK}", day_of_week)
