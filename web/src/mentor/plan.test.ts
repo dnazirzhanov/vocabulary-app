@@ -101,6 +101,50 @@ test('articles already read are skipped', () => {
   );
 });
 
+test('vocab and spelling are picked independently — best-vocab deck may differ from best-spelling deck', () => {
+  // Deck A is best for vocab; Deck B is best for spelling.
+  const plan = planToday({
+    ...base,
+    decks: [
+      { id: 'A', title: 'Animals', level: 'A1', levelOrder: 1, dueCount: 10, spellingDue: 1 },
+      { id: 'B', title: 'Fruits', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 8 },
+    ],
+  });
+  const vocab = plan.find((i) => i.kind === 'vocab');
+  const spell = plan.find((i) => i.kind === 'spelling');
+  assert.equal((vocab as { deckId: string } | undefined)?.deckId, 'A');
+  assert.equal((spell as { deckId: string } | undefined)?.deckId, 'B');
+});
+
+test('reading tie-break: same minutes picks alphabetically by title', () => {
+  const plan = planToday({
+    ...base,
+    userLevel: 'A2',
+    articles: [
+      { id: 'z', title: 'Zebras', level: 'A2', minutes: 4 },
+      { id: 'a', title: 'Apples', level: 'A2', minutes: 4 },
+    ],
+  });
+  const reading = plan.find((i) => i.kind === 'reading');
+  assert.equal((reading as { articleId: string } | undefined)?.articleId, 'a');
+});
+
+test('plan capped at 3 items even with all three kinds', () => {
+  const plan = planToday({
+    ...base,
+    decks: [
+      { id: 'd1', title: 'Animals', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 3 },
+      { id: 'd2', title: 'Fruits', level: 'A1', levelOrder: 1, dueCount: 2, spellingDue: 7 },
+    ],
+    articles: [{ id: 'a1', title: 'Bees', level: 'A2', minutes: 3 }],
+  });
+  assert.equal(plan.length, 3);
+  assert.deepEqual(
+    plan.map((i) => i.kind),
+    ['vocab', 'spelling', 'reading'],
+  );
+});
+
 test('level-fits allows at most one step away', () => {
   assert.equal(levelFits('A2', 'A2'), true);
   assert.equal(levelFits('A1', 'A2'), true);
