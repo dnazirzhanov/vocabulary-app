@@ -193,6 +193,8 @@ function tipText(tip: Tip): string {
   switch (tip.id) {
     case 'firstRun':
       return t.mentorTipFirstRun;
+    case 'newLearner':
+      return t.mentorTipNewLearner;
     case 'streakMilestone':
       return t.mentorTipStreakMilestone(tip.weeks ?? 0);
     case 'streakKeep':

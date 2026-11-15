@@ -48,6 +48,7 @@ export type PlanItem =
 /** Which canned tip is chosen; first match wins in `pickTip`. */
 export type TipId =
   | 'firstRun'
+  | 'newLearner'
   | 'streakMilestone'
   | 'streakKeep'
   | 'bigBacklog'

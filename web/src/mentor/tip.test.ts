@@ -81,10 +81,36 @@ test('with no vocabulary due and some (not enough) spelling, suggest reading', (
   assert.deepEqual(tip, { id: 'readingFresh' });
 });
 
-test('with a small due backlog and no streak, the default encouragement shows', () => {
+test('with only a small spelling queue, no reading, and no streak, the default shows', () => {
+  // totalDue === 0 → newLearner skipped; spellingDue < 5 → spellingAwaits skipped; no articles
   const tip = pickTip({
     ...base,
-    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 3, spellingDue: 2 }],
+    decks: [{ id: 'd1', title: 'Food', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 2 }],
+  });
+  assert.deepEqual(tip, { id: 'default' });
+});
+
+test('a learner with decks and due vocab but no streak yet gets the new-learner tip', () => {
+  const tip = pickTip({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 5, spellingDue: 0 }],
+  });
+  assert.deepEqual(tip, { id: 'newLearner' });
+});
+
+test('new-learner tip fires even with a few spelling words alongside vocab', () => {
+  const tip = pickTip({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 3, spellingDue: 2 }],
+  });
+  assert.deepEqual(tip, { id: 'newLearner' });
+});
+
+test('new-learner requires vocab due — no-vocab learner bypasses it', () => {
+  // totalDue === 0 so newLearner does not fire; falls through to default
+  const tip = pickTip({
+    ...base,
+    decks: [{ id: 'd1', title: 'Family', level: 'A1', levelOrder: 1, dueCount: 0, spellingDue: 3 }],
   });
   assert.deepEqual(tip, { id: 'default' });
 });

@@ -36,6 +36,10 @@ export function pickTip(input: MentorInput): Tip {
   if (totalSpelling >= SPELLING_AWAITS) {
     return { id: 'spellingAwaits', count: totalSpelling };
   }
+  // A first-week learner with a modest backlog: more encouraging than the generic default.
+  if (input.decks.length > 0 && (input.streakWeeks ?? 0) === 0 && totalDue > 0) {
+    return { id: 'newLearner' };
+  }
   if (input.decks.length > 0 && totalDue === 0 && totalSpelling === 0) {
     return { id: 'allCaughtUp' };
   }

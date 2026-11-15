@@ -847,6 +847,7 @@ export const ky: Messages = {
   mentorGreetingNight: 'Good night',
   mentorTipHeading: 'Tip',
   mentorTipFirstRun: 'Start with your first deck.',
+  mentorTipNewLearner: 'Great start! A few minutes every day adds up fast — keep it going.',
   mentorTipStreakMilestone: (weeks: number) => `${weeks} weeks in a row — keep it up!`,
   mentorTipStreakKeep: (weeks: number) => `${weeks}-week streak. Keep it going today.`,
   mentorTipBigBacklog: (total: number) => `${total} cards waiting — clear some today.`,
