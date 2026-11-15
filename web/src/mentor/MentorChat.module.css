@@ -372,6 +372,13 @@
   margin: 0;
 }
 
+.counterSoft {
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  text-align: right;
+  margin: 0;
+}
+
 .lowCredit {
   font-size: var(--text-meta);
   color: var(--color-text-muted);

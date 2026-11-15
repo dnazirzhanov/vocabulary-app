@@ -217,6 +217,7 @@ export function MentorChat({ items = [] }: MentorChatProps) {
   const showFollowUps = lastIsAssistant && !sending;
 
   const overLimit = draft.length > MAX_LENGTH;
+  const nearLimit = !overLimit && draft.length >= Math.floor(MAX_LENGTH * 0.8);
   const canSend = draft.trim().length > 0 && !overLimit && !sending;
 
   return (
@@ -350,7 +351,12 @@ export function MentorChat({ items = [] }: MentorChatProps) {
           {draft.length}/{MAX_LENGTH}
         </p>
       )}
-      {!overLimit && chatsRemaining !== null && chatsLimit !== null && (
+      {nearLimit && (
+        <p className={styles.counterSoft} role="status">
+          {draft.length}/{MAX_LENGTH}
+        </p>
+      )}
+      {!overLimit && !nearLimit && chatsRemaining !== null && chatsLimit !== null && (
         <p className={chatsRemaining <= 5 ? styles.lowCredit : styles.budget} role="status">
           {chatsRemaining <= 5 ? t.mentorChatLowCredit(chatsRemaining) : t.mentorChatBudget(chatsRemaining, chatsLimit)}
         </p>
