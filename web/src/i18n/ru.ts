@@ -902,6 +902,7 @@ export const ru = {
   mentorChatSuggestion3: 'Объясни, как работает повторение',
   mentorChatLimitReached: 'На сегодня вопросов достаточно — возвращайтесь завтра.',
   mentorChatUnavailable: 'Наставник сейчас недоступен. Попробуйте позже.',
+  mentorChatOffline: 'Чат с наставником недоступен без подключения к интернету.',
   mentorChatFollowUp1: 'Дай ещё один совет',
   mentorChatFollowUp2: 'Что мне стоит изучить после?',
   mentorChatFollowUp3: 'Как это запомнить быстрее?',

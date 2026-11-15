@@ -155,6 +155,10 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
+    if (!navigator.onLine) {
+      setError(t.mentorChatOffline);
+      return;
+    }
     setDraft('');
     setError(null);
     setSending(true);
