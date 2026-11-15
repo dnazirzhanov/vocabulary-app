@@ -276,7 +276,7 @@ def _active_weeks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -
         )
     ).all()
     iso_weeks = {local_date(ts, time_zone).isocalendar()[:2] for ts in rows if ts is not None}
-    return len(iso_weeks)
+    return min(4, len(iso_weeks))
 
 
 def _course_level(db: Session, user: User) -> str | None:
@@ -351,6 +351,8 @@ def _system_prompt(
                 level_part = f" ({level})" if level else ""
                 plan_lines.append(f'  - Reading: "{title}"{level_part} — {minutes} min')
         plan_section = "Today's recommended plan:\n" + "\n".join(plan_lines) + "\n"
+    elif plan is not None:
+        plan_section = "Today's plan: nothing due (all caught up).\n"
     else:
         plan_section = ""
     tip_line = f"Tip shown to learner: {ctx.tip_id}\n" if ctx.tip_id else ""

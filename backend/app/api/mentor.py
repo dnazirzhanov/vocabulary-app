@@ -78,7 +78,7 @@ def mentor_chat(
     time_zone: TimeZone,
     settings: DepSettings,
 ) -> MentorChatOut:
-    plan = [item.model_dump() for item in body.plan] if body.plan else None
+    plan = [item.model_dump() for item in body.plan] if body.plan is not None else None
     reply = mentor.chat(
         db, user, body.message, settings, now, time_zone, plan=plan, tip_id=body.tip_id
     )
@@ -108,7 +108,7 @@ def mentor_chat_stream(
         done_event = {"done": True, "created_at": now.isoformat(), "chats_remaining": remaining}
         yield f"data: {json.dumps(done_event)}\n\n"
 
-    plan = [item.model_dump() for item in body.plan] if body.plan else None
+    plan = [item.model_dump() for item in body.plan] if body.plan is not None else None
     chunks = mentor.stream_chat(
         db, user, body.message, settings, now, time_zone, plan=plan, tip_id=body.tip_id
     )
