@@ -910,4 +910,7 @@ export const en: Messages = {
   mentorGoalEdit: 'Edit goal',
   mentorChatCopy: 'Copy',
   mentorChatCopied: 'Copied',
+  mentorChatSuggestionVocab: (deckTitle: Arg) => `I have "${deckTitle}" to review — any tips?`,
+  mentorChatSuggestionSpelling: (deckTitle: Arg) => `How should I approach the "${deckTitle}" spelling quiz?`,
+  mentorChatSuggestionReading: (title: Arg) => `I want to read "${title}" — what should I focus on?`,
 };

@@ -913,6 +913,9 @@ export const ru = {
   mentorGoalEdit: 'Изменить цель',
   mentorChatCopy: 'Копировать',
   mentorChatCopied: 'Скопировано',
+  mentorChatSuggestionVocab: (deckTitle: Arg) => `Нужно повторить «${deckTitle}» — с чего начать?`,
+  mentorChatSuggestionSpelling: (deckTitle: Arg) => `Как лучше подойти к тесту по написанию «${deckTitle}»?`,
+  mentorChatSuggestionReading: (title: Arg) => `Хочу прочитать «${title}» — на что обращать внимание?`,
 };
 
 export type Messages = typeof ru;

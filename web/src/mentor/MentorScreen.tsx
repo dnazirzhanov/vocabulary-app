@@ -166,7 +166,7 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
             )}
           </section>
 
-          <MentorChat />
+          <MentorChat items={items} />
         </div>
       </div>
     </main>
