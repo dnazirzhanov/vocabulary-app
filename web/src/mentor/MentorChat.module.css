@@ -262,6 +262,46 @@
   color: var(--text-secondary);
 }
 
+.mic {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.mic:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.micActive {
+  color: var(--color-danger, #c0392b);
+  border-color: var(--color-danger, #c0392b);
+  background: var(--surface);
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .send {
   flex-shrink: 0;
   display: flex;

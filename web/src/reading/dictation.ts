@@ -53,15 +53,16 @@ export interface Dictation {
 export function dictate(
   onText: (heard: string) => void,
   onEnd: (reason: 'done' | 'blocked' | 'failed') => void,
+  lang = 'en-US',
 ): Dictation {
-  if (isApp) return dictateOnPhone(onText, onEnd);
+  if (isApp) return dictateOnPhone(onText, onEnd, lang);
   const Engine = engine();
   if (!Engine) {
     onEnd('failed');
     return { stop: () => undefined };
   }
   const recognition = new Engine();
-  recognition.lang = 'en-US';
+  recognition.lang = lang;
   recognition.continuous = true;
   recognition.interimResults = true;
   let finished = '';
@@ -90,6 +91,7 @@ export function dictate(
 function dictateOnPhone(
   onText: (heard: string) => void,
   onEnd: (reason: 'done' | 'blocked' | 'failed') => void,
+  lang = 'en-US',
 ): Dictation {
   let stopped = false;
   let finished = false;
@@ -121,7 +123,7 @@ function dictateOnPhone(
       });
       stopNow = () => void SpeechRecognition.stop().catch(() => finish('done'));
       // With partial results, Android answers at once and sends what it hears as it hears it.
-      await SpeechRecognition.start({ language: 'en-US', partialResults: true, popup: false });
+      await SpeechRecognition.start({ language: lang, partialResults: true, popup: false });
     } catch {
       finish('failed');
     }

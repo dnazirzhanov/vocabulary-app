@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../lib/api.ts';
 import { api } from '../lib/api.ts';
-import { t } from '../i18n/index.ts';
-import { SendIcon } from '../ui/icons.tsx';
+import { t, uiLanguage } from '../i18n/index.ts';
+import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
+import { MicIcon, SendIcon } from '../ui/icons.tsx';
 import { MentorMarkdown } from './MentorMarkdown.tsx';
 import styles from './MentorChat.module.css';
+
+const UI_LANG_BCP47: Record<string, string> = {
+  ru: 'ru-RU',
+  en: 'en-US',
+  uz: 'uz-UZ',
+  kk: 'kk-KZ',
+  ky: 'ky-KG',
+  tg: 'tg-TJ',
+};
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -33,6 +43,8 @@ export function MentorChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatsRemaining, setChatsRemaining] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
+  const dictationRef = useRef<Dictation | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -100,11 +112,31 @@ export function MentorChat() {
   }
 
   function clear() {
+    dictationRef.current?.stop();
+    setListening(false);
     setMessages([]);
     setDraft('');
     setError(null);
-    // Best-effort: wipe server-side history so it doesn't reload on the next mount.
     void api.mentorClearHistory().catch(() => undefined);
+  }
+
+  function toggleVoice() {
+    if (listening) {
+      dictationRef.current?.stop();
+      return;
+    }
+    const lang = UI_LANG_BCP47[uiLanguage] ?? 'ru-RU';
+    setListening(true);
+    const before = draft;
+    dictationRef.current = dictate(
+      (heard) => setDraft(before ? `${before} ${heard}` : heard),
+      () => {
+        setListening(false);
+        dictationRef.current = null;
+        inputRef.current?.focus();
+      },
+      lang,
+    );
   }
 
   const hasMessages = !loading && messages.length > 0;
@@ -208,6 +240,17 @@ export function MentorChat() {
           aria-label={t.mentorChatPlaceholder}
           maxLength={MAX_LENGTH + 10}
         />
+        {canDictate() && (
+          <button
+            type="button"
+            className={`${styles.mic} ${listening ? styles.micActive : ''}`}
+            onClick={toggleVoice}
+            aria-label={listening ? t.mentorChatVoiceStop : t.mentorChatVoiceStart}
+            aria-pressed={listening}
+          >
+            <MicIcon aria-hidden="true" />
+          </button>
+        )}
         <button type="submit" className={styles.send} disabled={!canSend} aria-label={t.mentorChatSend}>
           <SendIcon aria-hidden="true" />
           <span className={styles.sendLabel}>{t.mentorChatSend}</span>
