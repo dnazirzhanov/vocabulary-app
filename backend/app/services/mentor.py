@@ -240,11 +240,16 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
-    pace_line = (
-        f"- Daily target: {user.daily_target_words} new words/day\n"
-        if user.daily_target_words
-        else ""
-    )
+    if user.daily_target_words:
+        if ctx.words_today > 0:
+            pace_line = (
+                f"- Daily target: {user.daily_target_words} new words/day"
+                f" ({ctx.words_today} completed today)\n"
+            )
+        else:
+            pace_line = f"- Daily target: {user.daily_target_words} new words/day\n"
+    else:
+        pace_line = ""
     level_line = f"- Current course level: {ctx.course_level}\n" if ctx.course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
     if ctx.deck_rows:

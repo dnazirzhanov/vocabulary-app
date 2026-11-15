@@ -535,3 +535,17 @@ def test_stream_endpoint_rate_limit(client: TestClient, monkeypatch: pytest.Monk
 def test_stream_endpoint_requires_tester_flag(client: TestClient) -> None:
     resp = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("quinn"))
     assert resp.status_code == 403
+
+
+def test_system_prompt_pace_line_shows_progress_when_words_today_nonzero() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=5)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=3))
+    assert "5 new words/day" in prompt
+    assert "3 completed today" in prompt
+
+
+def test_system_prompt_pace_line_omits_progress_when_words_today_zero() -> None:
+    user = User(ui_language="en", name="Alex", daily_target_words=5)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=0))
+    assert "5 new words/day" in prompt
+    assert "completed today)" not in prompt
