@@ -48,9 +48,15 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
   }, [load]);
 
   // Re-fetch the plan when the page becomes visible again (e.g. after a study session).
+  // Debounced to 30 s so a brief alt-tab doesn't hammer the API.
+  const lastRefreshAt = useRef(0);
   useEffect(() => {
     function onVisible() {
-      if (!document.hidden) void load();
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastRefreshAt.current < 30_000) return;
+      lastRefreshAt.current = now;
+      void load();
     }
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
