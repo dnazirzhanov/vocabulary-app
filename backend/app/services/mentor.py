@@ -1,6 +1,7 @@
 """Personal Study Mentor chat: answers the learner's questions about their own progress,
 plans, and vocabulary, using DeepSeek when a key is configured and a canned reply otherwise."""
 
+import dataclasses
 import time
 from collections.abc import Generator
 from datetime import datetime, timedelta
@@ -41,6 +42,26 @@ _LANGUAGE_NAMES: dict[str, str] = {
     "tg": "Tajik",
 }
 
+
+@dataclasses.dataclass
+class LearnerContext:
+    """All per-learner data passed into the system prompt; use keyword args in tests."""
+
+    streak_weeks: int = 0
+    sessions_today: str = "none"
+    words_in_progress: int = 0
+    words_learned: int = 0
+    words_today: int = 0
+    due_vocab: int = 0
+    due_spelling: int = 0
+    promised_days: str = "none"
+    last_study: str = "never"
+    course_level: str | None = None
+    deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
+    reading_total: int = 0
+    reading_recent: list[str] = dataclasses.field(default_factory=list)
+
+
 _SYSTEM = """\
 You are a warm, encouraging personal study mentor for a learner studying English vocabulary.
 Reply in {LANGUAGE}. Keep replies short and practical — 1 to 4 sentences unless the learner \
@@ -55,6 +76,7 @@ Current learner state (use this to give personal, relevant advice):
 - Last study session: {LAST_STUDY}
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
+- New words learned today: {WORDS_TODAY}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
 - Promised study days this week: {PROMISED_DAYS}
@@ -164,26 +186,12 @@ def _course_level(db: Session, user: User) -> str | None:
     return row[0] if row else None
 
 
-def _system_prompt(
-    user: User,
-    now: datetime,
-    time_zone: ZoneInfo,
-    streak_weeks: int,
-    sessions_today: str,
-    words_in_progress: int,
-    words_learned: int,
-    due_vocab: int,
-    due_spelling: int,
-    promised_days: str,
-    last_study: str,
-    course_level: str | None,
-    deck_rows: list[tuple[str, int]],
-    reading_total: int,
-    reading_recent: list[str],
-) -> str:
+def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
-    streak_text = t.mentor_streak_none if streak_weeks == 0 else t.mentor_streak_weeks(streak_weeks)
+    streak_text = (
+        t.mentor_streak_none if ctx.streak_weeks == 0 else t.mentor_streak_weeks(ctx.streak_weeks)
+    )
     name = user.name or t.mentor_learner_name
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
@@ -193,16 +201,16 @@ def _system_prompt(
         if user.daily_target_words
         else ""
     )
-    level_line = f"- Current course level: {course_level}\n" if course_level else ""
+    level_line = f"- Current course level: {ctx.course_level}\n" if ctx.course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
-    if deck_rows:
-        lines = "\n".join(f"  - {title}: {n} words" for title, n in deck_rows)
+    if ctx.deck_rows:
+        lines = "\n".join(f"  - {title}: {n} words" for title, n in ctx.deck_rows)
         deck_section = f"Top decks due today (most due first):\n{lines}\n"
     else:
         deck_section = ""
-    if reading_total > 0:
-        recent_str = ", ".join(f'"{t}"' for t in reading_recent)
-        reading_section = f"Library articles read: {reading_total}"
+    if ctx.reading_total > 0:
+        recent_str = ", ".join(f'"{t}"' for t in ctx.reading_recent)
+        reading_section = f"Library articles read: {ctx.reading_total}"
         if recent_str:
             reading_section += f" (most recent: {recent_str})"
         reading_section += "\n"
@@ -214,13 +222,14 @@ def _system_prompt(
         .replace("{LOCAL_TIME}", local_time)
         .replace("{TIME_OF_DAY}", time_label)
         .replace("{STREAK}", streak_text)
-        .replace("{SESSIONS_TODAY}", sessions_today)
-        .replace("{WORDS_IN_PROGRESS}", str(words_in_progress))
-        .replace("{WORDS_LEARNED}", str(words_learned))
-        .replace("{DUE_VOCAB}", str(due_vocab))
-        .replace("{DUE_SPELLING}", str(due_spelling))
-        .replace("{PROMISED_DAYS}", promised_days)
-        .replace("{LAST_STUDY}", last_study)
+        .replace("{SESSIONS_TODAY}", ctx.sessions_today)
+        .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
+        .replace("{WORDS_LEARNED}", str(ctx.words_learned))
+        .replace("{WORDS_TODAY}", str(ctx.words_today))
+        .replace("{DUE_VOCAB}", str(ctx.due_vocab))
+        .replace("{DUE_SPELLING}", str(ctx.due_spelling))
+        .replace("{PROMISED_DAYS}", ctx.promised_days)
+        .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
@@ -232,10 +241,8 @@ def _system_prompt(
 _DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 
-def _learner_state(
-    db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[int, int, int, str, str]:
-    """(streak_weeks, due_vocab, due_spelling, promised_days_str, last_study_label)."""
+def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LearnerContext:
+    """Build a LearnerContext from live DB state."""
     today = local_date(now, time_zone)
     since, _ = local_day_bounds(today - timedelta(days=HISTORY_DAYS), time_zone)
     days = days_by_user(db, [user], since, time_zone)[user.id]
@@ -280,7 +287,26 @@ def _learner_state(
         else:
             last_study_label = f"{delta} days ago"
 
-    return streak, int(due_vocab), int(due_spelling), promised_days_str, last_study_label
+    day_start, day_end = local_day_bounds(today, time_zone)
+    words_today = (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.first_recalled_at >= day_start,
+                UserWordProgress.first_recalled_at < day_end,
+            )
+        )
+        or 0
+    )
+
+    return LearnerContext(
+        streak_weeks=streak,
+        due_vocab=int(due_vocab),
+        due_spelling=int(due_spelling),
+        promised_days=promised_days_str,
+        last_study=last_study_label,
+        words_today=int(words_today),
+    )
 
 
 def _recent_history(db: Session, user: User) -> list[MentorMessage]:
@@ -338,31 +364,15 @@ def _build_context(
     time_zone: ZoneInfo,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    streak, due_vocab, due_spelling, promised_days, last_study = _learner_state(
-        db, user, now, time_zone
-    )
+    ctx = _learner_state(db, user, now, time_zone)
     words_in_progress, words_learned = _vocab_summary(db, user)
-    course_level = _course_level(db, user)
-    deck_rows = _deck_context(db, user, now)
-    reading_total, reading_recent = _reading_context(db, user)
-    sessions_today = _sessions_today(db, user, now, time_zone)
-    system = _system_prompt(
-        user,
-        now,
-        time_zone,
-        streak,
-        sessions_today,
-        words_in_progress,
-        words_learned,
-        due_vocab,
-        due_spelling,
-        promised_days,
-        last_study,
-        course_level,
-        deck_rows,
-        reading_total,
-        reading_recent,
-    )
+    ctx.words_in_progress = words_in_progress
+    ctx.words_learned = words_learned
+    ctx.course_level = _course_level(db, user)
+    ctx.deck_rows = _deck_context(db, user, now)
+    ctx.reading_total, ctx.reading_recent = _reading_context(db, user)
+    ctx.sessions_today = _sessions_today(db, user, now, time_zone)
+    system = _system_prompt(user, now, time_zone, ctx)
     history = _recent_history(db, user)
     demo = settings.mentor_chat_demo or (
         not settings.deepseek_api_key and settings.environment != "production"

@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -10,7 +11,7 @@ from fastapi.testclient import TestClient
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
 from app.models import User
-from app.services.mentor import _system_prompt
+from app.services.mentor import LearnerContext, _system_prompt
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
@@ -79,25 +80,23 @@ def test_chat_tester_gate_by_prefix(client: TestClient, monkeypatch: pytest.Monk
 _TZ = ZoneInfo("Asia/Bishkek")
 
 
+def _ctx(**kwargs: Any) -> LearnerContext:
+    """Build a LearnerContext with sensible test defaults; override via kwargs."""
+    defaults: dict[str, Any] = {"last_study": "today"}
+    defaults.update(kwargs)
+    return LearnerContext(**defaults)
+
+
 def test_system_prompt_includes_deck_names_when_due() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user,
-        MOMENT,
-        _TZ,
-        3,
-        "2 (1 study, 1 spelling)",
-        0,
-        0,
-        20,
-        5,
-        "none",
-        "today",
-        None,
-        [("Animals", 15), ("Food", 5)],
-        0,
-        [],
+    ctx = _ctx(
+        streak_weeks=3,
+        sessions_today="2 (1 study, 1 spelling)",
+        due_vocab=20,
+        due_spelling=5,
+        deck_rows=[("Animals", 15), ("Food", 5)],
     )
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
     assert "Animals: 15 words" in prompt
     assert "Food: 5 words" in prompt
     assert "Top decks due today" in prompt
@@ -105,32 +104,17 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
 
 def test_system_prompt_omits_deck_section_when_no_due() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Top decks due today" not in prompt
     assert "{DECK_SECTION}" not in prompt
 
 
 def test_system_prompt_includes_reading_when_engaged() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user,
-        MOMENT,
-        _TZ,
-        2,
-        "none",
-        0,
-        0,
-        10,
-        0,
-        "none",
-        "today",
-        None,
-        [],
-        5,
-        ["The Internet", "Volcanoes"],
+    ctx = _ctx(
+        streak_weeks=2, due_vocab=10, reading_total=5, reading_recent=["The Internet", "Volcanoes"]
     )
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
     assert "Library articles read: 5" in prompt
     assert '"The Internet"' in prompt
     assert '"Volcanoes"' in prompt
@@ -138,9 +122,7 @@ def test_system_prompt_includes_reading_when_engaged() -> None:
 
 def test_system_prompt_omits_reading_when_none() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Library articles" not in prompt
     assert "{READING_SECTION}" not in prompt
 
@@ -148,116 +130,84 @@ def test_system_prompt_omits_reading_when_none() -> None:
 def test_system_prompt_includes_time_of_day() -> None:
     user = User(ui_language="en", name="Alex")
     # MOMENT = 2026-11-14 10:00 UTC = 16:00 Bishkek (+6)
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "16:00" in prompt
     assert "afternoon" in prompt
 
 
 def test_system_prompt_includes_sessions_today() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user,
-        MOMENT,
-        _TZ,
-        0,
-        "3 (2 study, 1 spelling)",
-        0,
-        0,
-        0,
-        0,
-        "none",
-        "today",
-        None,
-        [],
-        0,
-        [],
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(sessions_today="3 (2 study, 1 spelling)"))
     assert "3 (2 study, 1 spelling)" in prompt
 
 
 def test_system_prompt_includes_promised_days() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "Mon, Wed, Fri", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(promised_days="Mon, Wed, Fri"))
     assert "Mon, Wed, Fri" in prompt
 
 
 def test_system_prompt_includes_promised_days_none() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "none" in prompt
 
 
 def test_system_prompt_includes_last_study_today() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "today" in prompt
 
 
 def test_system_prompt_includes_last_study_days_ago() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "3 days ago", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study="3 days ago"))
     assert "3 days ago" in prompt
 
 
 def test_system_prompt_includes_last_study_never() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "never", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study="never"))
     assert "never" in prompt
+
+
+def test_system_prompt_includes_words_today() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=7))
+    assert "7" in prompt
 
 
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 320, 150, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
     assert "320" in prompt
     assert "150" in prompt
 
 
 def test_system_prompt_includes_course_level() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", "B1", [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(course_level="B1"))
     assert "B1" in prompt
     assert "Current course level" in prompt
 
 
 def test_system_prompt_omits_level_when_none() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Current course level" not in prompt
     assert "{LEVEL_LINE}" not in prompt
 
 
 def test_system_prompt_includes_daily_target_when_set() -> None:
     user = User(ui_language="en", name="Alex", daily_target_words=10)
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "10 new words/day" in prompt
     assert "Daily target" in prompt
 
 
 def test_system_prompt_omits_daily_target_when_null() -> None:
     user = User(ui_language="en", name="Alex", daily_target_words=None)
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Daily target" not in prompt
     assert "{PACE_LINE}" not in prompt
 
@@ -389,18 +339,14 @@ def test_goal_requires_tester_flag(client: TestClient) -> None:
 
 def test_system_prompt_includes_goal_when_set() -> None:
     user = User(ui_language="en", name="Alex", mentor_goal="Reach B2 by June")
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Reach B2 by June" in prompt
     assert "Learning goal" in prompt
 
 
 def test_system_prompt_omits_goal_when_null() -> None:
     user = User(ui_language="en", name="Alex", mentor_goal=None)
-    prompt = _system_prompt(
-        user, MOMENT, _TZ, 0, "none", 0, 0, 0, 0, "none", "today", None, [], 0, []
-    )
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Learning goal" not in prompt
     assert "{GOAL_LINE}" not in prompt
 
