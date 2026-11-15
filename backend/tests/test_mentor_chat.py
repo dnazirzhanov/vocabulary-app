@@ -857,4 +857,5 @@ def test_sample_due_words_integration(
     db.commit()
 
     result = _sample_due_words(db, user, MOMENT)
-    assert "ephemeral" in result
+    assert any("ephemeral" in entry for entry in result)
+    assert any("мимолётный" in entry for entry in result)

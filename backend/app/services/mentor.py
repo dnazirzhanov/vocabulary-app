@@ -298,19 +298,18 @@ def _active_weeks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -
 
 
 def _sample_due_words(db: Session, user: User, now: datetime, n: int = 5) -> list[str]:
-    """A handful of the most overdue vocabulary headwords for personalised context."""
-    return list(
-        db.scalars(
-            select(Word.headword)
-            .join(UserWordProgress, UserWordProgress.word_id == Word.id)
-            .where(
-                UserWordProgress.user_id == user.id,
-                UserWordProgress.due_at <= now,
-            )
-            .order_by(UserWordProgress.due_at.asc())
-            .limit(n)
-        ).all()
-    )
+    """A handful of the most overdue vocabulary words with their L1 translation."""
+    rows = db.execute(
+        select(Word.headword, Word.translation)
+        .join(UserWordProgress, UserWordProgress.word_id == Word.id)
+        .where(
+            UserWordProgress.user_id == user.id,
+            UserWordProgress.due_at <= now,
+        )
+        .order_by(UserWordProgress.due_at.asc())
+        .limit(n)
+    ).all()
+    return [f"{row.headword} ({row.translation})" for row in rows]
 
 
 def _course_level(db: Session, user: User) -> str | None:
