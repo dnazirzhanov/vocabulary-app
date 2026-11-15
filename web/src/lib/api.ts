@@ -327,7 +327,8 @@ export const api = {
   mentorHistory: () =>
     request<{ messages: Array<{ role: string; content: string; created_at: string }> }>('GET', '/mentor/history'),
   mentorClearHistory: () => request<null>('DELETE', '/mentor/history'),
-  mentorChat: (message: string) => request<{ reply: string; created_at: string }>('POST', '/mentor/chat', { message }),
+  mentorChat: (message: string) =>
+    request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
 };
 
 // Errors the learner can act on, by the server's error code.

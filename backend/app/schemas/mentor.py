@@ -16,6 +16,7 @@ class MentorChatIn(BaseModel):
 class MentorChatOut(BaseModel):
     reply: str
     created_at: datetime
+    chats_remaining: int
 
 
 class MentorHistoryItem(BaseModel):

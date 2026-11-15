@@ -8,7 +8,7 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
-from app.core.ratelimit import limit_mentor_chats
+from app.core.ratelimit import limit_mentor_chats, mentor_chats_used
 from app.schemas.mentor import MentorChatIn, MentorChatOut, MentorHistoryItem, MentorHistoryOut
 from app.services import mentor
 from app.services.card_reports import listed
@@ -49,4 +49,6 @@ def mentor_chat(
     settings: DepSettings,
 ) -> MentorChatOut:
     reply = mentor.chat(db, user, body.message, settings, now, time_zone)
-    return MentorChatOut(reply=reply, created_at=now)
+    used = mentor_chats_used(user.id)
+    remaining = max(0, settings.mentor_chats_per_day - used)
+    return MentorChatOut(reply=reply, created_at=now, chats_remaining=remaining)

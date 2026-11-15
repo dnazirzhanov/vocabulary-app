@@ -79,6 +79,15 @@ def limit_mentor_chats(
     )
 
 
+def mentor_chats_used(user_id: UUID) -> int:
+    """Current number of mentor chat calls within the last 24 hours."""
+    now = time.monotonic()
+    window = 24 * 60 * 60.0
+    with _lock:
+        stamps = _recent[("mentor_chats", user_id)]
+        return sum(1 for t in stamps if now - t <= window)
+
+
 def reset_limits() -> None:
     """For tests."""
     with _lock:

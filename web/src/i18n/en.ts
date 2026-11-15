@@ -898,4 +898,5 @@ export const en: Messages = {
   mentorChatFollowUp2: 'What should I study next?',
   mentorChatFollowUp3: 'How can I remember this faster?',
   mentorChatClear: 'Clear chat',
+  mentorChatLowCredit: (n: number) => `${n} questions left today`,
 };

@@ -32,6 +32,7 @@ export function MentorChat() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatsRemaining, setChatsRemaining] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -81,8 +82,9 @@ export function MentorChat() {
     const userMsg: ChatMessage = { role: 'user', text: trimmed, sentAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     try {
-      const { reply, created_at } = await api.mentorChat(trimmed);
+      const { reply, created_at, chats_remaining } = await api.mentorChat(trimmed);
       setMessages((prev) => [...prev, { role: 'assistant', text: reply, sentAt: new Date(created_at) }]);
+      setChatsRemaining(chats_remaining);
     } catch (caught) {
       setMessages((prev) => prev.slice(0, -1));
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
@@ -214,6 +216,11 @@ export function MentorChat() {
       {overLimit && (
         <p className={styles.counter} role="status">
           {draft.length}/{MAX_LENGTH}
+        </p>
+      )}
+      {!overLimit && chatsRemaining !== null && chatsRemaining <= 5 && (
+        <p className={styles.lowCredit} role="status">
+          {t.mentorChatLowCredit(chatsRemaining)}
         </p>
       )}
     </section>

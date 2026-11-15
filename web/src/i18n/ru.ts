@@ -901,6 +901,7 @@ export const ru = {
   mentorChatFollowUp2: 'Что мне стоит изучить после?',
   mentorChatFollowUp3: 'Как это запомнить быстрее?',
   mentorChatClear: 'Очистить чат',
+  mentorChatLowCredit: (n: number) => `Осталось вопросов на сегодня: ${n}`,
 };
 
 export type Messages = typeof ru;
