@@ -109,6 +109,7 @@ Current learner state (use this to give personal, relevant advice):
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
+{URGENCY_HINT}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
 
@@ -422,6 +423,13 @@ def _system_prompt(
         sample_due_line = f"- Sample words due today (most overdue first): {words_str}\n"
     else:
         sample_due_line = ""
+    if ctx.today_promised and ctx.sessions_today == "none" and time_label in ("evening", "night"):
+        urgency_hint = (
+            f"Note: it is already {time_label} and the learner has not studied today"
+            " — this is a promised day.\n"
+        )
+    else:
+        urgency_hint = ""
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
@@ -457,6 +465,7 @@ def _system_prompt(
         .replace("{PLAN_SECTION}", plan_section)
         .replace("{TIP_LINE}", tip_line)
         .replace("{TONE_HINT}", tone_hint)
+        .replace("{URGENCY_HINT}", urgency_hint)
     )
 
 

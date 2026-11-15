@@ -859,3 +859,29 @@ def test_sample_due_words_integration(
     result = _sample_due_words(db, user, MOMENT)
     assert any("ephemeral" in entry for entry in result)
     assert any("мимолётный" in entry for entry in result)
+
+
+def test_system_prompt_urgency_hint_shown_on_evening_missed_promise() -> None:
+    # 13:00 UTC = 19:00 Bishkek (UTC+6) — "evening"; promised today, no sessions.
+    evening = datetime(2026, 11, 14, 13, 0, tzinfo=UTC)
+    user = User(ui_language="en", name="Lena")
+    prompt = _system_prompt(user, evening, _TZ, _ctx(today_promised=True, sessions_today="none"))
+    assert "evening" in prompt
+    assert "promised day" in prompt
+
+
+def test_system_prompt_urgency_hint_absent_when_already_studied() -> None:
+    evening = datetime(2026, 11, 14, 13, 0, tzinfo=UTC)
+    user = User(ui_language="en", name="Lena")
+    prompt = _system_prompt(user, evening, _TZ, _ctx(today_promised=True, sessions_today="1 study"))
+    assert "already evening" not in prompt
+    assert "{URGENCY_HINT}" not in prompt
+
+
+def test_system_prompt_urgency_hint_absent_in_morning() -> None:
+    # 03:00 UTC = 09:00 Bishkek — "morning"; urgency hint should not appear.
+    morning = datetime(2026, 11, 14, 3, 0, tzinfo=UTC)
+    user = User(ui_language="en", name="Lena")
+    prompt = _system_prompt(user, morning, _TZ, _ctx(today_promised=True, sessions_today="none"))
+    assert "{URGENCY_HINT}" not in prompt
+    assert "it is already" not in prompt
