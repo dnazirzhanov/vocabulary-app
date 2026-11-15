@@ -29,7 +29,7 @@ from app.models import (
 )
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
-from app.services.reading import library_titles
+from app.services.reading import library_titles_with_level
 from app.services.scheduling import local_date
 from app.services.study_days import HISTORY_DAYS, days_by_user, week_of
 
@@ -240,9 +240,14 @@ def _reading_context(
     ).all()
     if not rows:
         return 0, [], None
-    titles = library_titles()
+    articles = library_titles_with_level()
     total = len(rows)
-    recent = [titles[row.reading_ref] for row in rows[:2] if row.reading_ref in titles]
+    recent = [
+        f"{t} ({lvl})"
+        for row in rows[:2]
+        if row.reading_ref in articles
+        for t, lvl in [articles[row.reading_ref]]
+    ]
     today = local_date(now, time_zone)
     last_local = local_date(rows[0].last, time_zone)
     delta = (today - last_local).days
