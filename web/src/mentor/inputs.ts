@@ -23,10 +23,17 @@ const DEFAULT_LEVEL: Level = 'A2';
  */
 export async function collectMentorInput(account: string): Promise<MentorInput> {
   const db = localDb();
-  const me = db ? ((await readSnapshot<Me>(db, 'me').catch(() => null))?.value ?? null) : null;
-  const { streakWeeks, daysSinceLastStudy } = await loadProgressData();
-  const snapshot = await study.learnerSnapshot();
-  const articles = await loadArticles();
+  const mePromise = db
+    ? readSnapshot<Me>(db, 'me')
+        .then((snap) => snap?.value ?? null)
+        .catch(() => null)
+    : Promise.resolve(null);
+  const [me, { streakWeeks, daysSinceLastStudy }, snapshot, articles] = await Promise.all([
+    mePromise,
+    loadProgressData(),
+    study.learnerSnapshot(),
+    loadArticles(),
+  ]);
   const readIds = new Set(doneArticleIds(account));
   const decks = toMentorDecks(snapshot?.decks ?? []);
   return {
