@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ApiError } from '../lib/api.ts';
+import { ApiError, mentorChatStream } from '../lib/api.ts';
 import { api } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
@@ -94,9 +94,32 @@ export function MentorChat() {
     const userMsg: ChatMessage = { role: 'user', text: trimmed, sentAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     try {
-      const { reply, created_at, chats_remaining } = await api.mentorChat(trimmed);
-      setMessages((prev) => [...prev, { role: 'assistant', text: reply, sentAt: new Date(created_at) }]);
-      setChatsRemaining(chats_remaining);
+      let accumulated = '';
+      let started = false;
+      for await (const event of mentorChatStream(trimmed)) {
+        if (event.delta) {
+          accumulated += event.delta;
+          if (!started) {
+            // First chunk: add the assistant message; typing indicator hides automatically.
+            started = true;
+            setMessages((prev) => [...prev, { role: 'assistant', text: accumulated, sentAt: new Date() }]);
+          } else {
+            setMessages((prev) => {
+              const msgs = [...prev];
+              msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], text: accumulated };
+              return msgs;
+            });
+          }
+        }
+        if (event.done) {
+          setMessages((prev) => {
+            const msgs = [...prev];
+            msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], sentAt: new Date(event.created_at) };
+            return msgs;
+          });
+          setChatsRemaining(event.chats_remaining);
+        }
+      }
     } catch (caught) {
       setMessages((prev) => prev.slice(0, -1));
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
@@ -190,7 +213,7 @@ export function MentorChat() {
               </time>
             </div>
           ))}
-          {sending && (
+          {sending && messages[messages.length - 1]?.role === 'user' && (
             <div className={styles.typing} aria-hidden="true">
               <span />
               <span />

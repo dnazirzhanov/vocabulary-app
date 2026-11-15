@@ -331,6 +331,34 @@ export const api = {
     request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
 };
 
+export type MentorStreamEvent =
+  { delta: string; done?: never } | { done: true; delta?: never; created_at: string; chats_remaining: number };
+
+/** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
+export async function* mentorChatStream(message: string): AsyncGenerator<MentorStreamEvent> {
+  const response = await send('POST', '/mentor/chat/stream', { message }, 180_000);
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => null);
+    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
+  }
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    for (const raw of events) {
+      const line = raw.trim();
+      if (!line.startsWith('data: ')) continue;
+      yield JSON.parse(line.slice(6)) as MentorStreamEvent;
+    }
+  }
+}
+
 // Errors the learner can act on, by the server's error code.
 const MESSAGES: Record<string, string> = {
   server_busy: t.aLotOfStudentsAreStudying,

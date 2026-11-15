@@ -1,8 +1,11 @@
 """Mentor chat tab: a conversational study companion backed by DeepSeek when available."""
 
+import json
+from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
@@ -52,3 +55,28 @@ def mentor_chat(
     used = mentor_chats_used(user.id)
     remaining = max(0, settings.mentor_chats_per_day - used)
     return MentorChatOut(reply=reply, created_at=now, chats_remaining=remaining)
+
+
+@router.post(
+    "/mentor/chat/stream",
+    dependencies=[Depends(limit_mentor_chats), Depends(_require_mentor)],
+    response_class=StreamingResponse,
+)
+def mentor_chat_stream(
+    body: MentorChatIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
+    settings: DepSettings,
+) -> StreamingResponse:
+    def _sse(chunks: Generator[str]) -> Generator[str]:
+        for delta in chunks:
+            yield f"data: {json.dumps({'delta': delta})}\n\n"
+        used = mentor_chats_used(user.id)
+        remaining = max(0, settings.mentor_chats_per_day - used)
+        done_event = {"done": True, "created_at": now.isoformat(), "chats_remaining": remaining}
+        yield f"data: {json.dumps(done_event)}\n\n"
+
+    chunks = mentor.stream_chat(db, user, body.message, settings, now, time_zone)
+    return StreamingResponse(_sse(chunks), media_type="text/event-stream")

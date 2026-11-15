@@ -1,6 +1,7 @@
 """Personal Study Mentor chat: answers the learner's questions about their own progress,
 plans, and vocabulary, using DeepSeek when a key is configured and a canned reply otherwise."""
 
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -205,6 +206,34 @@ def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: 
     db.commit()
 
 
+def _build_context(
+    db: Session,
+    user: User,
+    message: str,
+    settings: Settings,
+    now: datetime,
+    time_zone: ZoneInfo,
+) -> tuple[str, list[dict[str, str]], str, bool]:
+    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
+    streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
+    deck_rows = _deck_context(db, user, now)
+    reading_total, reading_recent = _reading_context(db, user)
+    system = _system_prompt(
+        user, streak, due_vocab, due_spelling, deck_rows, reading_total, reading_recent
+    )
+    history = _recent_history(db, user)
+    demo = settings.mentor_chat_demo or (
+        not settings.deepseek_api_key and settings.environment != "production"
+    )
+    if demo:
+        return system, [], texts_for(user.ui_language).mentor_demo_reply, True
+    if not settings.deepseek_api_key:
+        raise ApiError(503, "mentor_unavailable", "The mentor service is not configured")
+    msgs: list[dict[str, str]] = [{"role": m.role, "content": m.content} for m in history]
+    msgs.append({"role": "user", "content": message})
+    return system, msgs, "", False
+
+
 def chat(
     db: Session,
     user: User,
@@ -214,32 +243,84 @@ def chat(
     time_zone: ZoneInfo,
 ) -> str:
     """Send a message to the mentor and return the assistant's reply."""
-    streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
-    deck_rows = _deck_context(db, user, now)
-    reading_total, reading_recent = _reading_context(db, user)
-    system = _system_prompt(
-        user, streak, due_vocab, due_spelling, deck_rows, reading_total, reading_recent
-    )
-    history = _recent_history(db, user)
-
-    # Demo mode: no key, or MENTOR_CHAT_DEMO=true (used in e2e tests for determinism).
-    demo = settings.mentor_chat_demo or (
-        not settings.deepseek_api_key and settings.environment != "production"
-    )
-    if demo:
-        reply = texts_for(user.ui_language).mentor_demo_reply
-        _persist(db, user, message, reply, now)
-        return reply
-
-    if not settings.deepseek_api_key:
-        raise ApiError(503, "mentor_unavailable", "The mentor service is not configured")
-
-    messages: list[dict[str, str]] = [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": message})
-
-    reply = _call_deepseek(system, messages, settings)
+    system, msgs, demo_reply, is_demo = _build_context(db, user, message, settings, now, time_zone)
+    if is_demo:
+        _persist(db, user, message, demo_reply, now)
+        return demo_reply
+    reply = _call_deepseek(system, msgs, settings)
     _persist(db, user, message, reply, now)
     return reply
+
+
+def stream_chat(
+    db: Session,
+    user: User,
+    message: str,
+    settings: Settings,
+    now: datetime,
+    time_zone: ZoneInfo,
+) -> Generator[str]:
+    """Yield text chunks from DeepSeek (or the full demo reply as one chunk), then persist."""
+
+    system, msgs, demo_reply, is_demo = _build_context(db, user, message, settings, now, time_zone)
+    if is_demo:
+        _persist(db, user, message, demo_reply, now)
+        yield demo_reply
+        return
+    accumulated: list[str] = []
+    for chunk in _stream_deepseek(system, msgs, settings):
+        accumulated.append(chunk)
+        yield chunk
+    full_reply = "".join(accumulated) or " "
+    _persist(db, user, message, full_reply, now)
+
+
+def _stream_deepseek(
+    system: str, messages: list[dict[str, str]], settings: Settings
+) -> Generator[str]:
+    """Yield text chunks from DeepSeek using the streaming API."""
+    import openai
+    from openai.types.chat import ChatCompletionMessageParam
+
+    from app.services.generation import DEEPSEEK_URL, TIMEOUT_SECONDS
+
+    client = openai.OpenAI(
+        api_key=settings.deepseek_api_key,
+        base_url=DEEPSEEK_URL,
+        timeout=TIMEOUT_SECONDS,
+        max_retries=0,
+    )
+    all_messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": system}]
+    for m in messages:
+        role = m["role"]
+        if role == "user":
+            all_messages.append({"role": "user", "content": m["content"]})
+        elif role == "assistant":
+            all_messages.append({"role": "assistant", "content": m["content"]})
+    try:
+        stream = client.chat.completions.create(
+            model=settings.deepseek_model,
+            max_tokens=512,
+            messages=all_messages,
+            extra_body={"thinking": {"type": "disabled"}},
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content if chunk.choices else None
+            if delta:
+                yield delta
+    except openai.AuthenticationError as error:
+        raise ApiError(503, "mentor_unavailable", "The mentor service key is wrong") from error
+    except openai.RateLimitError as error:
+        raise ApiError(503, "mentor_busy", "The mentor service is busy") from error
+    except openai.APIStatusError as error:
+        if error.status_code == 402:
+            raise ApiError(
+                503, "mentor_no_credits", "The mentor account is out of credit"
+            ) from error
+        raise ApiError(502, "mentor_failed", "The mentor service did not answer") from error
+    except openai.APIConnectionError as error:
+        raise ApiError(502, "mentor_failed", "The mentor service did not answer") from error
 
 
 def _call_deepseek(system: str, messages: list[dict[str, str]], settings: Settings) -> str:
