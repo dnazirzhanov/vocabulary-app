@@ -537,6 +537,13 @@ def test_stream_endpoint_requires_tester_flag(client: TestClient) -> None:
     assert resp.status_code == 403
 
 
+def test_system_prompt_includes_day_of_week() -> None:
+    user = User(ui_language="en", name="Alex")
+    # MOMENT is 2026-11-14 10:00 UTC = Saturday in UTC
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Saturday" in prompt
+
+
 def test_system_prompt_pace_line_shows_progress_when_words_today_nonzero() -> None:
     user = User(ui_language="en", name="Alex", daily_target_words=5)
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=3))

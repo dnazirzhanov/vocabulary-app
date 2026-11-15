@@ -78,7 +78,7 @@ Never invent statistics you don't have.
 
 Current learner state (use this to give personal, relevant advice):
 - Name: {NAME}
-- Local time: {LOCAL_TIME} ({TIME_OF_DAY})
+- Local time: {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
 - Last study session: {LAST_STUDY}
@@ -240,6 +240,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
     local_dt = now.astimezone(time_zone)
     local_time = local_dt.strftime("%H:%M")
     time_label = _time_of_day(local_dt.hour)
+    day_of_week = local_dt.strftime("%A")
     if user.daily_target_words:
         if ctx.words_today > 0:
             pace_line = (
@@ -283,6 +284,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{NAME}", name)
         .replace("{LOCAL_TIME}", local_time)
         .replace("{TIME_OF_DAY}", time_label)
+        .replace("{DAY_OF_WEEK}", day_of_week)
         .replace("{STREAK}", streak_text)
         .replace("{SESSIONS_TODAY}", ctx.sessions_today)
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
