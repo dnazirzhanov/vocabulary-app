@@ -709,3 +709,37 @@ def test_system_prompt_includes_active_weeks() -> None:
     user = User(ui_language="en", name="Ira")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(active_weeks=3))
     assert "Weeks active in last 4 weeks: 3" in prompt
+
+
+def test_active_weeks_integration(client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    import uuid
+
+    from app.models import LearningSession
+    from app.services.mentor import _active_weeks
+
+    _enable_mentor(monkeypatch)
+    # Create a user via the API so they exist in the DB.
+    client.post("/api/mentor/chat", json={"message": "hi"}, headers=as_("weekly-tester"))
+    user = db.scalar(select(User).where(User.auth_subject == "dev|weekly-tester"))
+    assert user is not None
+
+    # Add completed sessions in 3 distinct ISO weeks within the last 28 days.
+    week1 = MOMENT - timedelta(days=21)   # ~3 weeks ago
+    week2 = MOMENT - timedelta(days=14)   # ~2 weeks ago
+    week3 = MOMENT - timedelta(days=7)    # ~1 week ago
+    for ts in [week1, week2, week3]:
+        db.add(
+            LearningSession(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                kind="study",
+                plan=[],
+                started_at=ts - timedelta(minutes=5),
+                completed_at=ts,
+            )
+        )
+    db.commit()
+
+    result = _active_weeks(db, user, MOMENT, _TZ)
+    # Sessions are in 3 distinct ISO weeks; MOMENT itself has no session → still 3.
+    assert result == 3
