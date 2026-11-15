@@ -41,7 +41,7 @@ function tipSuggestion(tip: Tip): (() => string) | null {
     case 'firstRun':
       return () => t.mentorChatSuggestionFirstRun;
     case 'returner':
-      return () => t.mentorChatSuggestionReturner;
+      return () => t.mentorChatSuggestionReturner(tip.days ?? 3);
     case 'allCaughtUp':
       return () => t.mentorChatSuggestionAllCaughtUp;
     case 'bigBacklog':

@@ -904,7 +904,7 @@ export const ky: Messages = {
   mentorChatSuggestionSpelling: (deckTitle: Arg) => `How should I approach the "${deckTitle}" spelling quiz?`,
   mentorChatSuggestionReading: (title: Arg) => `I want to read "${title}" — what should I focus on?`,
   mentorChatSuggestionFirstRun: 'How does this app work?',
-  mentorChatSuggestionReturner: "What's the best way to get back into studying after a break?",
+  mentorChatSuggestionReturner: (days: Arg) => `How do I get back into studying after a ${days}-day break?`,
   mentorChatSuggestionAllCaughtUp: "I'm all caught up — what else can I do today?",
   mentorChatSuggestionBacklog: 'I have a big backlog — how should I prioritize?',
 };
