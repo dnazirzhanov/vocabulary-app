@@ -77,6 +77,7 @@ class LearnerContext:
     reading_recent: list[str] = dataclasses.field(default_factory=list)
     reading_last: str | None = None
     last_studied_deck: str | None = None
+    top_struggle_deck: tuple[str, int] | None = None
     top_spelling_deck: tuple[str, int] | None = None
     total_decks: int = 0
     studying_since: str = "unknown"
@@ -123,7 +124,7 @@ Current learner state (use this to give personal, relevant advice):
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 - Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
@@ -241,6 +242,27 @@ def _top_spelling_deck(db: Session, user: User, now: datetime) -> tuple[str, int
         .limit(1)
     ).first()
     return (row.title, int(row.n)) if row else None
+
+
+def _top_vocab_struggle_deck(db: Session, user: User, now: datetime) -> tuple[str, int] | None:
+    """The deck with the most 'again' (rating=1) reviews in the last 7 days, or None."""
+    week_ago = now - timedelta(days=7)
+    row = db.execute(
+        select(Deck.title, func.count().label("n_fails"))
+        .select_from(ReviewAttempt)
+        .join(Word, Word.id == ReviewAttempt.word_id)
+        .join(DeckWord, DeckWord.word_id == Word.id)
+        .join(Deck, Deck.id == DeckWord.deck_id)
+        .where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.answered_at >= week_ago,
+            ReviewAttempt.rating == 1,
+        )
+        .group_by(Deck.id, Deck.title)
+        .order_by(func.count().desc())
+        .limit(1)
+    ).first()
+    return (row.title, int(row.n_fails)) if row else None
 
 
 def _last_studied_deck(db: Session, user: User) -> str | None:
@@ -521,6 +543,14 @@ def _system_prompt(
         )
     else:
         spelling_deck_line = ""
+    if ctx.top_struggle_deck:
+        struggle_title, struggle_count = ctx.top_struggle_deck
+        fail_label = "time" if struggle_count == 1 else "times"
+        struggle_deck_line = (
+            f"Deck with most 'again' this week: {struggle_title} ({struggle_count} {fail_label})\n"
+        )
+    else:
+        struggle_deck_line = ""
     if ctx.reading_total > 0:
         recent_str = ", ".join(f'"{t}"' for t in ctx.reading_recent)
         if ctx.reading_library_size > 0:
@@ -599,6 +629,7 @@ def _system_prompt(
         .replace("{LAST_STUDIED_DECK_LINE}", last_studied_deck_line)
         .replace("{DECK_SECTION}", deck_section)
         .replace("{SPELLING_DECK_LINE}", spelling_deck_line)
+        .replace("{STRUGGLE_DECK_LINE}", struggle_deck_line)
         .replace("{READING_SECTION}", reading_section)
         .replace("{PLAN_SECTION}", plan_section)
         .replace("{TIP_LINE}", tip_line)
@@ -886,6 +917,7 @@ def _build_context(
     ctx.total_decks = _total_decks(db, user)
     ctx.deck_rows = _deck_context(db, user, now)
     ctx.top_spelling_deck = _top_spelling_deck(db, user, now)
+    ctx.top_struggle_deck = _top_vocab_struggle_deck(db, user, now)
     ctx.last_studied_deck = _last_studied_deck(db, user)
     ctx.reading_total, ctx.reading_library_size, ctx.reading_recent, ctx.reading_last = (
         _reading_context(db, user, now, time_zone)

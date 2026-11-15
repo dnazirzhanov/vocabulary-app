@@ -1106,3 +1106,22 @@ def test_reading_accuracy_integration(
 
     result = _reading_accuracy(db, user)
     assert result == "75%"
+
+
+def test_system_prompt_struggle_deck_shown() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Business English", 7)))
+    assert "Deck with most 'again' this week: Business English (7 times)" in prompt
+
+
+def test_system_prompt_struggle_deck_singular_time() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Grammar Basics", 1)))
+    assert "Grammar Basics (1 time)" in prompt
+
+
+def test_system_prompt_struggle_deck_absent_when_none() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "most 'again'" not in prompt
+    assert "{STRUGGLE_DECK_LINE}" not in prompt
