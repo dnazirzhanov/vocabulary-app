@@ -762,6 +762,12 @@ def test_system_prompt_includes_active_weeks() -> None:
     assert "Weeks active in last 4 weeks: 3" in prompt
 
 
+def test_system_prompt_includes_words_last_week() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_last_week=12))
+    assert "New words learned last week: 12" in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
