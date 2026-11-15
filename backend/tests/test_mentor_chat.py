@@ -826,6 +826,12 @@ def test_system_prompt_words_nearly_mastered() -> None:
     assert "20" in prompt
 
 
+def test_system_prompt_vocab_upcoming_3days() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(vocab_upcoming_3days=35))
+    assert "Vocabulary due in next 3 days: 35" in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
