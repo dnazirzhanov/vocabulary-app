@@ -68,6 +68,7 @@ class LearnerContext:
     course_level: str | None = None
     deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
     reading_total: int = 0
+    reading_library_size: int = 0
     reading_recent: list[str] = dataclasses.field(default_factory=list)
     reading_last: str | None = None
     top_spelling_deck: tuple[str, int] | None = None
@@ -228,8 +229,10 @@ def _top_spelling_deck(db: Session, user: User, now: datetime) -> tuple[str, int
 
 def _reading_context(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[int, list[str], str | None]:
-    """(total_library_articles_engaged, recent_titles_newest_first[0:2], last_read_label)."""
+) -> tuple[int, int, list[str], str | None]:
+    """(total_engaged, library_size, recent_titles_newest_first[0:2], last_read_label)."""
+    articles = library_titles_with_level()
+    library_size = len(articles)
     rows = db.execute(
         select(ReadingAnswer.reading_ref, func.max(ReadingAnswer.sent_at).label("last"))
         .where(
@@ -240,8 +243,7 @@ def _reading_context(
         .order_by(func.max(ReadingAnswer.sent_at).desc())
     ).all()
     if not rows:
-        return 0, [], None
-    articles = library_titles_with_level()
+        return 0, library_size, [], None
     total = len(rows)
     recent = [
         f"{t} ({lvl})"
@@ -258,7 +260,7 @@ def _reading_context(
         last_label = "yesterday"
     else:
         last_label = f"{delta} days ago"
-    return total, recent, last_label
+    return total, library_size, recent, last_label
 
 
 def _vocab_summary(db: Session, user: User) -> tuple[int, int]:
@@ -435,7 +437,12 @@ def _system_prompt(
         spelling_deck_line = ""
     if ctx.reading_total > 0:
         recent_str = ", ".join(f'"{t}"' for t in ctx.reading_recent)
-        reading_section = f"Library articles read: {ctx.reading_total}"
+        if ctx.reading_library_size > 0:
+            reading_section = (
+                f"Library articles read: {ctx.reading_total} of {ctx.reading_library_size}"
+            )
+        else:
+            reading_section = f"Library articles read: {ctx.reading_total}"
         if recent_str:
             reading_section += f" (most recent: {recent_str})"
         if ctx.reading_last:
@@ -725,8 +732,8 @@ def _build_context(
     ctx.total_decks = _total_decks(db, user)
     ctx.deck_rows = _deck_context(db, user, now)
     ctx.top_spelling_deck = _top_spelling_deck(db, user, now)
-    ctx.reading_total, ctx.reading_recent, ctx.reading_last = _reading_context(
-        db, user, now, time_zone
+    ctx.reading_total, ctx.reading_library_size, ctx.reading_recent, ctx.reading_last = (
+        _reading_context(db, user, now, time_zone)
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
     ctx.words_mastered = _mature_words(db, user, now)

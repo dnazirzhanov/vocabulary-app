@@ -639,6 +639,13 @@ def test_system_prompt_reading_section_includes_last_read_label() -> None:
     assert "last read yesterday" in prompt
 
 
+def test_system_prompt_reading_section_shows_library_size() -> None:
+    user = User(ui_language="en", name="Alex")
+    ctx = _ctx(reading_total=5, reading_library_size=23, reading_last="today")
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    assert "Library articles read: 5 of 23" in prompt
+
+
 def test_system_prompt_reading_section_omitted_when_no_reading() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_total=0))
