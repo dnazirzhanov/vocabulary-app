@@ -84,7 +84,9 @@ def mentor_chats_used(user_id: UUID) -> int:
     now = time.monotonic()
     window = 24 * 60 * 60.0
     with _lock:
-        stamps = _recent[("mentor_chats", user_id)]
+        stamps = _recent.get(("mentor_chats", user_id))
+        if not stamps:
+            return 0
         return sum(1 for t in stamps if now - t <= window)
 
 

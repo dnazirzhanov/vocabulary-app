@@ -322,7 +322,7 @@ def _recent_history(db: Session, user: User) -> list[MentorMessage]:
 
 def history(db: Session, user: User) -> list[MentorMessage]:
     """The last 20 messages for display in the chat UI."""
-    return list(
+    msgs = list(
         db.scalars(
             select(MentorMessage)
             .where(MentorMessage.user_id == user.id)
@@ -330,6 +330,11 @@ def history(db: Session, user: User) -> list[MentorMessage]:
             .limit(20)
         )
     )[::-1]
+    # Drop a trailing orphaned user message: a stream that started but failed before
+    # _persist ran leaves the user message without a following assistant reply.
+    if msgs and msgs[-1].role == "user":
+        msgs = msgs[:-1]
+    return msgs
 
 
 def clear_history(db: Session, user: User) -> None:

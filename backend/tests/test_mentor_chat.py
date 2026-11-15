@@ -7,10 +7,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
-from app.models import User
+from app.models import MentorMessage, User
 from app.services.mentor import LearnerContext, _system_prompt
 from tests.support import at
 
@@ -263,6 +265,34 @@ def test_history_returns_messages_after_chat(
     assert items[0]["content"] == "Hello"
     assert items[1]["role"] == "assistant"
     assert "created_at" in items[0]
+
+
+def test_history_strips_orphaned_trailing_user_message(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    # Establish the user and one complete exchange.
+    client.post("/api/mentor/chat", json={"message": "hello"}, headers=as_("rose"))
+    # Simulate a failed stream: insert a user message with no following assistant reply.
+    # Use a timestamp after the assistant reply so the orphan sorts last.
+    from datetime import timedelta
+
+    user = db.scalar(select(User).where(User.auth_subject == "dev|rose"))
+    assert user is not None
+    db.add(
+        MentorMessage(
+            user_id=user.id,
+            role="user",
+            content="orphaned",
+            created_at=MOMENT + timedelta(seconds=5),
+        )
+    )
+    db.commit()
+    # History should not expose the orphaned trailing user message.
+    resp = client.get("/api/mentor/history", headers=as_("rose"))
+    items = resp.json()["messages"]
+    assert items[-1]["role"] == "assistant"
+    assert all(m["content"] != "orphaned" for m in items)
 
 
 def test_history_requires_tester_flag(client: TestClient) -> None:
