@@ -33,6 +33,7 @@ export function MentorChat() {
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api
@@ -52,9 +53,23 @@ export function MentorChat() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Auto-scroll only when the user is already near the bottom (within 80 px).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (nearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
+
+  // Auto-resize textarea as the user types.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [draft]);
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -123,7 +138,13 @@ export function MentorChat() {
       )}
 
       {!loading && hasMessages && (
-        <div className={styles.messages} role="log" aria-live="polite" aria-label={t.mentorChatHeading}>
+        <div
+          ref={messagesRef}
+          className={styles.messages}
+          role="log"
+          aria-live="polite"
+          aria-label={t.mentorChatHeading}
+        >
           {messages.map((msg, i) => (
             <div key={i} className={msg.role === 'user' ? styles.userWrap : styles.assistantWrap}>
               <div className={msg.role === 'user' ? styles.user : styles.assistant}>{msg.text}</div>
@@ -171,7 +192,7 @@ export function MentorChat() {
           className={styles.input}
           placeholder={t.mentorChatPlaceholder}
           value={draft}
-          rows={2}
+          rows={1}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
