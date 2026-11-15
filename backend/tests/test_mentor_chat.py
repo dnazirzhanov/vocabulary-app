@@ -108,6 +108,37 @@ def test_system_prompt_has_no_unfilled_placeholders() -> None:
     assert unfilled == [], f"Unfilled template placeholders: {unfilled}"
 
 
+def test_system_prompt_has_no_unfilled_placeholders_all_optional_sections() -> None:
+    """Same check with every optional section active: plan, promise line, reading last."""
+    import re
+
+    user = User(
+        ui_language="en",
+        name="Alex",
+        daily_target_words=5,
+        mentor_goal="B2 by June",
+    )
+    ctx = _ctx(
+        course_level="B1",
+        total_decks=3,
+        deck_rows=[("Family", 10), ("Animals", 3)],
+        top_spelling_deck=("Family", 5),
+        reading_total=5,
+        reading_recent=["The Zoo", "Home Life"],
+        reading_last="yesterday",
+        today_promised=True,
+        words_today=3,
+    )
+    plan = [
+        {"kind": "vocab", "title": "Family", "count": 10, "minutes": 2},
+        {"kind": "spelling", "title": "Family", "count": 5, "minutes": 2},
+        {"kind": "reading", "title": "The Zoo", "minutes": 4, "level": "B1"},
+    ]
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx, plan=plan)
+    unfilled = re.findall(r"\{[A-Z_]+\}", prompt)
+    assert unfilled == [], f"Unfilled template placeholders: {unfilled}"
+
+
 def test_system_prompt_includes_deck_names_when_due() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(
