@@ -15,6 +15,7 @@ from app.core.logging import logger
 from app.models import (
     Deck,
     DeckWord,
+    LearningSession,
     MentorMessage,
     ReadingAnswer,
     SpellingProgress,
@@ -47,12 +48,45 @@ Never invent statistics you don't have.
 
 Current learner state (use this to give personal, relevant advice):
 - Name: {NAME}
+- Local time: {LOCAL_TIME} ({TIME_OF_DAY})
 - Study streak: {STREAK}
+- Sessions completed today: {SESSIONS_TODAY}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
 {DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
+
+
+def _time_of_day(hour: int) -> str:
+    """'morning' / 'afternoon' / 'evening' / 'night' for a local hour (0–23)."""
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 17:
+        return "afternoon"
+    if 17 <= hour < 21:
+        return "evening"
+    return "night"
+
+
+def _sessions_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> str:
+    """Human-readable summary of sessions completed today, or 'none'."""
+    today = local_date(now, time_zone)
+    day_start, day_end = local_day_bounds(today, time_zone)
+    rows = db.execute(
+        select(LearningSession.kind, func.count().label("n"))
+        .where(
+            LearningSession.user_id == user.id,
+            LearningSession.completed_at >= day_start,
+            LearningSession.completed_at < day_end,
+        )
+        .group_by(LearningSession.kind)
+    ).all()
+    if not rows:
+        return "none"
+    total = sum(row.n for row in rows)
+    parts = ", ".join(f"{row.n} {row.kind}" for row in rows)
+    return f"{total} ({parts})"
 
 
 def _deck_context(db: Session, user: User, now: datetime) -> list[tuple[str, int]]:
@@ -94,7 +128,10 @@ def _reading_context(db: Session, user: User) -> tuple[int, list[str]]:
 
 def _system_prompt(
     user: User,
+    now: datetime,
+    time_zone: ZoneInfo,
     streak_weeks: int,
+    sessions_today: str,
     due_vocab: int,
     due_spelling: int,
     deck_rows: list[tuple[str, int]],
@@ -105,6 +142,9 @@ def _system_prompt(
     t = texts_for(lang)
     streak_text = t.mentor_streak_none if streak_weeks == 0 else t.mentor_streak_weeks(streak_weeks)
     name = user.name or t.mentor_learner_name
+    local_dt = now.astimezone(time_zone)
+    local_time = local_dt.strftime("%H:%M")
+    time_label = _time_of_day(local_dt.hour)
     if deck_rows:
         lines = "\n".join(f"  - {title}: {n} words" for title, n in deck_rows)
         deck_section = f"Top decks due today (most due first):\n{lines}\n"
@@ -121,7 +161,10 @@ def _system_prompt(
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
+        .replace("{LOCAL_TIME}", local_time)
+        .replace("{TIME_OF_DAY}", time_label)
         .replace("{STREAK}", streak_text)
+        .replace("{SESSIONS_TODAY}", sessions_today)
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
         .replace("{DECK_SECTION}", deck_section)
@@ -218,8 +261,18 @@ def _build_context(
     streak, due_vocab, due_spelling = _learner_state(db, user, now, time_zone)
     deck_rows = _deck_context(db, user, now)
     reading_total, reading_recent = _reading_context(db, user)
+    sessions_today = _sessions_today(db, user, now, time_zone)
     system = _system_prompt(
-        user, streak, due_vocab, due_spelling, deck_rows, reading_total, reading_recent
+        user,
+        now,
+        time_zone,
+        streak,
+        sessions_today,
+        due_vocab,
+        due_spelling,
+        deck_rows,
+        reading_total,
+        reading_recent,
     )
     history = _recent_history(db, user)
     demo = settings.mentor_chat_demo or (
