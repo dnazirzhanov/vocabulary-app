@@ -71,6 +71,7 @@ class LearnerContext:
     reading_last: str | None = None
     top_spelling_deck: tuple[str, int] | None = None
     total_decks: int = 0
+    studying_since: str = "unknown"
 
 
 _SYSTEM = """\
@@ -84,6 +85,7 @@ Current learner state (use this to give personal, relevant advice):
 - Local time: {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
+- Studying since: {STUDYING_SINCE}
 - Last study session: {LAST_STUDY}
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
@@ -111,6 +113,22 @@ def _time_of_day(hour: int) -> str:
     if 17 <= hour < 21:
         return "evening"
     return "night"
+
+
+def _format_tenure(first_at: datetime, now: datetime) -> str:
+    """Human-readable duration since first_at: 'today', 'N days', 'N weeks', 'N months'."""
+    days = max(0, (now - first_at).days)
+    if days == 0:
+        return "today"
+    if days == 1:
+        return "yesterday"
+    if days < 7:
+        return f"{days} days"
+    weeks = days // 7
+    if weeks < 4:
+        return f"{weeks} {'week' if weeks == 1 else 'weeks'}"
+    months = days // 30
+    return f"{months} {'month' if months == 1 else 'months'}"
 
 
 def _sessions_today(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> str:
@@ -348,6 +366,7 @@ def _system_prompt(
         .replace("{PROMISE_LINE}", promise_line)
         .replace("{RETENTION}", ctx.retention)
         .replace("{SPELLING_ACCURACY}", ctx.spelling_accuracy)
+        .replace("{STUDYING_SINCE}", ctx.studying_since)
         .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
@@ -491,6 +510,11 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     else:
         spelling_accuracy_str = "no data yet"
 
+    first_session_at = db.scalar(
+        select(func.min(LearningSession.completed_at)).where(LearningSession.user_id == user.id)
+    )
+    studying_since_str = _format_tenure(first_session_at, now) if first_session_at else "unknown"
+
     return LearnerContext(
         streak_weeks=streak,
         due_vocab=int(due_vocab),
@@ -504,6 +528,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         words_today=int(words_today),
         words_this_week=int(words_this_week),
         reviews_this_week=int(reviews_this_week),
+        studying_since=studying_since_str,
     )
 
 

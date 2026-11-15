@@ -1,7 +1,7 @@
 """Mentor chat endpoint: tester gate, demo reply, rate limit, message persistence."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
 from app.models import MentorMessage, User
-from app.services.mentor import LearnerContext, _system_prompt
+from app.services.mentor import LearnerContext, _format_tenure, _system_prompt
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
@@ -644,3 +644,26 @@ def test_system_prompt_pace_line_omits_progress_when_words_today_zero() -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=0))
     assert "5 new words/day" in prompt
     assert "completed today)" not in prompt
+
+
+def test_format_tenure_returns_expected_labels() -> None:
+    base = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
+    assert _format_tenure(base, base) == "today"
+    assert _format_tenure(base - timedelta(days=1), base) == "yesterday"
+    assert _format_tenure(base - timedelta(days=3), base) == "3 days"
+    assert _format_tenure(base - timedelta(days=7), base) == "1 week"
+    assert _format_tenure(base - timedelta(days=14), base) == "2 weeks"
+    assert _format_tenure(base - timedelta(days=30), base) == "1 month"
+    assert _format_tenure(base - timedelta(days=90), base) == "3 months"
+
+
+def test_system_prompt_studying_since_shown() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(studying_since="3 months"))
+    assert "Studying since: 3 months" in prompt
+
+
+def test_system_prompt_studying_since_unknown_when_no_sessions() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(studying_since="unknown"))
+    assert "Studying since: unknown" in prompt
