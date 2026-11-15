@@ -54,6 +54,7 @@ class LearnerContext:
     words_learned: int = 0
     words_today: int = 0
     words_this_week: int = 0
+    reviews_this_week: int = 0
     due_vocab: int = 0
     due_spelling: int = 0
     promised_days: str = "none"
@@ -83,6 +84,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - New words learned today: {WORDS_TODAY}
 - New words learned this week: {WORDS_THIS_WEEK}
+- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
 - Promised study days this week: {PROMISED_DAYS}
@@ -236,6 +238,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{WORDS_LEARNED}", str(ctx.words_learned))
         .replace("{WORDS_TODAY}", str(ctx.words_today))
         .replace("{WORDS_THIS_WEEK}", str(ctx.words_this_week))
+        .replace("{REVIEWS_THIS_WEEK}", str(ctx.reviews_this_week))
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{PROMISED_DAYS}", ctx.promised_days)
@@ -319,6 +322,18 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     )
 
     week_ago = now - timedelta(days=7)
+    reviews_this_week = (
+        db.scalar(
+            select(func.count()).where(
+                ReviewAttempt.user_id == user.id,
+                ReviewAttempt.answered_at >= week_ago,
+                ReviewAttempt.answered_at < now,
+                ReviewAttempt.rating.is_not(None),
+            )
+        )
+        or 0
+    )
+
     words_this_week = (
         db.scalar(
             select(func.count()).where(
@@ -374,6 +389,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         last_study=last_study_label,
         words_today=int(words_today),
         words_this_week=int(words_this_week),
+        reviews_this_week=int(reviews_this_week),
     )
 
 

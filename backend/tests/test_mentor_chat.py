@@ -185,6 +185,12 @@ def test_system_prompt_includes_words_this_week() -> None:
     assert "New words learned this week: 23" in prompt
 
 
+def test_system_prompt_includes_reviews_this_week() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reviews_this_week=140))
+    assert "Vocabulary reviews completed this week: 140" in prompt
+
+
 def test_system_prompt_includes_days_this_week_with_promise() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(days_this_week="2 of 3 promised"))
