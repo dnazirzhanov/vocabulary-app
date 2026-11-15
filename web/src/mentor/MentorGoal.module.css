@@ -127,3 +127,10 @@
   color: var(--color-text);
   background: var(--color-primary-tint);
 }
+
+.counterSoft {
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  text-align: right;
+  margin: 0;
+}

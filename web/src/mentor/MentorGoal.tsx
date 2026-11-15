@@ -53,26 +53,33 @@ export function MentorGoal() {
     <div className={styles.wrap}>
       <span className={styles.label}>{t.mentorGoalHeading}</span>
       {editing ? (
-        <div className={styles.editRow}>
-          <input
-            ref={inputRef}
-            className={styles.input}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={t.mentorGoalPlaceholder}
-            maxLength={MAX_GOAL}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void save();
-              if (e.key === 'Escape') cancel();
-            }}
-          />
-          <button type="button" className={styles.saveBtn} onClick={() => void save()} disabled={saving}>
-            {t.mentorGoalSave}
-          </button>
-          <button type="button" className={styles.cancelBtn} onClick={cancel}>
-            ✕
-          </button>
-        </div>
+        <>
+          <div className={styles.editRow}>
+            <input
+              ref={inputRef}
+              className={styles.input}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={t.mentorGoalPlaceholder}
+              maxLength={MAX_GOAL}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void save();
+                if (e.key === 'Escape') cancel();
+              }}
+            />
+            <button type="button" className={styles.saveBtn} onClick={() => void save()} disabled={saving}>
+              {t.mentorGoalSave}
+            </button>
+            <button type="button" className={styles.cancelBtn} onClick={cancel}>
+              ✕
+            </button>
+          </div>
+          {draft.length >= Math.floor(MAX_GOAL * 0.8) && (
+            <p className={styles.counterSoft} role="status">
+              {draft.length}/{MAX_GOAL}
+            </p>
+          )}
+        </>
       ) : (
         <div className={styles.displayRow}>
           {goal ? (
