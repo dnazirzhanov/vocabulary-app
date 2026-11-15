@@ -25,6 +25,7 @@ from app.models import (
     SpellingProgress,
     User,
     UserWordProgress,
+    Word,
 )
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
@@ -75,6 +76,7 @@ class LearnerContext:
     tip_id: str | None = None
     words_mastered: int = 0
     active_weeks: int = 0
+    sample_due_words: list[str] = dataclasses.field(default_factory=list)
 
 
 _SYSTEM = """\
@@ -98,7 +100,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
-- Promised study days this week: {PROMISED_DAYS}
+{SAMPLE_DUE_LINE}- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
 - Weeks active in last 4 weeks: {ACTIVE_WEEKS}
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
@@ -295,6 +297,22 @@ def _active_weeks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -
     return min(4, len(iso_weeks))
 
 
+def _sample_due_words(db: Session, user: User, now: datetime, n: int = 5) -> list[str]:
+    """A handful of the most overdue vocabulary headwords for personalised context."""
+    return list(
+        db.scalars(
+            select(Word.headword)
+            .join(UserWordProgress, UserWordProgress.word_id == Word.id)
+            .where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.due_at <= now,
+            )
+            .order_by(UserWordProgress.due_at.asc())
+            .limit(n)
+        ).all()
+    )
+
+
 def _course_level(db: Session, user: User) -> str | None:
     """The level string of the highest course deck the learner has started (e.g. 'B1')."""
     row = db.execute(
@@ -400,6 +418,11 @@ def _system_prompt(
         reading_section += "\n"
     else:
         reading_section = ""
+    if ctx.sample_due_words:
+        words_str = ", ".join(ctx.sample_due_words)
+        sample_due_line = f"- Sample words due today (most overdue first): {words_str}\n"
+    else:
+        sample_due_line = ""
     return (
         _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
@@ -416,6 +439,7 @@ def _system_prompt(
         .replace("{REVIEWS_THIS_WEEK}", str(ctx.reviews_this_week))
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
+        .replace("{SAMPLE_DUE_LINE}", sample_due_line)
         .replace("{PROMISED_DAYS}", ctx.promised_days)
         .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
         .replace("{ACTIVE_WEEKS}", str(ctx.active_weeks))
@@ -666,6 +690,7 @@ def _build_context(
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
     ctx.words_mastered = _mature_words(db, user, now)
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
+    ctx.sample_due_words = _sample_due_words(db, user, now)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
 from app.models import MentorMessage, User
-from app.services.mentor import LearnerContext, _format_tenure, _system_prompt
+from app.services.mentor import LearnerContext, _format_tenure, _sample_due_words, _system_prompt
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 14, 10, 0, tzinfo=UTC)
@@ -776,3 +776,56 @@ def test_system_prompt_tone_hint_new_tips(tip_id: str, fragment: str) -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(tip_id=tip_id))
     assert "Tone:" in prompt
     assert fragment in prompt
+
+
+def test_system_prompt_includes_sample_due_words() -> None:
+    user = User(ui_language="en", name="Ira")
+    words = ["ambiguous", "criterion", "ephemeral"]
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(sample_due_words=words))
+    assert "ambiguous" in prompt
+    assert "Sample words due today" in prompt
+
+
+def test_system_prompt_no_sample_due_line_when_empty() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Sample words due today" not in prompt
+    assert "{SAMPLE_DUE_LINE}" not in prompt
+
+
+def test_sample_due_words_integration(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.models import UserWordProgress, Word
+
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "hi"}, headers=as_("sample-words-tester"))
+    user = db.scalar(select(User).where(User.auth_subject == "dev|sample-words-tester"))
+    assert user is not None
+
+    word_id = "test-sample-word-1"
+    db.add(
+        Word(
+            id=word_id,
+            headword="ephemeral",
+            pos="adj",
+            translation="мимолётный",
+            also_accept=[],
+            example="The ephemeral nature of fashion.",
+            example_translation="Мимолётная природа моды.",
+            language="en",
+        )
+    )
+    db.add(
+        UserWordProgress(
+            word_id=word_id,
+            user_id=user.id,
+            introduced_at=MOMENT - timedelta(days=10),
+            last_seen_at=MOMENT - timedelta(days=3),
+            due_at=MOMENT - timedelta(days=3),
+        )
+    )
+    db.commit()
+
+    result = _sample_due_words(db, user, MOMENT)
+    assert "ephemeral" in result
