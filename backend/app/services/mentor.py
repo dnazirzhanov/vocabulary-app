@@ -53,6 +53,7 @@ class LearnerContext:
     words_in_progress: int = 0
     words_learned: int = 0
     words_today: int = 0
+    words_this_week: int = 0
     due_vocab: int = 0
     due_spelling: int = 0
     promised_days: str = "none"
@@ -81,6 +82,7 @@ Current learner state (use this to give personal, relevant advice):
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - New words learned today: {WORDS_TODAY}
+- New words learned this week: {WORDS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words
 - Spelling due today: {DUE_SPELLING} words
 - Promised study days this week: {PROMISED_DAYS}
@@ -233,6 +235,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
         .replace("{WORDS_LEARNED}", str(ctx.words_learned))
         .replace("{WORDS_TODAY}", str(ctx.words_today))
+        .replace("{WORDS_THIS_WEEK}", str(ctx.words_this_week))
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{PROMISED_DAYS}", ctx.promised_days)
@@ -316,6 +319,17 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     )
 
     week_ago = now - timedelta(days=7)
+    words_this_week = (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.first_recalled_at >= week_ago,
+                UserWordProgress.first_recalled_at < now,
+            )
+        )
+        or 0
+    )
+
     retention_row = db.execute(
         select(
             func.count(ReviewAttempt.id).label("total"),
@@ -359,6 +373,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         spelling_accuracy=spelling_accuracy_str,
         last_study=last_study_label,
         words_today=int(words_today),
+        words_this_week=int(words_this_week),
     )
 
 

@@ -176,7 +176,13 @@ def test_system_prompt_includes_last_study_never() -> None:
 def test_system_prompt_includes_words_today() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=7))
-    assert "7" in prompt
+    assert "New words learned today: 7" in prompt
+
+
+def test_system_prompt_includes_words_this_week() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_this_week=23))
+    assert "New words learned this week: 23" in prompt
 
 
 def test_system_prompt_includes_days_this_week_with_promise() -> None:
