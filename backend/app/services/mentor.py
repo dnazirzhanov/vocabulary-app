@@ -63,6 +63,7 @@ class LearnerContext:
     days_this_week: str = "0 days"
     retention: str = "no data yet"
     spelling_accuracy: str = "no data yet"
+    reading_accuracy: str = "no data yet"
     last_study: str = "never"
     today_promised: bool = False
     course_level: str | None = None
@@ -107,6 +108,7 @@ Current learner state (use this to give personal, relevant advice):
 - Weeks active in last 4 weeks: {ACTIVE_WEEKS}
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
+- Reading comprehension accuracy (all time): {READING_ACCURACY}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{READING_SECTION}\
 {PLAN_SECTION}\
 {TIP_LINE}\
@@ -291,6 +293,23 @@ def _mature_words(db: Session, user: User, now: datetime) -> int:
         )
         or 0
     )
+
+
+def _reading_accuracy(db: Session, user: User) -> str:
+    """Accuracy on multiple-choice reading comprehension questions (all time)."""
+    row = db.execute(
+        select(
+            func.count(ReadingAnswer.id).label("total"),
+            func.sum(case((ReadingAnswer.correct.is_(True), 1), else_=0)).label("correct"),
+        ).where(
+            ReadingAnswer.user_id == user.id,
+            ReadingAnswer.correct.is_not(None),
+        )
+    ).first()
+    if row and row.total:
+        pct = round(100 * (row.correct or 0) / row.total)
+        return f"{pct}%"
+    return "no data yet"
 
 
 def _active_weeks(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> int:
@@ -498,6 +517,7 @@ def _system_prompt(
         .replace("{PROMISE_LINE}", promise_line)
         .replace("{RETENTION}", ctx.retention)
         .replace("{SPELLING_ACCURACY}", ctx.spelling_accuracy)
+        .replace("{READING_ACCURACY}", ctx.reading_accuracy)
         .replace("{STUDYING_SINCE}", ctx.studying_since)
         .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
@@ -745,6 +765,7 @@ def _build_context(
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
     ctx.sample_due_words = _sample_due_words(db, user, now)
     ctx.struggling_words = _struggling_words(db, user, now)
+    ctx.reading_accuracy = _reading_accuracy(db, user)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)

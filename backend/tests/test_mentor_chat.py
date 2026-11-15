@@ -16,6 +16,7 @@ from app.models import MentorMessage, User
 from app.services.mentor import (
     LearnerContext,
     _format_tenure,
+    _reading_accuracy,
     _sample_due_words,
     _struggling_words,
     _system_prompt,
@@ -988,3 +989,50 @@ def test_struggling_words_integration(
 
     result = _struggling_words(db, user, MOMENT)
     assert any("criterion" in entry for entry in result)
+
+
+def test_system_prompt_reading_accuracy_shown() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_accuracy="78%"))
+    assert "Reading comprehension accuracy" in prompt
+    assert "78%" in prompt
+
+
+def test_system_prompt_reading_accuracy_no_data_default() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Reading comprehension accuracy" in prompt
+    assert "no data yet" in prompt
+
+
+def test_reading_accuracy_integration(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.models import ReadingAnswer
+
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "hi"}, headers=as_("reading-acc-tester"))
+    user = db.scalar(select(User).where(User.auth_subject == "dev|reading-acc-tester"))
+    assert user is not None
+
+    now = MOMENT
+    # 3 correct, 1 wrong, 1 open-ended (correct=None, excluded from stats)
+    for i, correct in enumerate([True, True, True, False, None]):
+        db.add(
+            ReadingAnswer(
+                user_id=user.id,
+                question_ref=f"library:article-1:q{i}",
+                reading_ref="library:article-1",
+                question_text="What is the topic?",
+                text="Some answer",
+                words=3,
+                choice=0 if correct is not None else None,
+                correct=correct,
+                sent_at=now,
+                updated_at=now,
+            )
+        )
+    db.commit()
+
+    result = _reading_accuracy(db, user)
+    assert result == "75%"
