@@ -102,17 +102,49 @@
   gap: 2px;
 }
 
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.userWrap:hover .meta,
+.assistantWrap:hover .meta {
+  opacity: 1;
+}
+
 .time {
   font-size: 10px;
   color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity 0.15s;
   padding: 0 var(--space-1);
 }
 
-.userWrap:hover .time,
-.assistantWrap:hover .time {
-  opacity: 1;
+.copyBtn {
+  background: none;
+  border: none;
+  padding: 2px var(--space-1);
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.1s;
+}
+
+.copyBtn:hover {
+  color: var(--text-primary);
+}
+
+.copyBtn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.copiedLabel {
+  font-size: 10px;
+  color: var(--color-success, #27ae60);
 }
 
 .user,

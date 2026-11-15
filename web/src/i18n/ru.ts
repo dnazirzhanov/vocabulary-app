@@ -909,6 +909,8 @@ export const ru = {
   mentorGoalSave: 'Сохранить',
   mentorGoalSaved: 'Сохранено',
   mentorGoalEdit: 'Изменить цель',
+  mentorChatCopy: 'Копировать',
+  mentorChatCopied: 'Скопировано',
 };
 
 export type Messages = typeof ru;

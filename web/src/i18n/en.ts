@@ -906,4 +906,6 @@ export const en: Messages = {
   mentorGoalSave: 'Save',
   mentorGoalSaved: 'Saved',
   mentorGoalEdit: 'Edit goal',
+  mentorChatCopy: 'Copy',
+  mentorChatCopied: 'Copied',
 };

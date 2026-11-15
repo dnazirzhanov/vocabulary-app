@@ -3,7 +3,7 @@ import { ApiError, mentorChatStream } from '../lib/api.ts';
 import { api } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
-import { MicIcon, SendIcon } from '../ui/icons.tsx';
+import { CopyIcon, MicIcon, SendIcon } from '../ui/icons.tsx';
 import { MentorGoal } from './MentorGoal.tsx';
 import { MentorMarkdown } from './MentorMarkdown.tsx';
 import styles from './MentorChat.module.css';
@@ -45,6 +45,7 @@ export function MentorChat() {
   const [error, setError] = useState<string | null>(null);
   const [chatsRemaining, setChatsRemaining] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const dictationRef = useRef<Dictation | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -178,6 +179,13 @@ export function MentorChat() {
     );
   }
 
+  function copyMessage(text: string, index: number) {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex((prev) => (prev === index ? null : prev)), 1500);
+    });
+  }
+
   const hasMessages = !loading && messages.length > 0;
   // Show follow-up chips after the last assistant message, when not currently sending.
   const lastIsAssistant = hasMessages && messages[messages.length - 1].role === 'assistant';
@@ -225,9 +233,25 @@ export function MentorChat() {
               <div className={msg.role === 'user' ? styles.user : styles.assistant}>
                 {msg.role === 'user' ? msg.text : <MentorMarkdown text={msg.text} />}
               </div>
-              <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
-                {formatTime(msg.sentAt)}
-              </time>
+              <div className={styles.meta}>
+                <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
+                  {formatTime(msg.sentAt)}
+                </time>
+                {msg.role === 'assistant' && (
+                  <button
+                    type="button"
+                    className={styles.copyBtn}
+                    onClick={() => copyMessage(msg.text, i)}
+                    aria-label={copiedIndex === i ? t.mentorChatCopied : t.mentorChatCopy}
+                  >
+                    {copiedIndex === i ? (
+                      <span className={styles.copiedLabel}>{t.mentorChatCopied}</span>
+                    ) : (
+                      <CopyIcon aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {sending && messages[messages.length - 1]?.role === 'user' && (

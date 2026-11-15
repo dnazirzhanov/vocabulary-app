@@ -894,4 +894,6 @@ export const uz: Messages = {
   mentorGoalSave: 'Save',
   mentorGoalSaved: 'Saved',
   mentorGoalEdit: 'Edit goal',
+  mentorChatCopy: 'Copy',
+  mentorChatCopied: 'Copied',
 };
