@@ -59,6 +59,7 @@ class LearnerContext:
     words_last_week: int = 0
     reviews_this_week: int = 0
     due_vocab: int = 0
+    due_vocab_overdue: int = 0
     due_spelling: int = 0
     promised_days: str = "none"
     days_this_week: str = "0 days"
@@ -105,7 +106,7 @@ Current learner state (use this to give personal, relevant advice):
 - New words learned this week: {WORDS_THIS_WEEK}
 - New words learned last week: {WORDS_LAST_WEEK}
 - Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
-- Vocabulary due today: {DUE_VOCAB} words
+- Vocabulary due today: {DUE_VOCAB} words{OVERDUE_VOCAB_PART}
 - Spelling due today: {DUE_SPELLING} words
 {SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
@@ -534,6 +535,10 @@ def _system_prompt(
         .replace("{WORDS_LAST_WEEK}", str(ctx.words_last_week))
         .replace("{REVIEWS_THIS_WEEK}", str(ctx.reviews_this_week))
         .replace("{DUE_VOCAB}", str(ctx.due_vocab))
+        .replace(
+            "{OVERDUE_VOCAB_PART}",
+            f" ({ctx.due_vocab_overdue} overdue >7 days)" if ctx.due_vocab_overdue > 0 else "",
+        )
         .replace("{DUE_SPELLING}", str(ctx.due_spelling))
         .replace("{SAMPLE_DUE_LINE}", sample_due_line)
         .replace("{STRUGGLING_LINE}", struggling_line)
@@ -595,6 +600,16 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
             select(func.count()).where(
                 UserWordProgress.user_id == user.id,
                 UserWordProgress.due_at <= now,
+            )
+        )
+        or 0
+    )
+    week_old = now - timedelta(days=7)
+    due_vocab_overdue = (
+        db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == user.id,
+                UserWordProgress.due_at <= week_old,
             )
         )
         or 0
@@ -718,6 +733,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     return LearnerContext(
         streak_weeks=streak,
         due_vocab=int(due_vocab),
+        due_vocab_overdue=int(due_vocab_overdue),
         due_spelling=int(due_spelling),
         promised_days=promised_days_str,
         days_this_week=days_this_week_str,

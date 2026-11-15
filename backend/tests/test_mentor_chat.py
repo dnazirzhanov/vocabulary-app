@@ -787,6 +787,19 @@ def test_system_prompt_days_studied_month() -> None:
     assert "Days studied in last 30 days: 18" in prompt
 
 
+def test_system_prompt_overdue_part_shown_when_nonzero() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(due_vocab=30, due_vocab_overdue=12))
+    assert "30 words (12 overdue >7 days)" in prompt
+
+
+def test_system_prompt_overdue_part_absent_when_zero() -> None:
+    user = User(ui_language="en", name="Ira")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(due_vocab=5, due_vocab_overdue=0))
+    assert "overdue" not in prompt
+    assert "{OVERDUE_VOCAB_PART}" not in prompt
+
+
 def test_active_weeks_integration(
     client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
