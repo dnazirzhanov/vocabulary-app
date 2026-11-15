@@ -47,6 +47,15 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
     void load();
   }, [load]);
 
+  // Re-fetch the plan when the page becomes visible again (e.g. after a study session).
+  useEffect(() => {
+    function onVisible() {
+      if (!document.hidden) void load();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
+
   const retry = () => {
     setError(null);
     void load();
