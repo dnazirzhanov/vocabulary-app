@@ -8,6 +8,11 @@ import styles from './MentorChat.module.css';
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  sentAt: Date;
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const MAX_LENGTH = 500;
@@ -33,7 +38,13 @@ export function MentorChat() {
     api
       .mentorHistory()
       .then(({ messages: items }) => {
-        setMessages(items.map((m) => ({ role: m.role as 'user' | 'assistant', text: m.content })));
+        setMessages(
+          items.map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            text: m.content,
+            sentAt: new Date(m.created_at),
+          })),
+        );
       })
       .catch(() => {
         // History is best-effort; a network error just starts the chat fresh.
@@ -51,11 +62,11 @@ export function MentorChat() {
     setDraft('');
     setError(null);
     setSending(true);
-    const userMsg: ChatMessage = { role: 'user', text: trimmed };
+    const userMsg: ChatMessage = { role: 'user', text: trimmed, sentAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     try {
-      const { reply } = await api.mentorChat(trimmed);
-      setMessages((prev) => [...prev, { role: 'assistant', text: reply }]);
+      const { reply, created_at } = await api.mentorChat(trimmed);
+      setMessages((prev) => [...prev, { role: 'assistant', text: reply, sentAt: new Date(created_at) }]);
     } catch (caught) {
       setMessages((prev) => prev.slice(0, -1));
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
@@ -114,11 +125,20 @@ export function MentorChat() {
       {!loading && hasMessages && (
         <div className={styles.messages} role="log" aria-live="polite" aria-label={t.mentorChatHeading}>
           {messages.map((msg, i) => (
-            <div key={i} className={msg.role === 'user' ? styles.user : styles.assistant}>
-              {msg.text}
+            <div key={i} className={msg.role === 'user' ? styles.userWrap : styles.assistantWrap}>
+              <div className={msg.role === 'user' ? styles.user : styles.assistant}>{msg.text}</div>
+              <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
+                {formatTime(msg.sentAt)}
+              </time>
             </div>
           ))}
-          {sending && <div className={styles.typing} aria-hidden="true" />}
+          {sending && (
+            <div className={styles.typing} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
       )}
