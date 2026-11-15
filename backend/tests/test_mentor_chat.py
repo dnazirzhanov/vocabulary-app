@@ -544,6 +544,20 @@ def test_system_prompt_includes_day_of_week() -> None:
     assert "Saturday" in prompt
 
 
+def test_system_prompt_reading_section_includes_last_read_label() -> None:
+    user = User(ui_language="en", name="Alex")
+    ctx = _ctx(reading_total=3, reading_recent=["Bees", "Cells"], reading_last="yesterday")
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    assert "Library articles read: 3" in prompt
+    assert "last read yesterday" in prompt
+
+
+def test_system_prompt_reading_section_omitted_when_no_reading() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_total=0))
+    assert "Library articles read" not in prompt
+
+
 def test_system_prompt_promise_line_shown_when_promised_and_not_studied() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(today_promised=True, sessions_today="none"))
