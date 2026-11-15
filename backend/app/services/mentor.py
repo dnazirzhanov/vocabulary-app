@@ -52,6 +52,7 @@ Current learner state (use this to give personal, relevant advice):
 - Local time: {LOCAL_TIME} ({TIME_OF_DAY})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
+- Last study session: {LAST_STUDY}
 - Vocabulary in progress: {WORDS_IN_PROGRESS} words
 - Vocabulary recalled at least once: {WORDS_LEARNED} words
 - Vocabulary due today: {DUE_VOCAB} words
@@ -174,6 +175,7 @@ def _system_prompt(
     due_vocab: int,
     due_spelling: int,
     promised_days: str,
+    last_study: str,
     course_level: str | None,
     deck_rows: list[tuple[str, int]],
     reading_total: int,
@@ -218,6 +220,7 @@ def _system_prompt(
         .replace("{DUE_VOCAB}", str(due_vocab))
         .replace("{DUE_SPELLING}", str(due_spelling))
         .replace("{PROMISED_DAYS}", promised_days)
+        .replace("{LAST_STUDY}", last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
@@ -231,8 +234,8 @@ _DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 def _learner_state(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
-) -> tuple[int, int, int, str]:
-    """(streak_weeks, due_vocab, due_spelling, promised_days_str)."""
+) -> tuple[int, int, int, str, str]:
+    """(streak_weeks, due_vocab, due_spelling, promised_days_str, last_study_label)."""
     today = local_date(now, time_zone)
     since, _ = local_day_bounds(today - timedelta(days=HISTORY_DAYS), time_zone)
     days = days_by_user(db, [user], since, time_zone)[user.id]
@@ -262,7 +265,22 @@ def _learner_state(
         )
         or 0
     )
-    return streak, int(due_vocab), int(due_spelling), promised_days_str
+    last_at = db.scalar(
+        select(func.max(LearningSession.completed_at)).where(LearningSession.user_id == user.id)
+    )
+    if last_at is None:
+        last_study_label = "never"
+    else:
+        last_local = local_date(last_at, time_zone)
+        delta = (today - last_local).days
+        if delta == 0:
+            last_study_label = "today"
+        elif delta == 1:
+            last_study_label = "yesterday"
+        else:
+            last_study_label = f"{delta} days ago"
+
+    return streak, int(due_vocab), int(due_spelling), promised_days_str, last_study_label
 
 
 def _recent_history(db: Session, user: User) -> list[MentorMessage]:
@@ -320,7 +338,9 @@ def _build_context(
     time_zone: ZoneInfo,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    streak, due_vocab, due_spelling, promised_days = _learner_state(db, user, now, time_zone)
+    streak, due_vocab, due_spelling, promised_days, last_study = _learner_state(
+        db, user, now, time_zone
+    )
     words_in_progress, words_learned = _vocab_summary(db, user)
     course_level = _course_level(db, user)
     deck_rows = _deck_context(db, user, now)
@@ -337,6 +357,7 @@ def _build_context(
         due_vocab,
         due_spelling,
         promised_days,
+        last_study,
         course_level,
         deck_rows,
         reading_total,
