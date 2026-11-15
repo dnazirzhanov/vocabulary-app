@@ -143,6 +143,14 @@ def history(db: Session, user: User) -> list[MentorMessage]:
     )[::-1]
 
 
+def clear_history(db: Session, user: User) -> None:
+    """Delete all stored messages for this user."""
+    from sqlalchemy import delete
+
+    db.execute(delete(MentorMessage).where(MentorMessage.user_id == user.id))
+    db.commit()
+
+
 def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: datetime) -> None:
     db.add(MentorMessage(user_id=user.id, role="user", content=user_text, created_at=now))
     # +1 µs so the assistant message always sorts after the user message even when both are saved

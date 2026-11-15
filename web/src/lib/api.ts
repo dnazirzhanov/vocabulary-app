@@ -326,6 +326,7 @@ export const api = {
   deleteAccount: () => request<null>('DELETE', '/me'),
   mentorHistory: () =>
     request<{ messages: Array<{ role: string; content: string; created_at: string }> }>('GET', '/mentor/history'),
+  mentorClearHistory: () => request<null>('DELETE', '/mentor/history'),
   mentorChat: (message: string) => request<{ reply: string; created_at: string }>('POST', '/mentor/chat', { message }),
 };
 

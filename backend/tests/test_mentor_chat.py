@@ -119,6 +119,23 @@ def test_history_requires_tester_flag(client: TestClient) -> None:
     assert resp.status_code == 403
 
 
+def test_clear_history_wipes_messages(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _enable_mentor(monkeypatch)
+    client.post("/api/mentor/chat", json={"message": "test"}, headers=as_("grace"))
+    # Messages are present before clear.
+    assert len(client.get("/api/mentor/history", headers=as_("grace")).json()["messages"]) == 2
+    # Clear returns 204 with no body.
+    resp = client.delete("/api/mentor/history", headers=as_("grace"))
+    assert resp.status_code == 204
+    # History is empty after clear.
+    assert client.get("/api/mentor/history", headers=as_("grace")).json()["messages"] == []
+
+
+def test_clear_history_requires_tester_flag(client: TestClient) -> None:
+    resp = client.delete("/api/mentor/history", headers=as_("henry"))
+    assert resp.status_code == 403
+
+
 def test_chat_rate_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _enable_mentor(monkeypatch)
     monkeypatch.setattr(get_settings(), "mentor_chats_per_day", 2)

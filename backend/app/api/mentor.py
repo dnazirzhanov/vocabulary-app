@@ -34,6 +34,11 @@ def mentor_history(user: CurrentUser, db: DbSession) -> MentorHistoryOut:
     )
 
 
+@router.delete("/mentor/history", status_code=204, dependencies=[Depends(_require_mentor)])
+def mentor_clear_history(user: CurrentUser, db: DbSession) -> None:
+    mentor.clear_history(db, user)
+
+
 @router.post("/mentor/chat", dependencies=[Depends(limit_mentor_chats), Depends(_require_mentor)])
 def mentor_chat(
     body: MentorChatIn,

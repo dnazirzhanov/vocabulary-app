@@ -74,6 +74,8 @@ export function MentorChat() {
     setMessages([]);
     setDraft('');
     setError(null);
+    // Best-effort: wipe server-side history so it doesn't reload on the next mount.
+    void api.mentorClearHistory().catch(() => undefined);
   }
 
   const hasMessages = !loading && messages.length > 0;
