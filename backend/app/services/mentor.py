@@ -58,6 +58,7 @@ class LearnerContext:
     promised_days: str = "none"
     days_this_week: str = "0 days"
     retention: str = "no data yet"
+    spelling_accuracy: str = "no data yet"
     last_study: str = "never"
     course_level: str | None = None
     deck_rows: list[tuple[str, int]] = dataclasses.field(default_factory=list)
@@ -85,6 +86,7 @@ Current learner state (use this to give personal, relevant advice):
 - Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
 - Vocabulary retention rate (last 7 days): {RETENTION}
+- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 {PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{DECK_SECTION}{READING_SECTION}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
@@ -236,6 +238,7 @@ def _system_prompt(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerC
         .replace("{PROMISED_DAYS}", ctx.promised_days)
         .replace("{DAYS_THIS_WEEK}", ctx.days_this_week)
         .replace("{RETENTION}", ctx.retention)
+        .replace("{SPELLING_ACCURACY}", ctx.spelling_accuracy)
         .replace("{LAST_STUDY}", ctx.last_study)
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
@@ -329,6 +332,23 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     else:
         retention_str = "no data yet"
 
+    spelling_row = db.execute(
+        select(
+            func.count(ReviewAttempt.id).label("total"),
+            func.sum(case((ReviewAttempt.correct.is_(True), 1), else_=0)).label("correct"),
+        ).where(
+            ReviewAttempt.user_id == user.id,
+            ReviewAttempt.answered_at >= week_ago,
+            ReviewAttempt.exercise_type == "spelling",
+            ReviewAttempt.correct.is_not(None),
+        )
+    ).first()
+    if spelling_row and spelling_row.total:
+        spell_pct = round(100 * (spelling_row.correct or 0) / spelling_row.total)
+        spelling_accuracy_str = f"{spell_pct}%"
+    else:
+        spelling_accuracy_str = "no data yet"
+
     return LearnerContext(
         streak_weeks=streak,
         due_vocab=int(due_vocab),
@@ -336,6 +356,7 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
         promised_days=promised_days_str,
         days_this_week=days_this_week_str,
         retention=retention_str,
+        spelling_accuracy=spelling_accuracy_str,
         last_study=last_study_label,
         words_today=int(words_today),
     )

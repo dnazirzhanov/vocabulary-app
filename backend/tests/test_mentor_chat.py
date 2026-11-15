@@ -205,6 +205,13 @@ def test_system_prompt_includes_retention_no_data() -> None:
     assert "no data yet" in prompt
 
 
+def test_system_prompt_includes_spelling_accuracy_when_known() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(spelling_accuracy="74%"))
+    assert "74%" in prompt
+    assert "Spelling accuracy" in prompt
+
+
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
