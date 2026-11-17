@@ -18,6 +18,7 @@ from app.schemas.speaking import (
     PronunciationWordOut,
     SessionDetailOut,
     SessionOut,
+    SessionSummaryOut,
     TranscriptWordOut,
 )
 from app.services.speaking import jobs as jobs_svc
@@ -40,6 +41,37 @@ ALLOWED_AUDIO_MIME = frozenset(
         "audio/x-wav",
     }
 )
+
+
+def list_for_user(
+    db: Session, user: User, question_id: str | None = None
+) -> list[SessionSummaryOut]:
+    """Return all non-deleted sessions for the user, optionally filtered to one question."""
+    stmt = (
+        select(SpeakingSession, SpeakingAssessment)
+        .outerjoin(SpeakingAssessment, SpeakingAssessment.session_id == SpeakingSession.id)
+        .where(SpeakingSession.user_id == user.id)
+        .order_by(SpeakingSession.started_at.desc())
+    )
+    if question_id is not None:
+        stmt = stmt.where(SpeakingSession.question_id == question_id)
+    rows = db.execute(stmt).all()
+    return [
+        SessionSummaryOut(
+            id=session.id,
+            question_id=session.question_id,
+            status=session.status,
+            started_at=session.started_at,
+            completed_at=session.completed_at,
+            overall_score=assessment.overall_score if assessment else None,
+            pronunciation_score=assessment.pronunciation_score if assessment else None,
+            fluency_score=assessment.fluency_score if assessment else None,
+            vocabulary_score=assessment.vocabulary_score if assessment else None,
+            grammar_score=assessment.grammar_score if assessment else None,
+            coherence_score=assessment.coherence_score if assessment else None,
+        )
+        for session, assessment in rows
+    ]
 
 
 def create(db: Session, user: User, exercise_type: ExerciseType, question_id: str) -> SessionOut:

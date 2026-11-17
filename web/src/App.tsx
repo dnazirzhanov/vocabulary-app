@@ -29,6 +29,7 @@ import { SessionSummary } from './summary/SessionSummary.tsx';
 import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
+import type { SpeakingQuestion } from './speaking/api.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -43,9 +44,18 @@ const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({
 // deterministic planner and its view of the reading index.
 const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
 
-// Speaking tab: loaded only when its tab is opened. Chunk 1 is UI-only (audio capture + playback).
+// Speaking tab: loaded only when its tab is opened.
 const SpeakingExerciseScreen = lazy(() =>
   import('./speaking/ExerciseScreen.tsx').then((m) => ({ default: m.ExerciseScreen })),
+);
+const SpeakingHomeScreen = lazy(() =>
+  import('./speaking/SpeakingHome.tsx').then((m) => ({ default: m.SpeakingHome })),
+);
+const SpeakingTopicScreen = lazy(() =>
+  import('./speaking/TopicScreen.tsx').then((m) => ({ default: m.TopicScreen })),
+);
+const SpeakingQuestionScreen = lazy(() =>
+  import('./speaking/QuestionScreen.tsx').then((m) => ({ default: m.QuestionScreen })),
 );
 
 /** Where a deck's page was opened from, for its «Назад». */
@@ -55,6 +65,9 @@ type Screen =
   | { name: 'home' }
   | { name: 'mentor' }
   | { name: 'speaking' }
+  | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
+  | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
+  | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -509,7 +522,44 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'speaking') {
       return (
         <Suspense fallback={null}>
-          <SpeakingExerciseScreen onBack={goHome} />
+          <SpeakingHomeScreen
+            onSelectTopic={(topic, questions) => setScreen({ name: 'speaking-topic', topic, questions })}
+            onBack={goHome}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-topic') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingTopicScreen
+            topic={screen.topic}
+            questions={screen.questions}
+            onSelectQuestion={(question) => setScreen({ name: 'speaking-question', question, topicQuestions: screen.questions })}
+            onBack={() => setScreen({ name: 'speaking' })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-question') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingQuestionScreen
+            question={screen.question}
+            onRecord={() => setScreen({ name: 'speaking-exercise', question: screen.question, topicQuestions: screen.topicQuestions })}
+            onBack={() => setScreen({ name: 'speaking-topic', topic: screen.question.topic, questions: screen.topicQuestions })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-exercise') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingExerciseScreen
+            question={screen.question}
+            onBack={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
+            onDone={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
+          />
         </Suspense>
       );
     }
@@ -581,7 +631,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
-  if (screen.name === 'speaking') return 'speaking';
+  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise'].includes(screen.name)) return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

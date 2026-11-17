@@ -21,8 +21,23 @@ export interface SpeakingQuestion {
   id: string;
   exercise_type: ExerciseType;
   text: string;
+  topic: string;
   level?: string | null;
   reference_text?: string | null;
+}
+
+export interface SessionSummary {
+  id: string;
+  question_id: string;
+  status: SessionStatus;
+  started_at: string;
+  completed_at: string | null;
+  overall_score: number | null;
+  pronunciation_score: number | null;
+  fluency_score: number | null;
+  vocabulary_score: number | null;
+  grammar_score: number | null;
+  coherence_score: number | null;
 }
 
 export interface SpeakingSession {
@@ -125,6 +140,11 @@ async function toApiError(response: Response): Promise<SpeakingApiError> {
     // body wasn't JSON — fall through
   }
   return new SpeakingApiError(response.status, code, message);
+}
+
+export function listSessions(questionId?: string): Promise<SessionSummary[]> {
+  const qs = questionId ? `?question_id=${encodeURIComponent(questionId)}` : '';
+  return request<SessionSummary[]>('GET', `/speaking/sessions${qs}`);
 }
 
 export function listQuestions(exerciseType?: ExerciseType): Promise<SpeakingQuestion[]> {

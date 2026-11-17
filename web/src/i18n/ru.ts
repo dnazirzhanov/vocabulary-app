@@ -1023,6 +1023,19 @@ export const ru = {
   speakingFeedbackCategoryVocabulary: 'Словарный запас',
   speakingFeedbackCategoryCoherence: 'Связность',
   speakingFeedbackCategoryFluency: 'Беглость',
+  speakingTopicsHeading: 'Темы для говорения',
+  speakingQuestionSingular: 'вопрос',
+  speakingQuestionPlural: 'вопроса',
+  speakingAttemptSingular: 'попытка',
+  speakingAttemptPlural: 'попытки',
+  speakingQuestionDetailHeading: 'Вопрос',
+  speakingNewAttempt: '🎙 Новая попытка',
+  speakingAttemptsHeading: 'Мои попытки',
+  speakingStatusProcessing: 'Обрабатывается…',
+  speakingStatusFailed: 'Ошибка',
+  speakingLoadingDetail: 'Загрузка…',
+  speakingTranscriptLabel: 'Транскрипция',
+  speakingLoadError: 'Не удалось загрузить вопросы. Попробуйте снова.',
 };
 
 export type Messages = typeof ru;

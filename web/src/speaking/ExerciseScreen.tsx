@@ -27,7 +27,9 @@ import { ScoreGrid } from './ScoreGrid.tsx';
 import styles from './ExerciseScreen.module.css';
 
 interface ExerciseScreenProps {
+  question?: SpeakingQuestion | null;
   onBack: () => void;
+  onDone?: () => void;
 }
 
 type SubmitState =
@@ -37,9 +39,9 @@ type SubmitState =
   | { kind: 'done'; result: SpeakingSessionDetail }
   | { kind: 'failed'; message: string };
 
-export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
+export function ExerciseScreen({ question: questionProp, onBack, onDone }: ExerciseScreenProps) {
   const supported = isAudioRecordingSupported();
-  const [question, setQuestion] = useState<SpeakingQuestion | null>(null);
+  const [question, setQuestion] = useState<SpeakingQuestion | null>(questionProp ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -49,6 +51,7 @@ export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
   });
 
   useEffect(() => {
+    if (questionProp) return; // question provided by caller — no need to fetch
     let cancelled = false;
     (async () => {
       try {
@@ -62,7 +65,7 @@ export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [questionProp]);
 
   // Stop any in-flight poll when the component unmounts.
   useEffect(
@@ -98,9 +101,13 @@ export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
 
   const onTryAgain = useCallback(() => {
     if (pollTimer.current) clearInterval(pollTimer.current);
+    if (onDone) {
+      onDone();
+      return;
+    }
     reset();
     setSubmit({ kind: 'idle' });
-  }, [reset]);
+  }, [reset, onDone]);
 
   const seconds = Math.floor(durationMs / 1000);
   const mm = Math.floor(seconds / 60);

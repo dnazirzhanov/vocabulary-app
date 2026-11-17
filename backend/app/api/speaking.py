@@ -15,6 +15,7 @@ from app.schemas.speaking import (
     QuestionOut,
     SessionDetailOut,
     SessionOut,
+    SessionSummaryOut,
 )
 from app.services.card_reports import listed
 from app.services.speaking import questions as questions_svc
@@ -31,6 +32,15 @@ def _require_speaking(user: CurrentUser, settings: DepSettings) -> None:
         raise ApiError(403, "not_a_speaking_tester", "Speaking is not available for this account")
 
 
+@router.get("/speaking/sessions", dependencies=[Depends(_require_speaking)])
+def list_sessions(
+    user: CurrentUser,
+    db: DbSession,
+    question_id: str | None = None,
+) -> list[SessionSummaryOut]:
+    return sessions_svc.list_for_user(db, user, question_id=question_id)
+
+
 @router.get("/speaking/questions", dependencies=[Depends(_require_speaking)])
 def list_questions(exercise_type: str | None = None) -> list[QuestionOut]:
     if exercise_type is not None and exercise_type not in ("spontaneous", "pronunciation"):
@@ -42,6 +52,7 @@ def list_questions(exercise_type: str | None = None) -> list[QuestionOut]:
             id=q.id,
             exercise_type=q.exercise_type,
             text=q.text,
+            topic=q.topic,
             level=q.level,
             reference_text=q.reference_text,
         )

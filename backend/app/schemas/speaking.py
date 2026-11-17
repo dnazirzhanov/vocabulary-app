@@ -76,6 +76,22 @@ class AssessmentOut(BaseModel):
     created_at: datetime
 
 
+class SessionSummaryOut(BaseModel):
+    """Lightweight session row for list views — no audio blob, just scores."""
+
+    id: uuid.UUID
+    question_id: str
+    status: SessionStatus
+    started_at: datetime
+    completed_at: datetime | None
+    overall_score: float | None = None
+    pronunciation_score: float | None = None
+    fluency_score: float | None = None
+    vocabulary_score: float | None = None
+    grammar_score: float | None = None
+    coherence_score: float | None = None
+
+
 class SessionDetailOut(SessionOut):
     audio: AudioAssetOut | None
     assessment: AssessmentOut | None = None
@@ -85,5 +101,6 @@ class QuestionOut(BaseModel):
     id: str
     exercise_type: ExerciseType
     text: str
+    topic: str = "General"
     level: str | None = None
     reference_text: str | None = None
