@@ -29,8 +29,8 @@ test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
   await page.getByRole('button', { name: 'Написать наставнику' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Спросить наставника' })).toBeVisible();
 
-  // Suggested prompts appear before the first message.
-  await expect(page.getByRole('button', { name: 'С чего начать сегодня?' })).toBeVisible();
+  // Suggested prompts appear once the chat history finishes loading.
+  await expect(page.getByRole('button', { name: 'С чего начать сегодня?' })).toBeVisible({ timeout: 10_000 });
 
   // Click a suggested prompt; the chip sends the message and a reply appears.
   await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
@@ -76,6 +76,7 @@ test('follow-up chips appear after the assistant replies', async ({ page }) => {
   await page.getByRole('button', { name: 'Написать наставнику' }).click();
 
   // Send a message so the assistant replies.
+  await expect(page.getByRole('button', { name: 'С чего начать сегодня?' })).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
   await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
 
@@ -92,6 +93,7 @@ test('clearing the chat removes all messages', async ({ page }) => {
   await page.getByRole('button', { name: 'Написать наставнику' }).click();
 
   // Send a message so the log appears.
+  await expect(page.getByRole('button', { name: 'С чего начать сегодня?' })).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
   await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
 
