@@ -29,7 +29,7 @@ import styles from './ExerciseScreen.module.css';
 interface ExerciseScreenProps {
   question?: SpeakingQuestion | null;
   onBack: () => void;
-  onDone?: () => void;
+  onDone?: (result: SpeakingSessionDetail) => void;
 }
 
 type SubmitState =
@@ -88,7 +88,11 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
           const detail = await getSession(session.id);
           if (detail.status === 'done' || detail.status === 'failed') {
             if (pollTimer.current) clearInterval(pollTimer.current);
-            setSubmit({ kind: 'done', result: detail });
+            if (onDone) {
+              onDone(detail);
+            } else {
+              setSubmit({ kind: 'done', result: detail });
+            }
           }
         } catch {
           // transient error — keep polling
@@ -101,13 +105,9 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
 
   const onTryAgain = useCallback(() => {
     if (pollTimer.current) clearInterval(pollTimer.current);
-    if (onDone) {
-      onDone();
-      return;
-    }
     reset();
     setSubmit({ kind: 'idle' });
-  }, [reset, onDone]);
+  }, [reset]);
 
   const seconds = Math.floor(durationMs / 1000);
   const mm = Math.floor(seconds / 60);

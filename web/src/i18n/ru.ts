@@ -1033,9 +1033,18 @@ export const ru = {
   speakingAttemptsHeading: 'Мои попытки',
   speakingStatusProcessing: 'Обрабатывается…',
   speakingStatusFailed: 'Ошибка',
-  speakingLoadingDetail: 'Загрузка…',
-  speakingTranscriptLabel: 'Транскрипция',
   speakingLoadError: 'Не удалось загрузить вопросы. Попробуйте снова.',
+  speakingEvalHeading: 'Оценка',
+  speakingEvalTranscript: 'Что вы сказали',
+  speakingEvalScores: 'Баллы',
+  speakingEvalOverall: 'Общий',
+  speakingEvalFluency: 'Беглость',
+  speakingEvalVocabulary: 'Словарный запас',
+  speakingEvalGrammar: 'Грамматика',
+  speakingEvalCoherence: 'Связность',
+  speakingEvalPronunciation: 'Произношение',
+  speakingEvalGrammarNoService: 'Проверка грамматики требует внешнего сервиса (не настроен)',
+  speakingEvalVocabInsufficient: 'Слишком мало слов для оценки словарного запаса',
 };
 
 export type Messages = typeof ru;

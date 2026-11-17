@@ -29,7 +29,7 @@ import { SessionSummary } from './summary/SessionSummary.tsx';
 import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
-import type { SpeakingQuestion } from './speaking/api.ts';
+import type { SpeakingQuestion, SpeakingSessionDetail } from './speaking/api.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -57,6 +57,9 @@ const SpeakingTopicScreen = lazy(() =>
 const SpeakingQuestionScreen = lazy(() =>
   import('./speaking/QuestionScreen.tsx').then((m) => ({ default: m.QuestionScreen })),
 );
+const SpeakingEvaluationScreen = lazy(() =>
+  import('./speaking/EvaluationScreen.tsx').then((m) => ({ default: m.EvaluationScreen })),
+);
 
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
@@ -68,6 +71,7 @@ type Screen =
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
+  | { name: 'speaking-eval'; session: SpeakingSessionDetail; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -547,6 +551,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           <SpeakingQuestionScreen
             question={screen.question}
             onRecord={() => setScreen({ name: 'speaking-exercise', question: screen.question, topicQuestions: screen.topicQuestions })}
+            onViewAttempt={(session) => setScreen({ name: 'speaking-eval', session, question: screen.question, topicQuestions: screen.topicQuestions })}
             onBack={() => setScreen({ name: 'speaking-topic', topic: screen.question.topic, questions: screen.topicQuestions })}
           />
         </Suspense>
@@ -558,7 +563,18 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           <SpeakingExerciseScreen
             question={screen.question}
             onBack={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
-            onDone={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
+            onDone={(session) => setScreen({ name: 'speaking-eval', session, question: screen.question, topicQuestions: screen.topicQuestions })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-eval') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingEvaluationScreen
+            session={screen.session}
+            question={screen.question}
+            onBack={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
           />
         </Suspense>
       );
@@ -631,7 +647,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
-  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise'].includes(screen.name)) return 'speaking';
+  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name)) return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

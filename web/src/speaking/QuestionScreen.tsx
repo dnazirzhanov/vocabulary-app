@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { getSession, listSessions, type SessionSummary, type SpeakingQuestion, type SpeakingSessionDetail } from './api.ts';
-import { ScoreGrid } from './ScoreGrid.tsx';
-import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
-import { FeedbackList } from './FeedbackList.tsx';
 import styles from './QuestionScreen.module.css';
 
 interface QuestionScreenProps {
   question: SpeakingQuestion;
   onRecord: () => void;
+  onViewAttempt: (session: SpeakingSessionDetail) => void;
   onBack: () => void;
 }
 
-export function QuestionScreen({ question, onRecord, onBack }: QuestionScreenProps) {
+export function QuestionScreen({ question, onRecord, onViewAttempt, onBack }: QuestionScreenProps) {
   const [attempts, setAttempts] = useState<SessionSummary[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [detail, setDetail] = useState<SpeakingSessionDetail | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,19 +26,13 @@ export function QuestionScreen({ question, onRecord, onBack }: QuestionScreenPro
     };
   }, [question.id]);
 
-  async function toggleAttempt(id: string) {
-    if (expanded === id) {
-      setExpanded(null);
-      setDetail(null);
-      return;
-    }
-    setExpanded(id);
-    setLoadingDetail(true);
+  async function openAttempt(id: string) {
+    setLoadingId(id);
     try {
       const d = await getSession(id);
-      setDetail(d);
+      onViewAttempt(d);
     } finally {
-      setLoadingDetail(false);
+      setLoadingId(null);
     }
   }
 
@@ -95,42 +85,17 @@ export function QuestionScreen({ question, onRecord, onBack }: QuestionScreenPro
                 <li key={a.id} className={styles.attemptItem}>
                   <button
                     type="button"
-                    className={`${styles.attemptRow} ${expanded === a.id ? styles.expanded : ''}`}
-                    onClick={() => void toggleAttempt(a.id)}
+                    className={styles.attemptRow}
+                    onClick={() => void openAttempt(a.id)}
+                    disabled={loadingId === a.id}
                   >
                     <span className={styles.attemptNum}>#{doneAttempts.length - i}</span>
                     <span className={styles.attemptDate}>{formatDate(a.started_at)}</span>
                     {a.overall_score !== null && (
                       <span className={styles.score}>{Math.round(a.overall_score)}%</span>
                     )}
-                    <span className={styles.chevron}>{expanded === a.id ? '▾' : '▸'}</span>
+                    <span className={styles.chevron}>{loadingId === a.id ? '…' : '▸'}</span>
                   </button>
-
-                  {expanded === a.id && (
-                    <div className={styles.detail}>
-                      {loadingDetail && <p className={styles.loading}>{t.speakingLoadingDetail}</p>}
-                      {!loadingDetail && detail && (
-                        <>
-                          {detail.assessment?.transcript && (
-                            <div className={styles.transcript}>
-                              <p className={styles.transcriptLabel}>{t.speakingTranscriptLabel}</p>
-                              <p className={styles.transcriptText}>{detail.assessment.transcript}</p>
-                            </div>
-                          )}
-                          {detail.assessment && <ScoreGrid assessment={detail.assessment} />}
-                          {detail.assessment?.pronunciation_words && detail.assessment.pronunciation_words.length > 0 && (
-                            <PronunciationBreakdown
-                              words={detail.assessment.pronunciation_words}
-                              pronunciationScore={detail.assessment.pronunciation_score}
-                            />
-                          )}
-                          {detail.assessment?.feedback_items && detail.assessment.feedback_items.length > 0 && (
-                            <FeedbackList items={detail.assessment.feedback_items} />
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>

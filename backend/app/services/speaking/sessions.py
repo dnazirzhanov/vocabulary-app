@@ -299,5 +299,6 @@ def _to_assessment_out(
             )
             for fi in (feedback_items or [])
         ],
+        evidence=assessment.evidence or {},
         created_at=assessment.created_at,
     )

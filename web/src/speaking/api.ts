@@ -97,6 +97,7 @@ export interface SpeakingAssessment {
   overall_score: number | null;
   pronunciation_words: PronunciationWord[];
   feedback_items: FeedbackItem[];
+  evidence: Record<string, unknown>;
   created_at: string;
 }
 

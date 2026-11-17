@@ -73,6 +73,8 @@ class AssessmentOut(BaseModel):
     # Populated for pronunciation exercises after Azure PA runs.
     pronunciation_words: list[PronunciationWordOut] = []
     feedback_items: list[FeedbackItemOut] = []
+    # Raw evidence from each provider — used by the UI to show score explanations.
+    evidence: dict[str, object] = {}
     created_at: datetime
 
 
