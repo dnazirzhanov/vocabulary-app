@@ -21,6 +21,7 @@ import {
   type SpeakingQuestion,
   type SpeakingSessionDetail,
 } from './api.ts';
+import { FeedbackList } from './FeedbackList.tsx';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
 import { ScoreGrid } from './ScoreGrid.tsx';
 import styles from './ExerciseScreen.module.css';
@@ -251,6 +252,10 @@ export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
                 pronunciationScore={submit.result.assessment.pronunciation_score}
               />
             )}
+
+          {submit.kind === 'done' && submit.result.assessment?.feedback_items && (
+            <FeedbackList items={submit.result.assessment.feedback_items} />
+          )}
         </section>
       )}
     </main>

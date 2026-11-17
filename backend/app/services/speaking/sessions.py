@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
 from app.models import SpeakingAudioAsset, SpeakingSession, User
-from app.models.speaking import SpeakingAssessment
+from app.models.speaking import SpeakingAssessment, SpeakingFeedbackItem
 from app.schemas.speaking import (
     AssessmentOut,
     AudioAssetOut,
     ExerciseType,
+    FeedbackItemOut,
     PhonemeScoreOut,
     PronunciationWordOut,
     SessionDetailOut,
@@ -79,10 +80,19 @@ def read(db: Session, user: User, session_id: uuid.UUID) -> SessionDetailOut:
     assessment = db.scalar(
         select(SpeakingAssessment).where(SpeakingAssessment.session_id == session.id)
     )
+    feedback_items: list[SpeakingFeedbackItem] = []
+    if assessment is not None:
+        feedback_items = list(
+            db.scalars(
+                select(SpeakingFeedbackItem).where(
+                    SpeakingFeedbackItem.assessment_id == assessment.id
+                )
+            )
+        )
     return SessionDetailOut(
         **_to_session_out(session).model_dump(),
         audio=None if audio is None else _to_audio_out(audio),
-        assessment=None if assessment is None else _to_assessment_out(assessment),
+        assessment=None if assessment is None else _to_assessment_out(assessment, feedback_items),
     )
 
 
@@ -217,7 +227,10 @@ def _to_audio_out(asset: SpeakingAudioAsset) -> AudioAssetOut:
     )
 
 
-def _to_assessment_out(assessment: SpeakingAssessment) -> AssessmentOut:
+def _to_assessment_out(
+    assessment: SpeakingAssessment,
+    feedback_items: list[SpeakingFeedbackItem] | None = None,
+) -> AssessmentOut:
     # pronunciation_words are stored in evidence["azure_pa"]["words"] (Chunk 4+).
     pa_evidence = (assessment.evidence or {}).get("azure_pa") or {}
     raw_pron_words = pa_evidence.get("words") or []
@@ -244,5 +257,15 @@ def _to_assessment_out(assessment: SpeakingAssessment) -> AssessmentOut:
         coherence_score=assessment.coherence_score,
         overall_score=assessment.overall_score,
         pronunciation_words=pronunciation_words,
+        feedback_items=[
+            FeedbackItemOut(
+                category=fi.category,
+                severity=fi.severity,
+                original_text=fi.original_text,
+                corrected_text=fi.corrected_text,
+                explanation=fi.explanation,
+            )
+            for fi in (feedback_items or [])
+        ],
         created_at=assessment.created_at,
     )

@@ -1013,4 +1013,10 @@ export const en: Messages = {
   speakingCoherenceScore: 'Coherence',
   speakingScoreLabel: (score: number) => `${Math.round(score)}/100`,
   speakingNeedMoreWords: 'Too short for a full score — keep practising!',
+  speakingFeedbackHeading: 'Feedback',
+  speakingFeedbackCategoryPronunciation: 'Pronunciation',
+  speakingFeedbackCategoryGrammar: 'Grammar',
+  speakingFeedbackCategoryVocabulary: 'Vocabulary',
+  speakingFeedbackCategoryCoherence: 'Coherence',
+  speakingFeedbackCategoryFluency: 'Fluency',
 };

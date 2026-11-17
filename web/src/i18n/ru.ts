@@ -1017,6 +1017,12 @@ export const ru = {
   speakingCoherenceScore: 'Связность',
   speakingScoreLabel: (score: number) => `${Math.round(score)}/100`,
   speakingNeedMoreWords: 'Слишком коротко для полной оценки — продолжайте тренироваться!',
+  speakingFeedbackHeading: 'Обратная связь',
+  speakingFeedbackCategoryPronunciation: 'Произношение',
+  speakingFeedbackCategoryGrammar: 'Грамматика',
+  speakingFeedbackCategoryVocabulary: 'Словарный запас',
+  speakingFeedbackCategoryCoherence: 'Связность',
+  speakingFeedbackCategoryFluency: 'Беглость',
 };
 
 export type Messages = typeof ru;

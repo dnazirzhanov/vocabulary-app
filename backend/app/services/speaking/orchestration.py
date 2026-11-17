@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.models.speaking import (
     SpeakingAssessment,
     SpeakingAudioAsset,
+    SpeakingFeedbackItem,
     SpeakingJob,
     SpeakingSession,
 )
@@ -31,6 +32,8 @@ from app.services.speaking import jobs as jobs_svc
 from app.services.speaking import questions as questions_svc
 from app.services.speaking.coherence import CoherenceError, CoherenceResult, assess_coherence
 from app.services.speaking.coherence import meets_minimum_evidence as coherence_min_evidence
+from app.services.speaking.feedback import FeedbackError, FeedbackResult, generate_feedback
+from app.services.speaking.feedback import meets_minimum_evidence as feedback_min_evidence
 from app.services.speaking.fluency import FluencyResult, compute_fluency
 from app.services.speaking.fluency import meets_minimum_evidence as fluency_min_evidence
 from app.services.speaking.grammar import GrammarError_, GrammarResult, check_grammar
@@ -245,6 +248,26 @@ def run_assess_job(
         pronunciation_score, fluency_score, vocabulary_score, grammar_score, coherence_score
     )
 
+    # --- Feedback (optional DeepSeek call) ---
+    feedback_result: FeedbackResult | None = None
+    if deepseek_api_key and feedback_min_evidence(word_count) and question_text:
+        try:
+            feedback_result = generate_feedback(
+                transcript=transcript_text,
+                question_text=question_text,
+                fluency_result=fluency_result,
+                vocab_result=vocab_result,
+                grammar_result=grammar_result,
+                coherence_result=coherence_result,
+                pron_result=pron_result,
+                api_key=deepseek_api_key,
+                model=deepseek_model,
+            )
+        except FeedbackError as exc:
+            log.warning("Feedback generation failed (non-fatal): %s", exc)
+        except Exception as exc:
+            log.warning("Feedback generation unexpected error (non-fatal): %s", exc)
+
     # --- Persist ---
     assessment = SpeakingAssessment(
         session_id=session.id,
@@ -280,9 +303,27 @@ def run_assess_job(
             "coherence": coherence_result.raw
             if coherence_result
             else {"skipped": "no_key" if not deepseek_api_key else "insufficient_evidence"},
+            "feedback": feedback_result.raw
+            if feedback_result
+            else {"skipped": "no_key" if not deepseek_api_key else "insufficient_evidence"},
         },
     )
     db.add(assessment)
+    db.flush()  # get assessment.id before inserting feedback items
+
+    if feedback_result:
+        for item in feedback_result.items:
+            db.add(
+                SpeakingFeedbackItem(
+                    assessment_id=assessment.id,
+                    category=item.category,
+                    severity=item.severity,
+                    original_text=item.original_text,
+                    corrected_text=item.corrected_text,
+                    explanation=item.explanation,
+                )
+            )
+
     session.status = "done"
     session.completed_at = now
     jobs_svc.complete(db, job)

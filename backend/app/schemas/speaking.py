@@ -52,6 +52,14 @@ class PronunciationWordOut(BaseModel):
     phonemes: list[PhonemeScoreOut]
 
 
+class FeedbackItemOut(BaseModel):
+    category: str
+    severity: str
+    original_text: str | None
+    corrected_text: str | None
+    explanation: str | None
+
+
 class AssessmentOut(BaseModel):
     id: uuid.UUID
     transcript: str
@@ -64,6 +72,7 @@ class AssessmentOut(BaseModel):
     overall_score: float | None
     # Populated for pronunciation exercises after Azure PA runs.
     pronunciation_words: list[PronunciationWordOut] = []
+    feedback_items: list[FeedbackItemOut] = []
     created_at: datetime
 
 

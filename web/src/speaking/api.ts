@@ -62,6 +62,14 @@ export interface TranscriptWord {
   confidence: number;
 }
 
+export interface FeedbackItem {
+  category: 'pronunciation' | 'grammar' | 'vocabulary' | 'coherence' | 'fluency';
+  severity: 'major' | 'minor' | 'info';
+  original_text: string | null;
+  corrected_text: string | null;
+  explanation: string | null;
+}
+
 export interface SpeakingAssessment {
   id: string;
   transcript: string;
@@ -73,6 +81,7 @@ export interface SpeakingAssessment {
   coherence_score: number | null;
   overall_score: number | null;
   pronunciation_words: PronunciationWord[];
+  feedback_items: FeedbackItem[];
   created_at: string;
 }
 
