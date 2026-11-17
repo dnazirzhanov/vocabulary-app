@@ -47,16 +47,16 @@ export function SpeakingHome({ onSelectTopic, onBack }: SpeakingHomeProps) {
         <h1 className={styles.title}>{t.speakingTopicsHeading}</h1>
       </header>
 
-      {error && <p role="alert" className={styles.error}>{error}</p>}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
 
       <ul className={styles.list}>
         {topics.map(({ topic, questions }) => (
           <li key={topic}>
-            <button
-              type="button"
-              className={styles.topicCard}
-              onClick={() => onSelectTopic(topic, questions)}
-            >
+            <button type="button" className={styles.topicCard} onClick={() => onSelectTopic(topic, questions)}>
               <span className={styles.topicName}>{topic}</span>
               <span className={styles.topicMeta}>
                 {questions.length} {questions.length === 1 ? t.speakingQuestionSingular : t.speakingQuestionPlural}

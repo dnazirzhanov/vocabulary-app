@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
-import { getSession, listSessions, type SessionSummary, type SpeakingQuestion, type SpeakingSessionDetail } from './api.ts';
+import {
+  getSession,
+  listSessions,
+  type SessionSummary,
+  type SpeakingQuestion,
+  type SpeakingSessionDetail,
+} from './api.ts';
 import styles from './QuestionScreen.module.css';
 
 interface QuestionScreenProps {
@@ -91,9 +97,7 @@ export function QuestionScreen({ question, onRecord, onViewAttempt, onBack }: Qu
                   >
                     <span className={styles.attemptNum}>#{doneAttempts.length - i}</span>
                     <span className={styles.attemptDate}>{formatDate(a.started_at)}</span>
-                    {a.overall_score !== null && (
-                      <span className={styles.score}>{Math.round(a.overall_score)}%</span>
-                    )}
+                    {a.overall_score !== null && <span className={styles.score}>{Math.round(a.overall_score)}%</span>}
                     <span className={styles.chevron}>{loadingId === a.id ? '…' : '▸'}</span>
                   </button>
                 </li>
@@ -108,8 +112,11 @@ export function QuestionScreen({ question, onRecord, onViewAttempt, onBack }: Qu
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) +
-    ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return (
+    d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ' ' +
+    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
 }
 
 function statusLabel(status: string): string {

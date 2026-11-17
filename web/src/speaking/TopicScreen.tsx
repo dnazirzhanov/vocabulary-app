@@ -51,11 +51,7 @@ export function TopicScreen({ topic, questions, onSelectQuestion, onBack }: Topi
           }, null);
           return (
             <li key={q.id}>
-              <button
-                type="button"
-                className={styles.questionCard}
-                onClick={() => onSelectQuestion(q)}
-              >
+              <button type="button" className={styles.questionCard} onClick={() => onSelectQuestion(q)}>
                 <div className={styles.questionText}>{q.text}</div>
                 <div className={styles.questionMeta}>
                   {q.level && <span className={styles.level}>{q.level}</span>}
@@ -64,9 +60,7 @@ export function TopicScreen({ topic, questions, onSelectQuestion, onBack }: Topi
                       {attempts.length} {attempts.length === 1 ? t.speakingAttemptSingular : t.speakingAttemptPlural}
                     </span>
                   )}
-                  {best !== null && (
-                    <span className={styles.bestScore}>{Math.round(best)}%</span>
-                  )}
+                  {best !== null && <span className={styles.bestScore}>{Math.round(best)}%</span>}
                 </div>
                 <span className={styles.arrow}>›</span>
               </button>

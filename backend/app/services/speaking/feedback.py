@@ -126,11 +126,13 @@ def generate_feedback(
         evidence_parts.append("pronunciation_errors: []  # not available")
 
     if grammar_result is not None and grammar_result.errors:
+
         def _fmt_error(e: Any) -> str:
             has_pos = e.offset >= 0 and e.length > 0
             snippet = transcript[e.offset : e.offset + e.length] if has_pos else "?"
             correction = e.replacements[0] if e.replacements else "?"
             return f'original={snippet!r}, correction={correction!r}, reason="{e.message}"'
+
         err_list = "; ".join(_fmt_error(e) for e in grammar_result.errors[:5])
         evidence_parts.append(f"grammar_errors: [{err_list}]")
     else:

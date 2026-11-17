@@ -48,12 +48,8 @@ const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => 
 const SpeakingExerciseScreen = lazy(() =>
   import('./speaking/ExerciseScreen.tsx').then((m) => ({ default: m.ExerciseScreen })),
 );
-const SpeakingHomeScreen = lazy(() =>
-  import('./speaking/SpeakingHome.tsx').then((m) => ({ default: m.SpeakingHome })),
-);
-const SpeakingTopicScreen = lazy(() =>
-  import('./speaking/TopicScreen.tsx').then((m) => ({ default: m.TopicScreen })),
-);
+const SpeakingHomeScreen = lazy(() => import('./speaking/SpeakingHome.tsx').then((m) => ({ default: m.SpeakingHome })));
+const SpeakingTopicScreen = lazy(() => import('./speaking/TopicScreen.tsx').then((m) => ({ default: m.TopicScreen })));
 const SpeakingQuestionScreen = lazy(() =>
   import('./speaking/QuestionScreen.tsx').then((m) => ({ default: m.QuestionScreen })),
 );
@@ -71,7 +67,12 @@ type Screen =
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
-  | { name: 'speaking-eval'; session: SpeakingSessionDetail; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
+  | {
+      name: 'speaking-eval';
+      session: SpeakingSessionDetail;
+      question: SpeakingQuestion;
+      topicQuestions: SpeakingQuestion[];
+    }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -539,7 +540,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           <SpeakingTopicScreen
             topic={screen.topic}
             questions={screen.questions}
-            onSelectQuestion={(question) => setScreen({ name: 'speaking-question', question, topicQuestions: screen.questions })}
+            onSelectQuestion={(question) =>
+              setScreen({ name: 'speaking-question', question, topicQuestions: screen.questions })
+            }
             onBack={() => setScreen({ name: 'speaking' })}
           />
         </Suspense>
@@ -550,9 +553,20 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         <Suspense fallback={null}>
           <SpeakingQuestionScreen
             question={screen.question}
-            onRecord={() => setScreen({ name: 'speaking-exercise', question: screen.question, topicQuestions: screen.topicQuestions })}
-            onViewAttempt={(session) => setScreen({ name: 'speaking-eval', session, question: screen.question, topicQuestions: screen.topicQuestions })}
-            onBack={() => setScreen({ name: 'speaking-topic', topic: screen.question.topic, questions: screen.topicQuestions })}
+            onRecord={() =>
+              setScreen({ name: 'speaking-exercise', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
+            onViewAttempt={(session) =>
+              setScreen({
+                name: 'speaking-eval',
+                session,
+                question: screen.question,
+                topicQuestions: screen.topicQuestions,
+              })
+            }
+            onBack={() =>
+              setScreen({ name: 'speaking-topic', topic: screen.question.topic, questions: screen.topicQuestions })
+            }
           />
         </Suspense>
       );
@@ -562,8 +576,17 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         <Suspense fallback={null}>
           <SpeakingExerciseScreen
             question={screen.question}
-            onBack={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
-            onDone={(session) => setScreen({ name: 'speaking-eval', session, question: screen.question, topicQuestions: screen.topicQuestions })}
+            onBack={() =>
+              setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
+            onDone={(session) =>
+              setScreen({
+                name: 'speaking-eval',
+                session,
+                question: screen.question,
+                topicQuestions: screen.topicQuestions,
+              })
+            }
           />
         </Suspense>
       );
@@ -574,7 +597,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           <SpeakingEvaluationScreen
             session={screen.session}
             question={screen.question}
-            onBack={() => setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })}
+            onBack={() =>
+              setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
           />
         </Suspense>
       );
@@ -647,7 +672,8 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
-  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name)) return 'speaking';
+  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name))
+    return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

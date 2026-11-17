@@ -212,12 +212,8 @@ function renderGrammarDetail(a: SpeakingAssessment): React.ReactNode {
     <ul className={styles.grammarErrors}>
       {feedbackItems.map((item, i) => (
         <li key={i} className={styles.grammarError}>
-          {item.original_text && (
-            <span className={styles.grammarOriginal}>"{item.original_text}"</span>
-          )}
-          {item.corrected_text && (
-            <span className={styles.grammarCorrected}>→ {item.corrected_text}</span>
-          )}
+          {item.original_text && <span className={styles.grammarOriginal}>"{item.original_text}"</span>}
+          {item.corrected_text && <span className={styles.grammarCorrected}>→ {item.corrected_text}</span>}
           {item.explanation && <p className={styles.grammarExplanation}>{item.explanation}</p>}
         </li>
       ))}

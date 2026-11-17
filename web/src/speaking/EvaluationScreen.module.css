@@ -173,10 +173,18 @@
 }
 
 /* Scores */
-.scoreGood { color: #2a9d2a; }
-.scoreMid  { color: #c97700; }
-.scoreLow  { color: #d33; }
-.scoreNull { color: var(--text-muted); }
+.scoreGood {
+  color: #2a9d2a;
+}
+.scoreMid {
+  color: #c97700;
+}
+.scoreLow {
+  color: #d33;
+}
+.scoreNull {
+  color: var(--text-muted);
+}
 
 /* Grammar errors */
 .grammarErrors {

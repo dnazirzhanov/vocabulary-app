@@ -189,9 +189,7 @@ def run_assess_job(
                         check_grammar, transcript_text, language_tool_url, word_count
                     )
                 else:
-                    grammar_fut = pool.submit(
-                        check_grammar_llm, transcript_text, openai_api_key
-                    )
+                    grammar_fut = pool.submit(check_grammar_llm, transcript_text, openai_api_key)
 
             if coherence_enabled:
                 coherence_fut = pool.submit(

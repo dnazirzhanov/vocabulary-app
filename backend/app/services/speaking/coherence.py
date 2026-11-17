@@ -87,9 +87,7 @@ def assess_coherence(
         score = float(data["score"])
         justification = str(data["justification"])
     except Exception as exc:
-        raise CoherenceError(
-            "bad_response", f"LLM returned invalid JSON: {content!r}"
-        ) from exc
+        raise CoherenceError("bad_response", f"LLM returned invalid JSON: {content!r}") from exc
 
     score = max(0.0, min(100.0, score))
 
