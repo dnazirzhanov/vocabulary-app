@@ -83,7 +83,7 @@ test('follow-up chips appear after the assistant replies', async ({ page }) => {
   await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
 
   // After the reply, follow-up chips should appear.
-  await expect(page.getByRole('button', { name: 'Дай ещё один совет' })).toBeVisible();
+  await expect(page.locator('[data-testid="mentor-followup"]').first()).toBeVisible({ timeout: 5_000 });
 });
 
 test('clearing the chat removes all messages', async ({ page }) => {

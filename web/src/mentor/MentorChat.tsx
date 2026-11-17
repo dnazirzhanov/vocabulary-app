@@ -384,7 +384,13 @@ export function MentorChat({ items = [], tip, onBack, onOpenArticle, onStartSess
       {showFollowUps && (
         <div className={styles.followUps}>
           {followUpsFor(items, tip).map((s) => (
-            <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
+            <button
+              key={s()}
+              type="button"
+              className={styles.chip}
+              data-testid="mentor-followup"
+              onClick={() => void send(s())}
+            >
               {s()}
             </button>
           ))}
