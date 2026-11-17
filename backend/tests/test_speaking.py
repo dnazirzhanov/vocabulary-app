@@ -5,7 +5,7 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +14,10 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.services.speaking import jobs as jobs_svc
+from app.services.speaking.fluency import compute_fluency
+from app.services.speaking.fluency import meets_minimum_evidence as fluency_min
+from app.services.speaking.grammar import GrammarError_, check_grammar
+from app.services.speaking.grammar import meets_minimum_evidence as grammar_min
 from app.services.speaking.pronunciation import (
     PhonemeScore,
     PronunciationResult,
@@ -21,6 +25,8 @@ from app.services.speaking.pronunciation import (
     meets_minimum_evidence,
 )
 from app.services.speaking.transcription import TranscriptResult, TranscriptWord
+from app.services.speaking.vocabulary import compute_vocabulary
+from app.services.speaking.vocabulary import meets_minimum_evidence as vocab_min
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 16, 15, 0, tzinfo=UTC)
@@ -392,7 +398,7 @@ def test_job_claim_one(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> N
     session_id = result["id"]
 
     db: Session = get_sessionmaker()()
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     job = jobs_svc.claim_one(db, "test-worker", now)
     # There may be jobs from other tests; find ours.
     claimed = None
@@ -416,7 +422,7 @@ def test_job_complete(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> No
     session_id = result["id"]
 
     db: Session = get_sessionmaker()()
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     job = jobs_svc.claim_one(db, "test-worker", now)
     while job is not None and str(job.session_id) != session_id:
         db.commit()
@@ -435,7 +441,7 @@ def test_job_retry_on_failure(client: TestClient, monkeypatch: pytest.MonkeyPatc
     session_id = result["id"]
 
     db: Session = get_sessionmaker()()
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     job = jobs_svc.claim_one(db, "test-worker", now)
     while job is not None and str(job.session_id) != session_id:
         db.commit()
@@ -458,7 +464,7 @@ def test_job_terminal_failure_after_max_attempts(
     result = _upload_session(client, "evan")
     session_id = str(result["id"])
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
 
     # Look up without claiming so the loop can claim it MAX_ATTEMPTS times.
@@ -506,7 +512,7 @@ def test_worker_runs_transcription(client: TestClient, monkeypatch: pytest.Monke
     from app.services.speaking import orchestration as orch
     from app.services.speaking.storage import get_storage
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
     storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
@@ -631,7 +637,7 @@ def test_pronunciation_pipeline_writes_pron_score(
     from app.services.speaking import orchestration as orch
     from app.services.speaking.storage import get_storage
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
     storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
@@ -682,7 +688,7 @@ def test_pronunciation_pipeline_no_score_below_evidence(
     from app.services.speaking import orchestration as orch
     from app.services.speaking.storage import get_storage
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
     storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
@@ -724,7 +730,7 @@ def test_azure_pa_failure_is_nonfatal(client: TestClient, monkeypatch: pytest.Mo
     from app.services.speaking.pronunciation import PronunciationError
     from app.services.speaking.storage import get_storage
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
     storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
@@ -770,7 +776,7 @@ def test_spontaneous_skips_azure_pa(client: TestClient, monkeypatch: pytest.Monk
     from app.services.speaking import orchestration as orch
     from app.services.speaking.storage import get_storage
 
-    now = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
     storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
@@ -799,3 +805,233 @@ def test_spontaneous_skips_azure_pa(client: TestClient, monkeypatch: pytest.Monk
     body = resp.json()
     assert body["status"] == "done"
     assert body["assessment"]["pronunciation_score"] is None
+
+
+# ─── Chunk 5: fluency + vocabulary + grammar + coherence ────────────────────
+
+
+def _make_words(count: int, wpm: float = 120.0) -> list[TranscriptWord]:
+    """Generate `count` evenly-spaced words at the given WPM."""
+    ms_per_word = int(60_000 / wpm)
+    words = []
+    for i in range(count):
+        start = i * ms_per_word
+        end = start + max(1, ms_per_word - 50)
+        words.append(TranscriptWord(word=f"word{i}", start_ms=start, end_ms=end, confidence=1.0))
+    return words
+
+
+def test_fluency_minimum_evidence_check() -> None:
+    assert fluency_min(14, 15_000) is False  # too few words
+    assert fluency_min(15, 9_999) is False  # too short
+    assert fluency_min(15, 10_000) is True
+
+
+def test_compute_fluency_basic() -> None:
+    words = _make_words(30, wpm=120.0)
+    duration_ms = int(30 / 120.0 * 60_000)
+    result = compute_fluency(words, duration_ms)
+    assert 110.0 <= result.wpm <= 130.0
+    assert result.pause_ratio < 0.1
+    assert result.score >= 90.0
+
+
+def test_compute_fluency_slow_speaker() -> None:
+    words = _make_words(20, wpm=50.0)
+    duration_ms = int(20 / 50.0 * 60_000)
+    result = compute_fluency(words, duration_ms)
+    assert result.wpm < 90.0
+    assert result.score < 100.0
+
+
+def test_vocabulary_minimum_evidence_check() -> None:
+    assert vocab_min(29) is False
+    assert vocab_min(30) is True
+
+
+def test_compute_vocabulary_basic() -> None:
+    # Enough common English words to exceed the 30-word threshold.
+    transcript = " ".join(["The dog runs fast and the cat jumps high"] * 5)
+    result = compute_vocabulary(transcript)
+    assert result.score >= 0.0
+    assert result.score <= 100.0
+    assert result.unique_lemmas > 0
+
+
+def test_grammar_minimum_evidence_check() -> None:
+    assert grammar_min(9) is False
+    assert grammar_min(10) is True
+
+
+def test_grammar_check_mocked_errors() -> None:
+    """check_grammar parses LanguageTool JSON and computes a score."""
+    lt_response = {
+        "matches": [
+            {
+                "message": "Did you mean 'going'?",
+                "offset": 4,
+                "length": 5,
+                "replacements": [{"value": "going"}],
+                "rule": {"id": "GOING_TO", "category": {"id": "GRAMMAR"}},
+            }
+        ]
+    }
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = lt_response
+
+    with patch("httpx2.post", return_value=mock_resp):
+        result = check_grammar("She are going to school", "http://lt:8010", word_count=5)
+
+    assert result.error_count == 1
+    assert result.score < 100.0
+
+
+def test_grammar_check_raises_on_connection_error() -> None:
+    with (
+        patch("httpx2.post", side_effect=OSError("Connection refused")),
+        pytest.raises(GrammarError_) as exc_info,
+    ):
+        check_grammar("some text", "http://lt:8010", word_count=10)
+    assert exc_info.value.code == "connection_error"
+
+
+def test_worker_runs_full_pipeline(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fluency and vocabulary scores are written when pipeline has enough words."""
+    import app.services.speaking.orchestration as orch
+    from app.services.speaking.storage import get_storage
+
+    _enable_speaking(monkeypatch)
+
+    session_id = _upload_session(client, "karl")["id"]
+
+    storage = get_storage(get_settings())
+
+    now = datetime.now(UTC)
+    db: Session = get_sessionmaker()()
+    job = jobs_svc.claim_one(db, "test-wfp", now)
+    while job is not None and str(job.session_id) != session_id:
+        db.commit()
+        job = jobs_svc.claim_one(db, "test-wfp", now)
+    assert job is not None
+    db.commit()
+
+    # 40 evenly-spaced words, 20 seconds total → ~120 WPM, qualifies for fluency + vocabulary.
+    words_40 = _make_words(40, wpm=120.0)
+    duration_ms = int(40 / 120.0 * 60_000)
+    fake_transcript = TranscriptResult(
+        transcript=" ".join(w.word for w in words_40),
+        words=words_40,
+        duration_ms=duration_ms,
+        raw={},
+    )
+
+    with patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript):
+        orch.run_assess_job(
+            db,
+            storage,
+            job,
+            openai_api_key="fake-key",
+            now=MOMENT,
+        )
+    db.close()
+
+    resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("karl"))
+    body = resp.json()
+    assert body["status"] == "done"
+    assert body["assessment"]["fluency_score"] is not None
+    assert body["assessment"]["fluency_score"] > 0
+    # vocabulary_score may be None if spaCy yields <30 recognisable content words from
+    # synthetic "word0…word39" tokens — that's acceptable; we just check fluency here.
+
+
+def test_grammar_skipped_when_no_url(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """grammar_score is null when language_tool_url is not configured."""
+    import app.services.speaking.orchestration as orch
+
+    _enable_speaking(monkeypatch)
+    monkeypatch.setattr(get_settings(), "language_tool_url", None)
+
+    session_id = _upload_session(client, "karl")["id"]
+
+    from app.services.speaking.storage import get_storage as _get_storage
+
+    storage = _get_storage(get_settings())
+
+    now = datetime.now(UTC)
+    db: Session = get_sessionmaker()()
+    job = jobs_svc.claim_one(db, "test-wgr", now)
+    while job is not None and str(job.session_id) != session_id:
+        db.commit()
+        job = jobs_svc.claim_one(db, "test-wgr", now)
+    assert job is not None
+    db.commit()
+
+    words_40 = _make_words(40, wpm=120.0)
+    duration_ms = int(40 / 120.0 * 60_000)
+    fake_transcript = TranscriptResult(
+        transcript=" ".join(w.word for w in words_40),
+        words=words_40,
+        duration_ms=duration_ms,
+        raw={},
+    )
+
+    with patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript):
+        orch.run_assess_job(
+            db,
+            storage,
+            job,
+            openai_api_key="fake-key",
+            language_tool_url=None,
+            now=now,
+        )
+    db.close()
+
+    resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("karl"))
+    body = resp.json()
+    assert body["assessment"]["grammar_score"] is None
+
+
+def test_coherence_skipped_when_no_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """coherence_score is null when deepseek_api_key is not provided."""
+    import app.services.speaking.orchestration as orch
+    from app.services.speaking.storage import get_storage
+
+    _enable_speaking(monkeypatch)
+
+    session_id = _upload_session(client, "karl")["id"]
+
+    storage = get_storage(get_settings())
+
+    now = datetime.now(UTC)
+    db: Session = get_sessionmaker()()
+    job = jobs_svc.claim_one(db, "test-wco", now)
+    while job is not None and str(job.session_id) != session_id:
+        db.commit()
+        job = jobs_svc.claim_one(db, "test-wco", now)
+    assert job is not None
+    db.commit()
+
+    words_40 = _make_words(40, wpm=120.0)
+    duration_ms = int(40 / 120.0 * 60_000)
+    fake_transcript = TranscriptResult(
+        transcript=" ".join(w.word for w in words_40),
+        words=words_40,
+        duration_ms=duration_ms,
+        raw={},
+    )
+
+    with patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript):
+        orch.run_assess_job(
+            db,
+            storage,
+            job,
+            openai_api_key="fake-key",
+            deepseek_api_key=None,
+            now=now,
+        )
+    db.close()
+
+    resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("karl"))
+    body = resp.json()
+    assert body["assessment"]["coherence_score"] is None

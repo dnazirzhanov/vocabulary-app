@@ -988,4 +988,11 @@ export const kk: Messages = {
   speakingPronunciationScore: (score: number) => `Score: ${Math.round(score)}/100`,
   speakingNeedMoreSpeech: 'More speech needed for pronunciation score (10+ words).',
   speakingWordAccuracy: 'Word accuracy',
+  speakingOverallScore: 'Overall',
+  speakingFluencyScore: 'Fluency',
+  speakingVocabularyScore: 'Vocabulary',
+  speakingGrammarScore: 'Grammar',
+  speakingCoherenceScore: 'Coherence',
+  speakingScoreLabel: (score: number) => `${Math.round(score)}/100`,
+  speakingNeedMoreWords: 'Too short for a full score — keep practising!',
 };

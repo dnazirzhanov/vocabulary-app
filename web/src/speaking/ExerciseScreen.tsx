@@ -22,6 +22,7 @@ import {
   type SpeakingSessionDetail,
 } from './api.ts';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
+import { ScoreGrid } from './ScoreGrid.tsx';
 import styles from './ExerciseScreen.module.css';
 
 interface ExerciseScreenProps {
@@ -239,6 +240,8 @@ export function ExerciseScreen({ onBack }: ExerciseScreenProps) {
               {recording.mimeType} · {Math.round(recording.blob.size / 1024)} KB · {durationLabel}
             </p>
           )}
+
+          {submit.kind === 'done' && submit.result.assessment && <ScoreGrid assessment={submit.result.assessment} />}
 
           {submit.kind === 'done' &&
             submit.result.assessment?.pronunciation_words &&

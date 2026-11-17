@@ -1010,6 +1010,13 @@ export const ru = {
   speakingPronunciationScore: (score: number) => `Оценка: ${Math.round(score)}/100`,
   speakingNeedMoreSpeech: 'Нужно больше речи для оценки произношения (от 10 слов).',
   speakingWordAccuracy: 'Точность по словам',
+  speakingOverallScore: 'Итого',
+  speakingFluencyScore: 'Беглость',
+  speakingVocabularyScore: 'Словарный запас',
+  speakingGrammarScore: 'Грамматика',
+  speakingCoherenceScore: 'Связность',
+  speakingScoreLabel: (score: number) => `${Math.round(score)}/100`,
+  speakingNeedMoreWords: 'Слишком коротко для полной оценки — продолжайте тренироваться!',
 };
 
 export type Messages = typeof ru;

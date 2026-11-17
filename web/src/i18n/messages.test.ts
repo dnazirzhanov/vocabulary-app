@@ -56,6 +56,7 @@ const ARGUMENTS: Partial<Record<keyof Messages, unknown[]>> = {
   spellingLead: [41, 42, 43],
   lessonLead: [['PARTS'], 'NEXT'],
   speakingPronunciationScore: [75],
+  speakingScoreLabel: [75],
 };
 /** What must show in each message: its plain arguments, except those a word stands for. */
 const shown = (key: keyof Messages, args: unknown[]): string[] => {

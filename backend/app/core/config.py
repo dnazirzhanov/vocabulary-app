@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     azure_speech_region: str = "westeurope"
     # Identifier for the speaking worker instance; used in claimed_by for observability.
     speaking_worker_id: str = "default"
+    # LanguageTool REST API base URL (Chunk 5). Optional — grammar_score stays null if unset.
+    # Point to a self-hosted instance (e.g. http://languagetool:8010) in production.
+    language_tool_url: str | None = None
 
     @field_validator("database_url")
     @classmethod

@@ -1,0 +1,71 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: var(--space-2);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+}
+
+.cellLabel {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.cellScore {
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.good {
+  background: color-mix(in srgb, #22c55e 12%, var(--color-surface));
+  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.good .cellScore {
+  color: #16a34a;
+}
+
+.fair {
+  background: color-mix(in srgb, #f59e0b 12%, var(--color-surface));
+  border-color: color-mix(in srgb, #f59e0b 35%, transparent);
+}
+
+.fair .cellScore {
+  color: #d97706;
+}
+
+.poor {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 10%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-error, #ef4444) 30%, transparent);
+}
+
+.poor .cellScore {
+  color: var(--color-error, #ef4444);
+}
+
+.missing {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  opacity: 0.55;
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-3);
+}
