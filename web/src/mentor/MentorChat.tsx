@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, mentorChatStream } from '../lib/api.ts';
 import { api } from '../lib/api.ts';
+import type { Session } from '../lib/types.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { canDictate, dictate, type Dictation } from '../reading/dictation.ts';
-import { CopyIcon, MicIcon, SendIcon } from '../ui/icons.tsx';
-import { MentorGoal } from './MentorGoal.tsx';
+import { study } from '../study/device.ts';
+import { BackIcon, CopyIcon, MicIcon, SendIcon } from '../ui/icons.tsx';
 import { MentorMarkdown } from './MentorMarkdown.tsx';
 import type { PlanItem, Tip } from './types.ts';
 import styles from './MentorChat.module.css';
@@ -63,7 +64,6 @@ function suggestionsFor(items: readonly PlanItem[], tip: Tip): Array<() => strin
     else if (item.kind === 'spelling' && chips.length < 3) chips.push(() => t.mentorChatSuggestionSpelling(item.title));
     else if (item.kind === 'reading' && chips.length < 3) chips.push(() => t.mentorChatSuggestionReading(item.title));
   }
-  // When the plan has no items, prefer a tip-specific suggestion over generic fallbacks.
   const specific = chips.length === 0 ? tipSuggestion(tip) : null;
   const extra = specific ? [specific] : [];
   const fallbacks = FALLBACK_SUGGESTIONS.filter((_, i) => i >= chips.length + extra.length);
@@ -99,9 +99,12 @@ function followUpsFor(items: readonly PlanItem[], tip: Tip): Array<() => string>
 interface MentorChatProps {
   items?: readonly PlanItem[];
   tip: Tip;
+  onBack: () => void;
+  onOpenArticle: (articleId: string) => void;
+  onStartSession: (session: Session, from: string) => void;
 }
 
-export function MentorChat({ items = [], tip }: MentorChatProps) {
+export function MentorChat({ items = [], tip, onBack, onOpenArticle, onStartSession }: MentorChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
@@ -111,6 +114,7 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
   const [chatsLimit, setChatsLimit] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const dictationRef = useRef<Dictation | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -128,9 +132,7 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
           })),
         );
       })
-      .catch(() => {
-        // History is best-effort; a network error just starts the chat fresh.
-      });
+      .catch(() => {});
     const statusPromise = api
       .mentorStatus()
       .then(({ chats_remaining, chats_limit }) => {
@@ -141,7 +143,6 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
     void Promise.all([historyPromise, statusPromise]).finally(() => setLoading(false));
   }, []);
 
-  // Auto-scroll only when the user is already near the bottom (within 80 px).
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
@@ -151,19 +152,15 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
     }
   }, [messages]);
 
-  // Escape stops voice recording.
   useEffect(() => {
     if (!listening) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        dictationRef.current?.stop();
-      }
+      if (e.key === 'Escape') dictationRef.current?.stop();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [listening]);
 
-  // Auto-resize textarea as the user types.
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -216,11 +213,9 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
       }
     } catch (caught) {
       if (!streamStarted) {
-        // No chunks received yet — remove user message and restore draft so the user can retry.
         setMessages((prev) => prev.slice(0, -1));
         setDraft(trimmed);
       }
-      // If streaming had started, keep the partial assistant text; just surface the error below.
       if (caught instanceof ApiError && caught.code === 'mentor_chat_limit') {
         setError(t.mentorChatLimitReached);
       } else {
@@ -267,10 +262,30 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
     });
   }
 
+  async function launchItem(item: PlanItem) {
+    if (actionBusy) return;
+    if (item.kind === 'reading') {
+      onOpenArticle(item.articleId);
+      return;
+    }
+    setActionBusy(true);
+    try {
+      const session =
+        item.kind === 'vocab'
+          ? await study.startStudySession(item.deckId)
+          : await study.startSpellingSession(item.deckId);
+      onStartSession(session, item.deckId);
+    } catch {
+      // 409 = nothing left to study; ignore
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   const hasMessages = !loading && messages.length > 0;
-  // Show follow-up chips after the last assistant message, when not currently sending.
   const lastIsAssistant = hasMessages && messages[messages.length - 1].role === 'assistant';
   const showFollowUps = lastIsAssistant && !sending;
+  const showActions = items.length > 0 && !sending;
 
   const overLimit = draft.length > MAX_LENGTH;
   const nearLimit = !overLimit && draft.length >= Math.floor(MAX_LENGTH * 0.8);
@@ -278,9 +293,12 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
 
   return (
     <section className={styles.chat} aria-labelledby="mentor-chat-heading">
-      <MentorGoal />
-      <div className={styles.headingRow}>
-        <h2 className={styles.heading} id="mentor-chat-heading">
+      {/* Header bar */}
+      <div className={styles.chatHeader}>
+        <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Back">
+          <BackIcon aria-hidden="true" />
+        </button>
+        <h2 className={styles.chatTitle} id="mentor-chat-heading">
           {t.mentorChatHeading}
         </h2>
         {hasMessages && (
@@ -292,16 +310,21 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
 
       {loading && <div className={styles.loadingBar} aria-hidden="true" />}
 
+      {/* Empty state — T3-style centered hero with greeting + suggestions */}
       {!loading && !hasMessages && (
-        <div className={styles.suggestions}>
-          {suggestionsFor(items, tip).map((s) => (
-            <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
-              {s()}
-            </button>
-          ))}
+        <div className={styles.heroEmpty}>
+          <h1 className={styles.heroHeading}>{t.mentorChatHeading}</h1>
+          <div className={styles.heroSuggestions}>
+            {suggestionsFor(items, tip).map((s) => (
+              <button key={s()} type="button" className={styles.heroChip} onClick={() => void send(s())}>
+                {s()}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Message list */}
       {!loading && hasMessages && (
         <div
           ref={messagesRef}
@@ -312,27 +335,31 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
         >
           {messages.map((msg, i) => (
             <div key={i} className={msg.role === 'user' ? styles.userWrap : styles.assistantWrap}>
-              <div className={msg.role === 'user' ? styles.user : styles.assistant}>
-                {msg.role === 'user' ? msg.text : <MentorMarkdown text={msg.text} />}
-              </div>
-              <div className={styles.meta}>
-                <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
-                  {formatTime(msg.sentAt)}
-                </time>
-                {msg.role === 'assistant' && (
-                  <button
-                    type="button"
-                    className={styles.copyBtn}
-                    onClick={() => copyMessage(msg.text, i)}
-                    aria-label={copiedIndex === i ? t.mentorChatCopied : t.mentorChatCopy}
-                  >
-                    {copiedIndex === i ? (
-                      <span className={styles.copiedLabel}>{t.mentorChatCopied}</span>
-                    ) : (
-                      <CopyIcon aria-hidden="true" />
-                    )}
-                  </button>
-                )}
+              {msg.role === 'assistant' && <div className={styles.avatar} aria-hidden="true" />}
+              {/* For assistant: wrap text + meta in a column so meta sits below the text */}
+              <div className={msg.role === 'assistant' ? styles.assistantBody : undefined}>
+                <div className={msg.role === 'user' ? styles.user : styles.assistant}>
+                  {msg.role === 'user' ? msg.text : <MentorMarkdown text={msg.text} />}
+                </div>
+                <div className={styles.meta}>
+                  <time className={styles.time} dateTime={msg.sentAt.toISOString()}>
+                    {formatTime(msg.sentAt)}
+                  </time>
+                  {msg.role === 'assistant' && (
+                    <button
+                      type="button"
+                      className={styles.copyBtn}
+                      onClick={() => copyMessage(msg.text, i)}
+                      aria-label={copiedIndex === i ? t.mentorChatCopied : t.mentorChatCopy}
+                    >
+                      {copiedIndex === i ? (
+                        <span className={styles.copiedLabel}>{t.mentorChatCopied}</span>
+                      ) : (
+                        <CopyIcon aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -347,11 +374,32 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
         </div>
       )}
 
+      {/* Follow-up chips */}
       {showFollowUps && (
         <div className={styles.followUps}>
           {followUpsFor(items, tip).map((s) => (
             <button key={s()} type="button" className={styles.chip} onClick={() => void send(s())}>
               {s()}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Plan action buttons */}
+      {showActions && (
+        <div className={styles.actionBar}>
+          {items.map((item) => (
+            <button
+              key={item.kind === 'reading' ? item.articleId : item.deckId}
+              type="button"
+              className={styles.actionBtn}
+              disabled={actionBusy}
+              onClick={() => void launchItem(item)}
+            >
+              {item.kind === 'vocab' && t.mentorPlanVocabCta}
+              {item.kind === 'spelling' && t.mentorPlanSpellingCta}
+              {item.kind === 'reading' && t.mentorPlanReadingCta}{' '}
+              <span className={styles.actionBtnLabel}>{item.title}</span>
             </button>
           ))}
         </div>
@@ -363,60 +411,66 @@ export function MentorChat({ items = [], tip }: MentorChatProps) {
         </p>
       )}
 
-      <form
-        className={styles.form}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send(draft);
-        }}
-      >
-        <textarea
-          ref={inputRef}
-          className={styles.input}
-          placeholder={t.mentorChatPlaceholder}
-          value={draft}
-          rows={1}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void send(draft);
-            }
+      {/* Input bar */}
+      <div className={styles.inputWrap}>
+        <form
+          className={styles.form}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send(draft);
           }}
-          aria-label={t.mentorChatPlaceholder}
-          maxLength={MAX_LENGTH + 10}
-        />
-        {canDictate() && (
-          <button
-            type="button"
-            className={`${styles.mic} ${listening ? styles.micActive : ''}`}
-            onClick={toggleVoice}
-            aria-label={listening ? t.mentorChatVoiceStop : t.mentorChatVoiceStart}
-            aria-pressed={listening}
-          >
-            <MicIcon aria-hidden="true" />
-          </button>
+        >
+          <textarea
+            ref={inputRef}
+            className={styles.input}
+            placeholder={t.mentorChatPlaceholder}
+            value={draft}
+            rows={1}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void send(draft);
+              }
+            }}
+            aria-label={t.mentorChatPlaceholder}
+            maxLength={MAX_LENGTH + 10}
+          />
+          <div className={styles.inputActions}>
+            {canDictate() && (
+              <button
+                type="button"
+                className={`${styles.mic} ${listening ? styles.micActive : ''}`}
+                onClick={toggleVoice}
+                aria-label={listening ? t.mentorChatVoiceStop : t.mentorChatVoiceStart}
+                aria-pressed={listening}
+              >
+                <MicIcon aria-hidden="true" />
+              </button>
+            )}
+            <button type="submit" className={styles.send} disabled={!canSend} aria-label={t.mentorChatSend}>
+              <SendIcon aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+        {overLimit && (
+          <p className={styles.counter} role="status">
+            {draft.length}/{MAX_LENGTH}
+          </p>
         )}
-        <button type="submit" className={styles.send} disabled={!canSend} aria-label={t.mentorChatSend}>
-          <SendIcon aria-hidden="true" />
-          <span className={styles.sendLabel}>{t.mentorChatSend}</span>
-        </button>
-      </form>
-      {overLimit && (
-        <p className={styles.counter} role="status">
-          {draft.length}/{MAX_LENGTH}
-        </p>
-      )}
-      {nearLimit && (
-        <p className={styles.counterSoft} role="status">
-          {draft.length}/{MAX_LENGTH}
-        </p>
-      )}
-      {!overLimit && !nearLimit && chatsRemaining !== null && chatsLimit !== null && (
-        <p className={chatsRemaining <= 5 ? styles.lowCredit : styles.budget} role="status">
-          {chatsRemaining <= 5 ? t.mentorChatLowCredit(chatsRemaining) : t.mentorChatBudget(chatsRemaining, chatsLimit)}
-        </p>
-      )}
+        {nearLimit && (
+          <p className={styles.counterSoft} role="status">
+            {draft.length}/{MAX_LENGTH}
+          </p>
+        )}
+        {!overLimit && !nearLimit && chatsRemaining !== null && chatsLimit !== null && (
+          <p className={chatsRemaining <= 5 ? styles.lowCredit : styles.budget} role="status">
+            {chatsRemaining <= 5
+              ? t.mentorChatLowCredit(chatsRemaining)
+              : t.mentorChatBudget(chatsRemaining, chatsLimit)}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

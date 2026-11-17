@@ -22,6 +22,7 @@ from app.models import (
     MentorMessage,
     ReadingAnswer,
     ReviewAttempt,
+    ScheduleEvent,
     SpellingProgress,
     User,
     UserWordProgress,
@@ -89,13 +90,22 @@ class LearnerContext:
     sample_due_words: list[str] = dataclasses.field(default_factory=list)
     struggling_words: list[str] = dataclasses.field(default_factory=list)
     reading_level_counts: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
+    # Today's recurring events in local-clock order: (title, kind, start_minute, end_minute).
+    schedule_today: list[tuple[str, str, int, int]] = dataclasses.field(default_factory=list)
 
 
 _SYSTEM = """\
 You are a warm, encouraging personal study mentor for a learner studying English vocabulary.
-Reply in {LANGUAGE}. Keep replies short and practical — 1 to 4 sentences unless the learner \
-explicitly asks for more.
-Never invent statistics you don't have.
+Reply in {LANGUAGE}.
+Formatting rules (follow these strictly):
+- Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
+- Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
+> blockquote for a single important takeaway.
+- Never write long paragraphs. If the answer has more than one idea, use bullets.
+- Never invent statistics you don't have.
+When the learner asks what to do now, use the current local time and today's schedule \
+(below, if present): recommend activities that fit the current free gap. Do not suggest \
+studying during a scheduled block.
 App activities the learner can do: vocabulary flashcards (spaced repetition), \
 spelling practice, reading library articles (comprehension questions included).
 
@@ -125,7 +135,7 @@ Current learner state (use this to give personal, relevant advice):
 {PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
 - Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
 - Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
+{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
@@ -143,6 +153,11 @@ def _time_of_day(hour: int) -> str:
     if 17 <= hour < 21:
         return "evening"
     return "night"
+
+
+def _fmt_minute(m: int) -> str:
+    """Minutes-from-midnight → 'HH:MM' (24h)."""
+    return f"{m // 60:02d}:{m % 60:02d}"
 
 
 _TONE_HINTS: dict[str, str] = {
@@ -458,6 +473,23 @@ def _struggling_words(db: Session, user: User, now: datetime, n: int = 3) -> lis
     return [f"{row.headword} ({row.translation})" for row in rows]
 
 
+def _schedule_today(
+    db: Session, user: User, now: datetime, time_zone: ZoneInfo
+) -> list[tuple[str, str, int, int]]:
+    """Events whose weekdays bitmask includes today's local weekday, sorted by start_minute."""
+    today_weekday = local_date(now, time_zone).weekday()  # 0=Mon .. 6=Sun
+    bit = 1 << today_weekday
+    rows = db.scalars(
+        select(ScheduleEvent)
+        .where(
+            ScheduleEvent.user_id == user.id,
+            ScheduleEvent.weekdays.op("&")(bit) != 0,
+        )
+        .order_by(ScheduleEvent.start_minute)
+    ).all()
+    return [(e.title, e.kind, e.start_minute, e.end_minute) for e in rows]
+
+
 def _course_level(db: Session, user: User) -> str | None:
     """The level string of the highest course deck the learner has started (e.g. 'B1')."""
     row = db.execute(
@@ -516,6 +548,19 @@ def _system_prompt(
         pace_line = ""
     level_line = f"- Current course level: {ctx.course_level}\n" if ctx.course_level else ""
     goal_line = f"- Learning goal: {user.mentor_goal}\n" if user.mentor_goal else ""
+    budget_line = (
+        f"- Daily study budget: {user.mentor_daily_minutes} minutes\n"
+        if user.mentor_daily_minutes
+        else ""
+    )
+    if ctx.schedule_today:
+        schedule_lines = [
+            f"  - {_fmt_minute(start)}–{_fmt_minute(end)} {title} ({kind})"
+            for title, kind, start, end in ctx.schedule_today
+        ]
+        schedule_section = "Today's schedule (local time):\n" + "\n".join(schedule_lines) + "\n"
+    else:
+        schedule_section = ""
     if ctx.deck_rows:
         deck_lines: list[str] = []
         for title, n_due, n_started in ctx.deck_rows:
@@ -659,6 +704,8 @@ def _system_prompt(
         .replace("{PACE_LINE}", pace_line)
         .replace("{LEVEL_LINE}", level_line)
         .replace("{GOAL_LINE}", goal_line)
+        .replace("{BUDGET_LINE}", budget_line)
+        .replace("{SCHEDULE_SECTION}", schedule_section)
         .replace("{TOTAL_DECKS_LINE}", total_decks_line)
         .replace("{LAST_STUDIED_DECK_LINE}", last_studied_deck_line)
         .replace("{DECK_SECTION}", deck_section)
@@ -965,6 +1012,7 @@ def _build_context(
     ctx.struggling_words = _struggling_words(db, user, now)
     ctx.reading_accuracy = _reading_accuracy(db, user)
     ctx.reading_level_counts = _reading_level_breakdown(db, user)
+    ctx.schedule_today = _schedule_today(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     history = _recent_history(db, user)

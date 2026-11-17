@@ -329,9 +329,52 @@ export const api = {
   mentorClearHistory: () => request<null>('DELETE', '/mentor/history'),
   mentorChat: (message: string) =>
     request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
-  mentorGoal: () => request<{ goal: string | null }>('GET', '/mentor/goal'),
-  mentorSetGoal: (goal: string) => request<{ goal: string | null }>('PUT', '/mentor/goal', { goal }),
+  mentorGoal: () => request<{ goal: string | null; daily_minutes: number | null }>('GET', '/mentor/goal'),
+  mentorSetGoal: (goal: string, dailyMinutes: number | null) =>
+    request<{ goal: string | null; daily_minutes: number | null }>('PUT', '/mentor/goal', {
+      goal,
+      daily_minutes: dailyMinutes,
+    }),
   mentorStatus: () => request<{ chats_remaining: number; chats_limit: number }>('GET', '/mentor/status'),
+  scheduleList: () =>
+    request<{
+      events: Array<{
+        id: string;
+        title: string;
+        kind: string;
+        weekdays: number;
+        start_minute: number;
+        end_minute: number;
+      }>;
+    }>('GET', '/mentor/schedule'),
+  scheduleCreate: (body: { title: string; kind: string; weekdays: number; start_minute: number; end_minute: number }) =>
+    request<{
+      id: string;
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    }>('POST', '/mentor/schedule', body),
+  scheduleUpdate: (
+    id: string,
+    body: {
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    },
+  ) =>
+    request<{
+      id: string;
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    }>('PUT', `/mentor/schedule/${id}`, body),
+  scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
 };
 
 export type MentorStreamEvent =

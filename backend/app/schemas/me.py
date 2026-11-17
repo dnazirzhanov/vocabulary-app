@@ -69,6 +69,8 @@ class MeOut(BaseModel):
     reading: bool = False
     # Sees the «Наставник» tab (MENTOR_TESTERS): the deterministic dashboard, pre-chat PR.
     mentor: bool = False
+    # Sees the Speaking tab (SPEAKING_TESTERS): pronunciation + assessment, pre-rollout.
+    speaking: bool = False
     # Null until the learner has chosen a pace (first-run screens).
     daily_target_words: int | None
     study_days_per_week: int

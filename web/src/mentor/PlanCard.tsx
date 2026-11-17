@@ -1,4 +1,5 @@
-import { BookIcon, CardsIcon, ForwardIcon, MarkerIcon } from '../ui/icons.tsx';
+import { useState } from 'react';
+import { BookIcon, CardsIcon, CheckIcon, ForwardIcon, MarkerIcon } from '../ui/icons.tsx';
 import { t } from '../i18n/index.ts';
 import type { PlanItem } from './types.ts';
 import styles from './PlanCard.module.css';
@@ -7,15 +8,29 @@ interface PlanCardProps {
   item: PlanItem;
   onStart: () => void;
   busy: boolean;
+  /** Reading from the done store: render muted + strikethrough + check, no action button. */
+  done?: boolean;
 }
 
 /** One card on «Today's plan»: title + short reason + duration + a button that starts the activity. */
-export function PlanCard({ item, onStart, busy }: PlanCardProps) {
+export function PlanCard({ item, onStart, busy, done = false }: PlanCardProps) {
+  // Local "just-tapped-Start" visual while the task launches; replaced by `done` prop once the
+  // backend confirms the task is no longer in the active plan.
+  const [launched, setLaunched] = useState(false);
   const title = titleOf(item);
   const reason = reasonOf(item);
   const cta = ctaOf(item);
+
+  const handleStart = () => {
+    setLaunched(true);
+    onStart();
+  };
+
+  const showCheck = done || launched;
+  const cardClass = `${styles.card}${launched && !done ? ` ${styles.launched}` : ''}${done ? ` ${styles.done}` : ''}`;
+
   return (
-    <li className={styles.card}>
+    <li className={cardClass}>
       <div className={styles.icon} aria-hidden="true">
         {renderIcon(item)}
       </div>
@@ -23,16 +38,22 @@ export function PlanCard({ item, onStart, busy }: PlanCardProps) {
         <p className={styles.title}>{title}</p>
         <p className={styles.reason}>{reason}</p>
       </div>
-      <button
-        type="button"
-        className={styles.action}
-        onClick={onStart}
-        disabled={busy}
-        aria-label={`${cta} — ${title}`}
-      >
-        <span aria-hidden="true">{cta}</span>
-        <ForwardIcon aria-hidden="true" />
-      </button>
+      {showCheck ? (
+        <div className={styles.check} aria-label={t.done}>
+          <CheckIcon aria-hidden="true" />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={styles.action}
+          onClick={handleStart}
+          disabled={busy}
+          aria-label={`${cta} — ${title}`}
+        >
+          <span aria-hidden="true">{cta}</span>
+          <ForwardIcon aria-hidden="true" />
+        </button>
+      )}
     </li>
   );
 }

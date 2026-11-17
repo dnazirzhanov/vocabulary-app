@@ -34,7 +34,10 @@ def _enable_mentor(monkeypatch: pytest.MonkeyPatch, pattern: str = "*") -> None:
     monkeypatch.setattr(get_settings(), "mentor_testers", pattern)
 
 
-def test_chat_is_refused_without_tester_flag(client: TestClient) -> None:
+def test_chat_is_refused_without_tester_flag(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.post("/api/mentor/chat", json={"message": "Привет"}, headers=as_("alice"))
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "not_a_mentor_tester"
@@ -381,7 +384,8 @@ def test_status_decrements_after_chat(client: TestClient, monkeypatch: pytest.Mo
     reset_limits()
 
 
-def test_status_requires_tester_flag(client: TestClient) -> None:
+def test_status_requires_tester_flag(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.get("/api/mentor/status", headers=as_("wendy"))
     assert resp.status_code == 403
 
@@ -467,7 +471,8 @@ def test_history_context_capped_at_ten_turns(
     assert len(messages) <= _HISTORY_TURNS * 2
 
 
-def test_history_requires_tester_flag(client: TestClient) -> None:
+def test_history_requires_tester_flag(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.get("/api/mentor/history", headers=as_("frank"))
     assert resp.status_code == 403
 
@@ -484,7 +489,10 @@ def test_clear_history_wipes_messages(client: TestClient, monkeypatch: pytest.Mo
     assert client.get("/api/mentor/history", headers=as_("grace")).json()["messages"] == []
 
 
-def test_clear_history_requires_tester_flag(client: TestClient) -> None:
+def test_clear_history_requires_tester_flag(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.delete("/api/mentor/history", headers=as_("henry"))
     assert resp.status_code == 403
 
@@ -532,7 +540,8 @@ def test_goal_too_long_rejected(client: TestClient, monkeypatch: pytest.MonkeyPa
     assert resp.status_code == 422
 
 
-def test_goal_requires_tester_flag(client: TestClient) -> None:
+def test_goal_requires_tester_flag(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.get("/api/mentor/goal", headers=as_("mike"))
     assert resp.status_code == 403
     resp = client.put("/api/mentor/goal", json={"goal": "hi"}, headers=as_("mike"))
@@ -551,6 +560,64 @@ def test_system_prompt_omits_goal_when_null() -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Learning goal" not in prompt
     assert "{GOAL_LINE}" not in prompt
+
+
+def test_system_prompt_includes_daily_budget_when_set() -> None:
+    user = User(ui_language="en", name="Alex", mentor_daily_minutes=20)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Daily study budget" in prompt
+    assert "20 minutes" in prompt
+
+
+def test_system_prompt_omits_daily_budget_when_null() -> None:
+    user = User(ui_language="en", name="Alex", mentor_daily_minutes=None)
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "Daily study budget" not in prompt
+    assert "{BUDGET_LINE}" not in prompt
+
+
+def test_system_prompt_includes_schedule_when_present() -> None:
+    user = User(ui_language="en", name="Alex")
+    ctx = _ctx(
+        schedule_today=[
+            ("School", "school", 480, 900),
+            ("Football", "sport", 1020, 1140),
+        ]
+    )
+    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    assert "Today's schedule" in prompt
+    assert "08:00–15:00 School (school)" in prompt
+    assert "17:00–19:00 Football (sport)" in prompt
+
+
+def test_system_prompt_omits_schedule_when_empty() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(schedule_today=[]))
+    assert "Today's schedule" not in prompt
+    assert "{SCHEDULE_SECTION}" not in prompt
+
+
+def test_system_prompt_includes_time_aware_instruction() -> None:
+    """The AI should always be told to reason about current time and schedule gaps."""
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    assert "current local time" in prompt
+    assert "scheduled block" in prompt
+
+
+def test_goal_endpoint_returns_daily_minutes(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_mentor(monkeypatch)
+    resp = client.put(
+        "/api/mentor/goal",
+        json={"goal": "IELTS prep", "daily_minutes": 30},
+        headers=as_("pete"),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["daily_minutes"] == 30
+    resp2 = client.get("/api/mentor/goal", headers=as_("pete"))
+    assert resp2.json()["daily_minutes"] == 30
 
 
 def _parse_sse(raw: str) -> list[dict[str, object]]:
@@ -607,7 +674,10 @@ def test_stream_endpoint_rate_limit(client: TestClient, monkeypatch: pytest.Monk
     reset_limits()
 
 
-def test_stream_endpoint_requires_tester_flag(client: TestClient) -> None:
+def test_stream_endpoint_requires_tester_flag(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     resp = client.post("/api/mentor/chat/stream", json={"message": "hi"}, headers=as_("quinn"))
     assert resp.status_code == 403
 

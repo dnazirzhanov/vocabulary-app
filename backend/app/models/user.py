@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     SmallInteger,
     String,
     Text,
@@ -51,6 +52,8 @@ class User(Base):
     notify_deadline: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     # A short learning goal the user can set for the mentor; shown in the system prompt.
     mentor_goal: Mapped[str | None] = mapped_column(Text)
+    # Daily study budget in minutes; the plan screen caps tasks to this limit.
+    mentor_daily_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class DeletedLogin(Base):

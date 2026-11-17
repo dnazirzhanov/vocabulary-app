@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { BookIcon, ChartIcon, GearIcon, HomeIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
+import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
 import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
-export type NavTab = 'today' | 'mentor' | 'reading' | 'friends' | 'progress';
+export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'friends' | 'progress';
 
 interface NavShellProps {
   tab: NavTab;
@@ -19,6 +19,8 @@ interface NavShellProps {
   reading?: boolean;
   /** The «Наставник» tab, for the mentor's testers. */
   mentor?: boolean;
+  /** The Speaking tab, for the speaking-feature testers (Chunk 1 uses a localStorage dev flag). */
+  speaking?: boolean;
   children: ReactNode;
 }
 
@@ -33,6 +35,7 @@ export function NavShell({
   onSignOut,
   reading = false,
   mentor = false,
+  speaking = false,
   children,
 }: NavShellProps) {
   const [settings, setSettings] = useState(false);
@@ -41,6 +44,7 @@ export function NavShell({
     { tab: 'today', label: t.today, Icon: HomeIcon },
     ...(mentor ? [{ tab: 'mentor', label: t.mentor, Icon: SparkleIcon } as const] : []),
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
+    ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
   ] as const;

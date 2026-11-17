@@ -12,6 +12,8 @@ const base: MentorInput = {
   readIds: new Set(),
   userLevel: 'A2',
   daysSinceLastStudy: null,
+  goal: null,
+  dailyMinutes: null,
 };
 
 test('an empty state yields an empty plan — nothing is invented', () => {
@@ -130,7 +132,7 @@ test('reading tie-break: same minutes picks alphabetically by title', () => {
   assert.equal((reading as { articleId: string } | undefined)?.articleId, 'a');
 });
 
-test('plan capped at 3 items even with all three kinds', () => {
+test('each deck appears as a separate task — vocab decks first, then spelling, then reading', () => {
   const plan = planToday({
     ...base,
     decks: [
@@ -139,11 +141,60 @@ test('plan capped at 3 items even with all three kinds', () => {
     ],
     articles: [{ id: 'a1', title: 'Bees', level: 'A2', minutes: 3 }],
   });
-  assert.equal(plan.length, 3);
+  // 2 vocab + 2 spelling + 1 reading = 5
+  assert.equal(plan.length, 5);
   assert.deepEqual(
     plan.map((i) => i.kind),
-    ['vocab', 'spelling', 'reading'],
+    ['vocab', 'vocab', 'spelling', 'spelling', 'reading'],
   );
+  // vocab ordered by dueCount desc
+  assert.equal((plan[0] as { deckId: string }).deckId, 'd1');
+  assert.equal((plan[1] as { deckId: string }).deckId, 'd2');
+  // spelling ordered by spellingDue desc
+  assert.equal((plan[2] as { deckId: string }).deckId, 'd2');
+  assert.equal((plan[3] as { deckId: string }).deckId, 'd1');
+});
+
+test('daily budget trims items to fit — first item always kept', () => {
+  const plan = planToday({
+    ...base,
+    dailyMinutes: 3,
+    decks: [
+      { id: 'd1', title: 'Animals', level: 'A1', levelOrder: 1, dueCount: 20, spellingDue: 0 },
+      { id: 'd2', title: 'Fruits', level: 'A1', levelOrder: 1, dueCount: 20, spellingDue: 0 },
+    ],
+    articles: [{ id: 'a1', title: 'Bees', level: 'A2', minutes: 4 }],
+  });
+  // d1 vocab ~4 min, d2 vocab ~4 min, reading 4 min — budget 3 min keeps only d1 (first item)
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0].kind, 'vocab');
+});
+
+test('daily budget includes items that fit cumulatively', () => {
+  const plan = planToday({
+    ...base,
+    dailyMinutes: 10,
+    decks: [
+      { id: 'd1', title: 'Animals', level: 'A1', levelOrder: 1, dueCount: 6, spellingDue: 0 },
+      { id: 'd2', title: 'Fruits', level: 'A1', levelOrder: 1, dueCount: 6, spellingDue: 0 },
+    ],
+  });
+  // d1 ~1 min, d2 ~1 min, total 2 min — both fit in 10 min budget
+  assert.equal(plan.length, 2);
+});
+
+test('no trimming when dailyMinutes is null', () => {
+  const plan = planToday({
+    ...base,
+    dailyMinutes: null,
+    decks: [
+      { id: 'd1', title: 'Animals', level: 'A1', levelOrder: 1, dueCount: 10, spellingDue: 5 },
+      { id: 'd2', title: 'Fruits', level: 'A1', levelOrder: 1, dueCount: 10, spellingDue: 5 },
+    ],
+    articles: [{ id: 'a1', title: 'Bees', level: 'A2', minutes: 4 }],
+  });
+  // null budget → all 5 items (2 vocab + 2 spelling + 1 reading)
+  assert.equal(plan.length, 5);
 });
 
 test('level-fits allows at most one step away', () => {

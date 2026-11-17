@@ -1,0 +1,220 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+.errorScreen {
+  padding: var(--space-5) var(--gutter);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: max(var(--space-3), env(safe-area-inset-top)) var(--gutter) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.backBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-option);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.gridWrap {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Sticky day header row ───────────────────────────── */
+.headerRow {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(90px, 1fr));
+  position: sticky;
+  top: 0;
+  background: var(--color-bg);
+  z-index: 2;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cornerHead {
+  /* Empty — aligns with hour-axis column */
+}
+
+.dayHead {
+  text-align: center;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-strong);
+  border-left: 1px solid var(--color-border);
+}
+
+.dayHeadToday {
+  color: var(--color-primary);
+}
+
+/* ── Grid body: hour axis + 7 day columns ────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(90px, 1fr));
+  min-width: min-content;
+  position: relative;
+}
+
+/* ── Hour axis: labels are absolutely positioned ON hour lines ─ */
+.hourAxis {
+  position: relative;
+  border-right: 1px solid var(--color-border);
+}
+
+.hourLabel {
+  position: absolute;
+  right: 6px;
+  /* translate up by half its height so the baseline sits exactly on the hour line */
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  padding: 0 2px;
+  line-height: 1;
+}
+
+/* First label (top of grid): keep visible instead of clipping. */
+.hourAxis .hourLabel:first-child {
+  transform: translateY(0);
+}
+
+/* ── Day columns ─────────────────────────────────────── */
+.dayCol {
+  position: relative;
+  border-left: 1px solid var(--color-border);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border);
+  pointer-events: none;
+}
+
+.nowMarker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.nowMarker::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+/* ── Event blocks ────────────────────────────────────── */
+.eventBlock {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border: none;
+  border-left: 3px solid;
+  border-radius: 4px;
+  text-align: left;
+  font-size: var(--text-meta);
+  font-family: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eventTime {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+.eventTitle {
+  display: block;
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+/* Colors per kind: left-border + tinted background. */
+.kind_school {
+  border-left-color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 15%, var(--color-surface));
+}
+.kind_work {
+  border-left-color: #8b5cf6;
+  background: color-mix(in srgb, #8b5cf6 15%, var(--color-surface));
+}
+.kind_sport {
+  border-left-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 15%, var(--color-surface));
+}
+.kind_chore {
+  border-left-color: #f97316;
+  background: color-mix(in srgb, #f97316 15%, var(--color-surface));
+}
+.kind_personal {
+  border-left-color: #ec4899;
+  background: color-mix(in srgb, #ec4899 15%, var(--color-surface));
+}
+.kind_other {
+  border-left-color: #6b7280;
+  background: color-mix(in srgb, #6b7280 15%, var(--color-surface));
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  padding: var(--space-4) var(--gutter);
+  margin: 0;
+}

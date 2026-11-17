@@ -28,11 +28,16 @@ export async function collectMentorInput(account: string): Promise<MentorInput> 
         .then((snap) => snap?.value ?? null)
         .catch(() => null)
     : Promise.resolve(null);
-  const [me, { streakWeeks, daysSinceLastStudy }, snapshot, articles] = await Promise.all([
+  const goalPromise = api
+    .mentorGoal()
+    .then((r) => ({ goal: r.goal, dailyMinutes: r.daily_minutes }))
+    .catch(() => ({ goal: null, dailyMinutes: null }));
+  const [me, { streakWeeks, daysSinceLastStudy }, snapshot, articles, { goal, dailyMinutes }] = await Promise.all([
     mePromise,
     loadProgressData(),
     study.learnerSnapshot(),
     loadArticles(),
+    goalPromise,
   ]);
   const readIds = new Set(doneArticleIds(account));
   const decks = toMentorDecks(snapshot?.decks ?? []);
@@ -45,6 +50,8 @@ export async function collectMentorInput(account: string): Promise<MentorInput> 
     readIds,
     userLevel: pickUserLevel(decks),
     daysSinceLastStudy,
+    goal,
+    dailyMinutes,
   };
 }
 

@@ -5,7 +5,10 @@ import type { ReactNode } from 'react';
 // Operates on plain strings — no dangerouslySetInnerHTML.
 
 type Block =
-  { kind: 'para'; lines: string[] } | { kind: 'bullet'; items: string[] } | { kind: 'ordered'; items: string[] };
+  | { kind: 'para'; lines: string[] }
+  | { kind: 'bullet'; items: string[] }
+  | { kind: 'ordered'; items: string[] }
+  | { kind: 'blockquote'; text: string };
 
 const INLINE_RE = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
 
@@ -27,6 +30,12 @@ function parseBlocks(text: string): Block[] {
     const line = lines[i];
 
     if (line.trim() === '') {
+      i++;
+      continue;
+    }
+
+    if (/^> /.test(line)) {
+      blocks.push({ kind: 'blockquote', text: line.replace(/^> /, '') });
       i++;
       continue;
     }
@@ -67,6 +76,9 @@ export function MentorMarkdown({ text }: { text: string }) {
   return (
     <>
       {blocks.map((block, bi) => {
+        if (block.kind === 'blockquote') {
+          return <blockquote key={bi}>{renderInline(block.text)}</blockquote>;
+        }
         if (block.kind === 'bullet') {
           return (
             <ul key={bi}>

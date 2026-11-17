@@ -31,6 +31,14 @@ from app.models.reading import (
     ReadingCategory,
     ReadingQuestion,
 )
+from app.models.schedule import ScheduleEvent
+from app.models.speaking import (
+    SpeakingAssessment,
+    SpeakingAudioAsset,
+    SpeakingFeedbackItem,
+    SpeakingJob,
+    SpeakingSession,
+)
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     CardReport,
@@ -71,6 +79,12 @@ __all__ = [
     "ReadingCategory",
     "ReadingQuestion",
     "ReviewAttempt",
+    "ScheduleEvent",
+    "SpeakingAssessment",
+    "SpeakingAudioAsset",
+    "SpeakingFeedbackItem",
+    "SpeakingJob",
+    "SpeakingSession",
     "SpellingProgress",
     "StudyDayTotal",
     "SyncDevice",

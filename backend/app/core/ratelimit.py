@@ -79,6 +79,21 @@ def limit_mentor_chats(
     )
 
 
+def limit_speaking_sessions(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """One speaking session = one upload + (later chunks) one assessment pipeline run.
+    Guards storage cost and provider cost (Chunks 3+)."""
+    _check(
+        "speaking_sessions",
+        user.id,
+        settings.speaking_sessions_per_day,
+        "Too many speaking sessions today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="speaking_session_limit",
+    )
+
+
 def mentor_chats_used(user_id: UUID) -> int:
     """Current number of mentor chat calls within the last 24 hours."""
     now = time.monotonic()

@@ -2,36 +2,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, describeError } from '../lib/api.ts';
 import type { Session } from '../lib/types.ts';
 import { study } from '../study/device.ts';
-import { BulbIcon, FlameIcon, RepeatIcon } from '../ui/icons.tsx';
+import { BulbIcon, CardsIcon, FlameIcon, RepeatIcon, SparkleIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t } from '../i18n/index.ts';
 import { collectMentorInput } from './inputs.ts';
+import { markLaunched, reconcileDone } from './done.ts';
+import { GoalSetup } from './GoalSetup.tsx';
 import { MentorChat } from './MentorChat.tsx';
 import { planToday } from './plan.ts';
 import { PlanCard } from './PlanCard.tsx';
 import { pickTip } from './tip.ts';
-import type { MentorInput, PlanItem, Tip } from './types.ts';
+import type { MentorInput, MentorGoalType, PlanItem, Tip } from './types.ts';
+import { ScheduleView } from '../schedule/ScheduleView.tsx';
 import styles from './MentorScreen.module.css';
 
 interface MentorScreenProps {
-  /** The signed-in account's id — used to read per-account reading progress from localStorage. */
   account: string;
-  /** Open an article of the library or of the learner's own texts. */
   onOpenArticle: (articleId: string) => void;
-  /** Start a study session for a deck, reusing the app's `startSession` helper. */
   onStartSession: (session: Session, from: string) => void;
 }
 
-/**
- * The Mentor tab: greeting, a canned tip, and 0–3 cards for today's work (vocab, spelling, a
- * reading). Every number shown comes from a real source; when a source is missing, its line is
- * hidden rather than shown as zero.
- */
 export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorScreenProps) {
   const [input, setInput] = useState<MentorInput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [planRefreshing, setPlanRefreshing] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(
@@ -47,15 +45,17 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
     void load();
   }, [load]);
 
-  // Re-fetch the plan when the page becomes visible again (e.g. after a study session).
-  // Debounced to 30 s so a brief alt-tab doesn't hammer the API.
   const lastRefreshAt = useRef(0);
+  // Set to true when the user launches a task from here; clears after the next refresh.
+  const taskLaunchedRef = useRef(false);
   useEffect(() => {
     function onVisible() {
       if (document.hidden) return;
       const now = Date.now();
-      if (now - lastRefreshAt.current < 30_000) return;
+      // Always refresh immediately after a task was launched; otherwise respect the 30 s debounce.
+      if (!taskLaunchedRef.current && now - lastRefreshAt.current < 30_000) return;
       lastRefreshAt.current = now;
+      taskLaunchedRef.current = false;
       void load();
     }
     document.addEventListener('visibilitychange', onVisible);
@@ -92,12 +92,35 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
     );
   }
 
+  // Show goal onboarding if no goal set, or if the user clicked "Change goal"
+  if (!input.goal || editingGoal) {
+    return (
+      <main className={styles.screen}>
+        <GoalSetup
+          initialGoal={input.goal}
+          initialMinutes={input.dailyMinutes}
+          onDone={() => {
+            setEditingGoal(false);
+            void load();
+          }}
+        />
+      </main>
+    );
+  }
+
   const items = planToday(input);
   const tip = pickTip(input);
+
+  // Reconcile the done store against the fresh plan: anything that was launched earlier today
+  // but is no longer in `items` has been completed, so show it muted + checkmark below.
+  const activeKeys = new Set(items.map(keyOf));
+  const doneItems = reconcileDone(account, activeKeys);
 
   const startItem = async (item: PlanItem) => {
     if (busy) return;
     if (item.kind === 'reading') {
+      markLaunched(account, item, keyOf(item));
+      taskLaunchedRef.current = true;
       onOpenArticle(item.articleId);
       return;
     }
@@ -107,9 +130,10 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
         item.kind === 'vocab'
           ? await study.startStudySession(item.deckId)
           : await study.startSpellingSession(item.deckId);
+      markLaunched(account, item, keyOf(item));
+      taskLaunchedRef.current = true;
       onStartSession(session, item.deckId);
     } catch (caught) {
-      // Nothing to study is a normal state — reload so the plan updates instead of showing an error.
       if (caught instanceof ApiError && caught.status === 409) load();
       else setError(describeError(caught));
     } finally {
@@ -117,24 +141,91 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
     }
   };
 
+  // Schedule view — full-height weekly calendar
+  if (scheduleOpen) {
+    return (
+      <main className={styles.chatScreen}>
+        <ScheduleView onBack={() => setScheduleOpen(false)} />
+      </main>
+    );
+  }
+
+  // Chat view — full-height, T3 style
+  if (chatOpen) {
+    return (
+      <main className={styles.chatScreen}>
+        <MentorChat
+          items={items}
+          tip={tip}
+          onBack={() => setChatOpen(false)}
+          onOpenArticle={(id) => {
+            const matched = items.find((i) => i.kind === 'reading' && i.articleId === id);
+            if (matched) markLaunched(account, matched, keyOf(matched));
+            taskLaunchedRef.current = true;
+            onOpenArticle(id);
+          }}
+          onStartSession={(session, from) => {
+            const matched = items.find((i) => i.kind !== 'reading' && i.deckId === from);
+            if (matched) markLaunched(account, matched, keyOf(matched));
+            taskLaunchedRef.current = true;
+            onStartSession(session, from);
+          }}
+        />
+      </main>
+    );
+  }
+
+  // Dashboard view
+  const totalDue = input.decks.reduce((s, d) => s + d.dueCount, 0);
+
   return (
     <main className={styles.screen}>
-      <div className={styles.topbar}>
-        {input.streakWeeks !== null && input.streakWeeks > 0 && (
-          <p className={styles.streak}>
-            <FlameIcon aria-hidden="true" />
-            {t.weeksInARow(input.streakWeeks)}
-          </p>
-        )}
-      </div>
       <div className={styles.main}>
         <div className={styles.column}>
+          {/* Greeting */}
           <section className={styles.head}>
-            <h1 ref={headingRef} className={styles.title} tabIndex={-1}>
+            <h1 ref={headingRef} className={styles.subtitle} tabIndex={-1}>
               {greetingFor(input.phase, input.name)}
             </h1>
+            <p className={styles.title}>{t.mentorReadyHeading}</p>
           </section>
 
+          {/* Stats strip */}
+          <div className={styles.stats}>
+            {input.streakWeeks !== null && input.streakWeeks > 0 && (
+              <div className={styles.statPill}>
+                <FlameIcon aria-hidden="true" />
+                <span className={styles.statNum}>{input.streakWeeks}</span>
+                <span className={styles.statLabel}>{t.mentorStatStreak}</span>
+              </div>
+            )}
+            {items.length > 0 && (
+              <div className={styles.statPill}>
+                <CardsIcon aria-hidden="true" />
+                <span className={styles.statNum}>{items.length}</span>
+                <span className={styles.statLabel}>{t.mentorStatTasks}</span>
+              </div>
+            )}
+            {totalDue > 0 && (
+              <div className={styles.statPill}>
+                <SparkleIcon aria-hidden="true" />
+                <span className={styles.statNum}>{totalDue}</span>
+                <span className={styles.statLabel}>{t.mentorStatDue}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Goal chip */}
+          <div className={styles.goalChip}>
+            <span className={styles.goalChipText}>
+              {t.mentorGoalChip(goalLabel(input.goal as MentorGoalType), input.dailyMinutes ?? 20)}
+            </span>
+            <button type="button" className={styles.goalEditBtn} onClick={() => setEditingGoal(true)}>
+              {t.mentorGoalEditLabel}
+            </button>
+          </div>
+
+          {/* Tip card */}
           <section className={styles.tipCard} aria-labelledby="mentor-tip-heading">
             <span className={styles.tipHead} id="mentor-tip-heading">
               <BulbIcon aria-hidden="true" />
@@ -143,6 +234,7 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
             <p className={styles.tipBody}>{tipText(tip)}</p>
           </section>
 
+          {/* Today's plan */}
           <section className={styles.plan} aria-labelledby="mentor-plan-heading">
             <div className={styles.planHeadRow}>
               <h2 className={styles.planHead} id="mentor-plan-heading">
@@ -161,22 +253,48 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
                 <RepeatIcon aria-hidden="true" />
               </button>
             </div>
-            {items.length === 0 ? (
+            {items.length === 0 && doneItems.length === 0 ? (
               <p className={styles.empty}>{t.mentorPlanEmpty}</p>
             ) : (
               <ul className={styles.list}>
                 {items.map((item) => (
                   <PlanCard key={keyOf(item)} item={item} busy={busy} onStart={() => void startItem(item)} />
                 ))}
+                {doneItems.map((item) => (
+                  <PlanCard key={`done:${keyOf(item)}`} item={item} busy={busy} onStart={() => undefined} done />
+                ))}
               </ul>
             )}
           </section>
 
-          <MentorChat items={items} tip={tip} />
+          {/* Schedule + Open chat buttons */}
+          <button type="button" className={styles.scheduleOpenBtn} onClick={() => setScheduleOpen(true)}>
+            {t.scheduleOpenBtn}
+          </button>
+          <button type="button" className={styles.chatOpenBtn} onClick={() => setChatOpen(true)}>
+            {t.mentorChatOpen}
+          </button>
         </div>
       </div>
     </main>
   );
+}
+
+function goalLabel(type: MentorGoalType): string {
+  switch (type) {
+    case 'ielts':
+      return t.mentorGoalTypeIelts;
+    case 'conversation':
+      return t.mentorGoalTypeConversation;
+    case 'travel':
+      return t.mentorGoalTypeTravel;
+    case 'business':
+      return t.mentorGoalTypeBusiness;
+    case 'academic':
+      return t.mentorGoalTypeAcademic;
+    case 'general':
+      return t.mentorGoalTypeGeneral;
+  }
 }
 
 function greetingFor(phase: MentorInput['phase'], name: string | null): string {

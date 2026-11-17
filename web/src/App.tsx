@@ -43,12 +43,18 @@ const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({
 // deterministic planner and its view of the reading index.
 const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
 
+// Speaking tab: loaded only when its tab is opened. Chunk 1 is UI-only (audio capture + playback).
+const SpeakingExerciseScreen = lazy(() =>
+  import('./speaking/ExerciseScreen.tsx').then((m) => ({ default: m.ExerciseScreen })),
+);
+
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
 
 type Screen =
   | { name: 'home' }
   | { name: 'mentor' }
+  | { name: 'speaking' }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -384,9 +390,12 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     else if (tab === 'mentor') setScreen({ name: 'mentor' });
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
+    else if (tab === 'speaking') setScreen({ name: 'speaking' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
+  // Chunk 2+: the server tells us whether this account is a Speaking tester (SPEAKING_TESTERS).
+  const speakingEnabled = me.speaking === true;
   return (
     <NavShell
       tab={tabOf(screen)}
@@ -404,6 +413,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
       reading={me.reading === true}
       mentor={me.mentor === true}
+      speaking={speakingEnabled}
     >
       {tabScreen()}
     </NavShell>
@@ -496,6 +506,13 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         </Suspense>
       );
     }
+    if (screen.name === 'speaking') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingExerciseScreen onBack={goHome} />
+        </Suspense>
+      );
+    }
     if (screen.name === 'progress') {
       return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
@@ -564,6 +581,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
+  if (screen.name === 'speaking') return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

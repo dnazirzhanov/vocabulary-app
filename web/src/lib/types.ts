@@ -194,6 +194,8 @@ export interface Me {
   reading?: boolean;
   /** Sees the «Наставник» tab (MENTOR_TESTERS): the deterministic dashboard, pre-chat PR. */
   mentor?: boolean;
+  /** Sees the Speaking tab (SPEAKING_TESTERS): pronunciation + assessment, pre-rollout. */
+  speaking?: boolean;
   /** Null until the learner has chosen a pace. */
   daily_target_words: number | null;
   study_days_per_week: number;

@@ -12,6 +12,8 @@ const base: MentorInput = {
   readIds: new Set(),
   userLevel: 'A2',
   daysSinceLastStudy: null,
+  goal: null,
+  dailyMinutes: null,
 };
 
 test('a fresh account with no decks and no streak gets the first-run tip', () => {

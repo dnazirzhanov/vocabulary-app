@@ -44,10 +44,12 @@ class MentorHistoryOut(BaseModel):
 
 class MentorGoalOut(BaseModel):
     goal: str | None
+    daily_minutes: int | None
 
 
 class MentorGoalIn(BaseModel):
-    goal: GoalText
+    goal: GoalText = ""
+    daily_minutes: int | None = None
 
 
 class MentorStatusOut(BaseModel):

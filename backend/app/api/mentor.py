@@ -36,14 +36,15 @@ def _require_mentor(user: CurrentUser, settings: DepSettings) -> None:
 
 @router.get("/mentor/goal", dependencies=[Depends(_require_mentor)])
 def mentor_get_goal(user: CurrentUser) -> MentorGoalOut:
-    return MentorGoalOut(goal=user.mentor_goal)
+    return MentorGoalOut(goal=user.mentor_goal, daily_minutes=user.mentor_daily_minutes)
 
 
 @router.put("/mentor/goal", dependencies=[Depends(_require_mentor)])
 def mentor_set_goal(body: MentorGoalIn, user: CurrentUser, db: DbSession) -> MentorGoalOut:
     user.mentor_goal = body.goal or None
+    user.mentor_daily_minutes = body.daily_minutes
     db.commit()
-    return MentorGoalOut(goal=user.mentor_goal)
+    return MentorGoalOut(goal=user.mentor_goal, daily_minutes=user.mentor_daily_minutes)
 
 
 @router.get("/mentor/status", dependencies=[Depends(_require_mentor)])

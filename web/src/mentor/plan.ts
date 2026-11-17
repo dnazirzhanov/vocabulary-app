@@ -37,31 +37,30 @@ export function levelFits(article: Level, user: Level): boolean {
 }
 
 /**
- * «Today's plan»: 0–3 cards, in a steady order (vocab → spelling → reading). A kind that produces
- * nothing is skipped; nothing is invented when the inputs are empty.
+ * «Today's plan»: all vocab decks with due cards, all spelling decks with due words, then one
+ * reading item. Each deck is a separate task card. Vocab → spelling → reading order.
+ * Nothing is invented when the inputs are empty.
  */
 export function planToday(input: MentorInput): PlanItem[] {
   const items: PlanItem[] = [];
 
-  const vocab = input.decks.filter((deck) => deck.dueCount >= VOCAB_DUE_MIN).sort(byDueDesc)[0];
-  if (vocab) {
+  for (const deck of input.decks.filter((d) => d.dueCount >= VOCAB_DUE_MIN).sort(byDueDesc)) {
     items.push({
       kind: 'vocab',
-      deckId: vocab.id,
-      title: vocab.title,
-      count: vocab.dueCount,
-      minutes: estimateVocabMinutes(vocab.dueCount),
+      deckId: deck.id,
+      title: deck.title,
+      count: deck.dueCount,
+      minutes: estimateVocabMinutes(deck.dueCount),
     });
   }
 
-  const spelling = input.decks.filter((deck) => deck.spellingDue >= SPELL_DUE_MIN).sort(bySpellingDesc)[0];
-  if (spelling) {
+  for (const deck of input.decks.filter((d) => d.spellingDue >= SPELL_DUE_MIN).sort(bySpellingDesc)) {
     items.push({
       kind: 'spelling',
-      deckId: spelling.id,
-      title: spelling.title,
-      count: spelling.spellingDue,
-      minutes: estimateSpellingMinutes(spelling.spellingDue),
+      deckId: deck.id,
+      title: deck.title,
+      count: deck.spellingDue,
+      minutes: estimateSpellingMinutes(deck.spellingDue),
     });
   }
 
@@ -74,6 +73,18 @@ export function planToday(input: MentorInput): PlanItem[] {
       level: reading.level,
       minutes: reading.minutes,
     });
+  }
+
+  if (input.dailyMinutes !== null && input.dailyMinutes > 0) {
+    const capped: PlanItem[] = [];
+    let total = 0;
+    for (const item of items) {
+      if (capped.length === 0 || total + item.minutes <= input.dailyMinutes) {
+        capped.push(item);
+        total += item.minutes;
+      }
+    }
+    return capped;
   }
 
   return items;

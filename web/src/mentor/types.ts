@@ -21,6 +21,9 @@ export interface MentorArticle {
   minutes: number;
 }
 
+/** The learner's chosen goal type. */
+export type MentorGoalType = 'ielts' | 'conversation' | 'travel' | 'business' | 'academic' | 'general';
+
 /** Everything the planner and tip need, gathered once per screen load. */
 export interface MentorInput {
   /** Time of day, derived from the device clock before we call `planToday` / `pickTip`. */
@@ -39,6 +42,10 @@ export interface MentorInput {
   userLevel: Level;
   /** Calendar days since the last completed study session; null when no history or data unavailable. */
   daysSinceLastStudy: number | null;
+  /** The goal type code set during onboarding; null means onboarding not done yet. */
+  goal: string | null;
+  /** Daily study budget in minutes; null when not set. Used to cap the plan. */
+  dailyMinutes: number | null;
 }
 
 /** One card on «Today's plan». */

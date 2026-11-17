@@ -36,7 +36,7 @@ export function MentorGoal() {
     if (saving) return;
     setSaving(true);
     try {
-      const { goal: saved } = await api.mentorSetGoal(draft.trim());
+      const { goal: saved } = await api.mentorSetGoal(draft.trim(), null);
       setGoal(saved);
       setEditing(false);
       setDraft('');

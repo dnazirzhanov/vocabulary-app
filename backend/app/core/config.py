@@ -65,6 +65,28 @@ class Settings(BaseSettings):
     mentor_temperature: float = 0.7
     # Hard token ceiling per mentor reply; keeps costs predictable.
     mentor_max_tokens: int = 512
+    # Sign-ins (same format) who see the Speaking tab: pronunciation + assessment, pre-rollout.
+    speaking_testers: str = ""
+    # Speaking sessions per learner per day (Chunk 2: upload-only; limit guards storage cost).
+    speaking_sessions_per_day: int = 10
+    # Max audio bytes per recording accepted by the upload endpoint; 10 MB covers ~2 min opus.
+    speaking_max_audio_bytes: int = 10 * 1024 * 1024
+    # Audio storage: 'filesystem' (dev/tests, writes to speaking_audio_dir) or 'supabase'.
+    speaking_storage_mode: Literal["filesystem", "supabase"] = "filesystem"
+    # Where FileSystemStorage writes; absolute or relative to the backend's working directory.
+    speaking_audio_dir: str = "./.speaking-audio"
+    # Supabase project base URL (e.g. https://<project>.supabase.co); used by SupabaseStorage.
+    supabase_url: str | None = None
+    # Supabase private bucket for speaking audio. Must exist before the feature can upload.
+    speaking_audio_bucket: str = "speaking-audio"
+    # OpenAI API key for Whisper transcription (Chunk 3+). Separate from deepseek_api_key.
+    openai_api_key: str | None = None
+    # Azure AI Speech key for Pronunciation Assessment (Chunk 4+). EU endpoint only.
+    azure_speech_key: str | None = None
+    # Azure region for pronunciation assessment. Must be an EU region (GDPR requirement).
+    azure_speech_region: str = "westeurope"
+    # Identifier for the speaking worker instance; used in claimed_by for observability.
+    speaking_worker_id: str = "default"
 
     @field_validator("database_url")
     @classmethod
