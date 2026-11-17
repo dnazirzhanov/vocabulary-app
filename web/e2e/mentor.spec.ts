@@ -24,6 +24,9 @@ test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+
+  // The dashboard shows; click the «Написать наставнику» button to open the chat view.
+  await page.getByRole('button', { name: 'Написать наставнику' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Спросить наставника' })).toBeVisible();
 
   // Suggested prompts appear before the first message.
@@ -40,35 +43,37 @@ test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
   await expect(log).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
 });
 
-test('the goal widget lets the learner set and clear a learning goal', async ({ page }) => {
+test('the goal chip shows the current goal and «Изменить цель» opens goal setup', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
 
-  // The goal widget always renders for mentor testers.
-  await expect(page.getByText('Моя цель')).toBeVisible();
+  // The fixture set goal='general' so the chip shows the goal label for «Общий».
+  await expect(page.getByText('Общий', { exact: false })).toBeVisible();
 
-  // Click edit, type a goal, and save it.
+  // «Изменить цель» opens the GoalSetup screen.
   await page.getByRole('button', { name: 'Изменить цель' }).click();
-  await page.getByPlaceholder('Например: хочу дойти до B2 к лету').fill('Дойти до B2');
+  await expect(page.getByRole('heading', { level: 1, name: 'Какова ваша цель в английском?' })).toBeVisible();
+
+  // Select a different goal type and save.
+  await page
+    .getByRole('button', { name: /IELTS|Путешествия|Бизнес|Общение|Академический|Общий/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: /мин/ }).first().click();
   await page.getByRole('button', { name: 'Сохранить' }).click();
 
-  // After saving, the goal text appears and "Сохранено" flash is shown briefly.
-  await expect(page.getByText('Дойти до B2')).toBeVisible();
-
-  // Edit again and clear the goal.
-  await page.getByRole('button', { name: 'Изменить цель' }).click();
-  await page.getByPlaceholder('Например: хочу дойти до B2 к лету').fill('');
-  await page.getByRole('button', { name: 'Сохранить' }).click();
-
-  // After clearing, the placeholder text reappears.
-  await expect(page.getByText('Например: хочу дойти до B2 к лету')).toBeVisible();
+  // After saving, the dashboard returns.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Доброе утро|Добрый день|Добрый вечер|Доброй ночи/);
 });
 
 test('follow-up chips appear after the assistant replies', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+
+  // Open chat view.
+  await page.getByRole('button', { name: 'Написать наставнику' }).click();
 
   // Send a message so the assistant replies.
   await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
@@ -82,6 +87,9 @@ test('clearing the chat removes all messages', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+
+  // Open chat view.
+  await page.getByRole('button', { name: 'Написать наставнику' }).click();
 
   // Send a message so the log appears.
   await page.getByRole('button', { name: 'С чего начать сегодня?' }).click();
