@@ -845,8 +845,8 @@ def test_compute_fluency_slow_speaker() -> None:
 
 
 def test_vocabulary_minimum_evidence_check() -> None:
-    assert vocab_min(29) is False
-    assert vocab_min(30) is True
+    assert vocab_min(9) is False
+    assert vocab_min(10) is True
 
 
 def test_compute_vocabulary_basic() -> None:

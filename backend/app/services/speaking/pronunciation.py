@@ -163,3 +163,117 @@ def assess(
         words=words,
         raw=raw,
     )
+
+
+def assess_unscripted(
+    audio_bytes: bytes,
+    mime_type: str,
+    api_key: str,
+    region: str = "westeurope",
+) -> PronunciationResult:
+    """Azure PA for spontaneous/unscripted speech — no ReferenceText required.
+
+    Azure transcribes the audio internally and returns pronunciation scores.
+    We keep Whisper's transcript for display; Azure's scores go into evidence.
+
+    Raises PronunciationError on API failure."""
+    import httpx2 as httpx
+
+    pa_config = base64.b64encode(
+        json.dumps(
+            {
+                "GradingSystem": "HundredMark",
+                "Dimension": "Comprehensive",
+                "EnableMiscue": True,
+            }
+        ).encode()
+    ).decode()
+
+    url = (
+        f"https://{region}.stt.speech.microsoft.com"
+        "/speech/recognition/conversation/cognitiveservices/v1"
+        "?language=en-US&format=detailed&profanity=masked"
+    )
+
+    content_type = mime_type.split(";", 1)[0].strip()
+
+    try:
+        response = httpx.post(
+            url,
+            content=audio_bytes,
+            headers={
+                "Ocp-Apim-Subscription-Key": api_key,
+                "Content-Type": content_type,
+                "Pronunciation-Assessment": pa_config,
+            },
+            timeout=60.0,
+        )
+    except Exception as exc:
+        raise PronunciationError("connection_error", f"Azure PA connection failed: {exc}") from exc
+
+    if response.status_code == 401:
+        raise PronunciationError("auth_failed", "Azure Speech key rejected.")
+    if response.status_code == 429:
+        raise PronunciationError("rate_limited", "Azure Speech rate limit reached.")
+    if response.status_code >= 400:
+        raise PronunciationError("api_error", f"Azure Speech API error: {response.status_code}")
+
+    try:
+        data = response.json()
+    except Exception as exc:
+        raise PronunciationError("bad_response", "Azure PA returned non-JSON.") from exc
+
+    status = data.get("RecognitionStatus", "")
+    if status not in ("Success", "NoMatch"):
+        raise PronunciationError("recognition_failed", f"Azure recognition status: {status}")
+
+    nbest = data.get("NBest") or []
+    if not nbest:
+        raise PronunciationError("no_result", "Azure PA returned no NBest candidates.")
+
+    best = nbest[0]
+    pa = best.get("PronunciationAssessment") or {}
+
+    words: list[WordPronunciationScore] = []
+    for w in best.get("Words") or []:
+        w_pa = w.get("PronunciationAssessment") or {}
+        phonemes: list[PhonemeScore] = []
+        for ph in w.get("Phonemes") or []:
+            ph_pa = ph.get("PronunciationAssessment") or {}
+            phonemes.append(
+                PhonemeScore(
+                    phoneme=ph.get("Phoneme", ""),
+                    accuracy_score=float(ph_pa.get("AccuracyScore", 0)),
+                )
+            )
+        words.append(
+            WordPronunciationScore(
+                word=w.get("Word", ""),
+                accuracy_score=float(w_pa.get("AccuracyScore", 0)),
+                error_type=w_pa.get("ErrorType") or "None",
+                phonemes=phonemes,
+            )
+        )
+
+    # Azure's own transcript (may differ from Whisper — stored for reference only).
+    azure_transcript = best.get("ITN", "") or best.get("Display", "") or ""
+
+    raw: dict[str, object] = {
+        "recognition_status": status,
+        "accuracy_score": pa.get("AccuracyScore"),
+        "fluency_score": pa.get("FluencyScore"),
+        "completeness_score": pa.get("CompletenessScore"),
+        "pronunciation_score": pa.get("PronScore"),
+        "word_count": len(words),
+        "recognized_text": azure_transcript,
+        "mode": "unscripted",
+    }
+
+    return PronunciationResult(
+        accuracy_score=float(pa.get("AccuracyScore") or 0),
+        fluency_score=float(pa.get("FluencyScore") or 0),
+        completeness_score=float(pa.get("CompletenessScore") or 0),
+        pronunciation_score=float(pa.get("PronScore") or 0),
+        words=words,
+        raw=raw,
+    )

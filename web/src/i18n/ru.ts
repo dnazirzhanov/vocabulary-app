@@ -1035,16 +1035,15 @@ export const ru = {
   speakingStatusFailed: 'Ошибка',
   speakingLoadError: 'Не удалось загрузить вопросы. Попробуйте снова.',
   speakingEvalHeading: 'Оценка',
-  speakingEvalTranscript: 'Что вы сказали',
-  speakingEvalScores: 'Баллы',
-  speakingEvalOverall: 'Общий',
-  speakingEvalFluency: 'Беглость',
-  speakingEvalVocabulary: 'Словарный запас',
-  speakingEvalGrammar: 'Грамматика',
-  speakingEvalCoherence: 'Связность',
-  speakingEvalPronunciation: 'Произношение',
   speakingEvalGrammarNoService: 'Проверка грамматики требует внешнего сервиса (не настроен)',
   speakingEvalVocabInsufficient: 'Слишком мало слов для оценки словарного запаса',
+  speakingEvalTranscriptLabel: 'Транскрипция',
+  speakingEvalSkillsLabel: 'Навыки',
+  speakingEvalFeedbackLabel: 'Советы',
+  speakingEvalInsufficientData: 'Недостаточно данных',
+  speakingEvalNoErrors: 'Ошибок не найдено',
+  speakingEvalWpm: 'сл/мин',
+  speakingEvalPauses: 'паузы',
 };
 
 export type Messages = typeof ru;

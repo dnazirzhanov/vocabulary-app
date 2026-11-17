@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-MIN_WORDS_FOR_VOCABULARY = 15
+MIN_WORDS_FOR_VOCABULARY = 10
 
 # Content word POS tags to include (spaCy universal tags).
 _CONTENT_POS = {"NOUN", "VERB", "ADJ", "ADV"}

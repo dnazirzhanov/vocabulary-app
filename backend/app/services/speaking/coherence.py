@@ -1,8 +1,7 @@
-"""Coherence assessment via DeepSeek (Chunk 5).
+"""Coherence assessment via OpenAI (updated: removed DeepSeek dependency).
 
 Asks the LLM to rate how coherent and on-topic the student's answer is,
-given the original question. The score is strictly schema-validated via Pydantic
-so the LLM cannot invent free-form text that bypasses evidence rules.
+given the original question.
 
 Non-negotiable: the LLM rates COHERENCE only. It must not invent grammar or
 pronunciation errors — those come from their respective evidence providers.
@@ -10,9 +9,10 @@ pronunciation errors — those come from their respective evidence providers.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
-MIN_WORDS_FOR_COHERENCE = 30
+MIN_WORDS_FOR_COHERENCE = 20
 
 _SYSTEM = """\
 You are a neutral English-language examiner scoring spoken answers by L2 learners.
@@ -54,21 +54,18 @@ def assess_coherence(
     transcript: str,
     question_text: str,
     api_key: str,
-    model: str = "deepseek-chat",
+    model: str = "gpt-4o-mini",
+    base_url: str | None = None,
 ) -> CoherenceResult:
-    """Score coherence of a spoken answer using DeepSeek.
+    """Score coherence of a spoken answer using an OpenAI-compatible LLM.
 
     Raises CoherenceError on failure (non-fatal in orchestration)."""
-    import json
-
     import openai
-
-    from app.services.generation import DEEPSEEK_URL
 
     prompt = f"Question: {question_text}\n\nStudent answer (verbatim transcript): {transcript}"
 
     try:
-        client = openai.OpenAI(api_key=api_key, base_url=DEEPSEEK_URL, timeout=30.0, max_retries=1)
+        client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=30.0, max_retries=1)
         response = client.chat.completions.create(
             model=model,
             max_tokens=120,
@@ -79,10 +76,9 @@ def assess_coherence(
             ],
         )
     except Exception as exc:
-        raise CoherenceError("api_error", f"DeepSeek call failed: {exc}") from exc
+        raise CoherenceError("api_error", f"LLM call failed: {exc}") from exc
 
     content = (response.choices[0].message.content or "").strip()
-    # Strip markdown fences if present.
     if content.startswith("```"):
         content = "\n".join(content.split("\n")[1:-1])
 
@@ -92,7 +88,7 @@ def assess_coherence(
         justification = str(data["justification"])
     except Exception as exc:
         raise CoherenceError(
-            "bad_response", f"DeepSeek returned invalid JSON: {content!r}"
+            "bad_response", f"LLM returned invalid JSON: {content!r}"
         ) from exc
 
     score = max(0.0, min(100.0, score))

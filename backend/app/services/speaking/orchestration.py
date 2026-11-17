@@ -1,12 +1,11 @@
-"""Speaking pipeline orchestration — Chunk 5: full assessment (Whisper + Azure PA +
-fluency + vocabulary + grammar + coherence).
+"""Speaking pipeline orchestration.
 
 Provider map:
-  spontaneous  → Whisper + fluency + vocabulary + grammar + coherence
-  pronunciation → Whisper + Azure PA + fluency + vocabulary + grammar + coherence
+  spontaneous  → Whisper + Azure PA (unscripted) + fluency + vocabulary + grammar (LLM) + coherence
+  pronunciation → Whisper + Azure PA (scripted)   + fluency + vocabulary + grammar (LLM) + coherence
 
 All providers run concurrently via ThreadPoolExecutor where possible.
-Minimum-evidence rules gate each score independently (see architecture plan §7).
+Minimum-evidence rules gate each score independently.
 Azure PA failures and optional-provider failures (grammar, coherence) are non-fatal.
 Transcription failure is fatal — no transcript, no assessment.
 """
@@ -38,10 +37,12 @@ from app.services.speaking.fluency import FluencyResult, compute_fluency
 from app.services.speaking.fluency import meets_minimum_evidence as fluency_min_evidence
 from app.services.speaking.grammar import GrammarError_, GrammarResult, check_grammar
 from app.services.speaking.grammar import meets_minimum_evidence as grammar_min_evidence
+from app.services.speaking.grammar_llm import check_grammar_llm
 from app.services.speaking.pronunciation import (
     PronunciationError,
     PronunciationResult,
     assess,
+    assess_unscripted,
 )
 from app.services.speaking.pronunciation import (
     meets_minimum_evidence as pronunciation_min_evidence,
@@ -63,8 +64,6 @@ def run_assess_job(
     azure_speech_key: str | None = None,
     azure_speech_region: str = "westeurope",
     language_tool_url: str | None = None,
-    deepseek_api_key: str | None = None,
-    deepseek_model: str = "deepseek-chat",
     now: datetime,
 ) -> None:
     """Run the full assessment pipeline for a claimed job.
@@ -98,40 +97,43 @@ def run_assess_job(
     is_pronunciation = session.exercise_type == "pronunciation"
     reference_text: str | None = None
     question_text = ""
-    if is_pronunciation or deepseek_api_key:
-        question = questions_svc.by_id(session.question_id)
-        question_text = question.text if question else ""
-        if is_pronunciation and question:
+    question = questions_svc.by_id(session.question_id)
+    if question:
+        question_text = question.text
+        if is_pronunciation:
             reference_text = question.reference_text
 
-    # --- Concurrently run all providers ---
+    # --- Concurrently run Whisper + Azure PA ---
     transcript_result = None
     pron_result: PronunciationResult | None = None
-    fluency_result: FluencyResult | None = None
-    vocab_result: VocabularyResult | None = None
-    grammar_result: GrammarResult | None = None
-    coherence_result: CoherenceResult | None = None
     transcript_error: str | None = None
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        # Whisper is always submitted first; others depend on its output but we can at least
-        # start Azure PA in parallel since it uses the raw audio independently.
         whisper_fut: Future[object] = pool.submit(
             transcribe, audio_bytes, audio.mime_type, openai_api_key
         )
 
         azure_fut: Future[object] | None = None
-        if is_pronunciation and reference_text and azure_speech_key:
-            azure_fut = pool.submit(
-                assess,
-                audio_bytes,
-                audio.mime_type,
-                reference_text,
-                azure_speech_key,
-                azure_speech_region,
-            )
+        if azure_speech_key:
+            if is_pronunciation and reference_text:
+                azure_fut = pool.submit(
+                    assess,
+                    audio_bytes,
+                    audio.mime_type,
+                    reference_text,
+                    azure_speech_key,
+                    azure_speech_region,
+                )
+            else:
+                # Spontaneous speech: use unscripted pronunciation assessment.
+                azure_fut = pool.submit(
+                    assess_unscripted,
+                    audio_bytes,
+                    audio.mime_type,
+                    azure_speech_key,
+                    azure_speech_region,
+                )
 
-        # Collect Whisper result.
         try:
             transcript_result = cast("TranscriptResult", whisper_fut.result())
         except TranscriptionError as exc:
@@ -139,7 +141,6 @@ def run_assess_job(
         except Exception as exc:
             transcript_error = f"transcription_error:{type(exc).__name__}"
 
-        # Collect Azure PA result.
         if azure_fut is not None:
             try:
                 pron_result = azure_fut.result()  # type: ignore[assignment]
@@ -148,7 +149,6 @@ def run_assess_job(
             except Exception as exc:
                 log.warning("Azure PA unexpected error (non-fatal): %s", exc)
 
-    # Transcription failure is fatal.
     if transcript_result is None:
         _fail_session(db, session, job, transcript_error or "transcription_failed:unknown", now)
         db.commit()
@@ -158,7 +158,10 @@ def run_assess_job(
     duration_ms = transcript_result.duration_ms
     transcript_text = transcript_result.transcript
 
-    # --- Deterministic providers (run synchronously; fast, no I/O) ---
+    # --- Deterministic providers ---
+    fluency_result: FluencyResult | None = None
+    vocab_result: VocabularyResult | None = None
+
     if fluency_min_evidence(word_count, duration_ms):
         fluency_result = compute_fluency(transcript_result.words, duration_ms)
 
@@ -166,31 +169,45 @@ def run_assess_job(
         try:
             vocab_result = compute_vocabulary(transcript_text)
         except Exception as exc:
-            log.warning("Vocabulary assessment failed (non-fatal): %s", exc)
+            log.error("Vocabulary assessment failed (non-fatal): %s", exc, exc_info=True)
 
-    # --- Grammar: optional remote call ---
-    if language_tool_url and grammar_min_evidence(word_count):
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            grammar_fut: Future[object] = pool.submit(
-                check_grammar, transcript_text, language_tool_url, word_count
-            )
-            # Coherence also goes here if keys available, same pool reduces latency.
+    # --- Grammar + coherence: both use OpenAI ---
+    grammar_result: GrammarResult | None = None
+    coherence_result: CoherenceResult | None = None
+
+    grammar_enabled = grammar_min_evidence(word_count)
+    coherence_enabled = coherence_min_evidence(word_count) and bool(question_text)
+
+    if grammar_enabled or coherence_enabled:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            grammar_fut: Future[object] | None = None
             coherence_fut: Future[object] | None = None
-            if deepseek_api_key and coherence_min_evidence(word_count) and question_text:
+
+            if grammar_enabled:
+                if language_tool_url:
+                    grammar_fut = pool.submit(
+                        check_grammar, transcript_text, language_tool_url, word_count
+                    )
+                else:
+                    grammar_fut = pool.submit(
+                        check_grammar_llm, transcript_text, openai_api_key
+                    )
+
+            if coherence_enabled:
                 coherence_fut = pool.submit(
                     assess_coherence,
                     transcript_text,
                     question_text,
-                    deepseek_api_key,
-                    deepseek_model,
+                    openai_api_key,
                 )
 
-            try:
-                grammar_result = grammar_fut.result()  # type: ignore[assignment]
-            except GrammarError_ as exc:
-                log.warning("Grammar check failed (non-fatal): %s", exc)
-            except Exception as exc:
-                log.warning("Grammar check unexpected error (non-fatal): %s", exc)
+            if grammar_fut is not None:
+                try:
+                    grammar_result = grammar_fut.result()  # type: ignore[assignment]
+                except GrammarError_ as exc:
+                    log.warning("Grammar check failed (non-fatal): %s", exc)
+                except Exception as exc:
+                    log.warning("Grammar check unexpected error (non-fatal): %s", exc)
 
             if coherence_fut is not None:
                 try:
@@ -200,25 +217,10 @@ def run_assess_job(
                 except Exception as exc:
                     log.warning("Coherence unexpected error (non-fatal): %s", exc)
 
-    elif deepseek_api_key and coherence_min_evidence(word_count) and question_text:
-        # No grammar check configured — still run coherence alone.
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            coh_only_fut: Future[object] = pool.submit(
-                assess_coherence, transcript_text, question_text, deepseek_api_key, deepseek_model
-            )
-            try:
-                coherence_result = coh_only_fut.result()  # type: ignore[assignment]
-            except CoherenceError as exc:
-                log.warning("Coherence assessment failed (non-fatal): %s", exc)
-            except Exception as exc:
-                log.warning("Coherence unexpected error (non-fatal): %s", exc)
-
     # --- Derive scores ---
     pronunciation_score: float | None = None
     pron_evidence: dict[str, object]
-    if is_pronunciation and pron_result is None:
-        pron_evidence = {"skipped": "provider_error" if azure_speech_key else "no_key"}
-    elif pron_result is not None:
+    if pron_result is not None:
         if pronunciation_min_evidence(word_count, duration_ms):
             pronunciation_score = pron_result.pronunciation_score
         pron_evidence = {
@@ -237,7 +239,7 @@ def run_assess_job(
             ],
         }
     else:
-        pron_evidence = {"skipped": "not_pronunciation_type"}
+        pron_evidence = {"skipped": "provider_error" if azure_speech_key else "no_key"}
 
     fluency_score = fluency_result.score if fluency_result else None
     vocabulary_score = vocab_result.score if vocab_result else None
@@ -248,9 +250,9 @@ def run_assess_job(
         pronunciation_score, fluency_score, vocabulary_score, grammar_score, coherence_score
     )
 
-    # --- Feedback (optional DeepSeek call) ---
+    # --- Feedback (uses OpenAI) ---
     feedback_result: FeedbackResult | None = None
-    if deepseek_api_key and feedback_min_evidence(word_count) and question_text:
+    if feedback_min_evidence(word_count) and question_text:
         try:
             feedback_result = generate_feedback(
                 transcript=transcript_text,
@@ -260,8 +262,7 @@ def run_assess_job(
                 grammar_result=grammar_result,
                 coherence_result=coherence_result,
                 pron_result=pron_result,
-                api_key=deepseek_api_key,
-                model=deepseek_model,
+                api_key=openai_api_key,
             )
         except FeedbackError as exc:
             log.warning("Feedback generation failed (non-fatal): %s", exc)
@@ -299,17 +300,17 @@ def run_assess_job(
             else {"skipped": "insufficient_evidence"},
             "grammar": grammar_result.raw
             if grammar_result
-            else {"skipped": "no_url" if not language_tool_url else "insufficient_evidence"},
+            else {"skipped": "insufficient_evidence"},
             "coherence": coherence_result.raw
             if coherence_result
-            else {"skipped": "no_key" if not deepseek_api_key else "insufficient_evidence"},
+            else {"skipped": "insufficient_evidence"},
             "feedback": feedback_result.raw
             if feedback_result
-            else {"skipped": "no_key" if not deepseek_api_key else "insufficient_evidence"},
+            else {"skipped": "insufficient_evidence"},
         },
     )
     db.add(assessment)
-    db.flush()  # get assessment.id before inserting feedback items
+    db.flush()
 
     if feedback_result:
         for item in feedback_result.items:

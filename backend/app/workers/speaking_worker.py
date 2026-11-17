@@ -47,13 +47,13 @@ def run_worker(poll_interval: float = POLL_INTERVAL_SECONDS) -> None:
     worker_id = settings.speaking_worker_id
 
     if not settings.openai_api_key:
-        log.warning("OPENAI_API_KEY is not set; transcription jobs will fail immediately.")
+        log.warning("OPENAI_API_KEY is not set; transcription and LLM assessment will fail.")
     if not settings.azure_speech_key:
         log.warning("AZURE_SPEECH_KEY is not set; pronunciation assessments will be skipped.")
-    if not settings.language_tool_url:
-        log.info("LANGUAGE_TOOL_URL is not set; grammar scoring will be skipped.")
-    if not settings.deepseek_api_key:
-        log.info("DEEPSEEK_API_KEY is not set; coherence scoring will be skipped.")
+    if settings.language_tool_url:
+        log.info("LANGUAGE_TOOL_URL is set; using LanguageTool for grammar checking.")
+    else:
+        log.info("LANGUAGE_TOOL_URL not set; using OpenAI LLM for grammar checking.")
 
     log.info("Speaking worker starting (id=%s)", worker_id)
     while _running:
@@ -65,8 +65,6 @@ def run_worker(poll_interval: float = POLL_INTERVAL_SECONDS) -> None:
             settings.azure_speech_key,
             settings.azure_speech_region,
             settings.language_tool_url,
-            settings.deepseek_api_key,
-            settings.deepseek_model,
         )
         if not did_work:
             time.sleep(poll_interval)
@@ -80,8 +78,6 @@ def _process_one(
     azure_speech_key: str | None,
     azure_speech_region: str,
     language_tool_url: str | None = None,
-    deepseek_api_key: str | None = None,
-    deepseek_model: str = "deepseek-chat",
 ) -> bool:
     """Claim and process one job. Returns True if a job was processed, False if queue was empty."""
     with Session(engine) as db:
@@ -108,8 +104,6 @@ def _process_one(
                     azure_speech_key=azure_speech_key,
                     azure_speech_region=azure_speech_region,
                     language_tool_url=language_tool_url,
-                    deepseek_api_key=deepseek_api_key,
-                    deepseek_model=deepseek_model,
                     now=now,
                 )
             else:

@@ -1,17 +1,17 @@
-"""DeepSeek feedback generator (Chunk 6).
+"""Feedback generator via OpenAI (updated: removed DeepSeek dependency).
 
-Produces 2–5 actionable feedback items from the full assessment evidence.
-All outputs are Pydantic-validated so the LLM cannot invent errors that
-are not grounded in the evidence we supply.
+Produces 2–5 actionable feedback items and a one-sentence overall summary
+from the full assessment evidence.
 
 Non-negotiables:
 - For 'pronunciation': only reference words where Azure PA flagged an error.
-- For 'grammar': only reference errors returned by LanguageTool.
+- For 'grammar': only reference errors from the grammar checker.
 - For other categories: reference the numeric metrics; no invented text.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Literal
 
@@ -27,34 +27,36 @@ log = logging.getLogger(__name__)
 
 MIN_WORDS_FOR_FEEDBACK = 15
 
-_CATEGORIES = {"pronunciation", "grammar", "vocabulary", "coherence", "fluency"}
-_SEVERITIES = {"info", "minor", "major"}
-
 _SYSTEM = """\
 You are an English-language examiner giving concise, encouraging feedback to L2 learners.
 
-You will receive evidence gathered from automatic scoring tools. Your ONLY job is to generate
-2–5 specific, actionable feedback items based STRICTLY on that evidence. Never invent errors that
-are not in the evidence.
+You will receive evidence gathered from automatic scoring tools. Your job is to generate:
+1. A "summary": one sentence (max 20 words) summarising the student's overall performance.
+2. "items": 2-5 specific, actionable feedback items based STRICTLY on the provided evidence.
+   Never invent errors that are not in the evidence.
 
-Rules:
+Rules for items:
   - For category "pronunciation": ONLY reference words listed in pronunciation_errors.
     If pronunciation_errors is empty, do NOT produce a pronunciation item.
   - For category "grammar": ONLY reference errors listed in grammar_errors.
     If grammar_errors is empty, do NOT produce a grammar item.
   - For category "vocabulary", "coherence", "fluency": reference the provided numeric metrics.
-  - Explanation must be one clear English sentence (≤ 20 words). Do not start with "I".
+  - explanation must be one clear English sentence (<=20 words). Do not start with "I".
   - corrected_text is optional; use it only for grammar and pronunciation corrections.
   - Prioritise major errors first.
-  - Return ONLY valid JSON: a JSON array matching the schema below. No markdown, no extra keys.
 
-Item schema:
+Return ONLY valid JSON (no markdown, no extra keys):
 {
-  "category": <"pronunciation"|"grammar"|"vocabulary"|"coherence"|"fluency">,
-  "severity": <"major"|"minor"|"info">,
-  "original_text": <quoted span from transcript or null>,
-  "corrected_text": <correction or null>,
-  "explanation": <one sentence>
+  "summary": "<one sentence overall assessment>",
+  "items": [
+    {
+      "category": "pronunciation|grammar|vocabulary|coherence|fluency",
+      "severity": "major|minor|info",
+      "original_text": "<quoted span from transcript or null>",
+      "corrected_text": "<correction or null>",
+      "explanation": "<one sentence>"
+    }
+  ]
 }
 """
 
@@ -75,8 +77,9 @@ class FeedbackItem(BaseModel):
 
 
 class FeedbackResult:
-    def __init__(self, items: list[FeedbackItem], raw: dict[str, Any]) -> None:
+    def __init__(self, items: list[FeedbackItem], summary: str, raw: dict[str, Any]) -> None:
         self.items = items
+        self.summary = summary
         self.raw = raw
 
 
@@ -99,16 +102,13 @@ def generate_feedback(
     coherence_result: CoherenceResult | None,
     pron_result: PronunciationResult | None,
     api_key: str,
-    model: str = "deepseek-chat",
+    model: str = "gpt-4o-mini",
+    base_url: str | None = None,
 ) -> FeedbackResult:
-    """Generate evidence-grounded feedback items using DeepSeek.
+    """Generate evidence-grounded feedback items using an OpenAI-compatible LLM.
 
     Raises FeedbackError on failure (non-fatal in orchestration)."""
-    import json
-
     import openai
-
-    from app.services.generation import DEEPSEEK_URL
 
     evidence_parts: list[str] = []
 
@@ -126,11 +126,12 @@ def generate_feedback(
         evidence_parts.append("pronunciation_errors: []  # not available")
 
     if grammar_result is not None and grammar_result.errors:
-        err_list = "; ".join(
-            f'"{e.message}" for text near offset {e.offset}'
-            + (f" (suggest: {e.replacements[0]!r})" if e.replacements else "")
-            for e in grammar_result.errors[:5]
-        )
+        def _fmt_error(e: Any) -> str:
+            has_pos = e.offset >= 0 and e.length > 0
+            snippet = transcript[e.offset : e.offset + e.length] if has_pos else "?"
+            correction = e.replacements[0] if e.replacements else "?"
+            return f'original={snippet!r}, correction={correction!r}, reason="{e.message}"'
+        err_list = "; ".join(_fmt_error(e) for e in grammar_result.errors[:5])
         evidence_parts.append(f"grammar_errors: [{err_list}]")
     else:
         evidence_parts.append("grammar_errors: []")
@@ -166,10 +167,10 @@ def generate_feedback(
     prompt = f"Question: {question_text}\n\nTranscript: {transcript}\n\nEvidence:\n{evidence_block}"
 
     try:
-        client = openai.OpenAI(api_key=api_key, base_url=DEEPSEEK_URL, timeout=30.0, max_retries=1)
+        client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=30.0, max_retries=1)
         response = client.chat.completions.create(
             model=model,
-            max_tokens=512,
+            max_tokens=600,
             temperature=0.0,
             messages=[
                 {"role": "system", "content": _SYSTEM},
@@ -177,18 +178,20 @@ def generate_feedback(
             ],
         )
     except Exception as exc:
-        raise FeedbackError("api_error", f"DeepSeek call failed: {exc}") from exc
+        raise FeedbackError("api_error", f"LLM call failed: {exc}") from exc
 
     content = (response.choices[0].message.content or "").strip()
     if content.startswith("```"):
         content = "\n".join(content.split("\n")[1:-1])
 
     try:
-        raw_items = json.loads(content)
+        data = json.loads(content)
+        summary = str(data.get("summary", "")).strip()
+        raw_items = data.get("items", [])
         if not isinstance(raw_items, list):
-            raise ValueError("expected a JSON array")
+            raise ValueError("items must be an array")
     except Exception as exc:
-        raise FeedbackError("bad_response", f"DeepSeek returned invalid JSON: {content!r}") from exc
+        raise FeedbackError("bad_response", f"LLM returned invalid JSON: {content!r}") from exc
 
     items: list[FeedbackItem] = []
     for raw in raw_items[:5]:
@@ -199,8 +202,10 @@ def generate_feedback(
 
     return FeedbackResult(
         items=items,
+        summary=summary,
         raw={
             "model": model,
+            "summary": summary,
             "item_count": len(items),
             "word_count": len(transcript.split()),
         },
