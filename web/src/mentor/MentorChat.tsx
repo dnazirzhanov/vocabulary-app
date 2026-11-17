@@ -316,7 +316,7 @@ export function MentorChat({ items = [], tip, onBack, onOpenArticle, onStartSess
           <h1 className={styles.heroHeading}>{t.mentorChatHeading}</h1>
           <div className={styles.heroSuggestions}>
             {suggestionsFor(items, tip).map((s) => (
-              <button key={s()} type="button" className={styles.heroChip} onClick={() => void send(s())}>
+              <button key={s()} type="button" className={styles.heroChip} data-testid="mentor-suggestion" onClick={() => void send(s())}>
                 {s()}
               </button>
             ))}
