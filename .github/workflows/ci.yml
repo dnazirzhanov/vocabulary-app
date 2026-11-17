@@ -43,6 +43,7 @@ jobs:
       - run: uv run python -m app.cli validate-content ../content/a1-a2 ../content/b1-b2 ../content/c1
       - run: uv run alembic upgrade head
       - run: uv run alembic check # models and migrations must not drift apart
+      - run: uv run python -m spacy download en_core_web_sm
       - run: uv run pytest
       # The nightly backup's scripts on every change (docs/backups.md): dump the test database,
       # encrypted, then restore it into an empty one and check it.
