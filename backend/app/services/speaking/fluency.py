@@ -14,8 +14,8 @@ from dataclasses import dataclass
 
 from app.services.speaking.transcription import TranscriptWord
 
-MIN_WORDS_FOR_FLUENCY = 15
-MIN_DURATION_MS_FOR_FLUENCY = 10_000
+MIN_WORDS_FOR_FLUENCY = 8
+MIN_DURATION_MS_FOR_FLUENCY = 4_000
 
 # A gap between consecutive words ≥ this value counts as a hesitation pause.
 _PAUSE_THRESHOLD_MS = 500

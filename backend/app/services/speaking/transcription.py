@@ -54,6 +54,7 @@ def transcribe(audio_bytes: bytes, mime_type: str, api_key: str) -> TranscriptRe
             file=(filename, audio_bytes, mime_type),
             response_format="verbose_json",
             timestamp_granularities=["word"],
+            language="en",
         )
     except openai.AuthenticationError as exc:
         raise TranscriptionError("auth_failed", "Whisper authentication failed.") from exc
