@@ -31,7 +31,6 @@ const done = (answer: string) => ({
       { original: 'I no have car', corrected: "I don't have a car", explanation: 'Use don’t.', type: 'grammar' },
     ],
     vocabulary: [{ original: 'good', suggestion: 'excellent', note: 'Stronger.' }],
-    improved_version: "I don't have a car. I go to university by bus.",
   },
 });
 
@@ -60,7 +59,10 @@ test('topics, questions, then a written answer comes back as feedback', async ({
   await expect(page.getByRole('heading', { name: 'Оценка' })).toBeVisible();
   await expect(page.getByText('Достаточный', { exact: true }).first()).toBeVisible();
   await expect(page.getByText("I don't have a car", { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Улучшенный вариант' })).toBeVisible();
+  // Feedback comes in sections, the grammar fix sits under Grammar, and no rewritten answer is offered.
+  await expect(page.getByRole('heading', { name: 'Грамматика' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Лексика' })).toBeVisible();
+  await expect(page.getByText('Улучшенный вариант')).toHaveCount(0);
   // Never used the timer: no time is sent.
   expect(body.time_spent_seconds).toBeNull();
   expect(body.answer).toBe(ANSWER);
@@ -154,7 +156,6 @@ test('too little to assess is said plainly, with no score', async ({ page }) => 
           strengths: [],
           corrections: [],
           vocabulary: [],
-          improved_version: '',
         },
       },
     });

@@ -81,7 +81,6 @@ class ModelEvaluation(BaseModel):
     improvements: Annotated[list[Short], _first(4)] = Field(default_factory=list)
     corrections: Annotated[list[Mistake], _first(12)] = Field(default_factory=list)
     vocabulary: Annotated[list[VocabularyTip], _first(5)] = Field(default_factory=list)
-    improved_version: Text = ""
 
 
 class Evaluation(ModelEvaluation):
@@ -114,8 +113,6 @@ def clean(raw: ModelEvaluation, answer: str) -> Evaluation:
             summary=raw.summary or "The answer is too short to assess.",
             improvements=raw.improvements[:3],
         )
-    if not raw.improved_version:
-        raise ValueError("no improved version")
     data["corrections"] = [
         c.model_dump()
         for c in raw.corrections

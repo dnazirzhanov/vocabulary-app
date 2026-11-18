@@ -1092,12 +1092,7 @@ export const kk: Messages = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Емле және тыныс белгілері',
-  writingDidWell: 'Не жақсы шықты',
-  writingImprove: 'Нені жақсарту керек',
-  writingMistakes: 'Қателер және түзетулер',
   writingNoMistakes: 'Анық қате табылмады.',
-  writingVocabulary: 'Лексика бойынша ұсыныстар',
-  writingImproved: 'Жақсартылған нұсқа',
   writingWriteAgain: 'Қайта жазу',
   writingTryAnother: 'Басқа сұрақ',
 };

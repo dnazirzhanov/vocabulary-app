@@ -38,7 +38,6 @@ export interface Evaluation {
   improvements: string[];
   corrections: Mistake[];
   vocabulary: { original: string; suggestion: string; note: string }[];
-  improved_version: string;
   overall: number | null;
 }
 

@@ -48,7 +48,6 @@ def reply(**changes: Any) -> str:
             }
         ],
         "vocabulary": [],
-        "improved_version": "I don't have a car. I go to university by bus.",
     }
     data.update(changes)
     return json.dumps(data)

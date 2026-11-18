@@ -1096,12 +1096,7 @@ export const tg: Messages = {
   writingCriterionVocabulary: 'Луғат',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Имло ва аломатҳои китобат',
-  writingDidWell: 'Чӣ хуб баромад',
-  writingImprove: 'Чиро беҳтар кардан лозим',
-  writingMistakes: 'Хатогиҳо ва ислоҳҳо',
   writingNoMistakes: 'Хатои возеҳ ёфт нашуд.',
-  writingVocabulary: 'Ғояҳо оид ба луғат',
-  writingImproved: 'Варианти беҳтаршуда',
   writingWriteAgain: 'Аз нав навиштан',
   writingTryAnother: 'Саволи дигар',
 };

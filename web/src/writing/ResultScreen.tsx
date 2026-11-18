@@ -1,8 +1,16 @@
 import { t } from '../i18n/index.ts';
-import { CRITERIA, type Submission } from './api.ts';
+import { CRITERIA, type CriterionName, type Mistake, type Submission } from './api.ts';
 import { clock } from './stopwatch.ts';
 import { criterionLabel, scoreLabel } from './scoreText.ts';
 import styles from './Writing.module.css';
+
+/** Which category a mistake belongs under. */
+const MISTAKE_HOME: Record<Mistake['type'], CriterionName> = {
+  grammar: 'grammar',
+  spelling: 'mechanics',
+  punctuation: 'mechanics',
+  word_choice: 'vocabulary',
+};
 
 interface Props {
   submission: Submission;
@@ -19,7 +27,7 @@ export function ResultScreen({ submission, onWriteAgain, onAnother }: Props) {
       <h1 className={styles.question}>{submission.question?.title ?? t.writing}</h1>
 
       {ev && (
-        <section aria-labelledby="w-overall">
+        <section aria-labelledby="w-overall" className={styles.overview}>
           <h2 id="w-overall" className={styles.sectionTitle}>
             {enough ? t.writingScoreHeading : t.writingTooLittleHeading}
           </h2>
@@ -36,97 +44,68 @@ export function ResultScreen({ submission, onWriteAgain, onAnother }: Props) {
             </p>
           )}
           <p className={styles.text}>{ev.summary}</p>
-          {enough && ev.criteria && (
-            <dl className={styles.criteria}>
-              {CRITERIA.map((name) => (
-                <div key={name} className={styles.criterion}>
-                  <dt>
-                    {criterionLabel(name)}{' '}
-                    <span className={styles.muted}>· {scoreLabel(ev.criteria![name].score)}</span>
-                  </dt>
-                  <dd>{ev.criteria![name].comment}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
         </section>
       )}
 
-      {ev && enough && ev.strengths.length > 0 && (
-        <section aria-labelledby="w-well">
-          <h2 id="w-well" className={styles.sectionTitle}>
-            {t.writingDidWell}
-          </h2>
-          <ul className={styles.bullets}>
-            {ev.strengths.map((s, i) => (
-              <li key={i}>
-                {s.point}
-                {s.quote && <q className={styles.quote}>{s.quote}</q>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {ev &&
+        enough &&
+        ev.criteria &&
+        CRITERIA.map((name) => {
+          const criterion = ev.criteria![name];
+          const mistakes = ev.corrections.filter((c) => MISTAKE_HOME[c.type] === name);
+          const tips = name === 'vocabulary' ? ev.vocabulary : [];
+          const checksMistakes = name === 'grammar' || name === 'mechanics';
+          return (
+            <section key={name} className={styles.category} aria-labelledby={`w-${name}`}>
+              <header className={styles.categoryHead}>
+                <h2 id={`w-${name}`} className={styles.categoryTitle}>
+                  {criterionLabel(name)}
+                </h2>
+                <span className={styles.meter}>
+                  <span className={styles.meterBars} aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <i key={n} className={n <= criterion.score ? styles.barOn : styles.bar} />
+                    ))}
+                  </span>
+                  <span className={styles.muted}>{scoreLabel(criterion.score)}</span>
+                </span>
+              </header>
+              <p className={styles.comment}>{criterion.comment}</p>
+              {(mistakes.length > 0 || tips.length > 0) && (
+                <ul className={styles.fixes}>
+                  {mistakes.map((c, i) => (
+                    <li key={`m${i}`} className={styles.fix}>
+                      <p className={styles.fixLine}>
+                        <del>{c.original}</del> → <ins>{c.corrected}</ins>
+                      </p>
+                      <p className={styles.fixWhy}>{c.explanation}</p>
+                    </li>
+                  ))}
+                  {tips.map((v, i) => (
+                    <li key={`v${i}`} className={styles.fix}>
+                      <p className={styles.fixLine}>
+                        {v.original} → <ins>{v.suggestion}</ins>
+                      </p>
+                      {v.note && <p className={styles.fixWhy}>{v.note}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {checksMistakes && mistakes.length === 0 && <p className={styles.muted}>{t.writingNoMistakes}</p>}
+            </section>
+          );
+        })}
 
       {ev && ev.improvements.length > 0 && (
-        <section aria-labelledby="w-improve">
-          <h2 id="w-improve" className={styles.sectionTitle}>
-            {enough ? t.writingImprove : t.writingNextStep}
+        <section className={styles.category} aria-labelledby="w-next">
+          <h2 id="w-next" className={styles.categoryTitle}>
+            {t.writingNextStep}
           </h2>
-          <ul className={styles.bullets}>
+          <ol className={styles.steps}>
             {ev.improvements.map((s, i) => (
               <li key={i}>{s}</li>
             ))}
-          </ul>
-        </section>
-      )}
-
-      {ev && enough && (
-        <section aria-labelledby="w-mistakes">
-          <h2 id="w-mistakes" className={styles.sectionTitle}>
-            {t.writingMistakes}
-          </h2>
-          {ev.corrections.length === 0 ? (
-            <p className={styles.text}>{t.writingNoMistakes}</p>
-          ) : (
-            <ul className={styles.fixes}>
-              {ev.corrections.map((c, i) => (
-                <li key={i} className={styles.fix}>
-                  <p className={styles.fixLine}>
-                    <del>{c.original}</del> → <ins>{c.corrected}</ins>
-                  </p>
-                  <p className={styles.fixWhy}>{c.explanation}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {ev && enough && ev.vocabulary.length > 0 && (
-        <section aria-labelledby="w-vocab">
-          <h2 id="w-vocab" className={styles.sectionTitle}>
-            {t.writingVocabulary}
-          </h2>
-          <ul className={styles.fixes}>
-            {ev.vocabulary.map((v, i) => (
-              <li key={i} className={styles.fix}>
-                <p className={styles.fixLine}>
-                  {v.original} → <strong>{v.suggestion}</strong>
-                </p>
-                {v.note && <p className={styles.fixWhy}>{v.note}</p>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {ev && enough && ev.improved_version && (
-        <section aria-labelledby="w-improved">
-          <h2 id="w-improved" className={styles.sectionTitle}>
-            {t.writingImproved}
-          </h2>
-          <p className={`${styles.text} ${styles.essay}`}>{ev.improved_version}</p>
+          </ol>
         </section>
       )}
 

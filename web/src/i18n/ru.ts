@@ -1114,12 +1114,7 @@ export const ru = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Орфография и пунктуация',
-  writingDidWell: 'Что получилось хорошо',
-  writingImprove: 'Что улучшить',
-  writingMistakes: 'Ошибки и исправления',
   writingNoMistakes: 'Явных ошибок не найдено.',
-  writingVocabulary: 'Лексика: идеи',
-  writingImproved: 'Улучшенный вариант',
   writingWriteAgain: 'Написать заново',
   writingTryAnother: 'Другой вопрос',
 };

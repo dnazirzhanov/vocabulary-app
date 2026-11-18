@@ -1098,12 +1098,7 @@ export const uz: Messages = {
   writingCriterionVocabulary: 'Lug‘at',
   writingCriterionGrammar: 'Grammatika',
   writingCriterionMechanics: 'Imlo va tinish belgilari',
-  writingDidWell: 'Yaxshi chiqqan joylar',
-  writingImprove: 'Nimani yaxshilash kerak',
-  writingMistakes: 'Xatolar va tuzatishlar',
   writingNoMistakes: 'Aniq xatolar topilmadi.',
-  writingVocabulary: 'Lug‘at bo‘yicha g‘oyalar',
-  writingImproved: 'Yaxshilangan variant',
   writingWriteAgain: 'Qaytadan yozish',
   writingTryAnother: 'Boshqa savol',
 };

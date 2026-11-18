@@ -46,14 +46,18 @@ wording, contractions, optional commas. Put pure style preferences in "vocabular
 does not respond to the question at all (a different topic). In that case set \
 "enough_evidence": false, "criteria": null, leave the lists empty, and in "summary" say kindly \
 what is missing and invite the learner to write more or answer the question.
-- "improved_version" keeps the learner's own ideas, meaning, order and roughly the same length. \
-Fix the English only. Do not add new arguments.
+- Do NOT rewrite the answer or offer an improved version.
+- Each criterion "comment" is one or two sentences and must be specific to THIS answer: name the \
+exact pattern you saw (quote a few of the learner's words) and say what to do about it. Never \
+write generic praise or advice such as "good vocabulary" or "use more linkers".
 - Strengths must be specific and quote the answer. Improvements must be the most important few \
 things, each saying what to do next time.
+- "corrections" lists every real error you are sure of, one entry per error, with the smallest \
+possible "original" span and a short reason that names the rule.
 - Limits: at most 4 strengths, 4 improvements, 12 corrections, 5 vocabulary tips. Prefer the \
 most useful over the most numerous. Keep each comment to one or two sentences.
 - Write every explanation, comment, summary, strength point and improvement in {language}. \
-Keep English words, quotes, "corrected", "suggestion" and "improved_version" in English.
+Keep English words, quotes, "corrected", "suggestion" in English.
 
 OUTPUT: return ONLY one JSON object, no markdown, with exactly these keys:
 {{"enough_evidence": true|false,
@@ -65,8 +69,7 @@ OUTPUT: return ONLY one JSON object, no markdown, with exactly these keys:
  "improvements": [str],
  "corrections": [{{"original": str, "corrected": str, "explanation": str, \
 "type": "grammar"|"spelling"|"punctuation"|"word_choice"}}],
- "vocabulary": [{{"original": str, "suggestion": str, "note": str}}],
- "improved_version": str}}
+ "vocabulary": [{{"original": str, "suggestion": str, "note": str}}]}}
 """
 
 

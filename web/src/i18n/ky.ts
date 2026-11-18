@@ -1094,12 +1094,7 @@ export const ky: Messages = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Орфография жана тыныш белгилери',
-  writingDidWell: 'Эмнеси жакшы чыкты',
-  writingImprove: 'Эмнени жакшыртуу керек',
-  writingMistakes: 'Каталар жана оңдоолор',
   writingNoMistakes: 'Даана ката табылган жок.',
-  writingVocabulary: 'Лексика боюнча идеялар',
-  writingImproved: 'Жакшыртылган вариант',
   writingWriteAgain: 'Кайра жазуу',
   writingTryAnother: 'Башка суроо',
 };

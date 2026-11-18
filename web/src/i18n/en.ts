@@ -1111,12 +1111,7 @@ export const en: Messages = {
   writingCriterionVocabulary: 'Vocabulary',
   writingCriterionGrammar: 'Grammar',
   writingCriterionMechanics: 'Spelling and punctuation',
-  writingDidWell: 'What you did well',
-  writingImprove: 'What to improve',
-  writingMistakes: 'Mistakes and corrections',
   writingNoMistakes: 'No clear mistakes found.',
-  writingVocabulary: 'Vocabulary ideas',
-  writingImproved: 'Improved version',
   writingWriteAgain: 'Write it again',
   writingTryAnother: 'Another question',
 };
