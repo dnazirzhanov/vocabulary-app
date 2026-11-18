@@ -65,6 +65,20 @@ def limit_generations(
     )
 
 
+def limit_writing_submissions(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """Every submission is one paid model call."""
+    _check(
+        "writing_submissions",
+        user.id,
+        settings.writing_submissions_per_day,
+        "Too many writing submissions today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="writing_limit",
+    )
+
+
 def reset_limits() -> None:
     """For tests."""
     with _lock:
