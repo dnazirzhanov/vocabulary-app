@@ -45,9 +45,9 @@ export function NavShell({
     ...(mentor ? [{ tab: 'mentor', label: t.mentor, Icon: SparkleIcon } as const] : []),
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
     ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
-    { tab: 'writing', label: t.writing, Icon: PencilIcon },
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
+    { tab: 'writing', label: t.writing, Icon: PencilIcon },
   ] as const;
 
   return (
