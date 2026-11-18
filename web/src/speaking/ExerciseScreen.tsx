@@ -101,7 +101,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
     } catch (caught) {
       setSubmit({ kind: 'failed', message: describeError(caught) });
     }
-  }, [recording, question]);
+  }, [recording, question, onDone]);
 
   const onTryAgain = useCallback(() => {
     if (pollTimer.current) clearInterval(pollTimer.current);

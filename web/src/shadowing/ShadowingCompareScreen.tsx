@@ -66,17 +66,9 @@ export function ShadowingCompareScreen({
       </header>
 
       <div className={styles.body}>
-        <AudioPlayer
-          src={originalUrl}
-          label={t.shadowingOriginalLabel}
-          disabled={!exercise.has_audio}
-        />
+        <AudioPlayer src={originalUrl} label={t.shadowingOriginalLabel} disabled={!exercise.has_audio} />
 
-        <AudioPlayer
-          src={recordingUrl}
-          label={t.shadowingYourRecordingLabel}
-          showSpeed={false}
-        />
+        <AudioPlayer src={recordingUrl} label={t.shadowingYourRecordingLabel} showSpeed={false} />
       </div>
 
       <footer className={styles.footer}>
@@ -92,12 +84,7 @@ export function ShadowingCompareScreen({
               {t.shadowingSkipBtn}
             </button>
           ) : (
-            <button
-              type="button"
-              className={styles.retryBtn}
-              onClick={handleRetry}
-              disabled={saveState === 'saving'}
-            >
+            <button type="button" className={styles.retryBtn} onClick={handleRetry} disabled={saveState === 'saving'}>
               {t.shadowingRetryBtn}
             </button>
           )}

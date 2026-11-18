@@ -44,8 +44,15 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
   const [startError, setStartError] = useState<string | null>(null);
   const attemptIdRef = useRef<string | null>(null);
 
-  const { durationMs, recording, error: recError, requestPermission, start, stop, reset } =
-    useAudioRecorder({ maxDurationMs: exercise.duration_ms + 5000 });
+  const {
+    durationMs,
+    recording,
+    error: recError,
+    requestPermission,
+    start,
+    stop,
+    reset,
+  } = useAudioRecorder({ maxDurationMs: exercise.duration_ms + 5000 });
 
   const audioSrc = getExerciseAudioUrl(exercise.id);
 
@@ -140,13 +147,7 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
         </div>
 
         {/* Listen player — shown while not actively recording */}
-        {phase !== 'shadowing' && (
-          <AudioPlayer
-            src={audioSrc}
-            label={t.shadowingOriginalLabel}
-            disabled={!hasAudio}
-          />
-        )}
+        {phase !== 'shadowing' && <AudioPlayer src={audioSrc} label={t.shadowingOriginalLabel} disabled={!hasAudio} />}
 
         {/* Recording indicator */}
         {phase === 'shadowing' && (
@@ -155,17 +156,15 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
               <span className={styles.recDot} />
               <span className={styles.recLabel}>{t.shadowingRecordingLabel}</span>
             </div>
-            <span className={styles.recTime} aria-label={t.shadowingRecordingTime}>{formatMs(durationMs)}</span>
+            <span className={styles.recTime} aria-label={t.shadowingRecordingTime}>
+              {formatMs(durationMs)}
+            </span>
           </div>
         )}
 
-        {phase === 'listen' && hasAudio && (
-          <p className={styles.hint}>{t.shadowingHeadphonesHint}</p>
-        )}
+        {phase === 'listen' && hasAudio && <p className={styles.hint}>{t.shadowingHeadphonesHint}</p>}
 
-        {!hasAudio && (
-          <p className={styles.unavailable}>{t.shadowingAudioNotAvailable}</p>
-        )}
+        {!hasAudio && <p className={styles.unavailable}>{t.shadowingAudioNotAvailable}</p>}
 
         {/* Transcript */}
         <section className={styles.transcriptSection}>
@@ -175,13 +174,12 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
 
         {(startError || recError) && (
           <p role="alert" className={styles.error}>
-            {startError ?? (recError?.code === 'permission_denied' ? t.shadowingPermissionDenied : t.shadowingUnsupported)}
+            {startError ??
+              (recError?.code === 'permission_denied' ? t.shadowingPermissionDenied : t.shadowingUnsupported)}
           </p>
         )}
 
-        {!supported && (
-          <p className={styles.error}>{t.shadowingUnsupported}</p>
-        )}
+        {!supported && <p className={styles.error}>{t.shadowingUnsupported}</p>}
       </div>
 
       <footer className={styles.footer}>

@@ -73,16 +73,10 @@ export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) 
           const completed = status != null && status.completed_count > 0;
           return (
             <li key={ex.id}>
-              <button
-                type="button"
-                className={styles.exerciseCard}
-                onClick={() => onSelectExercise(ex)}
-              >
+              <button type="button" className={styles.exerciseCard} onClick={() => onSelectExercise(ex)}>
                 <div className={styles.cardTop}>
                   <span className={styles.exerciseTitle}>{ex.title}</span>
-                  {completed && (
-                    <span className={styles.completedBadge}>{t.shadowingCompletedBadge}</span>
-                  )}
+                  {completed && <span className={styles.completedBadge}>{t.shadowingCompletedBadge}</span>}
                 </div>
                 <p className={styles.exerciseDesc}>{ex.description}</p>
                 <div className={styles.exerciseMeta}>

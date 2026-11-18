@@ -48,9 +48,7 @@ def load_from_yaml(db: Session, storage: StorageClient, dir_path: Path) -> int:
         if audio_file.exists():
             import asyncio
 
-            asyncio.get_event_loop().run_until_complete(
-                storage.upload(storage_path, audio_file.read_bytes(), mime)
-            )
+            asyncio.run(storage.upload(storage_path, audio_file.read_bytes(), mime))
 
         if existing:
             existing.title = item["title"]

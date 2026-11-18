@@ -29,7 +29,7 @@ primary_region = "arn"
 # starts, in a machine of their own. The app then only starts the web server, so waking after idle
 # takes seconds, not the ~22 s that repeating them on every start took (measured).
 [deploy]
-  release_command = "sh -c 'alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1'"
+  release_command = "sh -c 'alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1 && python -m app.cli load-shadowing /app/content/shadowing'"
 
 [processes]
   app = "uvicorn app.main:app --host 0.0.0.0 --port 8000"

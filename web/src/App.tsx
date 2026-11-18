@@ -723,7 +723,18 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
-  if (['speaking', 'shadowing', 'shadowing-player', 'shadowing-compare', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name))
+  if (
+    [
+      'speaking',
+      'shadowing',
+      'shadowing-player',
+      'shadowing-compare',
+      'speaking-topic',
+      'speaking-question',
+      'speaking-exercise',
+      'speaking-eval',
+    ].includes(screen.name)
+  )
     return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';

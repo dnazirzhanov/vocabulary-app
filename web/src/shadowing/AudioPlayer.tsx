@@ -58,12 +58,19 @@ export function AudioPlayer({
       setPlaying(false);
       onEnded?.();
     };
+    // Reset state when the browser starts loading a new source.
+    const onEmptied = () => {
+      setPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+    };
 
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
     el.addEventListener('timeupdate', onTimeUpdate);
     el.addEventListener('loadedmetadata', onLoadedMetadata);
     el.addEventListener('ended', onEndedHandler);
+    el.addEventListener('emptied', onEmptied);
 
     return () => {
       el.removeEventListener('play', onPlay);
@@ -71,15 +78,9 @@ export function AudioPlayer({
       el.removeEventListener('timeupdate', onTimeUpdate);
       el.removeEventListener('loadedmetadata', onLoadedMetadata);
       el.removeEventListener('ended', onEndedHandler);
+      el.removeEventListener('emptied', onEmptied);
     };
   }, [onEnded]);
-
-  // Reset when src changes
-  useEffect(() => {
-    setPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-  }, [src]);
 
   const togglePlay = () => {
     const el = audioRef.current;
