@@ -80,5 +80,11 @@ def load_from_yaml(db: Session, storage: StorageClient, dir_path: Path) -> int:
             )
         count += 1
 
+    # Deactivate any exercise whose slug is no longer in the YAML.
+    active_slugs = {item["slug"] for item in data}
+    for ex in db.scalars(select(ShadowingExercise)):
+        if ex.slug not in active_slugs:
+            ex.is_active = False
+
     db.commit()
     return count
