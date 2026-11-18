@@ -31,6 +31,8 @@ import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
+// Writing tab: its whole flow is one lazy chunk, loaded when the tab is opened.
+const WritingFlow = lazy(() => import('./writing/WritingFlow.tsx'));
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
 const ReadingArticle = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Reader })));
 const ReadingGive = lazy(() => import('./reading/GiveReading.tsx').then((m) => ({ default: m.GiveReading })));
@@ -46,6 +48,7 @@ type Screen =
   | { name: 'home' }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
+  | { name: 'writing' }
   | { name: 'progress' }
   | { name: 'groups' }
   | { name: 'board'; groupId: string; invite?: boolean }
@@ -378,6 +381,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (tab === 'today') goHome();
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
+    else if (tab === 'writing') setScreen({ name: 'writing' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
@@ -478,6 +482,13 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         />
       );
     }
+    if (screen.name === 'writing') {
+      return (
+        <Suspense fallback={null}>
+          <WritingFlow />
+        </Suspense>
+      );
+    }
     if (screen.name === 'progress') {
       return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
@@ -545,6 +556,7 @@ function backTo(from: PageFrom): Screen {
 }
 
 function tabOf(screen: Screen): NavTab {
+  if (screen.name === 'writing') return 'writing';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

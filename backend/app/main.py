@@ -19,6 +19,7 @@ from app.api import (
     push,
     readings,
     sync,
+    writing,
 )
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
@@ -62,6 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(push.router, prefix="/api")
     app.include_router(sync.router, prefix="/api")
     app.include_router(readings.router, prefix="/api")
+    app.include_router(writing.router, prefix="/api")
     if settings.web_dist:
         _serve_web_app(app, Path(settings.web_dist))
     return app

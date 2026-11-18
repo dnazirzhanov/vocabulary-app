@@ -1,0 +1,334 @@
+/* Calm and plain: text first, few boxes. Reads on a phone (single column, 16px+ text). */
+.screen,
+.writeScreen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-7);
+  color: var(--color-text);
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear sits in this corner */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.lead,
+.instruction {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row,
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover,
+.card:hover {
+  background: var(--color-primary-tint);
+}
+
+.card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.rowName {
+  flex: 1;
+  font-weight: var(--weight-strong);
+}
+
+.rowMeta,
+.cardText {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.cardTitle {
+  font-weight: var(--weight-strong);
+  font-size: var(--text-option);
+  line-height: var(--leading-body);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.sectionTitle {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 1.125rem;
+  font-weight: var(--weight-display);
+}
+
+/* The writing screen: the textarea takes the room, the bar and button sit under it. */
+.question {
+  margin: 0;
+  padding-right: 56px; /* the settings gear sits in this corner */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-body);
+}
+
+.textarea {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: max(46dvh, 15rem);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.125rem; /* 18px: no zoom-on-focus on phones, easy on the eyes */
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.words {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.timer,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-strong);
+}
+
+.submit {
+  min-height: 52px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.submit:disabled,
+.timer:disabled,
+.back:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: 8px;
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The feedback. */
+.bigScore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.6;
+}
+
+.essay {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.criteria {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+
+.criterion dt {
+  font-weight: var(--weight-strong);
+}
+
+.criterion dd {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  line-height: var(--leading-body);
+}
+
+.bullets {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--text-option);
+  line-height: 1.6;
+}
+
+.bullets li + li {
+  margin-top: var(--space-2);
+}
+
+.quote {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  font-style: italic;
+}
+
+.fixes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fix {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-highlight);
+}
+
+.fixLine {
+  margin: 0;
+  font-size: var(--text-option);
+  overflow-wrap: anywhere;
+}
+
+.fixLine del {
+  color: var(--color-error);
+}
+
+.fixLine ins {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+  text-decoration: none;
+}
+
+.fixWhy {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  line-height: var(--leading-body);
+}
+
+.original {
+  margin-top: var(--space-4);
+}
+
+.original summary {
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: var(--weight-strong);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.actions > button {
+  flex: 1 1 12rem;
+}

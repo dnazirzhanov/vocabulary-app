@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { BookIcon, ChartIcon, GearIcon, HomeIcon, PeopleIcon } from '../ui/icons.tsx';
+import { BookIcon, ChartIcon, GearIcon, HomeIcon, PencilIcon, PeopleIcon } from '../ui/icons.tsx';
 import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
-export type NavTab = 'today' | 'reading' | 'friends' | 'progress';
+export type NavTab = 'today' | 'reading' | 'writing' | 'friends' | 'progress';
 
 interface NavShellProps {
   tab: NavTab;
@@ -32,6 +32,7 @@ export function NavShell({ tab, onNavigate, account, onSignOut, reading = false,
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
+    { tab: 'writing', label: t.writing, Icon: PencilIcon },
   ] as const;
 
   return (
