@@ -32,6 +32,7 @@ from app.models.reading import (
     ReadingQuestion,
 )
 from app.models.schedule import ScheduleEvent
+from app.models.shadowing import ShadowingAttempt, ShadowingExercise
 from app.models.speaking import (
     SpeakingAssessment,
     SpeakingAudioAsset,
@@ -80,6 +81,8 @@ __all__ = [
     "ReadingQuestion",
     "ReviewAttempt",
     "ScheduleEvent",
+    "ShadowingAttempt",
+    "ShadowingExercise",
     "SpeakingAssessment",
     "SpeakingAudioAsset",
     "SpeakingFeedbackItem",

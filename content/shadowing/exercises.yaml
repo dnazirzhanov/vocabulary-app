@@ -1,0 +1,84 @@
+- slug: morning-routine
+  title: My Morning Routine
+  description: A simple description of a daily morning routine.
+  difficulty: beginner
+  duration_ms: 17746
+  language: en
+  speaker: null
+  audio_filename: morning-routine.mp3
+  transcript: "I wake up at seven o'clock every morning. First, I brush my teeth and wash my face. Then I make a cup of coffee and eat breakfast. I usually have toast with eggs. After that, I get dressed and check my phone for messages. I leave the house at eight thirty and walk to the bus stop."
+  sentences:
+    - { start_ms: 0, end_ms: 3500, text: "I wake up at seven o'clock every morning." }
+    - { start_ms: 3500, end_ms: 7500, text: "First, I brush my teeth and wash my face." }
+    - { start_ms: 7500, end_ms: 12000, text: "Then I make a cup of coffee and eat breakfast." }
+    - { start_ms: 12000, end_ms: 15000, text: "I usually have toast with eggs." }
+    - { start_ms: 15000, end_ms: 20500, text: "After that, I get dressed and check my phone for messages." }
+    - { start_ms: 20500, end_ms: 28000, text: "I leave the house at eight thirty and walk to the bus stop." }
+
+- slug: day-at-work
+  title: A Day at Work
+  description: What a typical office workday looks like.
+  difficulty: beginner
+  duration_ms: 23865
+  language: en
+  speaker: null
+  audio_filename: day-at-work.mp3
+  transcript: "I arrive at the office at nine o'clock. I start by reading my emails and making a list of things to do. In the morning, I usually have one or two meetings with my team. We talk about our projects and solve problems together. At lunchtime, I go to a café near the office. In the afternoon, I focus on writing reports and replying to messages. I finish work at six."
+  sentences:
+    - { start_ms: 0, end_ms: 4000, text: "I arrive at the office at nine o'clock." }
+    - { start_ms: 4000, end_ms: 9500, text: "I start by reading my emails and making a list of things to do." }
+    - { start_ms: 9500, end_ms: 15000, text: "In the morning, I usually have one or two meetings with my team." }
+    - { start_ms: 15000, end_ms: 20000, text: "We talk about our projects and solve problems together." }
+    - { start_ms: 20000, end_ms: 24000, text: "At lunchtime, I go to a café near the office." }
+    - { start_ms: 24000, end_ms: 29500, text: "In the afternoon, I focus on writing reports and replying to messages." }
+    - { start_ms: 29500, end_ms: 32000, text: "I finish work at six." }
+
+- slug: why-i-love-travelling
+  title: Why I Love Travelling
+  description: Reasons why travel is important and exciting.
+  difficulty: intermediate
+  duration_ms: 25271
+  language: en
+  speaker: null
+  audio_filename: why-i-love-travelling.mp3
+  transcript: "Travelling is one of my favourite things to do. When I visit a new country, I learn about different cultures, foods, and ways of life. I love trying local dishes and exploring streets I have never seen before. Meeting people from other places teaches me things that I could never learn from a book. Even when things go wrong, like a missed train or a lost bag, the experience makes me stronger and more confident."
+  sentences:
+    - { start_ms: 0, end_ms: 4500, text: "Travelling is one of my favourite things to do." }
+    - { start_ms: 4500, end_ms: 11000, text: "When I visit a new country, I learn about different cultures, foods, and ways of life." }
+    - { start_ms: 11000, end_ms: 17000, text: "I love trying local dishes and exploring streets I have never seen before." }
+    - { start_ms: 17000, end_ms: 24000, text: "Meeting people from other places teaches me things that I could never learn from a book." }
+    - { start_ms: 24000, end_ms: 35000, text: "Even when things go wrong, like a missed train or a lost bag, the experience makes me stronger and more confident." }
+
+- slug: importance-of-education
+  title: The Importance of Education
+  description: Why learning and education matter throughout life.
+  difficulty: intermediate
+  duration_ms: 24979
+  language: en
+  speaker: null
+  audio_filename: importance-of-education.mp3
+  transcript: "Education is one of the most important things in a person's life. It gives us the knowledge and skills we need to find good jobs and make good decisions. But education is not only about school. We learn every day from our experiences, from other people, and from the things we read and watch. People who keep learning throughout their lives tend to be more creative and adaptable. It is never too late to start learning something new."
+  sentences:
+    - { start_ms: 0, end_ms: 5500, text: "Education is one of the most important things in a person's life." }
+    - { start_ms: 5500, end_ms: 12000, text: "It gives us the knowledge and skills we need to find good jobs and make good decisions." }
+    - { start_ms: 12000, end_ms: 16000, text: "But education is not only about school." }
+    - { start_ms: 16000, end_ms: 24000, text: "We learn every day from our experiences, from other people, and from the things we read and watch." }
+    - { start_ms: 24000, end_ms: 31500, text: "People who keep learning throughout their lives tend to be more creative and adaptable." }
+    - { start_ms: 31500, end_ms: 37000, text: "It is never too late to start learning something new." }
+
+- slug: technology-and-society
+  title: Technology and Society
+  description: How technology shapes our daily lives.
+  difficulty: advanced
+  duration_ms: 31541
+  language: en
+  speaker: null
+  audio_filename: technology-and-society.mp3
+  transcript: "Technology has changed almost every part of our lives. We use our phones to communicate, shop, work, and entertain ourselves. These changes have made many things faster and more convenient. However, spending too much time on screens can affect our health and our relationships. It is important to find a balance — to use technology as a tool that helps us, rather than something that controls us. The most important question is not what technology can do, but what we choose to do with it."
+  sentences:
+    - { start_ms: 0, end_ms: 5000, text: "Technology has changed almost every part of our lives." }
+    - { start_ms: 5000, end_ms: 11500, text: "We use our phones to communicate, shop, work, and entertain ourselves." }
+    - { start_ms: 11500, end_ms: 17000, text: "These changes have made many things faster and more convenient." }
+    - { start_ms: 17000, end_ms: 24000, text: "However, spending too much time on screens can affect our health and our relationships." }
+    - { start_ms: 24000, end_ms: 33000, text: "It is important to find a balance — to use technology as a tool that helps us, rather than something that controls us." }
+    - { start_ms: 33000, end_ms: 40000, text: "The most important question is not what technology can do, but what we choose to do with it." }

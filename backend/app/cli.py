@@ -50,6 +50,11 @@ def main(argv: list[str] | None = None) -> int:
         "build-reading",
         help="build content/reading/*.yaml into web/public/reading/*.json (Reading Mode)",
     )
+    load_shadowing = commands.add_parser(
+        "load-shadowing",
+        help="upsert shadowing exercises from a YAML directory and upload audio",
+    )
+    load_shadowing.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
 
     if args.command == "vapid-keys":
@@ -92,6 +97,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "clean-up":
         with get_sessionmaker()() as db:
             print(clean_up(db, datetime.now(UTC), max_seconds=float("inf")))
+        return 0
+
+    if args.command == "load-shadowing":
+        from app.services.shadowing import exercises as shadowing_exercises_svc
+        from app.services.speaking.storage import get_storage
+
+        settings = get_settings()
+        storage = get_storage(settings)
+        with get_sessionmaker()() as db:
+            count = shadowing_exercises_svc.load_from_yaml(db, storage, args.directory)
+        print(f"Loaded {count} shadowing exercise(s).")
         return 0
 
     if args.command == "seed-classmates":

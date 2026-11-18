@@ -20,6 +20,7 @@ from app.api import (
     push,
     readings,
     schedule,
+    shadowing,
     speaking,
     sync,
 )
@@ -68,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(mentor.router, prefix="/api")
     app.include_router(schedule.router, prefix="/api")
     app.include_router(speaking.router, prefix="/api")
+    app.include_router(shadowing.router, prefix="/api")
     if settings.web_dist:
         _serve_web_app(app, Path(settings.web_dist))
     return app

@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  background: var(--bg);
+  background: var(--color-bg);
 }
 
 .header {
@@ -10,14 +10,14 @@
   align-items: center;
   gap: 12px;
   padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .back {
   background: none;
   border: none;
   font-size: 15px;
-  color: var(--accent);
+  color: var(--color-primary);
   cursor: pointer;
   padding: 4px 0;
 }
@@ -42,18 +42,19 @@
   display: flex;
   align-items: flex-start;
   width: 100%;
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px 18px;
   cursor: pointer;
   text-align: left;
   gap: 10px;
   transition: background 0.15s;
+  flex-direction: column;
 }
 
 .questionCard:hover {
-  background: var(--hover-bg, #f5f5f5);
+  background: var(--color-primary-tint);
 }
 
 .questionText {
@@ -71,24 +72,20 @@
 }
 
 .level {
-  background: var(--accent-light, #e8f0fe);
-  color: var(--accent);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
   padding: 2px 7px;
   border-radius: 20px;
   font-weight: 600;
 }
 
 .attempts {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .bestScore {
   font-weight: 700;
-  color: var(--accent);
-}
-
-.questionCard {
-  flex-direction: column;
+  color: var(--color-primary);
 }
 
 .questionCard > .arrow {
@@ -97,7 +94,7 @@
 
 .arrow {
   font-size: 20px;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   align-self: center;
   margin-left: auto;
 }
