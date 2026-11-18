@@ -108,28 +108,35 @@ export function WriteScreen({ question, initialText, onBack, onDone }: Props) {
       <label htmlFor="writing-answer" className={styles.visuallyHidden}>
         {t.writingYourAnswer}
       </label>
-      <textarea
-        id="writing-answer"
-        className={styles.textarea}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={t.writingPlaceholder}
-        readOnly={busy}
-        spellCheck
-        autoCapitalize="sentences"
-        lang="en"
-      />
-
-      <div className={styles.bar}>
-        <span className={styles.words}>{t.writingWords(wordCount(text))}</span>
-        <button type="button" className={styles.timer} onClick={toggleTimer} disabled={busy}>
-          {running ? t.writingTimerStop : watch.used ? t.writingTimerResume : t.writingTimerStart}
-          {watch.used && (
-            <span className={styles.time} aria-live="off">
-              {clock(elapsed(watch, now))}
-            </span>
-          )}
-        </button>
+      {/* One writing surface: the count and the timer live in its footer, so they cannot collide with it. */}
+      <div className={styles.paper}>
+        <textarea
+          id="writing-answer"
+          className={styles.textarea}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t.writingPlaceholder}
+          readOnly={busy}
+          spellCheck
+          autoCapitalize="sentences"
+          lang="en"
+        />
+        <div className={styles.paperFoot} data-testid="writing-footer">
+          <span className={styles.words}>{t.writingWords(wordCount(text))}</span>
+          <button
+            type="button"
+            className={running ? `${styles.timer} ${styles.timerOn}` : styles.timer}
+            onClick={toggleTimer}
+            disabled={busy}
+          >
+            {running ? t.writingTimerStop : watch.used ? t.writingTimerResume : t.writingTimerStart}
+            {watch.used && (
+              <span className={styles.time} aria-live="off">
+                {clock(elapsed(watch, now))}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (

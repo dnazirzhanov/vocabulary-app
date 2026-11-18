@@ -117,7 +117,7 @@
   font-weight: var(--weight-display);
 }
 
-/* The writing screen: the textarea takes the room, the bar and button sit under it. */
+/* The writing screen: one raised sheet of paper takes the room; Send sits under it. */
 .question {
   margin: 0;
   padding-right: 56px; /* the settings gear sits in this corner */
@@ -126,25 +126,45 @@
   line-height: var(--leading-body);
 }
 
+.paper {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  transition: box-shadow var(--duration-state) var(--ease-out);
+}
+
+/* The sheet shows focus the way every text field does (global.css: an orange edge and a soft halo). */
+.paper:focus-within {
+  box-shadow:
+    var(--shadow-sheet),
+    0 0 0 1px var(--color-primary-strong),
+    0 0 0 4px rgb(250 93 25 / 0.22);
+}
+
 .textarea {
   box-sizing: border-box;
   flex: 1 1 auto;
   width: 100%;
-  min-height: max(46dvh, 15rem);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
+  min-height: max(42dvh, 14rem);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: transparent;
   color: var(--color-text);
   font: inherit;
   font-size: 1.125rem; /* 18px: no zoom-on-focus on phones, easy on the eyes */
   line-height: 1.7;
-  resize: vertical;
+  resize: none;
 }
 
+.textarea:focus,
 .textarea:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: none; /* .paper draws the ring around the whole sheet */
+  box-shadow: none;
 }
 
 .textarea::placeholder {
@@ -152,47 +172,77 @@
   opacity: 0.7;
 }
 
-.bar {
+.paperFoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  min-height: 52px;
+  padding: 0 var(--space-3) 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
 }
 
 .words {
   color: var(--color-text-muted);
   font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.timer,
-.secondary {
+/* A quiet text button: the timer is optional, so it never competes with Send. */
+.timer {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--color-option-edge);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
   font: inherit;
+  font-size: var(--text-meta);
+  white-space: nowrap;
   cursor: pointer;
 }
 
+.timer:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.timerOn {
+  color: var(--color-primary-strong);
+}
+
 .time {
+  color: var(--color-text);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-strong);
 }
 
 .submit {
   min-height: 52px;
+  margin-top: var(--space-2);
   padding: 0 var(--space-5);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: var(--color-on-primary);
   font: inherit;
   font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.secondary {
+  min-height: 52px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
   cursor: pointer;
 }
 
@@ -206,7 +256,7 @@
 .error {
   margin: 0;
   padding: var(--space-3);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-error-tint);
   color: var(--color-error);
 }
@@ -219,14 +269,43 @@
   clip-path: inset(50%);
 }
 
-/* The feedback. */
-.bigScore {
+/* The feedback: a verdict, then one sheet of five rows, then what to do next. */
+.context {
+  margin: 0 0 var(--space-3);
+  padding-right: 56px; /* the settings gear */
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+}
+
+.verdict {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.eyebrow {
   margin: 0;
-  font-size: 1.5rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.verdictWord {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+/* No score: the heading itself is the verdict. */
+.verdictHeading {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
 }
 
 .text {
@@ -240,60 +319,120 @@
   overflow-wrap: anywhere;
 }
 
-.overview,
-.category {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.category {
+.sheet {
   display: flex;
   flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.criterion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+}
+
+.criterion + .criterion {
+  border-top: 1px solid var(--color-border);
+}
+
+.criterionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
 }
 
-.categoryHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.categoryTitle {
+.criterionTitle {
   margin: 0;
-  font-size: 1.05rem;
-}
-
-.meter {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   font-size: var(--text-body);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-body);
 }
 
-.meterBars {
+/* Five small dots; the word for the score is in the label for screen readers. */
+.pips {
   display: inline-flex;
-  gap: 3px;
+  flex: none;
+  gap: 4px;
 }
 
-.bar,
-.barOn {
-  width: 14px;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--color-border);
+.pip,
+.pipOn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-track);
 }
 
-.barOn {
-  background: var(--color-highlight);
+.pipOn {
+  background: var(--color-primary);
 }
 
 .comment {
   margin: 0;
+  color: var(--color-text-muted);
   line-height: 1.55;
+}
+
+.fixes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fixLine {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.fixLine del {
+  color: var(--color-text-muted);
+  text-decoration-color: var(--color-error);
+}
+
+.arrow {
+  margin: 0 var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.fixLine ins {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+  text-decoration: none;
+}
+
+.fixWhy {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
+}
+
+.clean {
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--text-meta);
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.nextTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
 }
 
 .steps {
@@ -306,59 +445,28 @@
   margin-top: var(--space-2);
 }
 
-.fixes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fix {
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--color-highlight);
-}
-
-.fixLine {
-  margin: 0;
-  font-size: var(--text-option);
-  overflow-wrap: anywhere;
-}
-
-.fixLine del {
-  color: var(--color-error);
-}
-
-.fixLine ins {
-  color: var(--color-success);
-  font-weight: var(--weight-strong);
-  text-decoration: none;
-}
-
-.fixWhy {
-  margin: 2px 0 0;
-  color: var(--color-text-muted);
-  line-height: var(--leading-body);
-}
-
 .original {
+  border-top: 1px solid var(--color-border);
   margin-top: var(--space-4);
 }
 
 .original summary {
-  min-height: 44px;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  color: var(--color-text-muted);
   font-weight: var(--weight-strong);
+  cursor: pointer;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-top: var(--space-5);
+  margin-top: var(--space-3);
 }
 
 .actions > button {
   flex: 1 1 12rem;
+  margin-top: 0;
 }

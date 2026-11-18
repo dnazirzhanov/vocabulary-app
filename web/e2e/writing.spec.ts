@@ -87,6 +87,33 @@ test('the timer is optional and its time goes with the answer', async ({ page })
   expect(body.time_spent_seconds).toBeGreaterThanOrEqual(1);
 });
 
+for (const width of [360, 1280]) {
+  test(`the word count and a running timer sit between the text and Send, never on them (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width < 600 ? 740 : 860 });
+    await openQuestion(page);
+    await page.getByRole('textbox').fill(ANSWER);
+    await page.getByRole('button', { name: 'Включить таймер' }).click();
+    const timer = page.getByRole('button', { name: /Остановить/ });
+    await expect(timer).toContainText('0:0');
+
+    const box = async (l: import('@playwright/test').Locator) => (await l.boundingBox())!;
+    const text = await box(page.getByRole('textbox'));
+    const clock = await box(timer);
+    const count = await box(page.getByText(/^Слов: \d+$/));
+    const send = await box(page.getByRole('button', { name: 'Отправить' }));
+    // Each sits fully below the text and fully above Send.
+    for (const b of [clock, count]) {
+      expect(b.y).toBeGreaterThanOrEqual(text.y + text.height);
+      expect(b.y + b.height).toBeLessThanOrEqual(send.y);
+    }
+    // «Слов: 40» stays on one line, beside the timer, not squeezed under it.
+    expect(count.height).toBeLessThan(28);
+    expect(count.x + count.width).toBeLessThanOrEqual(clock.x);
+  });
+}
+
 test('an empty answer cannot be sent', async ({ page }) => {
   let calls = 0;
   await page.route('**/api/writing/submissions', async (route) => {

@@ -24,81 +24,94 @@ export function ResultScreen({ submission, onWriteAgain, onAnother }: Props) {
   const enough = ev !== null && ev.enough_evidence && ev.criteria !== null && ev.overall !== null;
   return (
     <main className={styles.screen}>
-      <h1 className={styles.question}>{submission.question?.title ?? t.writing}</h1>
+      <h1 className={styles.context}>{submission.question?.title ?? t.writing}</h1>
 
+      {/* The verdict: one word first, the details in one quiet line, then the summary. */}
       {ev && (
-        <section aria-labelledby="w-overall" className={styles.overview}>
-          <h2 id="w-overall" className={styles.sectionTitle}>
+        <section aria-labelledby="w-overall" className={styles.verdict}>
+          <h2 id="w-overall" className={enough ? styles.eyebrow : styles.verdictHeading}>
             {enough ? t.writingScoreHeading : t.writingTooLittleHeading}
           </h2>
           {enough && ev.overall !== null && (
-            <p className={styles.bigScore}>
-              <strong>{scoreLabel(ev.overall)}</strong>
-              <span className={styles.muted}>
+            <>
+              <p className={styles.verdictWord}>{scoreLabel(ev.overall)}</p>
+              <p className={styles.muted}>
                 {t.writingScoreOutOf(ev.overall)}
                 {ev.cefr_level ? ` · ${t.writingLevel(ev.cefr_level)}` : ''}
                 {submission.time_spent_seconds !== null
                   ? ` · ${t.writingTimeSpent(clock(submission.time_spent_seconds))}`
                   : ''}
-              </span>
-            </p>
+              </p>
+            </>
           )}
           <p className={styles.text}>{ev.summary}</p>
         </section>
       )}
 
-      {ev &&
-        enough &&
-        ev.criteria &&
-        CRITERIA.map((name) => {
-          const criterion = ev.criteria![name];
-          const mistakes = ev.corrections.filter((c) => MISTAKE_HOME[c.type] === name);
-          const tips = name === 'vocabulary' ? ev.vocabulary : [];
-          const checksMistakes = name === 'grammar' || name === 'mechanics';
-          return (
-            <section key={name} className={styles.category} aria-labelledby={`w-${name}`}>
-              <header className={styles.categoryHead}>
-                <h2 id={`w-${name}`} className={styles.categoryTitle}>
-                  {criterionLabel(name)}
-                </h2>
-                <span className={styles.meter}>
-                  <span className={styles.meterBars} aria-hidden="true">
+      {/* One sheet, five rows: each category with its own fixes, divided by hairlines, no boxes inside. */}
+      {ev && enough && ev.criteria && (
+        <div className={styles.sheet}>
+          {CRITERIA.map((name) => {
+            const criterion = ev.criteria![name];
+            const mistakes = ev.corrections.filter((c) => MISTAKE_HOME[c.type] === name);
+            const tips = name === 'vocabulary' ? ev.vocabulary : [];
+            const checksMistakes = name === 'grammar' || name === 'mechanics';
+            return (
+              <section key={name} className={styles.criterion} aria-labelledby={`w-${name}`}>
+                <header className={styles.criterionHead}>
+                  <h2 id={`w-${name}`} className={styles.criterionTitle}>
+                    {criterionLabel(name)}
+                  </h2>
+                  <span
+                    className={styles.pips}
+                    role="img"
+                    aria-label={`${scoreLabel(criterion.score)}, ${t.writingScoreOutOf(criterion.score)}`}
+                    title={scoreLabel(criterion.score)}
+                  >
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <i key={n} className={n <= criterion.score ? styles.barOn : styles.bar} />
+                      <i key={n} className={n <= criterion.score ? styles.pipOn : styles.pip} />
                     ))}
                   </span>
-                  <span className={styles.muted}>{scoreLabel(criterion.score)}</span>
-                </span>
-              </header>
-              <p className={styles.comment}>{criterion.comment}</p>
-              {(mistakes.length > 0 || tips.length > 0) && (
-                <ul className={styles.fixes}>
-                  {mistakes.map((c, i) => (
-                    <li key={`m${i}`} className={styles.fix}>
-                      <p className={styles.fixLine}>
-                        <del>{c.original}</del> → <ins>{c.corrected}</ins>
-                      </p>
-                      <p className={styles.fixWhy}>{c.explanation}</p>
-                    </li>
-                  ))}
-                  {tips.map((v, i) => (
-                    <li key={`v${i}`} className={styles.fix}>
-                      <p className={styles.fixLine}>
-                        {v.original} → <ins>{v.suggestion}</ins>
-                      </p>
-                      {v.note && <p className={styles.fixWhy}>{v.note}</p>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {checksMistakes && mistakes.length === 0 && <p className={styles.muted}>{t.writingNoMistakes}</p>}
-            </section>
-          );
-        })}
+                </header>
+                <p className={styles.comment}>{criterion.comment}</p>
+                {(mistakes.length > 0 || tips.length > 0) && (
+                  <ul className={styles.fixes}>
+                    {mistakes.map((c, i) => (
+                      <li key={`m${i}`}>
+                        <p className={styles.fixLine}>
+                          <del>{c.original}</del>
+                          <span className={styles.arrow} aria-hidden="true">
+                            →
+                          </span>
+                          <ins>{c.corrected}</ins>
+                        </p>
+                        <p className={styles.fixWhy}>{c.explanation}</p>
+                      </li>
+                    ))}
+                    {tips.map((v, i) => (
+                      <li key={`v${i}`}>
+                        <p className={styles.fixLine}>
+                          {v.original}
+                          <span className={styles.arrow} aria-hidden="true">
+                            →
+                          </span>
+                          <ins>{v.suggestion}</ins>
+                        </p>
+                        {v.note && <p className={styles.fixWhy}>{v.note}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {checksMistakes && mistakes.length === 0 && <p className={styles.clean}>{t.writingNoMistakes}</p>}
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       {ev && ev.improvements.length > 0 && (
-        <section className={styles.category} aria-labelledby="w-next">
-          <h2 id="w-next" className={styles.categoryTitle}>
+        <section className={styles.next} aria-labelledby="w-next">
+          <h2 id="w-next" className={styles.nextTitle}>
             {t.writingNextStep}
           </h2>
           <ol className={styles.steps}>
