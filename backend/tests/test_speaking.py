@@ -993,8 +993,9 @@ def test_grammar_skipped_when_no_url(client: TestClient, monkeypatch: pytest.Mon
 
 
 def test_coherence_skipped_when_no_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """coherence_score is null when deepseek_api_key is not provided."""
+    """coherence_score is null when assess_coherence raises (e.g. bad/missing key)."""
     import app.services.speaking.orchestration as orch
+    from app.services.speaking.coherence import CoherenceError
     from app.services.speaking.storage import get_storage
 
     _enable_speaking(monkeypatch)
@@ -1021,13 +1022,18 @@ def test_coherence_skipped_when_no_key(client: TestClient, monkeypatch: pytest.M
         raw={},
     )
 
-    with patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript):
+    with (
+        patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript),
+        patch(
+            "app.services.speaking.orchestration.assess_coherence",
+            side_effect=CoherenceError("no_key", "no key"),
+        ),
+    ):
         orch.run_assess_job(
             db,
             storage,
             job,
             openai_api_key="fake-key",
-            deepseek_api_key=None,
             now=now,
         )
     db.close()

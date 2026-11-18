@@ -60,7 +60,7 @@ def run_assess_job(
     storage: StorageClient,
     job: SpeakingJob,
     *,
-    openai_api_key: str,
+    openai_api_key: str | None,
     azure_speech_key: str | None = None,
     azure_speech_region: str = "westeurope",
     language_tool_url: str | None = None,
@@ -108,9 +108,10 @@ def run_assess_job(
     pron_result: PronunciationResult | None = None
     transcript_error: str | None = None
 
+    _openai_key: str = openai_api_key or ""
     with ThreadPoolExecutor(max_workers=4) as pool:
         whisper_fut: Future[object] = pool.submit(
-            transcribe, audio_bytes, audio.mime_type, openai_api_key
+            transcribe, audio_bytes, audio.mime_type, _openai_key
         )
 
         azure_fut: Future[object] | None = None
@@ -178,7 +179,7 @@ def run_assess_job(
     grammar_enabled = grammar_min_evidence(word_count)
     coherence_enabled = coherence_min_evidence(word_count) and bool(question_text)
 
-    if grammar_enabled or coherence_enabled:
+    if (grammar_enabled or coherence_enabled) and openai_api_key:
         with ThreadPoolExecutor(max_workers=2) as pool:
             grammar_fut: Future[object] | None = None
             coherence_fut: Future[object] | None = None
@@ -189,14 +190,14 @@ def run_assess_job(
                         check_grammar, transcript_text, language_tool_url, word_count
                     )
                 else:
-                    grammar_fut = pool.submit(check_grammar_llm, transcript_text, openai_api_key)
+                    grammar_fut = pool.submit(check_grammar_llm, transcript_text, _openai_key)
 
             if coherence_enabled:
                 coherence_fut = pool.submit(
                     assess_coherence,
                     transcript_text,
                     question_text,
-                    openai_api_key,
+                    _openai_key,
                 )
 
             if grammar_fut is not None:
@@ -250,7 +251,7 @@ def run_assess_job(
 
     # --- Feedback (uses OpenAI) ---
     feedback_result: FeedbackResult | None = None
-    if feedback_min_evidence(word_count) and question_text:
+    if feedback_min_evidence(word_count) and question_text and openai_api_key:
         try:
             feedback_result = generate_feedback(
                 transcript=transcript_text,
@@ -260,7 +261,7 @@ def run_assess_job(
                 grammar_result=grammar_result,
                 coherence_result=coherence_result,
                 pron_result=pron_result,
-                api_key=openai_api_key,
+                api_key=_openai_key,
             )
         except FeedbackError as exc:
             log.warning("Feedback generation failed (non-fatal): %s", exc)
