@@ -1,0 +1,148 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--space-4) var(--gutter);
+  background: var(--color-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-title, 1.5rem);
+  font-weight: var(--weight-strong, 700);
+  color: var(--color-text);
+  line-height: var(--leading-tight, 1.25);
+}
+
+.sub {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  font-size: var(--text-body);
+  color: var(--color-text-muted);
+  line-height: var(--leading-body, 1.6);
+}
+
+/* ── Goal type tiles ────────────────────────────────────── */
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+  text-align: center;
+}
+
+.tile:hover {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+}
+
+.tileSelected {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.tileEmoji {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.tileLabel {
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  color: var(--color-text);
+  line-height: var(--leading-tight, 1.25);
+}
+
+/* ── Daily time pills ────────────────────────────────────── */
+.timeHeading {
+  margin: 0;
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  color: var(--color-text);
+}
+
+.pills {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.pill {
+  flex: 1;
+  min-width: 60px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 9999px;
+  font-size: var(--text-body);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+  text-align: center;
+  font-family: inherit;
+}
+
+.pill:hover {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+}
+
+.pillSelected {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+  color: var(--color-primary-strong);
+  font-weight: var(--weight-strong);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+/* ── Start button ────────────────────────────────────────── */
+.startBtn {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-height: var(--tap-min);
+}
+
+.startBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.error {
+  font-size: var(--text-body);
+  color: var(--color-error);
+  margin: 0;
+}

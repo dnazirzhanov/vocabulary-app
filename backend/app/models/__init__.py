@@ -23,12 +23,21 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
+from app.models.mentor import MentorMessage
 from app.models.reading import (
     Reading,
     ReadingAnswer,
     ReadingAssignment,
     ReadingCategory,
     ReadingQuestion,
+)
+from app.models.schedule import ScheduleEvent
+from app.models.speaking import (
+    SpeakingAssessment,
+    SpeakingAudioAsset,
+    SpeakingFeedbackItem,
+    SpeakingJob,
+    SpeakingSession,
 )
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
@@ -59,6 +68,7 @@ __all__ = [
     "GroupTestAttempt",
     "GroupTestQuestion",
     "LearningSession",
+    "MentorMessage",
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
@@ -69,6 +79,12 @@ __all__ = [
     "ReadingCategory",
     "ReadingQuestion",
     "ReviewAttempt",
+    "ScheduleEvent",
+    "SpeakingAssessment",
+    "SpeakingAudioAsset",
+    "SpeakingFeedbackItem",
+    "SpeakingJob",
+    "SpeakingSession",
     "SpellingProgress",
     "StudyDayTotal",
     "SyncDevice",

@@ -324,7 +324,98 @@ export const api = {
     ),
   /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
+  mentorHistory: () =>
+    request<{ messages: Array<{ role: string; content: string; created_at: string }> }>('GET', '/mentor/history'),
+  mentorClearHistory: () => request<null>('DELETE', '/mentor/history'),
+  mentorChat: (message: string) =>
+    request<{ reply: string; created_at: string; chats_remaining: number }>('POST', '/mentor/chat', { message }),
+  mentorGoal: () => request<{ goal: string | null; daily_minutes: number | null }>('GET', '/mentor/goal'),
+  mentorSetGoal: (goal: string, dailyMinutes: number | null) =>
+    request<{ goal: string | null; daily_minutes: number | null }>('PUT', '/mentor/goal', {
+      goal,
+      daily_minutes: dailyMinutes,
+    }),
+  mentorStatus: () => request<{ chats_remaining: number; chats_limit: number }>('GET', '/mentor/status'),
+  scheduleList: () =>
+    request<{
+      events: Array<{
+        id: string;
+        title: string;
+        kind: string;
+        weekdays: number;
+        start_minute: number;
+        end_minute: number;
+      }>;
+    }>('GET', '/mentor/schedule'),
+  scheduleCreate: (body: { title: string; kind: string; weekdays: number; start_minute: number; end_minute: number }) =>
+    request<{
+      id: string;
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    }>('POST', '/mentor/schedule', body),
+  scheduleUpdate: (
+    id: string,
+    body: {
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    },
+  ) =>
+    request<{
+      id: string;
+      title: string;
+      kind: string;
+      weekdays: number;
+      start_minute: number;
+      end_minute: number;
+    }>('PUT', `/mentor/schedule/${id}`, body),
+  scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
 };
+
+export type MentorStreamEvent =
+  { delta: string; done?: never } | { done: true; delta?: never; created_at: string; chats_remaining: number };
+
+interface MentorPlanItem {
+  kind: 'vocab' | 'spelling' | 'reading';
+  title: string;
+  count?: number;
+  minutes: number;
+  level?: string;
+}
+
+/** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
+export async function* mentorChatStream(
+  message: string,
+  plan?: MentorPlanItem[],
+  tip_id?: string,
+): AsyncGenerator<MentorStreamEvent> {
+  const response = await send('POST', '/mentor/chat/stream', { message, plan, tip_id }, 180_000);
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => null);
+    const error = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    throw new ApiError('http', response.status, error?.code ?? 'http_error', error?.message ?? response.statusText);
+  }
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    for (const raw of events) {
+      const line = raw.trim();
+      if (!line.startsWith('data: ')) continue;
+      yield JSON.parse(line.slice(6)) as MentorStreamEvent;
+    }
+  }
+}
 
 // Errors the learner can act on, by the server's error code.
 const MESSAGES: Record<string, string> = {

@@ -29,6 +29,7 @@ import { SessionSummary } from './summary/SessionSummary.tsx';
 import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
+import type { SpeakingQuestion, SpeakingSessionDetail } from './speaking/api.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -39,11 +40,39 @@ const ReadingEditQuestions = lazy(() =>
 );
 const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({ default: m.OwnText })));
 
+// Mentor tab: loaded only when its tab is opened, so home does not pull the mentor's
+// deterministic planner and its view of the reading index.
+const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
+
+// Speaking tab: loaded only when its tab is opened.
+const SpeakingExerciseScreen = lazy(() =>
+  import('./speaking/ExerciseScreen.tsx').then((m) => ({ default: m.ExerciseScreen })),
+);
+const SpeakingHomeScreen = lazy(() => import('./speaking/SpeakingHome.tsx').then((m) => ({ default: m.SpeakingHome })));
+const SpeakingTopicScreen = lazy(() => import('./speaking/TopicScreen.tsx').then((m) => ({ default: m.TopicScreen })));
+const SpeakingQuestionScreen = lazy(() =>
+  import('./speaking/QuestionScreen.tsx').then((m) => ({ default: m.QuestionScreen })),
+);
+const SpeakingEvaluationScreen = lazy(() =>
+  import('./speaking/EvaluationScreen.tsx').then((m) => ({ default: m.EvaluationScreen })),
+);
+
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
 
 type Screen =
   | { name: 'home' }
+  | { name: 'mentor' }
+  | { name: 'speaking' }
+  | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
+  | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
+  | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
+  | {
+      name: 'speaking-eval';
+      session: SpeakingSessionDetail;
+      question: SpeakingQuestion;
+      topicQuestions: SpeakingQuestion[];
+    }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
   | { name: 'progress' }
@@ -376,11 +405,15 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   // Every other screen sits in the navigation, which stays mounted while the screens change.
   const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
+    else if (tab === 'mentor') setScreen({ name: 'mentor' });
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
+    else if (tab === 'speaking') setScreen({ name: 'speaking' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
+  // Chunk 2+: the server tells us whether this account is a Speaking tester (SPEAKING_TESTERS).
+  const speakingEnabled = me.speaking === true;
   return (
     <NavShell
       tab={tabOf(screen)}
@@ -397,6 +430,8 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       }}
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
       reading={me.reading === true}
+      mentor={me.mentor === true}
+      speaking={speakingEnabled}
     >
       {tabScreen()}
     </NavShell>
@@ -478,6 +513,97 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         />
       );
     }
+    if (screen.name === 'mentor') {
+      return (
+        <Suspense fallback={null}>
+          <MentorScreen
+            account={me.id}
+            onOpenArticle={(articleId) => setScreen({ name: 'article', articleId })}
+            onStartSession={startSession}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingHomeScreen
+            onSelectTopic={(topic, questions) => setScreen({ name: 'speaking-topic', topic, questions })}
+            onBack={goHome}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-topic') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingTopicScreen
+            topic={screen.topic}
+            questions={screen.questions}
+            onSelectQuestion={(question) =>
+              setScreen({ name: 'speaking-question', question, topicQuestions: screen.questions })
+            }
+            onBack={() => setScreen({ name: 'speaking' })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-question') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingQuestionScreen
+            question={screen.question}
+            onRecord={() =>
+              setScreen({ name: 'speaking-exercise', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
+            onViewAttempt={(session) =>
+              setScreen({
+                name: 'speaking-eval',
+                session,
+                question: screen.question,
+                topicQuestions: screen.topicQuestions,
+              })
+            }
+            onBack={() =>
+              setScreen({ name: 'speaking-topic', topic: screen.question.topic, questions: screen.topicQuestions })
+            }
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-exercise') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingExerciseScreen
+            question={screen.question}
+            onBack={() =>
+              setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
+            onDone={(session) =>
+              setScreen({
+                name: 'speaking-eval',
+                session,
+                question: screen.question,
+                topicQuestions: screen.topicQuestions,
+              })
+            }
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-eval') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingEvaluationScreen
+            session={screen.session}
+            question={screen.question}
+            onBack={() =>
+              setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })
+            }
+          />
+        </Suspense>
+      );
+    }
     if (screen.name === 'progress') {
       return <ProgressScreen onOpenDeck={(deckId) => openPage(deckId, 'progress')} />;
     }
@@ -545,6 +671,9 @@ function backTo(from: PageFrom): Screen {
 }
 
 function tabOf(screen: Screen): NavTab {
+  if (screen.name === 'mentor') return 'mentor';
+  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name))
+    return 'speaking';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

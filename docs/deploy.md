@@ -56,15 +56,24 @@ Fly.io: about $3 a month for one always-on 512 MB machine. The repo's
 3. `scripts/fly-secrets.sh`: it asks, without showing anything, for:
    - the database URL: Supabase → Connect → **Session pooler** → URI, with the password; the script checks it is production's project;
    - the Supabase **secret** key;
-   - optionally a DeepSeek key.
+   - optionally a DeepSeek key (for teachers' AI deck drafts and speaking feedback);
+   - optionally an OpenAI key (for Whisper transcription; without it the speaking worker won't grade);
+   - optionally an Azure Speech key (for pronunciation assessment).
 
-   It makes `REMINDERS_TOKEN` itself. The secret key can manage every login, so it lives only in Fly's secrets.
-4. `fly deploy --ha=false`: **one** machine, since rate limits are kept in the process (ADR 0044).
+   It makes `REMINDERS_TOKEN` itself and also sets `SUPABASE_URL` automatically from `fly.toml`. The secret key can manage every login, so it lives only in Fly's secrets.
+4. `fly deploy --ha=false`: **one machine per process** (`app` + `worker`), since rate limits are kept in the process (ADR 0044).
    - The migrations and the course load run once per deployment, as Fly's `release_command`, before the new version starts.
-   - The machine itself then only starts the web server. Waking after idle takes 6–7.5 s (measured), instead of about 22 s when every start repeated them.
+   - The web server machine (`app`) wakes after idle in 6–7.5 s (measured). The worker machine (`worker`) runs continuously so jobs aren't delayed.
 5. The address is `https://slovar-kg.fly.dev`, and `/api/health/ready` should answer `{"status":"ok","database":"ok"}`.
 
 Each later `fly deploy --ha=false` from an up-to-date `main` replaces the running version; migrations run on start.
+
+If you are **not yet using Speaking** (no `SPEAKING_TESTERS` set), you can keep the worker machine stopped to save ~$5/mo:
+```sh
+fly machine list --app slovar-kg   # find the worker machine id
+fly machine stop <worker-machine-id> --app slovar-kg
+```
+Start it again when you add the first speaking tester.
 
 ## 3. Nightly cleanup (required; ADR 0044)
 Without it the free database fills up within months. `.github/workflows/cleanup.yml` calls production
@@ -93,6 +102,42 @@ Run:
 fly secrets set READING_TESTERS=<UID>,<UID> --app slovar-kg
 ```
 Then reload the app. To turn it off, unset the secret.
+
+### 3d. Personal Study Mentor (experiment)
+The «Наставник» tab appears only for accounts in `MENTOR_TESTERS` (same format as `READING_TESTERS`).
+When enabled it shows a deterministic daily plan for free; the **chat** feature also requires a
+DeepSeek key.
+
+```
+fly secrets set MENTOR_TESTERS=<UID>,<UID> --app slovar-kg
+fly secrets set DEEPSEEK_API_KEY=<key> --app slovar-kg   # skip for plan-only mode
+```
+
+Optional tuning (defaults shown):
+```
+fly secrets set MENTOR_CHATS_PER_DAY=20 --app slovar-kg   # chat calls per user per day
+```
+
+Without `DEEPSEEK_API_KEY` the chat replies with a fixed demo message instead of calling DeepSeek.
+The in-process rate counter resets when the machine restarts (ADR 0044); single-machine deploys mean
+this only happens on deploys, which is acceptable.
+
+### 3e. Speaking (experiment)
+The «Speaking» tab appears only for accounts in `SPEAKING_TESTERS` (same format as `READING_TESTERS`).
+Requires `OPENAI_API_KEY` (Whisper) and optionally `AZURE_SPEECH_KEY` (pronunciation) and
+`DEEPSEEK_API_KEY` (coherence + feedback). Without them the worker transcribes but skips those dimensions.
+
+```
+fly secrets set SPEAKING_TESTERS=<UID>,<UID> --app slovar-kg
+fly machine start <worker-machine-id> --app slovar-kg   # if it was stopped
+```
+
+Optional tuning (defaults shown):
+```
+fly secrets set SPEAKING_SESSIONS_PER_DAY=10 --app slovar-kg
+```
+
+The worker polls for jobs every 2 s. Check its logs with `fly logs --app slovar-kg -i <worker-machine-id>`.
 
 ### 3b. A new REMINDERS_TOKEN (if it was never copied)
 Run this in your own Terminal. It sets a new token in Fly and shows it once, on your screen only, for the GitHub secret:

@@ -3,10 +3,12 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.ratelimit import reset_limits
 from app.models import DeckWord, User, UserWordProgress
 from tests.support import Play, at, cards, rate
@@ -19,13 +21,22 @@ def new_word_count(session: dict[str, Any]) -> int:
     return sum(1 for card in cards(session) if card["new"])
 
 
-def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> None:
+def test_a_new_learner_has_no_pace_until_they_choose_one(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Restrictive tester flags so the assertion for `mentor: False` / `reading: False` holds
+    # regardless of the local-dev `.env` values.
+    monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
+    monkeypatch.setattr(get_settings(), "reading_testers", "e2e-reader-*")
+    monkeypatch.setattr(get_settings(), "speaking_testers", "e2e-speaking-*")
     me = client.get("/api/me").json()
     account = me.pop("id")  # the same account every time, never another's
     assert me == {
         "name": None,
         "content_editor": False,
         "reading": False,
+        "mentor": False,
+        "speaking": False,
         "daily_target_words": None,
         "study_days_per_week": 6,
         "ramp_enabled": True,
@@ -48,6 +59,8 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(client: TestClient) -> 
         "name": None,
         "content_editor": False,
         "reading": False,
+        "mentor": False,
+        "speaking": False,
         "daily_target_words": 3,
         "study_days_per_week": 5,
         "ramp_enabled": True,

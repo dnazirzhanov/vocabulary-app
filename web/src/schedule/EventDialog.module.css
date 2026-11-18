@@ -1,0 +1,277 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 320px;
+  max-width: 440px;
+}
+
+/* ── Title: solid filled input, clear focus ring ─────────── */
+.titleField {
+  display: block;
+  width: 100%;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.titleInput {
+  width: 100%;
+  padding: 10px 12px;
+  margin: 0;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
+  font-family: inherit;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.titleInput::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.titleInput:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── Days: 7 round toggles (Google-Calendar-style) ─────── */
+.dayCircles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dayCircle {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
+}
+
+.dayCircle:hover:not(.dayCircleOn) {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.dayCircleOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+}
+
+/* ── Row: label + control inline, aligned like Google Calendar ─── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rowLabel {
+  flex-shrink: 0;
+  width: 54px;
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+}
+
+/* ── Kind: big colored dot + a compact chip row ─────────── */
+.kindDotLarge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: calc(54px - 18px - var(--space-3));
+  margin-right: 0;
+}
+
+.kindOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kindChip {
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
+}
+
+.kindChip:hover {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.kindSelected {
+  border-color: transparent;
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+/* Per-kind: give the selected chip its color tint; the "dot" indicators are shared. */
+.kind_school.kindSelected {
+  background: color-mix(in srgb, #3b82f6 18%, var(--color-surface));
+}
+.kind_work.kindSelected {
+  background: color-mix(in srgb, #8b5cf6 18%, var(--color-surface));
+}
+.kind_sport.kindSelected {
+  background: color-mix(in srgb, #22c55e 18%, var(--color-surface));
+}
+.kind_chore.kindSelected {
+  background: color-mix(in srgb, #f97316 18%, var(--color-surface));
+}
+.kind_personal.kindSelected {
+  background: color-mix(in srgb, #ec4899 18%, var(--color-surface));
+}
+.kind_other.kindSelected {
+  background: color-mix(in srgb, #6b7280 18%, var(--color-surface));
+}
+
+/* The round color indicator at the row start: color per kind. */
+.kindDotLarge.kind_school {
+  background: #3b82f6;
+}
+.kindDotLarge.kind_work {
+  background: #8b5cf6;
+}
+.kindDotLarge.kind_sport {
+  background: #22c55e;
+}
+.kindDotLarge.kind_chore {
+  background: #f97316;
+}
+.kindDotLarge.kind_personal {
+  background: #ec4899;
+}
+.kindDotLarge.kind_other {
+  background: #6b7280;
+}
+
+/* ── Time range: native time pickers, dash between ─────── */
+.timeRange {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.timeInput {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-body);
+  min-height: var(--tap-min);
+}
+
+.timeInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+.timeDash {
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: var(--text-meta);
+}
+
+/* ── Actions ────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.rightActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.saveBtn,
+.cancelBtn,
+.deleteBtn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  font-family: inherit;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  min-height: var(--tap-min);
+}
+
+.saveBtn {
+  background: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+}
+
+.cancelBtn {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.cancelBtn:hover {
+  color: var(--color-text);
+}
+
+.deleteBtn {
+  background: transparent;
+  color: var(--color-error);
+}
+
+.deleteBtn:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+.saveBtn:disabled,
+.cancelBtn:disabled,
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

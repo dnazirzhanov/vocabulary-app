@@ -19,6 +19,7 @@ export const test = base.extend<{
   languageChosen: boolean;
   named: string | null;
   reader: boolean;
+  mentor: boolean;
 }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
@@ -28,14 +29,19 @@ export const test = base.extend<{
   named: ['Тест', { option: true }],
   // `test.use({ reader: true })`: one of Reading Mode's testers (the e2e API lists e2e-reader-*).
   reader: [false, { option: true }],
-  context: async ({ context, onboarded, languageChosen, named, reader }, use) => {
-    const id = `e2e-${reader ? 'reader-' : ''}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  // `test.use({ mentor: true })`: one of the Mentor tab's testers (the e2e API lists e2e-mentor-*).
+  mentor: [false, { option: true }],
+  context: async ({ context, onboarded, languageChosen, named, reader, mentor }, use) => {
+    const prefix = reader ? 'reader-' : mentor ? 'mentor-' : '';
+    const id = `e2e-${prefix}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });
     // Past the first-run screens with the default pace (5 words a day); e2e/goal.spec.ts covers them.
     if (languageChosen) await setUp(context.request, { language: 'ru' });
     if (named) await setUp(context.request, { name: named });
     if (onboarded) await setUp(context.request, { daily_target_words: 5, study_days_per_week: 6 });
+    // Mentor testers need a learning goal set so MentorScreen skips the GoalSetup screen.
+    if (mentor) await setUpMentorGoal(context.request);
     await use(context);
   },
   learner: async ({ context }, use) => {
@@ -50,6 +56,18 @@ export const test = base.extend<{
   },
 });
 export { expect };
+
+/** Sets a mentor learning goal so MentorScreen skips the GoalSetup onboarding screen. */
+export async function setUpMentorGoal(request: APIRequestContext, goal = 'general') {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await request.put('/api/mentor/goal', { data: { goal, daily_minutes: 20 } });
+    if (response.status() !== 503 || attempt >= 5) {
+      expect(response.ok(), await response.text()).toBe(true);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
+  }
+}
 
 /** Gives the learner of `context` a name, which joining or starting a group needs (ADR 0057). */
 export async function named(context: BrowserContext, name: string) {
