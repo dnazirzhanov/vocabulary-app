@@ -79,6 +79,9 @@ def get_exercise_audio(
         if resp.status_code >= 400:
             raise ApiError(502, "storage_error", "Could not generate audio URL")
         signed = resp.json().get("signedURL", "")
+        # Supabase returns a relative path (e.g. /object/sign/…); make it absolute.
+        if signed.startswith("/"):
+            signed = f"{base}/storage/v1{signed}"
         return Response(status_code=302, headers={"Location": signed})
 
     # FileSystem: stream directly
