@@ -41,11 +41,13 @@ export default function WritingFlow() {
   if (view.name === 'result') {
     const { submission, back } = view;
     const question = submission.question;
+    const leave = () => setView(back.name === 'write' ? home : back);
     return (
       <ResultScreen
         submission={submission}
+        onBack={leave}
         onWriteAgain={question ? () => setView({ name: 'write', question, text: submission.answer, back }) : undefined}
-        onAnother={() => setView(back.name === 'write' ? home : back)}
+        onAnother={leave}
       />
     );
   }

@@ -56,13 +56,34 @@ test('topics, questions, then a written answer comes back as feedback', async ({
   await page.getByRole('textbox').fill(ANSWER);
   await page.getByRole('button', { name: 'Отправить' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeAttached();
   await expect(page.getByText('Достаточный', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("I don't have a car", { exact: true })).toBeVisible();
-  // Feedback comes in sections, the grammar fix sits under Grammar, and no rewritten answer is offered.
-  await expect(page.getByRole('heading', { name: 'Грамматика' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Лексика' })).toBeVisible();
+  // No overall summary and no rewritten answer: only the specific fixes.
+  await expect(page.getByText('A clear short answer.')).toHaveCount(0);
   await expect(page.getByText('Улучшенный вариант')).toHaveCount(0);
+
+  // The answer comes back with its first fix marked and numbered, and its category open beside it.
+  const grammar = page.getByRole('tab', { name: 'Грамматика' });
+  await expect(grammar).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: /^I no have car\s*1$/ })).toBeVisible();
+  const panel = page.getByRole('tabpanel');
+  // The fix shows in its sentence, changed in place, with the reason; the general comment gives way to it.
+  await expect(panel.locator('del')).toHaveText('I no have car');
+  await expect(panel.locator('ins')).toHaveText("I don't have a car");
+  await expect(panel).toContainText('Use don’t.');
+  await expect(panel).not.toContainText('grammar ok');
+
+  // A category with no fixes shows its comment instead.
+  await page.getByRole('tab', { name: 'Задание' }).click();
+  await expect(panel).toContainText('task ok');
+  // The original answer is one tap away, with nothing marked.
+  await page.getByRole('button', { name: 'Оригинал' }).click();
+  await expect(page.getByRole('button', { name: /^I no have car/ })).toHaveCount(0);
+  await expect(page.getByText(ANSWER, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'С исправлениями' }).click();
+  // Tapping a mark opens its category again.
+  await page.getByRole('button', { name: /^I no have car\s*1$/ }).click();
+  await expect(grammar).toHaveAttribute('aria-selected', 'true');
   // Never used the timer: no time is sent.
   expect(body.time_spent_seconds).toBeNull();
   expect(body.answer).toBe(ANSWER);
@@ -83,7 +104,7 @@ test('the timer is optional and its time goes with the answer', async ({ page })
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: /Остановить/ }).click();
   await page.getByRole('button', { name: 'Отправить' }).click();
-  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeAttached();
   expect(body.time_spent_seconds).toBeGreaterThanOrEqual(1);
 });
 
@@ -144,7 +165,7 @@ test('a failed check keeps the text, and trying again sends the same attempt', a
   await expect(page.getByRole('alert')).toContainText('Ваш текст сохранён');
   await expect(page.getByRole('textbox')).toHaveValue(ANSWER);
   await page.getByRole('button', { name: 'Попробовать ещё раз' }).click();
-  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeAttached();
   expect(ids).toHaveLength(2);
   expect(ids[1]).toBe(ids[0]);
 });
@@ -162,7 +183,7 @@ test('a slow check shows a loading state and a second tap sends nothing more', a
   const send = page.getByRole('button', { name: 'Отправить' });
   await send.dblclick();
   await expect(page.getByRole('status')).toContainText('Проверяем');
-  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Оценка' })).toBeAttached();
   expect(calls).toBe(1);
 });
 
@@ -192,5 +213,8 @@ test('too little to assess is said plainly, with no score', async ({ page }) => 
   await page.getByRole('button', { name: 'Отправить' }).click();
   await expect(page.getByRole('heading', { name: 'Пока мало для оценки' })).toBeVisible();
   await expect(page.getByText('Please write more.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Ошибки и исправления' })).toHaveCount(0);
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  // Leaving from the feedback: a back button, as on every other Writing screen.
+  await page.getByRole('button', { name: /Назад/ }).click();
+  await expect(page.getByRole('button', { name: /Describe a typical day/ })).toBeVisible();
 });

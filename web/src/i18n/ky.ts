@@ -1094,7 +1094,8 @@ export const ky: Messages = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Орфография жана тыныш белгилери',
-  writingNoMistakes: 'Даана ката табылган жок.',
+  writingViewOriginal: 'Түп нуска',
+  writingViewFixes: 'Оңдоолор менен',
   writingWriteAgain: 'Кайра жазуу',
   writingTryAnother: 'Башка суроо',
 };

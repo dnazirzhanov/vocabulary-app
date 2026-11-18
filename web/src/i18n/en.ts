@@ -1111,7 +1111,8 @@ export const en: Messages = {
   writingCriterionVocabulary: 'Vocabulary',
   writingCriterionGrammar: 'Grammar',
   writingCriterionMechanics: 'Spelling and punctuation',
-  writingNoMistakes: 'No clear mistakes found.',
+  writingViewOriginal: 'Original',
+  writingViewFixes: 'With fixes',
   writingWriteAgain: 'Write it again',
   writingTryAnother: 'Another question',
 };

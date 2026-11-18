@@ -1114,7 +1114,8 @@ export const ru = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Орфография и пунктуация',
-  writingNoMistakes: 'Явных ошибок не найдено.',
+  writingViewOriginal: 'Оригинал',
+  writingViewFixes: 'С исправлениями',
   writingWriteAgain: 'Написать заново',
   writingTryAnother: 'Другой вопрос',
 };

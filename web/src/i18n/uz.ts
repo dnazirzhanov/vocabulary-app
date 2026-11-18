@@ -1098,7 +1098,8 @@ export const uz: Messages = {
   writingCriterionVocabulary: 'Lug‘at',
   writingCriterionGrammar: 'Grammatika',
   writingCriterionMechanics: 'Imlo va tinish belgilari',
-  writingNoMistakes: 'Aniq xatolar topilmadi.',
+  writingViewOriginal: 'Asl matn',
+  writingViewFixes: 'Tuzatishlar bilan',
   writingWriteAgain: 'Qaytadan yozish',
   writingTryAnother: 'Boshqa savol',
 };

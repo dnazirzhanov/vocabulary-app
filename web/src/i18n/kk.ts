@@ -1092,7 +1092,8 @@ export const kk: Messages = {
   writingCriterionVocabulary: 'Лексика',
   writingCriterionGrammar: 'Грамматика',
   writingCriterionMechanics: 'Емле және тыныс белгілері',
-  writingNoMistakes: 'Анық қате табылмады.',
+  writingViewOriginal: 'Түпнұсқа',
+  writingViewFixes: 'Түзетулермен',
   writingWriteAgain: 'Қайта жазу',
   writingTryAnother: 'Басқа сұрақ',
 };
