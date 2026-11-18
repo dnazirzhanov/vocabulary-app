@@ -1071,6 +1071,9 @@ export const ru = {
   shadowingAudioNotAvailable: 'Аудио недоступно',
   shadowingSaveError: 'Не удалось сохранить. Попробуйте ещё раз или пропустите.',
   shadowingSkipBtn: 'Пропустить',
+  shadowingHistoryHeading: 'Ваши попытки',
+  shadowingPlayRecording: 'Воспроизвести',
+  shadowingAttemptLabel: 'Попытка',
 };
 
 export type Messages = typeof ru;

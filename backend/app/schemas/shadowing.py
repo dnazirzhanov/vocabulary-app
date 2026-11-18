@@ -44,3 +44,11 @@ class ExerciseStatusOut(BaseModel):
     attempts_count: int
     completed_count: int
     last_attempted_at: datetime | None
+
+
+class AttemptListItem(BaseModel):
+    id: uuid.UUID
+    duration_ms: int | None
+    completed_at: datetime | None
+    created_at: datetime
+    has_audio: bool

@@ -10,6 +10,7 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.schemas.shadowing import (
+    AttemptListItem,
     AttemptOut,
     CreateAttemptIn,
     ExerciseOut,
@@ -51,7 +52,6 @@ def list_exercises(db: DbSession, user: CurrentUser) -> list[ExerciseOut]:
 def get_exercise_audio(
     exercise_id: uuid.UUID,
     db: DbSession,
-    user: CurrentUser,
     settings: DepSettings,
 ) -> Response:
     ex = exercises_svc.by_id(db, exercise_id)
@@ -192,3 +192,25 @@ def get_exercise_attempts(
         completed_count=sum(1 for a in all_attempts if a.completed_at is not None),
         last_attempted_at=all_attempts[0].created_at if all_attempts else None,
     )
+
+
+@router.get("/shadowing/exercises/{exercise_id}/my-attempts")
+def list_my_attempts(
+    exercise_id: uuid.UUID,
+    db: DbSession,
+    user: CurrentUser,
+) -> list[AttemptListItem]:
+    ex = exercises_svc.by_id(db, exercise_id)
+    if ex is None or not ex.is_active:
+        raise ApiError(404, "exercise_not_found", "Exercise not found")
+    all_attempts = attempts_svc.list_for_user(db, user.id, exercise_id)
+    return [
+        AttemptListItem(
+            id=a.id,
+            duration_ms=a.duration_ms,
+            completed_at=a.completed_at,
+            created_at=a.created_at,
+            has_audio=bool(a.audio_path),
+        )
+        for a in all_attempts
+    ]

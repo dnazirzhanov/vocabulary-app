@@ -1049,4 +1049,7 @@ export const kk: Messages = {
   shadowingAudioNotAvailable: 'Audio not available',
   shadowingSaveError: 'Save failed. Try again or skip.',
   shadowingSkipBtn: 'Skip',
+  shadowingHistoryHeading: 'Your attempts',
+  shadowingPlayRecording: 'Play',
+  shadowingAttemptLabel: 'Attempt',
 };

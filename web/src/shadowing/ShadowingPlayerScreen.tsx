@@ -2,7 +2,7 @@
  * ShadowingPlayerScreen — Chunk 2 + 3.
  *
  * Flow:
- *   1. Load exercise audio + show transcript.
+ *   1. Load exercise audio + show transcript + past attempt history.
  *   2. User listens (AudioPlayer with speed control).
  *   3. User taps "Start shadowing": mic permission → start recorder + play audio simultaneously.
  *   4. Audio ends → recorder stops → navigate to compare screen.
@@ -16,8 +16,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { isAudioRecordingSupported, type Recording } from '../speaking/audio/AudioRecorder.ts';
 import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
-import type { ShadowingExercise } from './api.ts';
-import { createAttempt, getExerciseAudioUrl } from './api.ts';
+import type { AttemptListItem, ShadowingExercise } from './api.ts';
+import { createAttempt, getAttemptAudioUrl, getExerciseAudioUrl, listMyAttempts } from './api.ts';
 import { AudioPlayer } from './AudioPlayer.tsx';
 import styles from './ShadowingPlayerScreen.module.css';
 
@@ -36,6 +36,15 @@ function formatMs(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return (
+    d.toLocaleDateString([], { day: 'numeric', month: 'short' }) +
+    ' ' +
+    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
+}
+
 export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: ShadowingPlayerScreenProps) {
   const supported = isAudioRecordingSupported();
   // Always-mounted audio element for the synchronized shadowing playback.
@@ -43,6 +52,50 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
   const [phase, setPhase] = useState<Phase>('listen');
   const [startError, setStartError] = useState<string | null>(null);
   const attemptIdRef = useRef<string | null>(null);
+
+  // Attempt history: map of attemptId → blob URL (loaded on demand)
+  const [attempts, setAttempts] = useState<AttemptListItem[]>([]);
+  const [attemptUrls, setAttemptUrls] = useState<Record<string, string>>({});
+  const [loadingAttemptId, setLoadingAttemptId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listMyAttempts(exercise.id)
+      .then((list) => {
+        if (!cancelled) setAttempts(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [exercise.id]);
+
+  // Revoke all blob URLs on unmount.
+  useEffect(() => {
+    const urls = attemptUrls;
+    return () => {
+      Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePlayAttempt = useCallback(
+    async (attempt: AttemptListItem) => {
+      if (loadingAttemptId) return;
+      // Already loaded — toggling is handled by the AudioPlayer itself.
+      if (attemptUrls[attempt.id]) return;
+      setLoadingAttemptId(attempt.id);
+      try {
+        const url = await getAttemptAudioUrl(attempt.id);
+        setAttemptUrls((prev) => ({ ...prev, [attempt.id]: url }));
+      } catch {
+        // silently ignore
+      } finally {
+        setLoadingAttemptId(null);
+      }
+    },
+    [loadingAttemptId, attemptUrls],
+  );
 
   const {
     durationMs,
@@ -118,6 +171,7 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
   }, [reset]);
 
   const hasAudio = exercise.has_audio;
+  const completedAttempts = attempts.filter((a) => a.completed_at !== null);
 
   return (
     <main className={styles.screen}>
@@ -171,6 +225,44 @@ export function ShadowingPlayerScreen({ exercise, onCompare, onBack }: Shadowing
           <h2 className={styles.transcriptHeading}>{t.shadowingTranscriptLabel}</h2>
           <p className={styles.transcript}>{exercise.transcript}</p>
         </section>
+
+        {/* Past attempts */}
+        {completedAttempts.length > 0 && phase === 'listen' && (
+          <section className={styles.historySection}>
+            <h2 className={styles.historyHeading}>{t.shadowingHistoryHeading}</h2>
+            <ul className={styles.attemptList}>
+              {completedAttempts.map((attempt, i) => (
+                <li key={attempt.id} className={styles.attemptItem}>
+                  <div className={styles.attemptRow}>
+                    <span className={styles.attemptNum}>
+                      {t.shadowingAttemptLabel} {completedAttempts.length - i}
+                    </span>
+                    <span className={styles.attemptDate}>{formatDate(attempt.created_at)}</span>
+                    {attempt.has_audio && !attemptUrls[attempt.id] && (
+                      <button
+                        type="button"
+                        className={styles.playAttemptBtn}
+                        onClick={() => void handlePlayAttempt(attempt)}
+                        disabled={loadingAttemptId === attempt.id}
+                      >
+                        {loadingAttemptId === attempt.id ? '…' : t.shadowingPlayRecording}
+                      </button>
+                    )}
+                  </div>
+                  {attemptUrls[attempt.id] && (
+                    <div className={styles.attemptPlayer}>
+                      <AudioPlayer
+                        src={attemptUrls[attempt.id]}
+                        label={t.shadowingYourRecordingLabel}
+                        showSpeed={false}
+                      />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {(startError || recError) && (
           <p role="alert" className={styles.error}>

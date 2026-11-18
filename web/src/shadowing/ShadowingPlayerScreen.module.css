@@ -166,6 +166,81 @@
   margin: 0;
 }
 
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.historyHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.attemptList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attemptItem {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.attemptRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.attemptNum {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.attemptDate {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.playAttemptBtn {
+  background: none;
+  border: 1px solid var(--color-primary);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.playAttemptBtn:hover {
+  background: var(--color-primary-tint);
+}
+
+.playAttemptBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.attemptPlayer {
+  padding: 0 14px 14px;
+}
+
 .footer {
   padding: 16px 20px;
   border-top: 1px solid var(--color-border);
