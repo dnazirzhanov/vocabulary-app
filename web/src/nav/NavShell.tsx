@@ -30,9 +30,9 @@ export function NavShell({ tab, onNavigate, account, onSignOut, reading = false,
   const items = [
     { tab: 'today', label: t.today, Icon: HomeIcon },
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
-    { tab: 'writing', label: t.writing, Icon: PencilIcon },
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
+    { tab: 'writing', label: t.writing, Icon: PencilIcon },
   ] as const;
 
   return (
