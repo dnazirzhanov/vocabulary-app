@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
+import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PencilIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
 import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
-export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'friends' | 'progress';
+export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'writing' | 'friends' | 'progress';
 
 interface NavShellProps {
   tab: NavTab;
@@ -45,6 +45,7 @@ export function NavShell({
     ...(mentor ? [{ tab: 'mentor', label: t.mentor, Icon: SparkleIcon } as const] : []),
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
     ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
+    { tab: 'writing', label: t.writing, Icon: PencilIcon },
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
   ] as const;

@@ -52,6 +52,7 @@ from app.models.user import (
     User,
     WordingReport,
 )
+from app.models.writing import WritingSubmission
 
 __all__ = [
     "CardReport",
@@ -97,4 +98,5 @@ __all__ = [
     "UserWordProgress",
     "Word",
     "WordingReport",
+    "WritingSubmission",
 ]

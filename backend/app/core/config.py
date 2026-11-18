@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     # Point to a self-hosted instance (e.g. http://languagetool:8010) in production.
     language_tool_url: str | None = None
 
+    # Writing: AI evaluations per learner per day (each one is a paid model call).
+    writing_submissions_per_day: int = 30
+    # The longest answer accepted, in characters (about 1,000 words): bounds the cost of one call.
+    writing_max_answer_chars: int = 6000
+
     @field_validator("database_url")
     @classmethod
     def _postgres_only(cls, value: str) -> str:
