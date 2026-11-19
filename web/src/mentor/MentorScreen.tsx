@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, describeError } from '../lib/api.ts';
+import { ApiError, describeError, type MentorPlanItem } from '../lib/api.ts';
 import type { Session } from '../lib/types.ts';
 import { study } from '../study/device.ts';
 import { BulbIcon, CardsIcon, FlameIcon, RepeatIcon, SparkleIcon } from '../ui/icons.tsx';
@@ -8,7 +8,8 @@ import { t } from '../i18n/index.ts';
 import { collectMentorInput } from './inputs.ts';
 import { markLaunched, reconcileDone } from './done.ts';
 import { GoalSetup } from './GoalSetup.tsx';
-import { MentorChat } from './MentorChat.tsx';
+import { ChatScreen } from './chat/ChatScreen.tsx';
+import type { Activity } from './chat/ToolCards.tsx';
 import { planToday } from './plan.ts';
 import { PlanCard } from './PlanCard.tsx';
 import { pickTip } from './tip.ts';
@@ -20,9 +21,17 @@ interface MentorScreenProps {
   account: string;
   onOpenArticle: (articleId: string) => void;
   onStartSession: (session: Session, from: string) => void;
+  onOpenWriting: () => void;
+  onOpenSpeaking: () => void;
 }
 
-export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorScreenProps) {
+export function MentorScreen({
+  account,
+  onOpenArticle,
+  onStartSession,
+  onOpenWriting,
+  onOpenSpeaking,
+}: MentorScreenProps) {
   const [input, setInput] = useState<MentorInput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -150,25 +159,44 @@ export function MentorScreen({ account, onOpenArticle, onStartSession }: MentorS
     );
   }
 
-  // Chat view — full-height, T3 style
+  // «Начать сейчас» from a mentor's card: the same doors the plan's own buttons open.
+  const startActivity = async (activity: Activity) => {
+    const matched = items.find(
+      (i) =>
+        (i.kind === 'reading' && i.articleId === activity.article_id) ||
+        (i.kind !== 'reading' && i.kind === activity.kind && i.deckId === activity.deck_id),
+    );
+    if (matched) markLaunched(account, matched, keyOf(matched));
+    taskLaunchedRef.current = true;
+    if (activity.kind === 'reading' && activity.article_id) return onOpenArticle(activity.article_id);
+    if (activity.kind === 'writing') return onOpenWriting();
+    if (activity.kind === 'speaking') return onOpenSpeaking();
+    if (!activity.deck_id) return;
+    try {
+      const session =
+        activity.kind === 'spelling'
+          ? await study.startSpellingSession(activity.deck_id)
+          : await study.startStudySession(activity.deck_id);
+      onStartSession(session, activity.deck_id);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 409) void load();
+      else setError(describeError(caught));
+    }
+  };
+
+  // Chat view — full-height, T3 style (ADR 0072)
   if (chatOpen) {
     return (
       <main className={styles.chatScreen}>
-        <MentorChat
-          items={items}
-          tip={tip}
+        <ChatScreen
+          name={input.name}
+          plan={items.map(planPayload)}
+          tipId={tip.id}
           onBack={() => setChatOpen(false)}
-          onOpenArticle={(id) => {
-            const matched = items.find((i) => i.kind === 'reading' && i.articleId === id);
-            if (matched) markLaunched(account, matched, keyOf(matched));
-            taskLaunchedRef.current = true;
-            onOpenArticle(id);
-          }}
-          onStartSession={(session, from) => {
-            const matched = items.find((i) => i.kind !== 'reading' && i.deckId === from);
-            if (matched) markLaunched(account, matched, keyOf(matched));
-            taskLaunchedRef.current = true;
-            onStartSession(session, from);
+          onStart={startActivity}
+          onOpenCalendar={() => {
+            setChatOpen(false);
+            setScheduleOpen(true);
           }}
         />
       </main>
@@ -338,6 +366,13 @@ function tipText(tip: Tip): string {
     case 'default':
       return t.mentorTipDefault;
   }
+}
+
+/** A task as the chat's tools get it: what it is, and what «Начать сейчас» opens. */
+function planPayload(item: PlanItem): MentorPlanItem {
+  return item.kind === 'reading'
+    ? { kind: 'reading', title: item.title, minutes: item.minutes, level: item.level, articleId: item.articleId }
+    : { kind: item.kind, title: item.title, count: item.count, minutes: item.minutes, deckId: item.deckId };
 }
 
 function keyOf(item: PlanItem): string {
