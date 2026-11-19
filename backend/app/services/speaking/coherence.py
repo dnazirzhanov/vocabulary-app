@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-MIN_WORDS_FOR_COHERENCE = 20
+MIN_WORDS_FOR_COHERENCE = 10
 
 _SYSTEM = """\
 You are a neutral English-language examiner scoring spoken answers by L2 learners.

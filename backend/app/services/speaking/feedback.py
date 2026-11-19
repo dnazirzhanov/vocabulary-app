@@ -25,7 +25,7 @@ from app.services.speaking.vocabulary import VocabularyResult
 
 log = logging.getLogger(__name__)
 
-MIN_WORDS_FOR_FEEDBACK = 15
+MIN_WORDS_FOR_FEEDBACK = 8
 
 _SYSTEM = """\
 You are an English-language examiner giving concise, encouraging feedback to L2 learners.

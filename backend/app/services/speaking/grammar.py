@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-MIN_WORDS_FOR_GRAMMAR = 10
+MIN_WORDS_FOR_GRAMMAR = 5
 
 # Error categories from LanguageTool that we care about for L2 speaking assessment.
 # Style/typography/whitespace are irrelevant for spoken transcripts.

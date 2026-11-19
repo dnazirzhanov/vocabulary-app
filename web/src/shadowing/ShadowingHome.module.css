@@ -1,0 +1,132 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.back {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.exerciseCard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  text-align: left;
+  gap: 6px;
+  transition: background 0.15s;
+}
+
+.exerciseCard:hover {
+  background: var(--color-primary-tint);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.exerciseTitle {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.completedBadge {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: 20px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.exerciseDesc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.exerciseMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.difficulty {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.beginner {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.intermediate {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.advanced {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.duration {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.attempts {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-error);
+  padding: 16px 20px;
+  font-size: 14px;
+}

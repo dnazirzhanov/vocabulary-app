@@ -32,6 +32,7 @@ from app.models.reading import (
     ReadingQuestion,
 )
 from app.models.schedule import ScheduleEvent
+from app.models.shadowing import ShadowingAttempt, ShadowingExercise
 from app.models.speaking import (
     SpeakingAssessment,
     SpeakingAudioAsset,
@@ -51,6 +52,7 @@ from app.models.user import (
     User,
     WordingReport,
 )
+from app.models.writing import WritingSubmission
 
 __all__ = [
     "CardReport",
@@ -80,6 +82,8 @@ __all__ = [
     "ReadingQuestion",
     "ReviewAttempt",
     "ScheduleEvent",
+    "ShadowingAttempt",
+    "ShadowingExercise",
     "SpeakingAssessment",
     "SpeakingAudioAsset",
     "SpeakingFeedbackItem",
@@ -94,4 +98,5 @@ __all__ = [
     "UserWordProgress",
     "Word",
     "WordingReport",
+    "WritingSubmission",
 ]

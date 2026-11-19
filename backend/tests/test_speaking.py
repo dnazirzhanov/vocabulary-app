@@ -822,9 +822,9 @@ def _make_words(count: int, wpm: float = 120.0) -> list[TranscriptWord]:
 
 
 def test_fluency_minimum_evidence_check() -> None:
-    assert fluency_min(14, 15_000) is False  # too few words
-    assert fluency_min(15, 9_999) is False  # too short
-    assert fluency_min(15, 10_000) is True
+    assert fluency_min(7, 5_000) is False  # too few words
+    assert fluency_min(8, 3_999) is False  # too short
+    assert fluency_min(8, 4_000) is True
 
 
 def test_compute_fluency_basic() -> None:
@@ -845,8 +845,8 @@ def test_compute_fluency_slow_speaker() -> None:
 
 
 def test_vocabulary_minimum_evidence_check() -> None:
-    assert vocab_min(9) is False
-    assert vocab_min(10) is True
+    assert vocab_min(4) is False
+    assert vocab_min(5) is True
 
 
 def test_compute_vocabulary_basic() -> None:
@@ -859,8 +859,8 @@ def test_compute_vocabulary_basic() -> None:
 
 
 def test_grammar_minimum_evidence_check() -> None:
-    assert grammar_min(9) is False
-    assert grammar_min(10) is True
+    assert grammar_min(4) is False
+    assert grammar_min(5) is True
 
 
 def test_grammar_check_mocked_errors() -> None:

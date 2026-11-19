@@ -1,0 +1,289 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.back {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.difficulty {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.beginner {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.intermediate {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.advanced {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.duration {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+.unavailable {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 8px 0;
+  margin: 0;
+}
+
+.recordingPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.recIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.recLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.recTime {
+  font-size: 20px;
+  font-weight: 700;
+  color: #991b1b;
+  font-variant-numeric: tabular-nums;
+}
+
+.transcriptSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transcriptHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.transcript {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 14px;
+  margin: 0;
+}
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.historyHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.attemptList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attemptItem {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.attemptRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.attemptNum {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.attemptDate {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.playAttemptBtn {
+  background: none;
+  border: 1px solid var(--color-primary);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.playAttemptBtn:hover {
+  background: var(--color-primary-tint);
+}
+
+.playAttemptBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.attemptPlayer {
+  padding: 0 14px 14px;
+}
+
+.footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.primaryBtn {
+  display: block;
+  width: 100%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primaryBtn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.cancelBtn {
+  display: block;
+  width: 100%;
+  background: none;
+  color: var(--color-error);
+  border: 2px solid var(--color-error);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.cancelBtn:hover {
+  opacity: 0.8;
+}

@@ -48,6 +48,8 @@ export default defineConfig({
         ...process.env,
         READING_TESTERS: 'e2e-reader-*',
         MENTOR_TESTERS: 'e2e-mentor-*',
+        // Writing is gated too (WRITING_TESTERS); e2e/writing.spec.ts signs in as these.
+        WRITING_TESTERS: 'e2e-writing-*',
         // Force demo replies in mentor chat so e2e tests are deterministic and cost-free.
         MENTOR_CHAT_DEMO: 'true',
       } as Record<string, string>,

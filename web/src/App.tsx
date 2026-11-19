@@ -30,6 +30,8 @@ import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 import type { SpeakingQuestion, SpeakingSessionDetail } from './speaking/api.ts';
+import type { ShadowingExercise } from './shadowing/api.ts';
+import type { Recording } from './speaking/audio/AudioRecorder.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -56,6 +58,17 @@ const SpeakingQuestionScreen = lazy(() =>
 const SpeakingEvaluationScreen = lazy(() =>
   import('./speaking/EvaluationScreen.tsx').then((m) => ({ default: m.EvaluationScreen })),
 );
+// Writing tab: its whole flow is one lazy chunk, loaded when the tab is opened.
+const WritingFlow = lazy(() => import('./writing/WritingFlow.tsx'));
+const ShadowingHomeScreen = lazy(() =>
+  import('./shadowing/ShadowingHome.tsx').then((m) => ({ default: m.ShadowingHome })),
+);
+const ShadowingPlayerScreen = lazy(() =>
+  import('./shadowing/ShadowingPlayerScreen.tsx').then((m) => ({ default: m.ShadowingPlayerScreen })),
+);
+const ShadowingCompareScreen = lazy(() =>
+  import('./shadowing/ShadowingCompareScreen.tsx').then((m) => ({ default: m.ShadowingCompareScreen })),
+);
 
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
@@ -64,6 +77,10 @@ type Screen =
   | { name: 'home' }
   | { name: 'mentor' }
   | { name: 'speaking' }
+  | { name: 'writing' }
+  | { name: 'shadowing' }
+  | { name: 'shadowing-player'; exercise: ShadowingExercise }
+  | { name: 'shadowing-compare'; exercise: ShadowingExercise; attemptId: string; recording: Recording }
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
@@ -409,6 +426,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
     else if (tab === 'speaking') setScreen({ name: 'speaking' });
+    else if (tab === 'writing') setScreen({ name: 'writing' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
@@ -432,6 +450,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       reading={me.reading === true}
       mentor={me.mentor === true}
       speaking={speakingEnabled}
+      writing={me.writing === true}
     >
       {tabScreen()}
     </NavShell>
@@ -524,12 +543,56 @@ function Learning({ email, subject }: { email: string | null; subject: string })
         </Suspense>
       );
     }
+    if (screen.name === 'writing') {
+      return (
+        <Suspense fallback={null}>
+          <WritingFlow />
+        </Suspense>
+      );
+    }
     if (screen.name === 'speaking') {
       return (
         <Suspense fallback={null}>
           <SpeakingHomeScreen
             onSelectTopic={(topic, questions) => setScreen({ name: 'speaking-topic', topic, questions })}
+            onSelectShadowing={() => setScreen({ name: 'shadowing' })}
             onBack={goHome}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'shadowing') {
+      return (
+        <Suspense fallback={null}>
+          <ShadowingHomeScreen
+            onSelectExercise={(exercise) => setScreen({ name: 'shadowing-player', exercise })}
+            onBack={() => setScreen({ name: 'speaking' })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'shadowing-player') {
+      return (
+        <Suspense fallback={null}>
+          <ShadowingPlayerScreen
+            exercise={screen.exercise}
+            onCompare={(attemptId, recording) =>
+              setScreen({ name: 'shadowing-compare', exercise: screen.exercise, attemptId, recording })
+            }
+            onBack={() => setScreen({ name: 'shadowing' })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'shadowing-compare') {
+      return (
+        <Suspense fallback={null}>
+          <ShadowingCompareScreen
+            exercise={screen.exercise}
+            attemptId={screen.attemptId}
+            recording={screen.recording}
+            onRetry={() => setScreen({ name: 'shadowing-player', exercise: screen.exercise })}
+            onFinish={() => setScreen({ name: 'shadowing' })}
           />
         </Suspense>
       );
@@ -672,8 +735,20 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
-  if (['speaking', 'speaking-topic', 'speaking-question', 'speaking-exercise', 'speaking-eval'].includes(screen.name))
+  if (
+    [
+      'speaking',
+      'shadowing',
+      'shadowing-player',
+      'shadowing-compare',
+      'speaking-topic',
+      'speaking-question',
+      'speaking-exercise',
+      'speaking-eval',
+    ].includes(screen.name)
+  )
     return 'speaking';
+  if (screen.name === 'writing') return 'writing';
   if (screen.name === 'progress') return 'progress';
   if (['reading', 'article', 'own-text', 'give-reading', 'edit-questions'].includes(screen.name)) return 'reading';
   if (['groups', 'board', 'tests', 'deck-test'].includes(screen.name)) return 'friends';

@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  background: var(--bg);
+  background: var(--color-bg);
 }
 
 .header {
@@ -10,14 +10,14 @@
   align-items: center;
   gap: 12px;
   padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .back {
   background: none;
   border: none;
   font-size: 15px;
-  color: var(--accent);
+  color: var(--color-primary);
   cursor: pointer;
   padding: 4px 0;
 }
@@ -38,8 +38,8 @@
 }
 
 .questionBox {
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -51,7 +51,7 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -68,8 +68,8 @@
 
 .level {
   align-self: flex-start;
-  background: var(--accent-light, #e8f0fe);
-  color: var(--accent);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
   padding: 2px 8px;
   border-radius: 20px;
   font-size: 12px;
@@ -77,8 +77,8 @@
 }
 
 .recordBtn {
-  background: var(--accent);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   border: none;
   border-radius: 12px;
   padding: 14px;
@@ -115,8 +115,8 @@
 }
 
 .attemptItem {
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -135,48 +135,48 @@
 }
 
 .attemptRow.expanded {
-  background: var(--hover-bg, #f5f5f5);
+  background: var(--color-primary-tint);
 }
 
 .attemptNum {
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   min-width: 28px;
 }
 
 .attemptDate {
   flex: 1;
-  color: var(--text-secondary, #555);
+  color: var(--color-text-muted);
 }
 
 .score {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--color-primary);
 }
 
 .chevron {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-size: 12px;
 }
 
 .pendingBadge {
   font-size: 12px;
-  color: var(--text-muted);
-  background: var(--hover-bg, #f0f0f0);
+  color: var(--color-text-muted);
+  background: var(--color-stage);
   padding: 2px 8px;
   border-radius: 20px;
 }
 
 .detail {
   padding: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .loading {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-size: 14px;
   margin: 0;
 }
@@ -191,7 +191,7 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -199,5 +199,5 @@
   font-size: 14px;
   line-height: 1.5;
   margin: 0;
-  color: var(--text);
+  color: var(--color-text);
 }
