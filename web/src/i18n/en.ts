@@ -728,6 +728,7 @@ export const en: Messages = {
   doneAction: 'Done',
   theTestHasChangedStartAgain: 'The test has changed. Start again.',
   exitTheTest: 'Exit the test',
+  testMusic: 'Music',
   exitPractice: 'Exit practice',
   skippedWord: 'Skipped word',
   test: 'Test',

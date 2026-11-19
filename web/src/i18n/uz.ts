@@ -729,6 +729,7 @@ export const uz: Messages = {
   doneAction: 'Tayyor',
   theTestHasChangedStartAgain: 'Test o‘zgardi. Qaytadan boshlang.',
   exitTheTest: 'Testdan chiqish',
+  testMusic: 'Musiqa',
   exitPractice: 'Mashqdan chiqish',
   skippedWord: 'O‘tkazilgan so‘z',
   test: 'Test',
