@@ -11,6 +11,10 @@ ENV VITE_AUTH_MODE=supabase VITE_SUPABASE_URL=$VITE_SUPABASE_URL VITE_SUPABASE_P
 RUN npm run build
 
 FROM python:3.13-slim
+# ffmpeg: the speaking worker converts recordings (WebM/MP4) to the WAV Azure's speech API takes.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./

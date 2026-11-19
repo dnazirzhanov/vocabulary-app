@@ -44,6 +44,8 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic check # models and migrations must not drift apart
       - run: uv run python -m spacy download en_core_web_sm
+      # The speaking tests convert real recordings, as the worker does in production.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: uv run pytest
       # The nightly backup's scripts on every change (docs/backups.md): dump the test database,
       # encrypted, then restore it into an empty one and check it.

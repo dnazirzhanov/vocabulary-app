@@ -51,16 +51,22 @@ def compute_fluency(words: list[TranscriptWord], total_duration_ms: int) -> Flue
             raw={"note": "no_data"},
         )
 
-    pause_ms = 0
-    pause_count = 0
+    # Filled pauses ("um", "uh") are hesitations, not words: they do not count toward the speech
+    # rate, and the time they take counts as hesitation time, like a silent pause.
+    fillers = [w for w in words if is_filler(w.word)]
+    spoken = [w for w in words if not is_filler(w.word)]
+
+    pause_ms = sum(max(0, w.end_ms - w.start_ms) for w in fillers)
+    pause_count = len(fillers)
     for i in range(1, len(words)):
         gap = words[i].start_ms - words[i - 1].end_ms
         if gap >= _PAUSE_THRESHOLD_MS:
             pause_ms += gap
             pause_count += 1
+    pause_ms = min(pause_ms, total_duration_ms)
 
     speaking_ms = max(total_duration_ms - pause_ms, 1)
-    wpm = len(words) / (total_duration_ms / 60_000)
+    wpm = len(spoken) / (total_duration_ms / 60_000)
     pause_ratio = pause_ms / total_duration_ms
 
     # WPM component: 100 in ideal range, linear fall-off outside it.
@@ -86,7 +92,16 @@ def compute_fluency(words: list[TranscriptWord], total_duration_ms: int) -> Flue
             "pause_ratio": round(pause_ratio, 3),
             "pause_count": pause_count,
             "speaking_ms": speaking_ms,
-            "word_count": len(words),
+            "word_count": len(spoken),
+            "filler_count": len(fillers),
             "total_ms": total_duration_ms,
         },
     )
+
+
+_FILLERS = frozenset({"um", "umm", "uh", "uhh", "er", "erm", "ah", "eh", "hmm", "hm", "mm", "mhm"})
+
+
+def is_filler(word: str) -> bool:
+    """A filled pause as Whisper writes it ("Um,", "uh…"), not a real word."""
+    return word.strip().strip(".,!?;:…-—\"'").lower() in _FILLERS

@@ -27,6 +27,7 @@ from app.services.speaking.pronunciation import (
 from app.services.speaking.transcription import TranscriptResult, TranscriptWord
 from app.services.speaking.vocabulary import compute_vocabulary
 from app.services.speaking.vocabulary import meets_minimum_evidence as vocab_min
+from tests.speaking_audio import real_webm
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 16, 15, 0, tzinfo=UTC)
@@ -46,8 +47,8 @@ def _enable_speaking(monkeypatch: pytest.MonkeyPatch, pattern: str = "*") -> Non
 
 
 def _webm() -> bytes:
-    # A short non-empty byte sequence; Chunk 2 doesn't probe content, only size + MIME.
-    return b"\x1a\x45\xdf\xa3" + b"\x00" * 128
+    # A real WebM/Opus recording, so the worker's conversion for Azure runs as in production.
+    return real_webm()
 
 
 # ─── Access control ─────────────────────────────────────────────────────────────
@@ -566,14 +567,17 @@ def _upload_pronunciation_session(client: TestClient, user: str) -> dict[str, ob
     session_id = create.json()["id"]
     upload = client.post(
         f"/api/speaking/sessions/{session_id}/audio",
-        files={"file": ("rec.webm", io.BytesIO(_webm()), "audio/webm")},
+        # A real WebM/Opus recording: the worker converts it for Azure, as in production.
+        files={"file": ("rec.webm", io.BytesIO(real_webm()), "audio/webm;codecs=opus")},
         headers=as_(user),
     )
     assert upload.status_code == 200, upload.text
     return dict(upload.json())
 
 
-def _make_pron_result(word_count: int = 12, duration_ms: int = 5000) -> PronunciationResult:
+def _make_pron_result(
+    word_count: int = 12, duration_ms: int = 5000, completeness: float = 100.0
+) -> PronunciationResult:
     """Return a fake PronunciationResult with configurable evidence thresholds."""
     words = [
         WordPronunciationScore(
@@ -587,14 +591,14 @@ def _make_pron_result(word_count: int = 12, duration_ms: int = 5000) -> Pronunci
     return PronunciationResult(
         accuracy_score=85.0,
         fluency_score=80.0,
-        completeness_score=100.0,
+        completeness_score=completeness,
         pronunciation_score=83.0,
         words=words,
         raw={
             "recognition_status": "Success",
             "accuracy_score": 85.0,
             "fluency_score": 80.0,
-            "completeness_score": 100.0,
+            "completeness_score": completeness,
             "pronunciation_score": 83.0,
             "word_count": word_count,
         },
@@ -649,7 +653,9 @@ def test_pronunciation_pipeline_writes_pron_score(
 
     with (
         patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript),
-        patch("app.services.speaking.orchestration.assess", return_value=fake_pron),
+        patch(
+            "app.services.speaking.orchestration.assess_read_aloud", return_value=fake_pron
+        ) as read_aloud,
     ):
         orch.run_assess_job(
             db,
@@ -660,6 +666,11 @@ def test_pronunciation_pipeline_writes_pron_score(
             now=now,
         )
     db.close()
+
+    # Azure gets the sentence itself, and WAV 16 kHz mono, never the browser's WebM.
+    wav, reference = read_aloud.call_args.args[:2]
+    assert wav[:4] == b"RIFF" and wav[8:12] == b"WAVE"
+    assert reference == "The weather in November is cold and rainy."
 
     resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("hana"))
     assert resp.status_code == 200
@@ -673,49 +684,67 @@ def test_pronunciation_pipeline_writes_pron_score(
     assert words[0]["phonemes"][0]["phoneme"] == "AH"
 
 
-def test_pronunciation_pipeline_no_score_below_evidence(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """pronunciation_score stays null when word count is below the minimum."""
+def _run_read_aloud(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, user: str, fake_pron: PronunciationResult
+) -> dict[str, object]:
+    """A read-aloud session through the worker with Azure's answer faked; the session as read."""
     _enable_speaking(monkeypatch)
-    result = _upload_pronunciation_session(client, "igor")
-    session_id = result["id"]
-
-    # Only 5 words — below the 10-word minimum.
-    fake_transcript = _make_transcript_result(word_count=5, duration_ms=5000)
-    fake_pron = _make_pron_result(word_count=5, duration_ms=5000)
-
+    session_id = _upload_pronunciation_session(client, user)["id"]
     from app.services.speaking import orchestration as orch
     from app.services.speaking.storage import get_storage
 
     now = datetime.now(UTC)
     db: Session = get_sessionmaker()()
-    storage = get_storage(get_settings())
     job = jobs_svc.claim_one(db, "test-worker", now)
     while job is not None and str(job.session_id) != session_id:
         db.commit()
         job = jobs_svc.claim_one(db, "test-worker", now)
     assert job is not None
     db.commit()
-
     with (
-        patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript),
-        patch("app.services.speaking.orchestration.assess", return_value=fake_pron),
+        patch(
+            "app.services.speaking.orchestration.transcribe",
+            return_value=_make_transcript_result(word_count=8, duration_ms=3000),
+        ),
+        patch("app.services.speaking.orchestration.assess_read_aloud", return_value=fake_pron),
     ):
         orch.run_assess_job(
             db,
-            storage,
+            get_storage(get_settings()),
             job,
             openai_api_key="fake-key",
             azure_speech_key="fake-azure-key",
             now=now,
         )
     db.close()
+    resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_(user))
+    return dict(resp.json())
 
-    resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("igor"))
-    body = resp.json()
+
+def test_read_aloud_short_sentence_is_scored(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """«The weather in November is cold and rainy.» is 8 words: read in full, it gets a score.
+
+    The free-speech minimum (10 words) used to apply here too, so this sentence never could."""
+    body = _run_read_aloud(client, monkeypatch, "igor", _make_pron_result(word_count=8))
     assert body["status"] == "done"
-    assert body["assessment"]["pronunciation_score"] is None
+    assessment = body["assessment"]
+    assert isinstance(assessment, dict)
+    assert assessment["pronunciation_score"] == pytest.approx(83.0, abs=0.1)
+
+
+def test_read_aloud_barely_read_gets_no_score(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Less than half the sentence read (Azure completeness < 50): words shown, no score."""
+    body = _run_read_aloud(
+        client, monkeypatch, "ilse", _make_pron_result(word_count=3, completeness=30.0)
+    )
+    assessment = body["assessment"]
+    assert isinstance(assessment, dict)
+    assert assessment["pronunciation_score"] is None
+    assert len(assessment["pronunciation_words"]) == 3
 
 
 def test_azure_pa_failure_is_nonfatal(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -743,7 +772,7 @@ def test_azure_pa_failure_is_nonfatal(client: TestClient, monkeypatch: pytest.Mo
     with (
         patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript),
         patch(
-            "app.services.speaking.orchestration.assess",
+            "app.services.speaking.orchestration.assess_read_aloud",
             side_effect=PronunciationError("rate_limited", "Azure rate limited"),
         ),
     ):
@@ -766,7 +795,7 @@ def test_azure_pa_failure_is_nonfatal(client: TestClient, monkeypatch: pytest.Mo
 
 
 def test_spontaneous_skips_azure_pa(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Spontaneous sessions do not call Azure PA even when a key is configured."""
+    """Too little free speech for a pronunciation score: Azure is not called (nor paid for)."""
     _enable_speaking(monkeypatch)
     result = _upload_session(client, "karl")
     session_id = result["id"]
@@ -788,7 +817,7 @@ def test_spontaneous_skips_azure_pa(client: TestClient, monkeypatch: pytest.Monk
 
     with (
         patch("app.services.speaking.orchestration.transcribe", return_value=fake_transcript),
-        patch("app.services.speaking.orchestration.assess") as mock_assess,
+        patch("app.services.speaking.orchestration.assess_free_speech") as mock_assess,
     ):
         orch.run_assess_job(
             db,
