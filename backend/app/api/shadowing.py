@@ -1,10 +1,11 @@
 """Shadowing feature HTTP endpoints."""
 
+import re
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
-from fastapi.responses import Response, StreamingResponse
+from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
+from fastapi.responses import Response
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.config import Settings, get_settings
@@ -53,6 +54,7 @@ def get_exercise_audio(
     exercise_id: uuid.UUID,
     db: DbSession,
     settings: DepSettings,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
 ) -> Response:
     ex = exercises_svc.by_id(db, exercise_id)
     if ex is None or not ex.is_active:
@@ -84,12 +86,13 @@ def get_exercise_audio(
             signed = f"{base}/storage/v1{signed}"
         return Response(status_code=302, headers={"Location": signed})
 
-    # FileSystem: stream directly
+    # FileSystem (development, tests): served here, with byte ranges so the player can seek.
     data = storage.download_sync(ex.audio_path)
-    return StreamingResponse(
-        iter([data]),
-        media_type=ex.audio_mime_type or "audio/webm",
-        headers={"Cache-Control": "public, max-age=3600"},
+    return audio_response(
+        data,
+        ex.audio_mime_type or "audio/mpeg",
+        range_header,
+        cache="public, max-age=3600",
     )
 
 
@@ -145,6 +148,7 @@ def get_attempt_audio(
     db: DbSession,
     user: CurrentUser,
     settings: DepSettings,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
 ) -> Response:
     attempt = attempts_svc.get_own(db, attempt_id, user.id)
     if attempt is None:
@@ -154,9 +158,40 @@ def get_attempt_audio(
 
     storage = get_storage(settings)
     data = storage.download_sync(attempt.audio_path)
-    return StreamingResponse(
-        iter([data]),
-        media_type=attempt.audio_mime_type or "audio/webm",
+    return audio_response(
+        data, attempt.audio_mime_type or "audio/webm", range_header, cache="private"
+    )
+
+
+_RANGE = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+def audio_response(
+    data: bytes, media_type: str, range_header: str | None, *, cache: str
+) -> Response:
+    """The audio with its length, or the byte range asked for (206).
+
+    Browsers seek in audio with Range requests; a reply without a length or ranges leaves the
+    player unable to seek and showing no duration."""
+    size = len(data)
+    headers = {"Accept-Ranges": "bytes", "Cache-Control": cache}
+    match = _RANGE.fullmatch((range_header or "").strip())
+    if not match or not size:
+        return Response(content=data, media_type=media_type, headers=headers)
+    first, last = match.groups()
+    if first:
+        start, end = int(first), min(int(last), size - 1) if last else size - 1
+    elif last:  # "bytes=-500": the last 500 bytes
+        start, end = max(0, size - int(last)), size - 1
+    else:
+        return Response(content=data, media_type=media_type, headers=headers)
+    if start >= size or start > end:
+        return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{size}"})
+    return Response(
+        content=data[start : end + 1],
+        status_code=206,
+        media_type=media_type,
+        headers={**headers, "Content-Range": f"bytes {start}-{end}/{size}"},
     )
 
 

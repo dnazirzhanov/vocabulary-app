@@ -48,6 +48,8 @@ export default defineConfig({
         ...process.env,
         READING_TESTERS: 'e2e-reader-*',
         MENTOR_TESTERS: 'e2e-mentor-*',
+        // Speaking (and its Shadowing) is gated too; e2e/shadowing.spec.ts signs in as these.
+        SPEAKING_TESTERS: 'e2e-speaking-*',
         // Force demo replies in mentor chat so e2e tests are deterministic and cost-free.
         MENTOR_CHAT_DEMO: 'true',
       } as Record<string, string>,

@@ -114,6 +114,71 @@ def test_exercise_audio_streams_from_filesystem(
     resp = client.get(f"/api/shadowing/exercises/{ex.id}/audio", headers=as_("alice"))
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("audio/")
+    # A length and ranges: without them a browser's player can neither seek nor show a duration.
+    assert resp.headers["content-length"] == str(len(_webm()))
+    assert resp.headers["accept-ranges"] == "bytes"
+
+
+def test_exercise_audio_answers_seek_requests_with_a_range(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A player seeking asks for a byte range; it gets those bytes (206), not the whole file."""
+    _use_filesystem_storage(monkeypatch)
+    ex = _seed_exercise("ranged", has_audio=True)
+    from pathlib import Path
+
+    data = bytes(range(256)) * 4  # 1024 distinct-ish bytes
+    audio_dir = Path(get_settings().speaking_audio_dir)
+    (audio_dir / "exercises").mkdir(parents=True, exist_ok=True)
+    (audio_dir / "exercises" / "test.webm").write_bytes(data)
+    url = f"/api/shadowing/exercises/{ex.id}/audio"
+
+    mid = client.get(url, headers={**as_("alice"), "Range": "bytes=100-199"})
+    assert mid.status_code == 206
+    assert mid.content == data[100:200]
+    assert mid.headers["content-range"] == "bytes 100-199/1024"
+
+    open_end = client.get(url, headers={**as_("alice"), "Range": "bytes=1000-"})
+    assert (open_end.status_code, open_end.content) == (206, data[1000:])
+
+    tail = client.get(url, headers={**as_("alice"), "Range": "bytes=-24"})
+    assert (tail.status_code, tail.content) == (206, data[-24:])
+
+    beyond = client.get(url, headers={**as_("alice"), "Range": "bytes=5000-"})
+    assert beyond.status_code == 416
+    assert beyond.headers["content-range"] == "bytes */1024"
+
+
+@pytest.mark.parametrize(
+    ("mime", "ext"),
+    [("audio/webm;codecs=opus", ".webm"), ("audio/mp4", ".m4a"), ("audio/ogg;codecs=opus", ".ogg")],
+)
+def test_a_recording_is_stored_under_its_own_kind(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, mime: str, ext: str
+) -> None:
+    """Safari records MP4: it must not be stored, and later served, as .webm."""
+    _use_filesystem_storage(monkeypatch)
+    ex = _seed_exercise(f"kind-{ext[1:]}")
+    attempt_id = client.post(
+        "/api/shadowing/attempts", json={"exercise_id": str(ex.id)}, headers=as_("alice")
+    ).json()["id"]
+    up = client.post(
+        f"/api/shadowing/attempts/{attempt_id}/audio",
+        files={"file": (f"recording{ext}", _webm(), mime)},
+        headers=as_("alice"),
+    )
+    assert up.status_code == 200, up.text
+    from app.core.db import get_sessionmaker
+    from app.models.shadowing import ShadowingAttempt
+
+    with get_sessionmaker()() as db:
+        attempt = db.get(ShadowingAttempt, uuid.UUID(attempt_id))
+        assert attempt is not None
+        assert (attempt.audio_path or "").endswith(ext)
+        assert attempt.audio_mime_type == mime
+    back = client.get(f"/api/shadowing/attempts/{attempt_id}/audio", headers=as_("alice"))
+    assert back.status_code == 200
+    assert back.headers["content-type"].startswith(mime.split(";")[0])
 
 
 def test_exercise_audio_unknown_exercise_returns_404(client: TestClient) -> None:

@@ -31,7 +31,6 @@ import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
 import type { SpeakingQuestion, SpeakingSessionDetail } from './speaking/api.ts';
 import type { ShadowingExercise } from './shadowing/api.ts';
-import type { Recording } from './speaking/audio/AudioRecorder.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -66,9 +65,6 @@ const ShadowingHomeScreen = lazy(() =>
 const ShadowingPlayerScreen = lazy(() =>
   import('./shadowing/ShadowingPlayerScreen.tsx').then((m) => ({ default: m.ShadowingPlayerScreen })),
 );
-const ShadowingCompareScreen = lazy(() =>
-  import('./shadowing/ShadowingCompareScreen.tsx').then((m) => ({ default: m.ShadowingCompareScreen })),
-);
 
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
@@ -80,7 +76,6 @@ type Screen =
   | { name: 'writing' }
   | { name: 'shadowing' }
   | { name: 'shadowing-player'; exercise: ShadowingExercise }
-  | { name: 'shadowing-compare'; exercise: ShadowingExercise; attemptId: string; recording: Recording }
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
@@ -573,26 +568,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'shadowing-player') {
       return (
         <Suspense fallback={null}>
-          <ShadowingPlayerScreen
-            exercise={screen.exercise}
-            onCompare={(attemptId, recording) =>
-              setScreen({ name: 'shadowing-compare', exercise: screen.exercise, attemptId, recording })
-            }
-            onBack={() => setScreen({ name: 'shadowing' })}
-          />
-        </Suspense>
-      );
-    }
-    if (screen.name === 'shadowing-compare') {
-      return (
-        <Suspense fallback={null}>
-          <ShadowingCompareScreen
-            exercise={screen.exercise}
-            attemptId={screen.attemptId}
-            recording={screen.recording}
-            onRetry={() => setScreen({ name: 'shadowing-player', exercise: screen.exercise })}
-            onFinish={() => setScreen({ name: 'shadowing' })}
-          />
+          <ShadowingPlayerScreen exercise={screen.exercise} onBack={() => setScreen({ name: 'shadowing' })} />
         </Suspense>
       );
     }
@@ -739,7 +715,6 @@ function tabOf(screen: Screen): NavTab {
       'speaking',
       'shadowing',
       'shadowing-player',
-      'shadowing-compare',
       'speaking-topic',
       'speaking-question',
       'speaking-exercise',
