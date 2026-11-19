@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { t } from '../i18n/index.ts';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { t, uiLanguage } from '../i18n/index.ts';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
-import { FeedbackList } from './FeedbackList.tsx';
-import type { SpeakingQuestion, SpeakingSessionDetail, SpeakingAssessment } from './api.ts';
+import type { FeedbackItem, SpeakingAssessment, SpeakingQuestion, SpeakingSessionDetail } from './api.ts';
+import { pausesOf, seconds, timeline } from './timeline.ts';
 import styles from './EvaluationScreen.module.css';
 
 interface EvaluationScreenProps {
@@ -13,213 +13,320 @@ interface EvaluationScreenProps {
 
 type SkillKey = 'pronunciation' | 'fluency' | 'vocabulary' | 'grammar' | 'coherence';
 
+const SKILLS: SkillKey[] = ['pronunciation', 'fluency', 'vocabulary', 'grammar', 'coherence'];
+const label = (key: SkillKey) =>
+  ({
+    pronunciation: t.speakingSkillPronunciation,
+    fluency: t.speakingSkillFluency,
+    vocabulary: t.speakingSkillVocabulary,
+    grammar: t.speakingSkillGrammar,
+    coherence: t.speakingSkillCoherence,
+  })[key];
+
+/**
+ * The feedback on one spoken answer: the overall score, then the five categories. Each opens to
+ * its own facts and its own advice; nothing is repeated below them.
+ */
 export function EvaluationScreen({ session, question, onBack }: EvaluationScreenProps) {
   const a = session.assessment;
-  const [openSkill, setOpenSkill] = useState<SkillKey | null>(null);
-
-  function toggleSkill(key: SkillKey) {
-    setOpenSkill((prev) => (prev === key ? null : key));
-  }
-
-  const summary = a ? feedbackSummary(a) : null;
-  const durationLabel = a ? formatDuration(a) : null;
+  const [open, setOpen] = useState<SkillKey | null>(null);
 
   return (
     <main className={styles.screen}>
-      <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.speakingBack}
-        </button>
-        <h1 className={styles.title}>{t.speakingEvalHeading}</h1>
-      </header>
+      <button type="button" className={styles.back} onClick={onBack}>
+        ‹ {t.speakingBack}
+      </button>
+      <h1 className={styles.title}>{t.speakingEvalHeading}</h1>
+      <p className={styles.question}>
+        {question.exercise_type === 'pronunciation' && question.reference_text
+          ? `«${question.reference_text}»`
+          : question.text}
+      </p>
 
-      <div className={styles.body}>
-        {/* Question */}
-        <div className={styles.questionBox}>
-          {question.exercise_type === 'pronunciation' && question.reference_text ? (
-            <p className={styles.questionText}>"{question.reference_text}"</p>
-          ) : (
-            <p className={styles.questionText}>{question.text}</p>
-          )}
-        </div>
-
-        {a && (
-          <>
-            {/* Overall card */}
-            <div className={styles.overallCard}>
-              <div className={styles.overallTop}>
-                {a.overall_score !== null && (
-                  <span className={`${styles.overallScore} ${scoreColorClass(a.overall_score)}`}>
-                    {Math.round(a.overall_score)}%
-                  </span>
-                )}
-                {durationLabel && <span className={styles.duration}>{durationLabel}</span>}
-              </div>
-              {summary && <p className={styles.summary}>{summary}</p>}
-            </div>
-
-            {/* Skill rows */}
-            <section className={styles.skillsSection}>
-              <h2 className={styles.sectionLabel}>{t.speakingEvalSkillsLabel}</h2>
-              <div className={styles.skillList}>
-                {SKILLS.map(({ key, label }) => {
-                  const score = a[`${key}_score` as keyof SpeakingAssessment] as number | null;
-                  const expl = getExplanation(key, a);
-                  const isOpen = openSkill === key;
-                  return (
-                    <div key={key} className={styles.skillCard}>
-                      <button
-                        type="button"
-                        className={styles.skillRow}
-                        onClick={() => toggleSkill(key)}
-                        aria-expanded={isOpen}
-                      >
-                        <span className={styles.skillName}>{label}</span>
-                        <span
-                          className={`${styles.skillScore} ${score === null ? styles.scoreNull : scoreColorClass(score)}`}
-                        >
-                          {score !== null ? `${Math.round(score)}%` : '—'}
-                        </span>
-                        <span className={styles.chevron}>{isOpen ? '▾' : '▸'}</span>
-                      </button>
-
-                      {isOpen && (
-                        <div className={styles.skillDetail}>
-                          {expl ? (
-                            <p className={styles.skillExplanation}>{expl}</p>
-                          ) : (
-                            <p className={styles.skillExplanation}>{t.speakingEvalInsufficientData}</p>
-                          )}
-
-                          {/* Grammar errors list */}
-                          {key === 'grammar' && renderGrammarDetail(a)}
-
-                          {/* Pronunciation word breakdown */}
-                          {key === 'pronunciation' && a.pronunciation_words.length > 0 && (
-                            <PronunciationBreakdown
-                              words={a.pronunciation_words}
-                              pronunciationScore={a.pronunciation_score}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Transcript */}
-            <section className={styles.section}>
-              <h2 className={styles.sectionLabel}>{t.speakingEvalTranscriptLabel}</h2>
-              <p className={styles.transcript}>{a.transcript}</p>
-            </section>
-
-            {/* Feedback items */}
-            {a.feedback_items.length > 0 && (
-              <section className={styles.section}>
-                <h2 className={styles.sectionLabel}>{t.speakingEvalFeedbackLabel}</h2>
-                <FeedbackList items={a.feedback_items} />
-              </section>
+      {a && (
+        <>
+          <div className={styles.overall}>
+            {a.overall_score !== null && (
+              <span className={`${styles.overallScore} ${tone(a.overall_score)}`}>{Math.round(a.overall_score)}%</span>
             )}
-          </>
-        )}
-      </div>
+            {length(a) && <span className={styles.length}>{length(a)}</span>}
+          </div>
+
+          <ul className={styles.skills}>
+            {SKILLS.map((key) => {
+              const score = a[`${key}_score`];
+              const isOpen = open === key;
+              return (
+                <li key={key} className={styles.skill}>
+                  <button
+                    type="button"
+                    className={styles.skillRow}
+                    onClick={() => setOpen(isOpen ? null : key)}
+                    aria-expanded={isOpen}
+                  >
+                    <span className={styles.skillName}>{label(key)}</span>
+                    <span className={`${styles.skillScore} ${score === null ? styles.none : tone(score)}`}>
+                      {score === null ? '—' : `${Math.round(score)}%`}
+                    </span>
+                    <span className={styles.chevron} aria-hidden="true">
+                      {isOpen ? '▾' : '▸'}
+                    </span>
+                  </button>
+                  {isOpen && <div className={styles.detail}>{detail(key, a)}</div>}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </main>
   );
 }
 
-const SKILLS: { key: SkillKey; label: string }[] = [
-  { key: 'pronunciation', label: 'Pronunciation' },
-  { key: 'fluency', label: 'Fluency' },
-  { key: 'vocabulary', label: 'Vocabulary' },
-  { key: 'grammar', label: 'Grammar' },
-  { key: 'coherence', label: 'Coherence' },
-];
-
-function scoreColorClass(score: number): string {
-  if (score >= 75) return styles.scoreGood;
-  if (score >= 50) return styles.scoreMid;
-  return styles.scoreLow;
+function tone(score: number): string {
+  if (score >= 75) return styles.good;
+  if (score >= 50) return styles.mid;
+  return styles.low;
 }
 
-function feedbackSummary(a: SpeakingAssessment): string | null {
-  const summary = (a.evidence.feedback as Record<string, unknown> | undefined)?.summary as string | undefined;
-  return summary?.trim() || null;
+function length(a: SpeakingAssessment): string | null {
+  const whisper = a.evidence.whisper as { duration_s?: number } | undefined;
+  if (!whisper?.duration_s) return null;
+  const total = Math.round(whisper.duration_s); // 119.9 s is «2:00», not «1:60»
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function formatDuration(a: SpeakingAssessment): string | null {
-  const whisper = a.evidence.whisper as Record<string, unknown> | undefined;
-  const durationS = whisper?.duration as number | undefined;
-  if (!durationS) return null;
-  const m = Math.floor(durationS / 60);
-  const s = Math.round(durationS % 60);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+/** Why a category has no score, from what the server recorded. */
+function missing(evidence: unknown): string {
+  const skipped = (evidence as { skipped?: string } | undefined)?.skipped ?? '';
+  if (skipped === 'read_aloud') return t.speakingEvalReadAloud;
+  if (skipped.startsWith('error')) return t.speakingEvalFailed;
+  return t.speakingEvalInsufficientData;
 }
 
-function getExplanation(key: SkillKey, a: SpeakingAssessment): string | null {
-  const ev = a.evidence;
-  switch (key) {
-    case 'fluency': {
-      const f = ev.fluency as Record<string, unknown> | undefined;
-      if (!f || f.skipped) return null;
-      const wpm = f.wpm as number | undefined;
-      const pauses = f.pause_count as number | undefined;
-      if (wpm === undefined) return null;
-      const parts = [`${Math.round(wpm)} ${t.speakingEvalWpm}`];
-      if (pauses !== undefined) parts.push(`${pauses} ${t.speakingEvalPauses}`);
-      return parts.join(' · ');
-    }
-    case 'vocabulary': {
-      const v = ev.vocabulary as Record<string, unknown> | undefined;
-      if (!v) return null;
-      if (v.skipped === 'insufficient_evidence') return t.speakingEvalVocabInsufficient;
-      const dist = v.cefr_distribution as Record<string, number> | undefined;
-      if (!dist) return null;
-      const dominant = Object.entries(dist).sort((a, b) => b[1] - a[1])[0];
-      if (!dominant || dominant[1] === 0) return null;
-      return `Dominant level: ${dominant[0]}`;
-    }
-    case 'grammar': {
-      const g = ev.grammar as Record<string, unknown> | undefined;
-      if (!g) return t.speakingEvalGrammarNoService;
-      if (g.skipped === 'no_url' || g.skipped === 'insufficient_evidence') {
-        return g.skipped === 'insufficient_evidence' ? t.speakingEvalInsufficientData : null;
-      }
-      const errorCount = g.error_count as number | undefined;
-      if (errorCount === undefined) return null;
-      return errorCount === 0 ? t.speakingEvalNoErrors : `${errorCount} issue${errorCount === 1 ? '' : 's'} found`;
-    }
-    case 'coherence': {
-      const c = ev.coherence as Record<string, unknown> | undefined;
-      if (!c || c.skipped) return null;
-      return (c.justification as string | undefined) ?? null;
-    }
-    case 'pronunciation': {
-      const p = ev.azure_pa as Record<string, unknown> | undefined;
-      if (!p || p.skipped) return null;
-      const pScore = p.pronunciation_score as number | undefined;
-      if (pScore === undefined) return null;
-      return `Azure score: ${Math.round(pScore)}%`;
-    }
-  }
-}
-
-function renderGrammarDetail(a: SpeakingAssessment): React.ReactNode {
-  const feedbackItems = a.feedback_items.filter((item) => item.category === 'grammar');
-  if (feedbackItems.length === 0) return null;
+function detail(key: SkillKey, a: SpeakingAssessment): ReactNode {
+  const items = a.feedback_items.filter((i) => i.category === key);
+  const ev = a.evidence[key === 'pronunciation' ? 'azure_pa' : key];
+  if (a[`${key}_score`] === null && items.length === 0) return <p className={styles.note}>{missing(ev)}</p>;
   return (
-    <ul className={styles.grammarErrors}>
-      {feedbackItems.map((item, i) => (
-        <li key={i} className={styles.grammarError}>
-          {item.original_text && <span className={styles.grammarOriginal}>"{item.original_text}"</span>}
-          {item.corrected_text && <span className={styles.grammarCorrected}>→ {item.corrected_text}</span>}
-          {item.explanation && <p className={styles.grammarExplanation}>{item.explanation}</p>}
+    <>
+      {key === 'pronunciation' && a.pronunciation_words.length > 0 && (
+        <PronunciationBreakdown words={a.pronunciation_words} pronunciationScore={a.pronunciation_score} />
+      )}
+      {key === 'fluency' && <Fluency a={a} />}
+      {key === 'vocabulary' && <Vocabulary evidence={ev} />}
+      {key === 'grammar' && items.length === 0 && a.grammar_score !== null && (
+        <p className={styles.note}>{t.speakingEvalNoErrors}</p>
+      )}
+      {key === 'coherence' && <Justification evidence={ev} />}
+      <Items items={items} />
+    </>
+  );
+}
+
+function Fluency({ a }: { a: SpeakingAssessment }) {
+  const f = (a.evidence.fluency ?? {}) as Record<string, unknown>;
+  const num = (k: string) => (typeof f[k] === 'number' ? (f[k] as number) : null);
+  const wpm = num('wpm');
+  const pauses = num('silent_pauses') ?? num('pause_count');
+  const inside = num('pauses_inside_phrase');
+  const fillers = num('filled_pauses') ?? num('filler_count');
+  const run = num('mean_run_words');
+  const pieces = timeline(a.transcript_words, pausesOf(f));
+  return (
+    <>
+      <dl className={styles.facts}>
+        {wpm !== null && <Fact name={t.speakingEvalRate} value={`${Math.round(wpm)} ${t.speakingEvalWpm}`} />}
+        {pauses !== null && (
+          <Fact
+            name={t.speakingEvalPauses}
+            value={inside ? `${pauses} (${t.speakingEvalInsidePhrase}: ${inside})` : `${pauses}`}
+          />
+        )}
+        {fillers !== null && <Fact name={t.speakingEvalFillers} value={`${fillers}`} />}
+        {run !== null && <Fact name={t.speakingEvalRun} value={`${run}`} />}
+      </dl>
+      {pieces.length > 0 && (
+        <section className={styles.spoken} aria-label={t.speakingEvalYourAnswer}>
+          <h3 className={styles.subhead}>{t.speakingEvalYourAnswer}</h3>
+          <p className={styles.transcript} lang="en">
+            {pieces.map((p, i) =>
+              p.kind === 'word' ? (
+                <span key={i}>{p.text} </span>
+              ) : p.kind === 'filler' ? (
+                <span key={i} className={styles.filler}>
+                  {p.text || t.speakingEvalFillerMark}
+                </span>
+              ) : (
+                <span
+                  key={i}
+                  className={p.inside ? styles.pauseInside : styles.pause}
+                  title={t.speakingEvalPause(seconds(p.ms, uiLanguage))}
+                  aria-label={t.speakingEvalPause(seconds(p.ms, uiLanguage))}
+                >
+                  ‖ {seconds(p.ms, uiLanguage)}
+                </span>
+              ),
+            )}
+          </p>
+        </section>
+      )}
+    </>
+  );
+}
+
+function Fact({ name, value }: { name: string; value: string }) {
+  return (
+    <div className={styles.fact}>
+      <dt>{name}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+interface VocabEvidence {
+  profile?: Record<string, number>;
+  mattr?: number;
+  repeated?: string[];
+  evidence?: {
+    misused?: { quote: string; better: string; why?: string }[];
+    overused?: { quote: string; alternatives: string[]; why?: string }[];
+    strong?: { quote: string; why?: string }[];
+  };
+}
+
+const BANDS = ['A1-A2', 'B1', 'B2', 'C1+'] as const;
+
+function Vocabulary({ evidence }: { evidence: unknown }) {
+  const v = (evidence ?? {}) as VocabEvidence;
+  const profile = v.profile;
+  const misused = v.evidence?.misused ?? [];
+  const overused = v.evidence?.overused ?? [];
+  const strong = v.evidence?.strong ?? [];
+  // Without the model's evidence, the plain count of repeated words still helps.
+  const repeated = overused.length === 0 ? (v.repeated ?? []) : [];
+  return (
+    <>
+      {profile && (
+        <div className={styles.levels}>
+          <h3 className={styles.subhead}>{t.speakingEvalLevels}</h3>
+          <div
+            className={styles.levelBar}
+            role="img"
+            aria-label={BANDS.map((b) => `${b} ${pct(profile[b])}`).join(', ')}
+          >
+            {BANDS.map((b) =>
+              profile[b] ? (
+                <span
+                  key={b}
+                  className={styles[`band${b.replace(/\W/g, '')}`]}
+                  style={{ '--share': profile[b] } as CSSProperties}
+                />
+              ) : null,
+            )}
+          </div>
+          <ul className={styles.levelKey}>
+            {BANDS.map((b) => (
+              <li key={b}>
+                <i className={styles[`band${b.replace(/\W/g, '')}`]} aria-hidden="true" />
+                {b} <strong>{pct(profile[b])}</strong>
+              </li>
+            ))}
+          </ul>
+          {typeof v.mattr === 'number' && (
+            <dl className={styles.facts}>
+              <Fact name={t.speakingEvalVariety} value={pct(v.mattr)} />
+            </dl>
+          )}
+        </div>
+      )}
+      {misused.length > 0 && (
+        <Group title={t.speakingEvalMisused}>
+          {misused.map((m, i) => (
+            <li key={i}>
+              <p className={styles.fixLine} lang="en">
+                <del>{m.quote}</del> <ins>{m.better}</ins>
+              </p>
+              {m.why && <p className={styles.why}>{m.why}</p>}
+            </li>
+          ))}
+        </Group>
+      )}
+      {(overused.length > 0 || repeated.length > 0) && (
+        <Group title={t.speakingEvalOverused}>
+          {overused.map((o, i) => (
+            <li key={i}>
+              <p className={styles.fixLine} lang="en">
+                <strong>{o.quote}</strong> → {o.alternatives.join(', ')}
+              </p>
+              {o.why && <p className={styles.why}>{o.why}</p>}
+            </li>
+          ))}
+          {repeated.map((w) => (
+            <li key={w}>
+              <p className={styles.fixLine} lang="en">
+                <strong>{w}</strong>
+              </p>
+            </li>
+          ))}
+        </Group>
+      )}
+      {strong.length > 0 && (
+        <Group title={t.speakingEvalStrong}>
+          {strong.map((s, i) => (
+            <li key={i}>
+              <p className={styles.fixLine} lang="en">
+                <ins>{s.quote}</ins>
+              </p>
+              {s.why && <p className={styles.why}>{s.why}</p>}
+            </li>
+          ))}
+        </Group>
+      )}
+    </>
+  );
+}
+
+const pct = (share: number | undefined) => `${Math.round((share ?? 0) * 100)}%`;
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className={styles.group}>
+      <h3 className={styles.subhead}>{title}</h3>
+      <ul className={styles.list}>{children}</ul>
+    </section>
+  );
+}
+
+function Justification({ evidence }: { evidence: unknown }) {
+  const text = (evidence as { justification?: string } | undefined)?.justification;
+  return text ? (
+    <p className={styles.text} lang="en">
+      {text}
+    </p>
+  ) : null;
+}
+
+/** The category's own advice: what was said, the better way, and why. */
+function Items({ items }: { items: FeedbackItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className={styles.list}>
+      {items.map((item, i) => (
+        <li key={i}>
+          {(item.original_text || item.corrected_text) && (
+            <p className={styles.fixLine} lang="en">
+              {item.original_text && <del>{item.original_text}</del>}{' '}
+              {item.corrected_text && <ins>{item.corrected_text}</ins>}
+            </p>
+          )}
+          {item.explanation && (
+            <p className={item.original_text || item.corrected_text ? styles.why : styles.text} lang="en">
+              {item.explanation}
+            </p>
+          )}
         </li>
       ))}
     </ul>
   );
 }
-
-// Need React import for JSX return type
-import React from 'react';

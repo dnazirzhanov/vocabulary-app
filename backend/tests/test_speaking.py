@@ -177,6 +177,28 @@ def test_upload_audio_end_to_end(client: TestClient, monkeypatch: pytest.MonkeyP
     assert files[0].read_bytes() == _webm()
 
 
+@pytest.mark.parametrize(
+    ("duration_ms", "status"), [(180_000, 200), (186_000, 200), (200_000, 422)]
+)
+def test_a_three_minute_recording_is_accepted(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, duration_ms: int, status: int
+) -> None:
+    # The recorder stops at 3:00: its upload must not be refused as too long (it was, above 2:10).
+    _enable_speaking(monkeypatch)
+    session_id = client.post(
+        "/api/speaking/sessions",
+        json={"exercise_type": "spontaneous", "question_id": "spon-films"},
+        headers=as_("eve"),
+    ).json()["id"]
+    upload = client.post(
+        f"/api/speaking/sessions/{session_id}/audio",
+        files={"file": ("rec.webm", io.BytesIO(_webm()), "audio/webm;codecs=opus")},
+        data={"duration_ms": str(duration_ms)},
+        headers=as_("eve"),
+    )
+    assert upload.status_code == status, upload.text
+
+
 def test_upload_rejects_unsupported_mime(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

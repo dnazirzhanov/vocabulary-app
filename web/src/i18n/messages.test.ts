@@ -18,6 +18,7 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
   kk: new Set([
     'writingCriterionVocabulary',
     'writingCriterionGrammar',
+    'speakingSkillGrammar',
     'slovar',
     'n1Min',
     'account',
@@ -33,6 +34,7 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
   ky: new Set([
     'writingCriterionVocabulary',
     'writingCriterionGrammar',
+    'speakingSkillGrammar',
     'slovar',
     'account',
     'test',
@@ -47,6 +49,7 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
   ]),
   tg: new Set([
     'writingCriterionGrammar',
+    'speakingSkillGrammar',
     'slovar',
     'themeSepia',
     'category',

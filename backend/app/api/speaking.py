@@ -81,7 +81,7 @@ async def upload_audio(
     now: Now,
     settings: DepSettings,
     file: Annotated[UploadFile, File(description="Audio blob (webm/opus preferred)")],
-    duration_ms: Annotated[int | None, Form(ge=0, le=130_000)] = None,
+    duration_ms: Annotated[int | None, Form(ge=0, le=sessions_svc.MAX_RECORDING_MS)] = None,
     sample_rate: Annotated[int | None, Form(ge=0, le=192_000)] = None,
 ) -> SessionDetailOut:
     content = await file.read()
