@@ -2,10 +2,11 @@
 plans, and vocabulary, using DeepSeek when a key is configured and a canned reply otherwise."""
 
 import dataclasses
+import json
 import time
 from collections.abc import Generator
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, func, select
@@ -19,6 +20,7 @@ from app.models import (
     Deck,
     DeckWord,
     LearningSession,
+    MentorConversation,
     MentorMessage,
     ReadingAnswer,
     ReviewAttempt,
@@ -28,6 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
+from app.services import mentor_demo, mentor_tools
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
@@ -95,8 +98,27 @@ class LearnerContext:
 
 
 _SYSTEM = """\
-You are a warm, encouraging personal study mentor for a learner studying English vocabulary.
-Reply in {LANGUAGE}.
+It is now {DAY_OF_WEEK}, {LOCAL_DATE}, {LOCAL_TIME} ({TIME_OF_DAY}) in the learner's own time \
+zone ({TIME_ZONE}). The learner's earlier messages are marked with when they were sent, like \
+[Mon 08:15]; any time or part of the day mentioned in earlier messages is out of date. Always \
+use this time, and never write such [marks] yourself.
+
+You are a warm, honest personal English mentor. You help the learner set a concrete goal, break \
+it into small daily activities, find the best time and amount of time to study, keep that \
+promise, and adjust it when it doesn't work. Reply in {LANGUAGE}.
+Tools (use them; never invent tasks, times or numbers a tool did not give you):
+- When the learner asks what to do (now, next, today) or seems unsure, call what_now and give \
+one clear recommendation. The app shows a «Start now» button under it: don't explain how to start.
+- To offer a particular kind of practice (words, spelling, reading, writing, speaking), call \
+suggest_activity.
+- For their goal, help make it concrete (what for, target level or IELTS band, by when, why), \
+then call propose_goal. If it is out of reach in their time, say so kindly and offer the two \
+choices it gives: more minutes a day, or a later date.
+- When they describe their week, call propose_schedule; then offer to find a study time with \
+propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless they \
+want more.
+- Anything proposed is saved only when the learner taps to confirm it: say so in a few words.
+- For their goal's progress this week, call get_week_plan.
 Formatting rules (follow these strictly):
 - Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
 - Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
@@ -671,6 +693,7 @@ def _system_prompt(
         .replace("{LOCAL_TIME}", local_time)
         .replace("{TIME_OF_DAY}", time_label)
         .replace("{DAY_OF_WEEK}", day_of_week)
+        .replace("{TIME_ZONE}", time_zone.key)
         .replace("{STREAK}", streak_text)
         .replace("{SESSIONS_TODAY}", ctx.sessions_today)
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
@@ -929,44 +952,144 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     )
 
 
-def _recent_history(db: Session, user: User) -> list[MentorMessage]:
+# --- conversations (ADR 0072) ----------------------------------------------------------------
+
+TITLE_CHARS = 60
+CONVERSATIONS_LISTED = 100
+
+
+def title_of(message: str) -> str:
+    """A chat's name from its first question: one line, cut at a word."""
+    flat = " ".join(message.split())
+    if len(flat) <= TITLE_CHARS:
+        return flat or "…"
+    return (flat[:TITLE_CHARS].rsplit(" ", 1)[0] or flat[:TITLE_CHARS]) + "…"
+
+
+def conversations(db: Session, user: User) -> list[MentorConversation]:
+    return list(
+        db.scalars(
+            select(MentorConversation)
+            .where(MentorConversation.user_id == user.id)
+            .order_by(MentorConversation.updated_at.desc(), MentorConversation.created_at.desc())
+            .limit(CONVERSATIONS_LISTED)
+        )
+    )
+
+
+def conversation_of(db: Session, user: User, conversation_id: Any) -> MentorConversation:
+    found = db.scalar(
+        select(MentorConversation).where(
+            MentorConversation.id == conversation_id, MentorConversation.user_id == user.id
+        )
+    )
+    if found is None:
+        raise ApiError(404, "conversation_not_found", "No such conversation")
+    return found
+
+
+def new_conversation(db: Session, user: User, title: str, now: datetime) -> MentorConversation:
+    conversation = MentorConversation(
+        user_id=user.id, title=title_of(title), created_at=now, updated_at=now
+    )
+    db.add(conversation)
+    db.commit()
+    return conversation
+
+
+def resolve_conversation(
+    db: Session, user: User, conversation_id: Any, new: bool, message: str, now: datetime
+) -> MentorConversation:
+    """The chat a message goes to: the one named (the learner's own), a new one, or (the app
+    before chats) the latest."""
+    if conversation_id is not None:
+        return conversation_of(db, user, conversation_id)
+    if new:
+        return new_conversation(db, user, message, now)
+    return latest_conversation(db, user) or new_conversation(db, user, message, now)
+
+
+def latest_conversation(db: Session, user: User) -> MentorConversation | None:
+    return db.scalar(
+        select(MentorConversation)
+        .where(MentorConversation.user_id == user.id)
+        .order_by(MentorConversation.updated_at.desc())
+        .limit(1)
+    )
+
+
+def messages_of(db: Session, conversation: MentorConversation) -> list[MentorMessage]:
+    """A chat's messages in order, without a question whose answer never came (a stream that
+    failed before it was saved)."""
+    msgs = list(
+        db.scalars(
+            select(MentorMessage)
+            .where(MentorMessage.conversation_id == conversation.id)
+            .order_by(MentorMessage.created_at)
+        )
+    )
+    if msgs and msgs[-1].role == "user":
+        msgs = msgs[:-1]
+    return msgs
+
+
+def _recent_history(db: Session, conversation: MentorConversation | None) -> list[MentorMessage]:
+    if conversation is None:
+        return []
     return list(
         db.scalars(
             select(MentorMessage)
-            .where(MentorMessage.user_id == user.id)
+            .where(MentorMessage.conversation_id == conversation.id)
             .order_by(MentorMessage.created_at.desc())
             .limit(_HISTORY_TURNS * 2)
         )
     )[::-1]
 
 
+def _dated(message: MentorMessage, zone: ZoneInfo) -> str:
+    """A past question as the model sees it: marked with when it was asked, so that a time it
+    mentions reads as then, not now."""
+    if message.role != "user":
+        return message.content
+    local = message.created_at.astimezone(zone)
+    return f"[{local:%a %H:%M}] {message.content}"
+
+
 def history(db: Session, user: User) -> list[MentorMessage]:
-    """The last 20 messages for display in the chat UI."""
-    msgs = list(
-        db.scalars(
-            select(MentorMessage)
-            .where(MentorMessage.user_id == user.id)
-            .order_by(MentorMessage.created_at.desc())
-            .limit(20)
-        )
-    )[::-1]
-    # Drop a trailing orphaned user message: a stream that started but failed before
-    # _persist ran leaves the user message without a following assistant reply.
-    if msgs and msgs[-1].role == "user":
-        msgs = msgs[:-1]
-    return msgs
+    """The latest chat's last 20 messages (the app before chats shows one conversation)."""
+    conversation = latest_conversation(db, user)
+    return messages_of(db, conversation)[-20:] if conversation else []
 
 
 def clear_history(db: Session, user: User) -> None:
-    """Delete all stored messages for this user."""
+    """Delete every chat and message of this user."""
     from sqlalchemy import delete
 
     db.execute(delete(MentorMessage).where(MentorMessage.user_id == user.id))
+    db.execute(delete(MentorConversation).where(MentorConversation.user_id == user.id))
     db.commit()
 
 
-def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: datetime) -> None:
-    db.add(MentorMessage(user_id=user.id, role="user", content=user_text, created_at=now))
+def _persist(
+    db: Session,
+    user: User,
+    user_text: str,
+    assistant_text: str,
+    now: datetime,
+    conversation: MentorConversation | None = None,
+    parts: list[dict[str, Any]] | None = None,
+) -> None:
+    if conversation is None:
+        conversation = latest_conversation(db, user) or new_conversation(db, user, user_text, now)
+    db.add(
+        MentorMessage(
+            user_id=user.id,
+            role="user",
+            content=user_text,
+            created_at=now,
+            conversation_id=conversation.id,
+        )
+    )
     # +1 µs so the assistant message always sorts after the user message even when both are saved
     # with the same clock reading (which happens in tests and can happen in fast demo mode).
     db.add(
@@ -975,8 +1098,11 @@ def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: 
             role="assistant",
             content=assistant_text,
             created_at=now + timedelta(microseconds=1),
+            conversation_id=conversation.id,
+            parts=parts or None,
         )
     )
+    conversation.updated_at = now
     db.commit()
 
 
@@ -989,6 +1115,7 @@ def _build_context(
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
     tip_id: str | None = None,
+    conversation: MentorConversation | None = None,
 ) -> tuple[str, list[dict[str, str]], str, bool]:
     """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
     ctx = _learner_state(db, user, now, time_zone)
@@ -1015,7 +1142,7 @@ def _build_context(
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
-    history = _recent_history(db, user)
+    history = _recent_history(db, conversation)
     demo = settings.mentor_chat_demo or (
         not settings.deepseek_api_key and settings.environment != "production"
     )
@@ -1023,7 +1150,9 @@ def _build_context(
         return system, [], texts_for(user.ui_language).mentor_demo_reply, True
     if not settings.deepseek_api_key:
         raise ApiError(503, "mentor_unavailable", "The mentor service is not configured")
-    msgs: list[dict[str, str]] = [{"role": m.role, "content": m.content} for m in history]
+    msgs: list[dict[str, str]] = [
+        {"role": m.role, "content": _dated(m, time_zone)} for m in history
+    ]
     msgs.append({"role": "user", "content": message})
     return system, msgs, "", False
 
@@ -1038,16 +1167,30 @@ def chat(
     plan: list[dict[str, Any]] | None = None,
     tip_id: str | None = None,
 ) -> str:
-    """Send a message to the mentor and return the assistant's reply."""
+    """Send a message to the mentor and return the reply: the app before chats, continuing its
+    latest conversation, without tools."""
+    conversation = latest_conversation(db, user)
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
+        db,
+        user,
+        message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=tip_id,
+        conversation=conversation,
     )
     if is_demo:
-        _persist(db, user, message, demo_reply, now)
+        _persist(db, user, message, demo_reply, now, conversation)
         return demo_reply
     reply = _call_deepseek(system, msgs, settings)
-    _persist(db, user, message, reply, now)
+    _persist(db, user, message, reply, now, conversation)
     return reply
+
+
+# At most this many rounds of tool calls before the mentor must answer.
+MAX_TOOL_ROUNDS = 3
 
 
 def stream_chat(
@@ -1059,36 +1202,74 @@ def stream_chat(
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
     tip_id: str | None = None,
-) -> Generator[str]:
-    """Yield text chunks from DeepSeek (or a word-by-word demo reply), then persist."""
+    conversation: MentorConversation | None = None,
+) -> Generator[dict[str, Any]]:
+    """The mentor's answer as events (ADR 0072): the chat it went to, then tool steps and text as
+    they happen; then everything is saved with the chat. `conversation` comes from
+    `resolve_conversation`, before the stream starts, so a wrong id is a 404 and not a broken
+    stream."""
+    if conversation is None:
+        conversation = resolve_conversation(db, user, None, False, message, now)
+    yield {"conversation": {"id": str(conversation.id), "title": conversation.title}}
 
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
+        db,
+        user,
+        message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=tip_id,
+        conversation=conversation,
     )
+    ctx = mentor_tools.ToolContext(db, user, now, time_zone, plan or [])
+    parts: list[dict[str, Any]] = []
     if is_demo:
-        _persist(db, user, message, demo_reply, now)
+        for name, args in mentor_demo.tools_for(message):
+            yield from _run_tool(ctx, name, args, f"demo-{len(parts)}", parts)
         delay = settings.mentor_demo_stream_delay_ms / 1000
         words = demo_reply.split(" ")
         for i, word in enumerate(words):
-            chunk = word if i == len(words) - 1 else word + " "
             if delay > 0:
                 time.sleep(delay)
-            yield chunk
+            yield {"delta": word if i == len(words) - 1 else word + " "}
+        _persist(db, user, message, demo_reply, now, conversation, parts)
         return
-    accumulated: list[str] = []
-    for chunk in _stream_deepseek(system, msgs, settings):
-        accumulated.append(chunk)
-        yield chunk
-    full_reply = "".join(accumulated) or " "
-    _persist(db, user, message, full_reply, now)
+    text: list[str] = []
+    for event in _stream_with_tools(system, msgs, settings, ctx, parts):
+        if "delta" in event:
+            text.append(event["delta"])
+        yield event
+    _persist(db, user, message, "".join(text) or " ", now, conversation, parts)
 
 
-def _stream_deepseek(
-    system: str, messages: list[dict[str, str]], settings: Settings
-) -> Generator[str]:
-    """Yield text chunks from DeepSeek using the streaming API."""
+def _run_tool(
+    ctx: mentor_tools.ToolContext,
+    name: str,
+    args: dict[str, Any],
+    call_id: str,
+    parts: list[dict[str, Any]],
+) -> Generator[dict[str, Any], None, dict[str, Any]]:
+    """One tool step: shown as running, run, then shown done with its card. Returns what the
+    model is told."""
+    yield {"tool": {"id": call_id, "name": name, "status": "running"}}
+    outcome = mentor_tools.run(name, ctx, args)
+    parts.append({"type": "tool", "name": name, "card": outcome.card})
+    yield {"tool": {"id": call_id, "name": name, "status": "done", "card": outcome.card}}
+    return outcome.result
+
+
+def _stream_with_tools(
+    system: str,
+    messages: list[dict[str, str]],
+    settings: Settings,
+    ctx: mentor_tools.ToolContext,
+    parts: list[dict[str, Any]],
+) -> Generator[dict[str, Any]]:
+    """Stream DeepSeek's answer, running the tools it calls (at most MAX_TOOL_ROUNDS rounds) and
+    feeding their results back, so text and tool steps reach the screen as they happen."""
     import openai
-    from openai.types.chat import ChatCompletionMessageParam
 
     from app.services.generation import DEEPSEEK_URL, TIMEOUT_SECONDS
 
@@ -1098,26 +1279,77 @@ def _stream_deepseek(
         timeout=TIMEOUT_SECONDS,
         max_retries=0,
     )
-    all_messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": system}]
-    for m in messages:
-        role = m["role"]
-        if role == "user":
-            all_messages.append({"role": "user", "content": m["content"]})
-        elif role == "assistant":
-            all_messages.append({"role": "assistant", "content": m["content"]})
+    convo: list[Any] = [{"role": "system", "content": system}]
+    convo += [
+        {"role": m["role"], "content": m["content"]}
+        for m in messages
+        if m["role"] in ("user", "assistant")
+    ]
     try:
-        stream = client.chat.completions.create(
-            model=settings.deepseek_model,
-            max_tokens=settings.mentor_max_tokens,
-            temperature=settings.mentor_temperature,
-            messages=all_messages,
-            extra_body={"thinking": {"type": "disabled"}},
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content if chunk.choices else None
-            if delta:
-                yield delta
+        for round_ in range(MAX_TOOL_ROUNDS + 1):
+            with_tools = round_ < MAX_TOOL_ROUNDS
+            stream = client.chat.completions.create(
+                model=settings.deepseek_model,
+                max_tokens=settings.mentor_max_tokens,
+                temperature=settings.mentor_temperature,
+                messages=convo,
+                extra_body={"thinking": {"type": "disabled"}},
+                stream=True,
+                tools=cast(Any, mentor_tools.TOOLS) if with_tools else openai.omit,
+            )
+            said: list[str] = []
+            calls: dict[int, dict[str, str]] = {}
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    said.append(delta.content)
+                    yield {"delta": delta.content}
+                for call in delta.tool_calls or []:
+                    slot = calls.setdefault(call.index, {"id": "", "name": "", "args": ""})
+                    if call.id:
+                        slot["id"] = call.id
+                    if call.function and call.function.name:
+                        slot["name"] += call.function.name
+                    if call.function and call.function.arguments:
+                        slot["args"] += call.function.arguments
+            if not calls:
+                return
+            ordered = [calls[i] for i in sorted(calls)]
+            convo.append(
+                {
+                    "role": "assistant",
+                    "content": "".join(said) or None,
+                    "tool_calls": [
+                        {
+                            "id": c["id"] or f"call-{n}",
+                            "type": "function",
+                            "function": {"name": c["name"], "arguments": c["args"] or "{}"},
+                        }
+                        for n, c in enumerate(ordered)
+                    ],
+                }
+            )
+            for n, c in enumerate(ordered):
+                try:
+                    args = json.loads(c["args"] or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                result = yield from _run_tool(
+                    ctx,
+                    c["name"],
+                    args if isinstance(args, dict) else {},
+                    c["id"] or f"call-{n}",
+                    parts,
+                )
+                convo.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": c["id"] or f"call-{n}",
+                        "content": json.dumps(result, ensure_ascii=False, default=str),
+                    }
+                )
     except openai.AuthenticationError as error:
         raise ApiError(503, "mentor_unavailable", "The mentor service key is wrong") from error
     except openai.RateLimitError as error:

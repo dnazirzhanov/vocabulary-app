@@ -24,6 +24,24 @@ class MentorMessage(Base):
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # The chat it belongs to (ADR 0072); null only for rows from an app older than chats.
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mentor_conversations.id", ondelete="CASCADE")
+    )
+    # What the mentor did before answering: tool steps and their cards, in order.
+    parts: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+
+
+class MentorConversation(Base):
+    """One chat with the mentor (ADR 0072), titled from its first question, renameable."""
+
+    __tablename__ = "mentor_conversations"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class MentorGoal(Base):

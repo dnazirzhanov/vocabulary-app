@@ -3,7 +3,7 @@
 import json
 import uuid
 from collections.abc import Generator
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -26,6 +26,8 @@ from app.schemas.coach import (
     TargetOut,
 )
 from app.schemas.mentor import (
+    ConversationIn,
+    ConversationOut,
     MentorChatIn,
     MentorChatOut,
     MentorGoalIn,
@@ -33,6 +35,7 @@ from app.schemas.mentor import (
     MentorHistoryItem,
     MentorHistoryOut,
     MentorStatusOut,
+    MessageOut,
 )
 from app.services import mentor
 from app.services.card_reports import listed
@@ -116,17 +119,29 @@ def mentor_chat_stream(
     time_zone: TimeZone,
     settings: DepSettings,
 ) -> StreamingResponse:
-    def _sse(chunks: Generator[str]) -> Generator[str]:
-        for delta in chunks:
-            yield f"data: {json.dumps({'delta': delta})}\n\n"
+    def _sse(events: Generator[dict[str, Any]]) -> Generator[str]:
+        for event in events:
+            yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
         used = mentor_chats_used(user.id)
         remaining = max(0, settings.mentor_chats_per_day - used)
         done_event = {"done": True, "created_at": now.isoformat(), "chats_remaining": remaining}
         yield f"data: {json.dumps(done_event)}\n\n"
 
     plan = [item.model_dump() for item in body.plan] if body.plan is not None else None
+    # Before the stream starts: someone else's chat is a plain 404.
+    conversation = mentor.resolve_conversation(
+        db, user, body.conversation_id, body.new_conversation, body.message, now
+    )
     chunks = mentor.stream_chat(
-        db, user, body.message, settings, now, time_zone, plan=plan, tip_id=body.tip_id
+        db,
+        user,
+        body.message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=body.tip_id,
+        conversation=conversation,
     )
     return StreamingResponse(_sse(chunks), media_type="text/event-stream")
 
@@ -231,3 +246,52 @@ def mentor_decide(
 ) -> CoachOut:
     coach.decide(db, user, adjustment_id, body.accept, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+# --- chats (ADR 0072) -----------------------------------------------------------------------
+
+
+@router.get("/mentor/conversations", dependencies=[Depends(_require_mentor)])
+def mentor_conversations(user: CurrentUser, db: DbSession) -> list[ConversationOut]:
+    return [
+        ConversationOut(id=c.id, title=c.title, updated_at=c.updated_at)
+        for c in mentor.conversations(db, user)
+    ]
+
+
+@router.get(
+    "/mentor/conversations/{conversation_id}/messages", dependencies=[Depends(_require_mentor)]
+)
+def mentor_conversation_messages(
+    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession
+) -> list[MessageOut]:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    return [
+        MessageOut(role=m.role, content=m.content, created_at=m.created_at, parts=m.parts or [])
+        for m in mentor.messages_of(db, conversation)
+    ]
+
+
+@router.patch("/mentor/conversations/{conversation_id}", dependencies=[Depends(_require_mentor)])
+def mentor_rename_conversation(
+    conversation_id: uuid.UUID, body: ConversationIn, user: CurrentUser, db: DbSession
+) -> ConversationOut:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    conversation.title = body.title
+    db.commit()
+    return ConversationOut(
+        id=conversation.id, title=conversation.title, updated_at=conversation.updated_at
+    )
+
+
+@router.delete(
+    "/mentor/conversations/{conversation_id}",
+    status_code=204,
+    dependencies=[Depends(_require_mentor)],
+)
+def mentor_delete_conversation(
+    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession
+) -> None:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    db.delete(conversation)
+    db.commit()
