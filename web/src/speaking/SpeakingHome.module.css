@@ -79,6 +79,8 @@
 }
 
 .modeRow {
+  display: grid;
+  gap: var(--space-2);
   padding: 12px 20px 0;
 }
 
@@ -101,6 +103,13 @@
 
 .modeBtn:hover {
   opacity: 0.9;
+}
+
+/* The learner's own answers: a quieter row under the orange one. */
+.archiveBtn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sheet);
 }
 
 .modeBtnLabel {

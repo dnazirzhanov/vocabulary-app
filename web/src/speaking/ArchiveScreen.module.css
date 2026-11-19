@@ -1,0 +1,236 @@
+/* The archive: progress on one sheet at the top, then each answer as its own row with its recording.
+   Colours are the app's tokens, the same as the feedback page. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) var(--space-7);
+  color: var(--color-text);
+}
+
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.note {
+  margin: 0;
+  line-height: var(--leading-body);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+/* The overall line: one series, so no legend; the heading names it. */
+.chart {
+  margin: 0;
+  max-width: 24rem;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.axis {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.dot,
+.dotPicked {
+  stroke: var(--color-surface);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.dot {
+  fill: var(--color-primary);
+}
+
+.dotPicked {
+  fill: var(--color-text);
+}
+
+.readout {
+  margin-top: var(--space-1);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.skills {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5rem 3.5rem;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.skill strong {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.up,
+.down {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.up {
+  color: var(--color-success);
+}
+
+.down {
+  color: var(--color-error);
+}
+
+.caption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
+}
+
+/* Answers: one sheet, a hairline between rows, newest first. */
+.list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+}
+
+.item + .item {
+  border-top: 1px solid var(--color-border);
+}
+
+.open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'when score'
+    'question score';
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.open:disabled {
+  cursor: default;
+}
+
+.when {
+  grid-area: when;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.question {
+  grid-area: question;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
+
+.score {
+  grid-area: score;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.good {
+  color: var(--color-success);
+}
+
+.mid {
+  color: var(--color-primary-strong);
+}
+
+.low {
+  color: var(--color-error);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}

@@ -61,6 +61,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.recording {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
 .good {
   color: var(--color-success);
 }

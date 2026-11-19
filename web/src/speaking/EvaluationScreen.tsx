@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
+import { Recording } from './Recording.tsx';
 import type { FeedbackItem, SpeakingAssessment, SpeakingQuestion, SpeakingSessionDetail } from './api.ts';
 import { pausesOf, seconds, timeline } from './timeline.ts';
 import styles from './EvaluationScreen.module.css';
@@ -51,7 +52,18 @@ export function EvaluationScreen({ session, question, onBack }: EvaluationScreen
             )}
             {length(a) && <span className={styles.length}>{length(a)}</span>}
           </div>
+        </>
+      )}
 
+      {/* The recording plays even when scoring failed: it is still the learner's answer. */}
+      {session.audio && (
+        <div className={styles.recording}>
+          <Recording sessionId={session.id} durationMs={session.audio.duration_ms} label={t.speakingYourRecording} />
+        </div>
+      )}
+
+      {a && (
+        <>
           <ul className={styles.skills}>
             {SKILLS.map((key) => {
               const score = a[`${key}_score`];
