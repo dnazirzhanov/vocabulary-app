@@ -1,10 +1,13 @@
 """Speaking pipeline orchestration.
 
 Provider map:
-  spontaneous  → Whisper + Azure PA (unscripted) + fluency + vocabulary + grammar (LLM) + coherence
-  pronunciation → Whisper + Azure PA (scripted)   + fluency + vocabulary + grammar (LLM) + coherence
+  pronunciation (read aloud) → Azure PA against the sentence, alongside Whisper; then fluency,
+                               vocabulary, grammar (LLM), coherence
+  spontaneous (free speech)  → Whisper first; then Azure PA piece by piece (≤ 28 s each) against
+                               the learner's own words; fluency, vocabulary, grammar, coherence
 
-All providers run concurrently via ThreadPoolExecutor where possible.
+Azure's REST API takes WAV 16 kHz mono only, so the recording is converted once with ffmpeg
+(see services/speaking/audio.py and pronunciation.py for the documented limits).
 Minimum-evidence rules gate each score independently.
 Azure PA failures and optional-provider failures (grammar, coherence) are non-fatal.
 Transcription failure is fatal — no transcript, no assessment.
@@ -13,6 +16,7 @@ Transcription failure is fatal — no transcript, no assessment.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from typing import cast
@@ -29,11 +33,12 @@ from app.models.speaking import (
 )
 from app.services.speaking import jobs as jobs_svc
 from app.services.speaking import questions as questions_svc
+from app.services.speaking.audio import AudioConversionError, to_wav_16k_mono
 from app.services.speaking.coherence import CoherenceError, CoherenceResult, assess_coherence
 from app.services.speaking.coherence import meets_minimum_evidence as coherence_min_evidence
 from app.services.speaking.feedback import FeedbackError, FeedbackResult, generate_feedback
 from app.services.speaking.feedback import meets_minimum_evidence as feedback_min_evidence
-from app.services.speaking.fluency import FluencyResult, compute_fluency
+from app.services.speaking.fluency import FluencyResult, compute_fluency, is_filler
 from app.services.speaking.fluency import meets_minimum_evidence as fluency_min_evidence
 from app.services.speaking.grammar import GrammarError_, GrammarResult, check_grammar
 from app.services.speaking.grammar import meets_minimum_evidence as grammar_min_evidence
@@ -41,8 +46,9 @@ from app.services.speaking.grammar_llm import check_grammar_llm
 from app.services.speaking.pronunciation import (
     PronunciationError,
     PronunciationResult,
-    assess,
-    assess_unscripted,
+    assess_free_speech,
+    assess_read_aloud,
+    read_aloud_has_evidence,
 )
 from app.services.speaking.pronunciation import (
     meets_minimum_evidence as pronunciation_min_evidence,
@@ -103,37 +109,36 @@ def run_assess_job(
         if is_pronunciation:
             reference_text = question.reference_text
 
-    # --- Concurrently run Whisper + Azure PA ---
+    # --- Azure needs WAV 16 kHz mono; Whisper reads the original recording. ---
     transcript_result = None
     pron_result: PronunciationResult | None = None
     transcript_error: str | None = None
+    # Why there is no pronunciation result, for the evidence column (None when there is one).
+    pron_skip: str | None = None
+
+    wav: bytes | None = None
+    if not azure_speech_key:
+        pron_skip = "no_key"
+    elif is_pronunciation and not reference_text:
+        pron_skip = "no_reference_text"
+    else:
+        try:
+            wav = to_wav_16k_mono(audio_bytes)
+        except AudioConversionError as exc:
+            log.warning("Audio conversion for Azure failed (non-fatal): %s", exc)
+            pron_skip = f"audio_conversion_failed:{exc.code}"
 
     _openai_key: str = openai_api_key or ""
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         whisper_fut: Future[object] = pool.submit(
             transcribe, audio_bytes, audio.mime_type, _openai_key
         )
-
-        azure_fut: Future[object] | None = None
-        if azure_speech_key:
-            if is_pronunciation and reference_text:
-                azure_fut = pool.submit(
-                    assess,
-                    audio_bytes,
-                    audio.mime_type,
-                    reference_text,
-                    azure_speech_key,
-                    azure_speech_region,
-                )
-            else:
-                # Spontaneous speech: use unscripted pronunciation assessment.
-                azure_fut = pool.submit(
-                    assess_unscripted,
-                    audio_bytes,
-                    audio.mime_type,
-                    azure_speech_key,
-                    azure_speech_region,
-                )
+        # Read aloud is scored against the sentence itself, so it needs no transcript: run it now.
+        read_aloud_fut: Future[PronunciationResult] | None = None
+        if wav is not None and is_pronunciation and reference_text and azure_speech_key:
+            read_aloud_fut = pool.submit(
+                assess_read_aloud, wav, reference_text, azure_speech_key, azure_speech_region
+            )
 
         try:
             transcript_result = cast("TranscriptResult", whisper_fut.result())
@@ -142,13 +147,8 @@ def run_assess_job(
         except Exception as exc:
             transcript_error = f"transcription_error:{type(exc).__name__}"
 
-        if azure_fut is not None:
-            try:
-                pron_result = azure_fut.result()  # type: ignore[assignment]
-            except PronunciationError as exc:
-                log.warning("Azure PA failed (non-fatal): %s", exc)
-            except Exception as exc:
-                log.warning("Azure PA unexpected error (non-fatal): %s", exc)
+        if read_aloud_fut is not None:
+            pron_result, pron_skip = _azure_outcome(read_aloud_fut.result)
 
     if transcript_result is None:
         _fail_session(db, session, job, transcript_error or "transcription_failed:unknown", now)
@@ -156,8 +156,25 @@ def run_assess_job(
         return
 
     word_count = len(transcript_result.words)
+    spoken_count = sum(1 for w in transcript_result.words if not is_filler(w.word))
     duration_ms = transcript_result.duration_ms
     transcript_text = transcript_result.transcript
+
+    # Free speech is scored against the learner's own words, piece by piece (≤ 28 s each, as
+    # Azure's REST API requires), so it runs after Whisper. Too little speech: no call at all.
+    if wav is not None and not is_pronunciation and azure_speech_key:
+        if pronunciation_min_evidence(spoken_count, duration_ms):
+            pron_result, pron_skip = _azure_outcome(
+                lambda: assess_free_speech(
+                    wav,
+                    transcript_result.words,
+                    duration_ms,
+                    azure_speech_key,
+                    azure_speech_region,
+                )
+            )
+        else:
+            pron_skip = "insufficient_evidence"
 
     # --- Deterministic providers ---
     fluency_result: FluencyResult | None = None
@@ -220,8 +237,12 @@ def run_assess_job(
     pronunciation_score: float | None = None
     pron_evidence: dict[str, object]
     if pron_result is not None:
-        if pronunciation_min_evidence(word_count, duration_ms):
+        # Read aloud: enough of the sentence was read (a short sentence still counts).
+        # Free speech: Azure was only called with enough words and time.
+        if not is_pronunciation or read_aloud_has_evidence(pron_result):
             pronunciation_score = pron_result.pronunciation_score
+        else:
+            pron_skip = "sentence_not_read"
         pron_evidence = {
             **pron_result.raw,
             "words": [
@@ -237,8 +258,10 @@ def run_assess_job(
                 for w in pron_result.words
             ],
         }
+        if pron_skip:
+            pron_evidence["score_withheld"] = pron_skip
     else:
-        pron_evidence = {"skipped": "provider_error" if azure_speech_key else "no_key"}
+        pron_evidence = {"skipped": pron_skip or "provider_error"}
 
     fluency_score = fluency_result.score if fluency_result else None
     vocabulary_score = vocab_result.score if vocab_result else None
@@ -328,6 +351,20 @@ def run_assess_job(
     session.completed_at = now
     jobs_svc.complete(db, job)
     db.commit()
+
+
+def _azure_outcome(
+    run: Callable[[], PronunciationResult],
+) -> tuple[PronunciationResult | None, str | None]:
+    """An Azure call's result, or why there is none. Azure failing never fails the session."""
+    try:
+        return run(), None
+    except PronunciationError as exc:
+        log.warning("Azure PA failed (non-fatal): %s", exc)
+        return None, f"azure:{exc.code}"
+    except Exception as exc:
+        log.warning("Azure PA unexpected error (non-fatal): %s", exc)
+        return None, f"azure_error:{type(exc).__name__}"
 
 
 def _compute_overall(
