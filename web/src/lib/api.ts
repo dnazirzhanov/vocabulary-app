@@ -305,23 +305,20 @@ export const api = {
   /** Starts, or returns the attempt already running with its saved order and deadline. */
   startTestAttempt: (groupId: string, deckId: string, kind: TestAttemptKind) =>
     request<TestAttempt>('POST', `/groups/${groupId}/tests/${deckId}/attempts`, { kind }, TEST_TIMEOUT_MS),
-  testAttempt: (attemptId: string) => request<TestAttempt>('GET', `/test-attempts/${attemptId}`),
-  // Safe to retry: the first answer to a question stands.
-  answerTest: (attemptId: string, questionId: string, answer: string) =>
+  /** `at`: the word in that place (going back and forth); without it, the next word to do. */
+  testAttempt: (attemptId: string, at?: number) =>
+    request<TestAttempt>('GET', `/test-attempts/${attemptId}${at === undefined ? '' : `?at=${at}`}`),
+  /** Saves a word's answer (null leaves it empty: skipped) until handed in, then shows the word at `at`. Safe to retry. */
+  saveTestAnswer: (attemptId: string, questionId: string, answer: string | null, at: number) =>
     request<TestAttempt>(
-      'POST',
-      `/test-attempts/${attemptId}/answers`,
-      { question_id: questionId, answer },
+      'PUT',
+      `/test-attempts/${attemptId}/questions/${encodeURIComponent(questionId)}?at=${at}`,
+      { answer },
       TEST_TIMEOUT_MS,
     ),
-  // Safe to retry too: the same skip twice is one skip.
-  skipTest: (attemptId: string, questionId: string, again: boolean) =>
-    request<TestAttempt>(
-      'POST',
-      `/test-attempts/${attemptId}/skips`,
-      { question_id: questionId, again },
-      TEST_TIMEOUT_MS,
-    ),
+  /** Hands the attempt in. Safe to retry. */
+  submitTest: (attemptId: string) =>
+    request<TestAttempt>('POST', `/test-attempts/${attemptId}/submit`, undefined, TEST_TIMEOUT_MS),
   /** Deletes the account: everything on our server and the login (ADR 0043). */
   deleteAccount: () => request<null>('DELETE', '/me'),
   mentorHistory: () =>

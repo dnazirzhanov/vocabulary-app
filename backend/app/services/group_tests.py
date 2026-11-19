@@ -36,6 +36,7 @@ from app.models import (
 from app.schemas.group_tests import (
     AttemptKind,
     AttemptResultOut,
+    AttemptSummaryOut,
     MistakeOut,
     MyTestOut,
     ResultRowOut,
@@ -48,6 +49,7 @@ from app.schemas.group_tests import (
     TestSettingsOut,
     TestSetupOut,
     TestsOut,
+    WordStateOut,
 )
 from app.schemas.groups import LatestTestOut
 from app.schemas.learning import SeparatorOut, SpellingExercise, SpellingPrompt
@@ -378,6 +380,7 @@ def test_detail(
                 and (latest is None or latest.opening != test.opening)
             ),
             practice_attempt_id=practice.id if practice else None,
+            history=_history(db, test, member),
         ),
     )
 
@@ -685,16 +688,36 @@ def _attempt_out(
     deck_id: str,
     title: str,
     questions: list[GroupTestQuestion] | None = None,
+    at: int | None = None,
 ) -> TestAttemptOut:
-    """How the attempt stands; `questions` if the caller has just read them, as every answer has."""
+    """How the attempt stands; `questions` if the caller has just read them, as every answer has.
+    `at` shows the word in that place (going back and forth); without it, the next word to do."""
     questions = _questions(db, attempt.id) if questions is None else questions
     question: SpellingExercise | None = None
     returning = False
     result: AttemptResultOut | None = None
+    position: int | None = None
+    saved: str | None = None
+    words: list[WordStateOut] = []
     if attempt.finished_at is None:
-        current = _next_question(questions)
-        assert current is not None, "an attempt with nothing left to answer has finished"
-        returning = current.skips > 0
+        if at is None:
+            current = _next_question(questions) or questions[0]
+            returning = current.skips > 0 and current.answered_at is None
+        else:
+            current = questions[max(0, min(at, len(questions) - 1))]
+        position = questions.index(current)
+        saved = current.answer if current.answered_at is not None else None
+        words = [
+            WordStateOut(
+                translation=item.translation,
+                state="answered"
+                if item.answered_at is not None
+                else "skipped"
+                if item.skips > 0
+                else "empty",
+            )
+            for item in questions
+        ]
         # The meaning only: no word, no word id.
         question = SpellingExercise(
             id=current.key,
@@ -736,13 +759,18 @@ def _attempt_out(
         returning=returning,
         question=question,
         result=result,
+        position=position,
+        answer=saved,
+        words=words,
     )
 
 
-def get_attempt(db: Session, user: User, attempt_id: UUID, now: datetime) -> TestAttemptOut:
+def get_attempt(
+    db: Session, user: User, attempt_id: UUID, now: datetime, at: int | None = None
+) -> TestAttemptOut:
     attempt, test, deck_id, title = _my_attempt(db, user, attempt_id)
     _settle(db, attempt, now)
-    return _attempt_out(db, attempt, test, deck_id, title)
+    return _attempt_out(db, attempt, test, deck_id, title, at=at)
 
 
 def _next_question(questions: list[GroupTestQuestion]) -> GroupTestQuestion | None:
@@ -810,3 +838,92 @@ def skip_question(
         question.skips = max(question.skips, FINAL_SKIP if again else 1)
 
     return _change_question(db, user, attempt_id, question_id, now, skip)
+
+
+# --- going back and forth, then handing in --------------------------------------------------
+
+
+def save_answer(
+    db: Session,
+    user: User,
+    attempt_id: UUID,
+    question_id: str,
+    answer: str | None,
+    at: int | None,
+    now: datetime,
+) -> TestAttemptOut:
+    """Saves a word's answer, or leaves it empty (skipped), until the attempt is handed in: the
+    learner may come back and change it. Nothing finishes here except the clock. Repeating a
+    request saves the same thing again. Returns the attempt showing the word at `at`."""
+    attempt, test, deck_id, title = _my_attempt(db, user, attempt_id, lock=True)
+    if attempt.finished_at is not None:
+        db.commit()
+        return _attempt_out(db, attempt, test, deck_id, title)
+    late = attempt.deadline_at is not None and now > attempt.deadline_at + GRACE
+    if not late:
+        question = db.scalar(
+            select(GroupTestQuestion).where(
+                GroupTestQuestion.attempt_id == attempt.id, GroupTestQuestion.key == question_id
+            )
+        )
+        if question is None:
+            raise ApiError(404, "question_not_found", "No such question in this attempt")
+        if answer is None:
+            question.answer, question.correct, question.answered_at = None, None, None
+            question.skips = max(question.skips, 1)
+        else:
+            question.answer = answer
+            question.correct = spelling.is_correct(answer, question.headword)
+            question.answered_at = now
+        db.flush()
+    questions = _questions(db, attempt.id)
+    if attempt.deadline_at is not None and now >= attempt.deadline_at:
+        _finish(db, attempt, now)
+    db.commit()
+    return _attempt_out(db, attempt, test, deck_id, title, questions, at=at)
+
+
+def submit_attempt(db: Session, user: User, attempt_id: UUID, now: datetime) -> TestAttemptOut:
+    """Hands the attempt in. A word left empty counts as skipped; once the time is up, a word never
+    reached still counts as one the time ran out on. Repeating it changes nothing."""
+    attempt, test, deck_id, title = _my_attempt(db, user, attempt_id, lock=True)
+    if attempt.finished_at is None:
+        over = attempt.deadline_at is not None and now >= attempt.deadline_at
+        if not over:
+            for question in _questions(db, attempt.id):
+                if question.answered_at is None:
+                    question.skips = max(question.skips, 1)
+            db.flush()
+        _finish(db, attempt, now)
+    db.commit()
+    return _attempt_out(db, attempt, test, deck_id, title)
+
+
+HISTORY_LIMIT = 100
+
+
+def _history(db: Session, test: GroupTest, member: GroupMember) -> list[AttemptSummaryOut]:
+    """Every attempt I finished at this test, newest first: tests and practices alike."""
+    rows = db.scalars(
+        select(GroupTestAttempt)
+        .where(
+            GroupTestAttempt.test_id == test.id,
+            GroupTestAttempt.member_id == member.id,
+            GroupTestAttempt.finished_at.is_not(None),
+        )
+        .order_by(GroupTestAttempt.finished_at.desc(), GroupTestAttempt.started_at.desc())
+        .limit(HISTORY_LIMIT)
+    ).all()
+    return [
+        AttemptSummaryOut(
+            id=row.id,
+            kind="test" if row.kind == "test" else "practice",
+            finished_at=row.finished_at,
+            correct=row.correct or 0,
+            total=row.total or 0,
+            passed=is_pass(row.correct or 0, row.total or 0, test.pass_percent)
+            if row.kind == "test"
+            else None,
+        )
+        for row in rows
+    ]

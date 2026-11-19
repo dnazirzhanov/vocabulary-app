@@ -1,14 +1,16 @@
 """A group's spelling tests (ADR 0046): setting them up, the results, and taking them."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Path, Query
 
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now
 from app.schemas.group_tests import (
     AnswerIn,
     OpenTestIn,
+    SaveAnswerIn,
     SaveTestIn,
     SkipIn,
     StartAttemptIn,
@@ -20,6 +22,8 @@ from app.schemas.group_tests import (
 from app.services import group_tests
 
 router = APIRouter(tags=["group tests"])
+
+Position = Annotated[int | None, Query(ge=0, le=500)]
 
 
 @router.get("/groups/{group_id}/tests")
@@ -62,8 +66,32 @@ def start_attempt(
 
 
 @router.get("/test-attempts/{attempt_id}")
-def get_attempt(attempt_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> TestAttemptOut:
-    return group_tests.get_attempt(db, user, attempt_id, now)
+def get_attempt(
+    attempt_id: UUID, user: CurrentUser, db: DbSession, now: Now, at: Position = None
+) -> TestAttemptOut:
+    """`at`: the word in that place, for going back and forth; without it, the next word to do."""
+    return group_tests.get_attempt(db, user, attempt_id, now, at)
+
+
+@router.put("/test-attempts/{attempt_id}/questions/{question_id}")
+def save_answer(
+    attempt_id: UUID,
+    question_id: Annotated[str, Path(min_length=1, max_length=12)],
+    body: SaveAnswerIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    at: Position = None,
+) -> TestAttemptOut:
+    """Saves (or empties) a word's answer until the attempt is handed in, then shows the word at
+    `at`. Safe to retry."""
+    return group_tests.save_answer(db, user, attempt_id, question_id, body.answer, at, now)
+
+
+@router.post("/test-attempts/{attempt_id}/submit")
+def submit_attempt(attempt_id: UUID, user: CurrentUser, db: DbSession, now: Now) -> TestAttemptOut:
+    """Hands the attempt in. Safe to retry."""
+    return group_tests.submit_attempt(db, user, attempt_id, now)
 
 
 @router.post("/test-attempts/{attempt_id}/answers")

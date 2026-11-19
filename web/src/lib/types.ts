@@ -602,7 +602,25 @@ export interface TestDetail {
     can_start: boolean;
     /** An unfinished practice to go back to. */
     practice_attempt_id: string | null;
+    /** Every attempt I finished at this test, tests and practices, newest first. */
+    history: TestAttemptSummary[];
   };
+}
+
+export interface TestAttemptSummary {
+  id: string;
+  kind: TestAttemptKind;
+  finished_at: string;
+  correct: number;
+  total: number;
+  /** Practice has no pass mark. */
+  passed: boolean | null;
+}
+
+/** A word of a running attempt, for checking before handing in: its meaning and whether it is done. */
+export interface TestWordState {
+  translation: string;
+  state: 'answered' | 'skipped' | 'empty';
 }
 
 export interface TestSetupInfo {
@@ -637,6 +655,10 @@ export interface TestAttempt {
   /** The word has been skipped once and has come back. */
   returning: boolean;
   question: SpellingExercise | null;
+  /** While it runs: where the word shown stands, its saved answer, and every word's state. */
+  position: number | null;
+  answer: string | null;
+  words: TestWordState[];
   result: {
     correct: number;
     total: number;
