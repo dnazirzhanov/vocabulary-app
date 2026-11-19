@@ -21,6 +21,8 @@ interface NavShellProps {
   mentor?: boolean;
   /** The Speaking tab, for the speaking-feature testers (Chunk 1 uses a localStorage dev flag). */
   speaking?: boolean;
+  /** The Writing tab: switched off for everyone for now. */
+  writing?: boolean;
   children: ReactNode;
 }
 
@@ -36,6 +38,7 @@ export function NavShell({
   reading = false,
   mentor = false,
   speaking = false,
+  writing = false,
   children,
 }: NavShellProps) {
   const [settings, setSettings] = useState(false);
@@ -47,7 +50,7 @@ export function NavShell({
     ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
-    { tab: 'writing', label: t.writing, Icon: PencilIcon },
+    ...(writing ? [{ tab: 'writing', label: t.writing, Icon: PencilIcon } as const] : []),
   ] as const;
 
   return (

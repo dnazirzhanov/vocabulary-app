@@ -50,6 +50,8 @@ export default defineConfig({
         MENTOR_TESTERS: 'e2e-mentor-*',
         // Speaking (and its Shadowing) is gated too; e2e/shadowing.spec.ts signs in as these.
         SPEAKING_TESTERS: 'e2e-speaking-*',
+        // Writing is gated too (WRITING_TESTERS); e2e/writing.spec.ts signs in as these.
+        WRITING_TESTERS: 'e2e-writing-*',
         // Force demo replies in mentor chat so e2e tests are deterministic and cost-free.
         MENTOR_CHAT_DEMO: 'true',
       } as Record<string, string>,

@@ -36,7 +36,7 @@ const done = (answer: string) => ({
 
 const ANSWER = 'I no have car. I go to university by bus.';
 
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ writer: true, viewport: { width: 390, height: 844 } });
 
 async function openQuestion(page: import('@playwright/test').Page) {
   await page.goto('/');
