@@ -1,10 +1,11 @@
 """Mentor chat tab: a conversational study companion backed by DeepSeek when available."""
 
 import json
+import uuid
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from app.core.auth import CurrentUser, DbSession
@@ -12,6 +13,18 @@ from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.core.ratelimit import limit_mentor_chats, mentor_chats_used
+from app.schemas.coach import (
+    AdjustmentOut,
+    CoachOut,
+    CommitmentIn,
+    CommitmentOut,
+    DecisionIn,
+    FeasibilityOut,
+    GoalIn,
+    GoalOut,
+    StudyTimeOut,
+    TargetOut,
+)
 from app.schemas.mentor import (
     MentorChatIn,
     MentorChatOut,
@@ -23,6 +36,8 @@ from app.schemas.mentor import (
 )
 from app.services import mentor
 from app.services.card_reports import listed
+from app.services.coach import service as coach
+from app.services.promise import mask_of, weekdays_of
 
 router = APIRouter(tags=["mentor"])
 
@@ -114,3 +129,105 @@ def mentor_chat_stream(
         db, user, body.message, settings, now, time_zone, plan=plan, tip_id=body.tip_id
     )
     return StreamingResponse(_sse(chunks), media_type="text/event-stream")
+
+
+# --- the coach (ADR 0071) -------------------------------------------------------------------
+
+
+def _coach_out(state: coach.CoachState) -> CoachOut:
+    goal = state.goal
+    seen = state.feasibility
+    adjustment = state.adjustment
+    return CoachOut(
+        goal=GoalOut(
+            kind=goal.kind,
+            target=goal.target,
+            deadline=goal.deadline,
+            why=goal.why,
+            start_level=goal.start_level,
+        )
+        if goal
+        else None,
+        feasibility=FeasibilityOut(**vars(seen)) if seen else None,
+        week_start=state.week_start,
+        targets=[
+            TargetOut(skill=t.skill, minutes=t.minutes, planned=t.planned, done=t.done)
+            for t in state.targets
+        ],
+        behind=list(state.behind),
+        promised=state.promised,
+        studied=state.studied,
+        commitment=CommitmentOut(
+            weekdays=weekdays_of(state.commitment.weekdays),
+            start_minute=state.commitment.start_minute,
+            minutes=state.commitment.minutes,
+            pending_from=state.commitment.pending_from,
+        ),
+        adjustment=AdjustmentOut(
+            id=adjustment.id,
+            kind=adjustment.kind,
+            evidence=adjustment.evidence,
+            proposal=adjustment.proposal,
+        )
+        if adjustment
+        else None,
+    )
+
+
+@router.get("/mentor/coach", dependencies=[Depends(_require_mentor)])
+def mentor_coach(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> CoachOut:
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/goal", dependencies=[Depends(_require_mentor)])
+def mentor_coach_goal(
+    body: GoalIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    coach.set_goal(db, user, body.kind, body.target, body.deadline, body.why, body.start_level, now)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.get("/mentor/coach/study-times", dependencies=[Depends(_require_mentor)])
+def mentor_study_times(
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
+    minutes: Annotated[int, Query(ge=5, le=180)],
+    weekdays: Annotated[list[int], Query(min_length=1, max_length=7)],
+    preference: Literal["morning", "day", "evening"] | None = None,
+) -> list[StudyTimeOut]:
+    if any(not 0 <= day <= 6 for day in weekdays):
+        raise ApiError(422, "bad_weekdays", "Weekdays are 0 (Monday) to 6 (Sunday)")
+    options = coach.study_times(db, user, mask_of(weekdays), minutes, preference, now, time_zone)
+    return [
+        StudyTimeOut(
+            weekdays=weekdays_of(o.weekdays),
+            start_minute=o.start,
+            minutes=o.minutes,
+            reasons=list(o.reasons),
+        )
+        for o in options
+    ]
+
+
+@router.put("/mentor/coach/commitment", dependencies=[Depends(_require_mentor)])
+def mentor_commit(
+    body: CommitmentIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    today = now.astimezone(time_zone).date()
+    coach.commit(db, user, sorted(set(body.weekdays)), body.start_minute, body.minutes, today)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.post("/mentor/coach/adjustments/{adjustment_id}", dependencies=[Depends(_require_mentor)])
+def mentor_decide(
+    adjustment_id: uuid.UUID,
+    body: DecisionIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
+) -> CoachOut:
+    coach.decide(db, user, adjustment_id, body.accept, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))

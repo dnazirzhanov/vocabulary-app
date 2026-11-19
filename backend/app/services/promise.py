@@ -63,6 +63,17 @@ class Promise:
     default_days: int
     changes: Sequence[tuple[date, int]] = ()  # (effective_from, mask), oldest first
     pause: tuple[date, date] | None = None
+    # The study time promised from each change on (ADR 0071): (effective_from, start, minutes).
+    times: Sequence[tuple[date, int | None, int | None]] = ()
+
+    def time_on(self, day: date) -> tuple[int, int] | None:
+        """The promised study time in force on `day`: (start minute, minutes), or None."""
+        found: tuple[int, int] | None = None
+        for effective_from, start, minutes in self.times:
+            if effective_from > day:
+                break
+            found = (start, minutes) if start is not None and minutes is not None else None
+        return found
 
     def mask_on(self, day: date) -> int:
         mask = preset(self.default_days)
@@ -81,12 +92,20 @@ class Promise:
 def load_promises(db: Session, users: Sequence[User]) -> dict[UUID, Promise]:
     ids = [user.id for user in users]
     changes: dict[UUID, list[tuple[date, int]]] = {user_id: [] for user_id in ids}
-    for user_id, effective_from, weekdays in db.execute(
-        select(PromiseChange.user_id, PromiseChange.effective_from, PromiseChange.weekdays)
+    times: dict[UUID, list[tuple[date, int | None, int | None]]] = {user_id: [] for user_id in ids}
+    for user_id, effective_from, weekdays, start, minutes in db.execute(
+        select(
+            PromiseChange.user_id,
+            PromiseChange.effective_from,
+            PromiseChange.weekdays,
+            PromiseChange.start_minute,
+            PromiseChange.minutes,
+        )
         .where(PromiseChange.user_id.in_(ids))
         .order_by(PromiseChange.effective_from)
     ):
         changes[user_id].append((effective_from, weekdays))
+        times[user_id].append((effective_from, start, minutes))
     pauses = {
         user_id: (from_date, until_date)
         for user_id, from_date, until_date in db.execute(
@@ -96,7 +115,9 @@ def load_promises(db: Session, users: Sequence[User]) -> dict[UUID, Promise]:
         )
     }
     return {
-        user.id: Promise(user.study_days_per_week, changes[user.id], pauses.get(user.id))
+        user.id: Promise(
+            user.study_days_per_week, changes[user.id], pauses.get(user.id), times[user.id]
+        )
         for user in users
     }
 
@@ -108,10 +129,27 @@ def promise_of(db: Session, user: User) -> Promise:
 # --- changing it ----------------------------------------------------------------------------
 
 
-def set_weekdays(db: Session, user: User, weekdays: Sequence[int], today: date) -> None:
+_KEEP = object()
+
+
+def set_weekdays(
+    db: Session,
+    user: User,
+    weekdays: Sequence[int],
+    today: date,
+    study_time: tuple[int, int] | object | None = _KEEP,
+) -> None:
     """Promise these weekdays from tomorrow. A learner who has finished nothing yet (the first-run
-    screens) has no past to protect: it applies at once."""
+    screens) has no past to protect: it applies at once. `study_time` (start minute, minutes) is
+    promised with them (ADR 0071); left out, the time already promised carries on."""
     mask = mask_of(weekdays)
+    if study_time is _KEEP:
+        kept = promise_of(db, user).time_on(today + timedelta(days=1))
+        start, minutes = kept if kept else (None, None)
+    elif study_time is None:
+        start, minutes = None, None
+    else:
+        start, minutes = study_time  # type: ignore[misc]
     started = db.scalar(
         select(func.count())
         .select_from(LearningSession)
@@ -119,7 +157,15 @@ def set_weekdays(db: Session, user: User, weekdays: Sequence[int], today: date) 
     )
     if not started:
         db.execute(delete(PromiseChange).where(PromiseChange.user_id == user.id))
-        db.add(PromiseChange(user_id=user.id, effective_from=BASELINE, weekdays=mask))
+        db.add(
+            PromiseChange(
+                user_id=user.id,
+                effective_from=BASELINE,
+                weekdays=mask,
+                start_minute=start,
+                minutes=minutes,
+            )
+        )
     else:
         recorded = db.scalar(
             select(func.count()).select_from(PromiseChange).where(PromiseChange.user_id == user.id)
@@ -136,10 +182,16 @@ def set_weekdays(db: Session, user: User, weekdays: Sequence[int], today: date) 
             db.flush()
         db.execute(
             insert(PromiseChange)
-            .values(user_id=user.id, effective_from=today + timedelta(days=1), weekdays=mask)
+            .values(
+                user_id=user.id,
+                effective_from=today + timedelta(days=1),
+                weekdays=mask,
+                start_minute=start,
+                minutes=minutes,
+            )
             .on_conflict_do_update(
                 index_elements=[PromiseChange.user_id, PromiseChange.effective_from],
-                set_={"weekdays": mask},
+                set_={"weekdays": mask, "start_minute": start, "minutes": minutes},
             )
         )
     user.study_days_per_week = len(weekdays_of(mask))
