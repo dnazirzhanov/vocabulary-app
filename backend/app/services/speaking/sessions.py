@@ -25,6 +25,8 @@ from app.services.speaking import jobs as jobs_svc
 from app.services.speaking import questions
 from app.services.speaking.storage import StorageClient
 
+# The recorder stops at 3:00 (ExerciseScreen); the margin covers a late stop and timer drift.
+MAX_RECORDING_MS = 190_000
 # Chunk 2 keeps audio for 30 days. The cleanup worker (Chunk 9) hard-deletes expired rows.
 AUDIO_RETENTION_DAYS = 30
 # MIME types we currently accept on upload. ffprobe content validation lands in Chunk 3.
@@ -159,8 +161,7 @@ async def upload_audio(
         raise ApiError(400, "empty_audio", "Audio file is empty.")
     if len(content) > max_bytes:
         raise ApiError(413, "audio_too_large", "Audio file exceeds the size limit.")
-    # 2-minute hard limit on claimed duration; actual probe lands in Chunk 3.
-    if duration_ms is not None and (duration_ms < 0 or duration_ms > 130_000):
+    if duration_ms is not None and (duration_ms < 0 or duration_ms > MAX_RECORDING_MS):
         raise ApiError(400, "invalid_duration", "Reported duration is out of range.")
     if sample_rate is not None and (sample_rate < 4_000 or sample_rate > 96_000):
         raise ApiError(400, "invalid_sample_rate", "Reported sample rate is out of range.")
