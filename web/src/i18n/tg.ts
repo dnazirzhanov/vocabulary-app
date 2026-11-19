@@ -727,6 +727,7 @@ export const tg: Messages = {
   doneAction: 'Тайёр',
   theTestHasChangedStartAgain: 'Санҷиш тағйир ёфт. Аз нав оғоз кунед.',
   exitTheTest: 'Баромадан аз санҷиш',
+  testMusic: 'Мусиқа',
   exitPractice: 'Баромадан аз машқ',
   skippedWord: 'Калимаи гузашта',
   test: 'Санҷиш',

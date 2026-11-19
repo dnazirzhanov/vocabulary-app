@@ -721,6 +721,7 @@ export const ru = {
   doneAction: 'Готово',
   theTestHasChangedStartAgain: 'Тест изменился. Начните заново.',
   exitTheTest: 'Выйти из теста',
+  testMusic: 'Музыка',
   exitPractice: 'Выйти из тренировки',
   skippedWord: 'Пропущенное слово',
   test: 'Тест',

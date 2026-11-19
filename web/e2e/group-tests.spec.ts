@@ -562,3 +562,60 @@ test('a group with no decks has no way to tests', async ({ page, context }) => {
   await expect(page.getByRole('heading', { level: 1, name: '7Б' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Тесты/ })).toHaveCount(0);
 });
+
+test('music plays while the words are answered, can be turned off, and stops at the result', async ({
+  context,
+  browser,
+}) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  const anna = await member(browser, group.code, 'Анна');
+  // Count the notes the music schedules: what a listener would hear, without a speaker.
+  await anna.addInitScript(() => {
+    const w = window as unknown as { notes: number };
+    w.notes = 0;
+    const create = AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator = function (this: AudioContext) {
+      w.notes += 1;
+      return create.call(this);
+    };
+  });
+  const page = await anna.newPage();
+  const notes = () => page.evaluate(() => (window as unknown as { notes: number }).notes);
+  const keepsPlaying = async () => {
+    const before = await notes();
+    await expect.poll(notes, { timeout: 6000 }).toBeGreaterThan(before + 4);
+  };
+  const isSilent = async () => {
+    await page.waitForTimeout(300); // the notes already scheduled ahead
+    const before = await notes();
+    await page.waitForTimeout(800);
+    expect(await notes()).toBe(before);
+  };
+
+  await openDeckTest(page);
+  await button(page, 'Тренировка').click();
+  await expect(meaning(page)).toBeVisible();
+  const music = page.getByRole('button', { name: 'Музыка' });
+  await expect(music).toHaveAttribute('aria-pressed', 'true');
+  await keepsPlaying();
+
+  await music.click();
+  await expect(music).toHaveAttribute('aria-pressed', 'false');
+  await isSilent();
+  await music.click();
+  await keepsPlaying();
+
+  await answerAll(page);
+  await expect(page.getByRole('img', { name: '3 из 3' })).toBeVisible();
+  await isSilent();
+
+  // Off stays off in the next one, and is remembered on this device.
+  await button(page, 'Ещё раз').click();
+  await expect(meaning(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Музыка' }).click();
+  await expect(page.getByRole('button', { name: 'Музыка' })).toHaveAttribute('aria-pressed', 'false');
+  await isSilent();
+  expect(await page.evaluate(() => localStorage.getItem('test-music'))).toBe('off');
+  await anna.close();
+});

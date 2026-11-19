@@ -726,6 +726,7 @@ export const kk: Messages = {
   doneAction: 'Дайын',
   theTestHasChangedStartAgain: 'Тест өзгерді. Қайтадан бастаңыз.',
   exitTheTest: 'Тесттен шығу',
+  testMusic: 'Музыка',
   exitPractice: 'Жаттығудан шығу',
   skippedWord: 'Өткізілген сөз',
   test: 'Тест',

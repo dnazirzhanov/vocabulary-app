@@ -27,6 +27,16 @@ export const SpeakerIcon = (props: IconProps) => (
   </svg>
 );
 
+/** Background music in a test; struck through when it is off. */
+export const MusicIcon = ({ off, ...props }: IconProps & { off?: boolean }) => (
+  <svg {...base} {...props}>
+    <path d="M9 18V6l10-2v12" />
+    <circle cx="6.5" cy="18" r="2.5" fill="currentColor" />
+    <circle cx="16.5" cy="16" r="2.5" fill="currentColor" />
+    {off && <path d="M3.5 3.5l17 17" />}
+  </svg>
+);
+
 /** Speaking an answer instead of typing it (Reading Mode). */
 export const MicIcon = (props: IconProps) => (
   <svg {...base} {...props}>

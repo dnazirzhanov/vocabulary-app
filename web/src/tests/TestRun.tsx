@@ -6,11 +6,12 @@ import { api, ApiError, describeError } from '../lib/api.ts';
 import { clockText, rememberRunningTest } from '../lib/groupTests.ts';
 import type { TestAttempt } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CloseIcon } from '../ui/icons.tsx';
+import { CloseIcon, MusicIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
 import { TestResult } from './TestResult.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
+import { useTestMusic } from './useTestMusic.ts';
 import styles from './Tests.module.css';
 import { t } from '../i18n/index.ts';
 
@@ -91,6 +92,10 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
     return () => clearTimeout(timer);
   }, [timeUp, attempt, question, busy, error, call]);
 
+  // Quiz-show music while the words are being answered; faster in a test's last minute.
+  const answering = !!attempt && !attempt.result && !!question && !gone && !timeUp;
+  const [musicOn, toggleMusic] = useTestMusic(answering, attempt?.kind === 'test' && left !== null && left <= 60);
+
   const mainRef = useRef<HTMLElement>(null);
   const setDraft = useCallback((answer: string | null) => {
     draft.current = answer;
@@ -152,6 +157,15 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
               {clockText(left)}
             </p>
           )}
+          <button
+            type="button"
+            className={styles.music}
+            aria-label={t.testMusic}
+            aria-pressed={musicOn}
+            onClick={toggleMusic}
+          >
+            <MusicIcon off={!musicOn} />
+          </button>
         </div>
       </header>
       <main ref={mainRef} className={lesson.main}>

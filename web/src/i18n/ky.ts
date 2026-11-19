@@ -727,6 +727,7 @@ export const ky: Messages = {
   doneAction: 'Даяр',
   theTestHasChangedStartAgain: 'Тест өзгөрдү. Кайрадан баштаңыз.',
   exitTheTest: 'Тесттен чыгуу',
+  testMusic: 'Музыка',
   exitPractice: 'Машыгуудан чыгуу',
   skippedWord: 'Өткөрүлгөн сөз',
   test: 'Тест',
