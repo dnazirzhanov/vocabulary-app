@@ -188,6 +188,41 @@ def test_too_little_to_judge_is_said_plainly(client: TestClient, model: Model) -
     got = post(client, answer="Bad.").json()["evaluation"]
     assert got["enough_evidence"] is False
     assert got["overall"] is None and got["criteria"] is None and got["corrections"] == []
+    assert model.calls == 1  # a short answer may be refused: no second request
+
+
+# 47 words, on another topic than the question: the shape of a pasted article.
+OFF_TOPIC = " ".join(["Global temperatures keep rising because greenhouse gases trap heat."] * 4)
+OFF_TOPIC += " The end of this pasted text comes here at last now."
+
+
+def test_a_long_answer_is_always_marked_even_off_topic(client: TestClient, model: Model) -> None:
+    refused = reply(enough_evidence=False, criteria=None, summary="Off topic.", corrections=[])
+    marks = criteria(3) | {"task": {"score": 1, "comment": "Does not answer the question."}}
+    model.answers = [refused, reply(criteria=marks, corrections=[], strengths=[])]
+    assert len(OFF_TOPIC.split()) >= 40
+    got = post(client, answer=OFF_TOPIC).json()["evaluation"]
+    assert got["enough_evidence"] is True
+    assert got["criteria"]["task"]["score"] == 1 and got["overall"] is not None
+    assert model.calls == 2
+    assert "must be assessed" in model.last_user  # the second request says why
+
+
+def test_a_long_answer_refused_twice_fails_and_can_be_retried(
+    client: TestClient, model: Model
+) -> None:
+    refused = reply(enough_evidence=False, criteria=None, summary="Off topic.", corrections=[])
+    model.answers = [refused]
+    response = post(client, answer=OFF_TOPIC)
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "writing_bad_output"
+
+
+def test_the_prompt_tells_the_model_the_word_count_and_the_rule() -> None:
+    from app.services.writing import prompt
+
+    assert "40 words or more is ALWAYS assessed" in prompt.system_prompt("ru")
+    assert "(47 words;" in prompt.user_message("Q", "I", OFF_TOPIC)
 
 
 def test_the_overall_score_is_the_mean_of_the_marks() -> None:
