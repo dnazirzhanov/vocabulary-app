@@ -71,6 +71,8 @@ class MeOut(BaseModel):
     mentor: bool = False
     # Sees the Speaking tab (SPEAKING_TESTERS): pronunciation + assessment, pre-rollout.
     speaking: bool = False
+    # Sees the Writing tab (WRITING_TESTERS).
+    writing: bool = False
     # Null until the learner has chosen a pace (first-run screens).
     daily_target_words: int | None
     study_days_per_week: int

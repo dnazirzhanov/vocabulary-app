@@ -21,6 +21,7 @@ export const test = base.extend<{
   reader: boolean;
   mentor: boolean;
   speaker: boolean;
+  writer: boolean;
 }>({
   // `test.use({ onboarded: false })` starts as a learner who has not chosen a pace yet.
   onboarded: [true, { option: true }],
@@ -34,8 +35,10 @@ export const test = base.extend<{
   mentor: [false, { option: true }],
   // `test.use({ speaker: true })`: one of Speaking's testers (the e2e API lists e2e-speaking-*).
   speaker: [false, { option: true }],
-  context: async ({ context, onboarded, languageChosen, named, reader, mentor, speaker }, use) => {
-    const prefix = reader ? 'reader-' : mentor ? 'mentor-' : speaker ? 'speaking-' : '';
+  // `test.use({ writer: true })`: one of Writing's testers (the e2e API lists e2e-writing-*).
+  writer: [false, { option: true }],
+  context: async ({ context, onboarded, languageChosen, named, reader, mentor, speaker, writer }, use) => {
+    const prefix = reader ? 'reader-' : mentor ? 'mentor-' : speaker ? 'speaking-' : writer ? 'writing-' : '';
     const id = `e2e-${prefix}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     learnerId.set(context, id);
     await context.setExtraHTTPHeaders({ 'X-Dev-User': id, ...DEMO });

@@ -29,6 +29,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(
     monkeypatch.setattr(get_settings(), "mentor_testers", "e2e-mentor-*")
     monkeypatch.setattr(get_settings(), "reading_testers", "e2e-reader-*")
     monkeypatch.setattr(get_settings(), "speaking_testers", "e2e-speaking-*")
+    monkeypatch.setattr(get_settings(), "writing_testers", "e2e-writing-*")
     me = client.get("/api/me").json()
     account = me.pop("id")  # the same account every time, never another's
     assert me == {
@@ -37,6 +38,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(
         "reading": False,
         "mentor": False,
         "speaking": False,
+        "writing": False,
         "daily_target_words": None,
         "study_days_per_week": 6,
         "ramp_enabled": True,
@@ -61,6 +63,7 @@ def test_a_new_learner_has_no_pace_until_they_choose_one(
         "reading": False,
         "mentor": False,
         "speaking": False,
+        "writing": False,
         "daily_target_words": 3,
         "study_days_per_week": 5,
         "ramp_enabled": True,
