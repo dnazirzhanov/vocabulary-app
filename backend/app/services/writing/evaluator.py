@@ -68,6 +68,19 @@ def evaluate(
 ) -> Evaluation:
     system = prompt.system_prompt(feedback_language)
     user = prompt.user_message(question.title, question.instruction, answer)
+    evaluation = _evaluate_once(system, user, answer, settings)
+    words = prompt.word_count(answer)
+    if words >= prompt.ALWAYS_ASSESS_WORDS and evaluation.overall is None:
+        # A long enough answer is always marked: ask once more, saying why.
+        reminder = prompt.REMINDER.format(words=words)
+        evaluation = _evaluate_once(system, f"{user}\n\n{reminder}", answer, settings)
+        if evaluation.overall is None:
+            logger.warning("writing evaluation refused a long answer twice")
+            raise ApiError(502, "writing_bad_output", "The feedback could not be read")
+    return evaluation
+
+
+def _evaluate_once(system: str, user: str, answer: str, settings: Settings) -> Evaluation:
     # JSON mode can now and then answer with nothing (DeepSeek's docs): one more try.
     content = ""
     for _ in range(2):
