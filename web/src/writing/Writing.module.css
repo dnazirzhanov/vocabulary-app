@@ -304,12 +304,36 @@
   gap: var(--space-3);
 }
 
+.verdictHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* No score: the heading itself is the verdict. */
 .verdictHeading {
   margin: 0;
   font-size: var(--text-title);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);
+}
+
+.verdictSummary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+/* The answer on a sheet of its own, as in the full feedback. */
+.verdictAnswer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
 }
 
 .text {
