@@ -681,6 +681,20 @@ def _my_attempt(
     return row[0], row[1], row[2], row[3]
 
 
+def _exercise(attempt: GroupTestAttempt, item: GroupTestQuestion) -> SpellingExercise:
+    """A word as the student gets it: the meaning only, no word, no word id."""
+    return SpellingExercise(
+        id=item.key,
+        prompt=SpellingPrompt(translation=item.translation, pos=item.pos),
+        slots=len(spelling.letters(item.headword)),
+        separators=[
+            SeparatorOut(after=after, char=char)
+            for after, char in spelling.separators(item.headword)
+        ],
+        tiles=_tiles(attempt.id, item.word_id, item.headword),
+    )
+
+
 def _attempt_out(
     db: Session,
     attempt: GroupTestAttempt,
@@ -710,6 +724,8 @@ def _attempt_out(
         words = [
             WordStateOut(
                 translation=item.translation,
+                exercise=_exercise(attempt, item),
+                answer=item.answer if item.answered_at is not None else None,
                 state="answered"
                 if item.answered_at is not None
                 else "skipped"
@@ -718,17 +734,7 @@ def _attempt_out(
             )
             for item in questions
         ]
-        # The meaning only: no word, no word id.
-        question = SpellingExercise(
-            id=current.key,
-            prompt=SpellingPrompt(translation=current.translation, pos=current.pos),
-            slots=len(spelling.letters(current.headword)),
-            separators=[
-                SeparatorOut(after=after, char=char)
-                for after, char in spelling.separators(current.headword)
-            ],
-            tiles=_tiles(attempt.id, current.word_id, current.headword),
-        )
+        question = _exercise(attempt, current)
     else:
         correct, total = attempt.correct or 0, attempt.total or 0
         result = AttemptResultOut(

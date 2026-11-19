@@ -722,6 +722,8 @@ export const ru = {
   theTestHasChangedStartAgain: 'Тест изменился. Начните заново.',
   exitTheTest: 'Выйти из теста',
   testMusic: 'Музыка',
+  testSavingRetry: 'Нет связи: ответы сохранятся, как только она появится.',
+  readingTime: 'Время чтения',
   testWordOf: (n: number, total: number) => `слово ${n} из ${total}`,
   testToCheck: 'К проверке',
   testCheckTitle: 'Проверьте перед сдачей',

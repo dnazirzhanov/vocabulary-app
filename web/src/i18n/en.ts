@@ -729,6 +729,8 @@ export const en: Messages = {
   theTestHasChangedStartAgain: 'The test has changed. Start again.',
   exitTheTest: 'Exit the test',
   testMusic: 'Music',
+  testSavingRetry: 'No connection: your answers will save as soon as it is back.',
+  readingTime: 'Reading time',
   testWordOf: (n: number, total: number) => `word ${n} of ${total}`,
   testToCheck: 'Review',
   testCheckTitle: 'Check before handing in',

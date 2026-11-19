@@ -4,6 +4,7 @@ import {
   answerOf,
   backspace,
   differences,
+  letterOfKey,
   pick,
   picksOf,
   removeAt,
@@ -75,4 +76,15 @@ test('a saved answer is rebuilt from the tiles, a repeated letter from its own t
   assert.deepEqual(picksOf(tiles, null), []);
   // A letter with no tile left is passed over rather than invented.
   assert.deepEqual(picksOf(['a', 'b'], 'abb'), [0, 1]);
+});
+
+test('a Russian layout still types English letters, by the key pressed', () => {
+  const tiles = ['c', 'a', 't'];
+  // Before: «ф» matched no tile, so the keyboard seemed dead.
+  assert.equal(tileForKey(tiles, [], 'ф'), null);
+  assert.equal(tileForKey(tiles, [], letterOfKey('ф', 'KeyA')), 1);
+  assert.equal(letterOfKey('с', 'KeyC'), 'c');
+  assert.equal(letterOfKey('T', 'KeyT'), 'T'); // Caps Lock: tileForKey lowers it
+  assert.equal(letterOfKey('Backspace', 'Backspace'), 'Backspace');
+  assert.equal(letterOfKey('1', 'Digit1'), '1');
 });

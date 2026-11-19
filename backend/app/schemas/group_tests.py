@@ -190,6 +190,10 @@ class TestAttemptOut(BaseModel):
 class WordStateOut(BaseModel):
     translation: str
     state: Literal["answered", "skipped", "empty"]
+    # The whole word's card and its saved answer, so the device moves between words at once and
+    # saves in the background. The card is the meaning and tiles only, as any question shows.
+    exercise: SpellingExercise
+    answer: str | None
 
 
 # Defined after the models that name them.

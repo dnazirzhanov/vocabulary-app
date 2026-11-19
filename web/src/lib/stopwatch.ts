@@ -1,5 +1,5 @@
 /**
- * The optional writing timer, as plain functions so it can be tested without a browser.
+ * A count-up timer (Writing's optional one, Reading's), as plain functions so it can be tested without a browser.
  *
  * It counts up, never starts by itself, and never limits anything. Time is worked out from clock
  * readings rather than counted tick by tick, so a phone that sleeps mid-answer does not lose or

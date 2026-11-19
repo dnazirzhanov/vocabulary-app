@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { t } from '../i18n/index.ts';
 import { CRITERIA, type CriterionName, type Submission } from './api.ts';
-import { clock } from './stopwatch.ts';
+import { clock } from '../lib/stopwatch.ts';
 import { criterionLabel, scoreLabel } from './scoreText.ts';
 import { collectFixes, segments, type Fix } from './marks.ts';
 import styles from './Writing.module.css';
