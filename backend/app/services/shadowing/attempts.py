@@ -24,6 +24,19 @@ def create(db: Session, user: User, exercise_id: uuid.UUID) -> ShadowingAttempt:
     return attempt
 
 
+_EXTENSIONS = {
+    "audio/webm": ".webm",
+    "audio/mp4": ".m4a",
+    "audio/ogg": ".ogg",
+    "audio/mpeg": ".mp3",
+}
+
+
+def extension_for(mime_type: str) -> str:
+    """The file extension for what the browser recorded: Safari records MP4, not WebM."""
+    return _EXTENSIONS.get(mime_type.split(";", 1)[0].strip().lower(), ".webm")
+
+
 async def upload_audio(
     db: Session,
     storage: StorageClient,
@@ -32,7 +45,7 @@ async def upload_audio(
     mime_type: str,
     duration_ms: int | None,
 ) -> None:
-    path = f"shadowing/{attempt.user_id}/{attempt.id}.webm"
+    path = f"shadowing/{attempt.user_id}/{attempt.id}{extension_for(mime_type)}"
     await storage.upload(path, content, mime_type)
     attempt.audio_path = path
     attempt.audio_mime_type = mime_type

@@ -72,15 +72,22 @@ export async function createAttempt(exerciseId: string): Promise<ShadowingAttemp
   return res.json();
 }
 
+/** A file name whose extension matches what the browser recorded (Safari records MP4, not WebM). */
+export function recordingFileName(mimeType: string): string {
+  const base = mimeType.split(';', 1)[0].trim();
+  const ext = base === 'audio/mp4' ? 'm4a' : base === 'audio/ogg' ? 'ogg' : 'webm';
+  return `recording.${ext}`;
+}
+
 export async function uploadAttemptAudio(
   attemptId: string,
   blob: Blob,
-  _mimeType: string,
+  mimeType: string,
   durationMs: number | null,
 ): Promise<ShadowingAttempt> {
   const headers = await authHeaders();
   const form = new FormData();
-  form.append('file', blob, 'recording.webm');
+  form.append('file', new Blob([blob], { type: mimeType }), recordingFileName(mimeType));
   if (durationMs != null) form.append('duration_ms', String(durationMs));
   const res = await fetch(`${apiBase}/shadowing/attempts/${attemptId}/audio`, {
     method: 'POST',
@@ -128,4 +135,17 @@ export async function listMyAttempts(exerciseId: string): Promise<AttemptListIte
   });
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
+}
+
+/**
+ * Save a finished shadowing: the attempt is created only now, so cancelling or trying again
+ * never leaves an empty attempt behind.
+ */
+export async function saveAttempt(
+  exerciseId: string,
+  recording: { blob: Blob; mimeType: string; durationMs: number },
+): Promise<ShadowingAttempt> {
+  const attempt = await createAttempt(exerciseId);
+  await uploadAttemptAudio(attempt.id, recording.blob, recording.mimeType, Math.round(recording.durationMs));
+  return completeAttempt(attempt.id);
 }

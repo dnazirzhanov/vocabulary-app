@@ -26,6 +26,9 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
     'topicPsychology',
     'readingTheme',
     'themeSepia',
+    // «Шэдоуинг»: the method's own name, borrowed as it is.
+    'speakingModeShadowing',
+    'shadowingTitle',
   ]),
   ky: new Set([
     'writingCriterionVocabulary',
@@ -39,8 +42,17 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
     'readingTheme',
     'themeSepia',
     'category',
+    'speakingModeShadowing',
+    'shadowingTitle',
   ]),
-  tg: new Set(['writingCriterionGrammar', 'slovar', 'themeSepia', 'category']),
+  tg: new Set([
+    'writingCriterionGrammar',
+    'slovar',
+    'themeSepia',
+    'category',
+    'speakingModeShadowing',
+    'shadowingTitle',
+  ]),
 };
 
 /** Arguments that aren't plain text, by the message's signature. */

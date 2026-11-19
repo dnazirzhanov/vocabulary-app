@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { type ExerciseStatus, type ShadowingExercise, getExerciseAttempts, listExercises } from './api.ts';
+import { clock } from './oneAtATime.ts';
 import styles from './ShadowingHome.module.css';
 
 interface ShadowingHomeProps {
@@ -14,14 +15,9 @@ function difficultyLabel(d: ShadowingExercise['difficulty']): string {
   return t.shadowingDifficultyAdvanced;
 }
 
-function formatDuration(ms: number): string {
-  const sec = Math.round(ms / 1000);
-  if (sec < 60) return `${sec}s`;
-  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-}
-
+/** The exercises as plain rows: the title, then its level and length; a tick once one is saved. */
 export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) {
-  const [exercises, setExercises] = useState<ShadowingExercise[]>([]);
+  const [exercises, setExercises] = useState<ShadowingExercise[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ExerciseStatus>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -31,17 +27,12 @@ export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) 
       .then(async (exs) => {
         if (cancelled) return;
         setExercises(exs);
-        const statusEntries = await Promise.allSettled(
+        const settled = await Promise.allSettled(
           exs.map((ex) => getExerciseAttempts(ex.id).then((s) => [ex.id, s] as const)),
         );
         if (cancelled) return;
         const map: Record<string, ExerciseStatus> = {};
-        for (const result of statusEntries) {
-          if (result.status === 'fulfilled') {
-            const [id, status] = result.value;
-            map[id] = status;
-          }
-        }
+        for (const r of settled) if (r.status === 'fulfilled') map[r.value[0]] = r.value[1];
         setStatuses(map);
       })
       .catch(() => {
@@ -54,12 +45,10 @@ export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) 
 
   return (
     <main className={styles.screen}>
-      <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.shadowingBack}
-        </button>
-        <h1 className={styles.title}>{t.shadowingTitle}</h1>
-      </header>
+      <button type="button" className={styles.back} onClick={onBack}>
+        ‹ {t.shadowingBack}
+      </button>
+      <h1 className={styles.title}>{t.shadowingTitle}</h1>
 
       {error && (
         <p role="alert" className={styles.error}>
@@ -68,28 +57,22 @@ export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) 
       )}
 
       <ul className={styles.list}>
-        {exercises.map((ex) => {
-          const status = statuses[ex.id];
-          const completed = status != null && status.completed_count > 0;
+        {(exercises ?? []).map((ex) => {
+          // Only saved attempts count: a cancelled one is not "done".
+          const done = (statuses[ex.id]?.completed_count ?? 0) > 0;
           return (
             <li key={ex.id}>
-              <button type="button" className={styles.exerciseCard} onClick={() => onSelectExercise(ex)}>
-                <div className={styles.cardTop}>
-                  <span className={styles.exerciseTitle}>{ex.title}</span>
-                  {completed && <span className={styles.completedBadge}>{t.shadowingCompletedBadge}</span>}
-                </div>
-                <p className={styles.exerciseDesc}>{ex.description}</p>
-                <div className={styles.exerciseMeta}>
-                  <span className={`${styles.difficulty} ${styles[ex.difficulty]}`}>
-                    {difficultyLabel(ex.difficulty)}
+              <button type="button" className={styles.row} onClick={() => onSelectExercise(ex)}>
+                <span className={styles.text}>
+                  <span className={styles.name}>{ex.title}</span>
+                  <span className={styles.meta}>
+                    {difficultyLabel(ex.difficulty)} · {clock(ex.duration_ms / 1000)}
+                    {done && <span className={styles.done}> · {t.shadowingCompletedBadge}</span>}
                   </span>
-                  <span className={styles.duration}>{formatDuration(ex.duration_ms)}</span>
-                  {status != null && status.attempts_count > 0 && (
-                    <span className={styles.attempts}>
-                      {status.attempts_count} {t.shadowingAttemptsCount}
-                    </span>
-                  )}
-                </div>
+                </span>
+                <span className={styles.chevron} aria-hidden="true">
+                  ›
+                </span>
               </button>
             </li>
           );
