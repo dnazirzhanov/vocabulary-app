@@ -728,6 +728,8 @@ export const tg: Messages = {
   theTestHasChangedStartAgain: 'Санҷиш тағйир ёфт. Аз нав оғоз кунед.',
   exitTheTest: 'Баромадан аз санҷиш',
   testMusic: 'Мусиқа',
+  testSavingRetry: 'Пайваст нест: ҷавобҳо ҳамин ки пайваст барқарор шавад, нигоҳ дошта мешаванд.',
+  readingTime: 'Вақти хондан',
   testWordOf: (n: number, total: number) => `калимаи ${n} аз ${total}`,
   testToCheck: 'Ба санҷиш',
   testCheckTitle: 'Пеш аз супоридан санҷед',

@@ -621,6 +621,10 @@ export interface TestAttemptSummary {
 export interface TestWordState {
   translation: string;
   state: 'answered' | 'skipped' | 'empty';
+  /** The word's card (meaning and tiles, never the word), so the device moves between words at once. */
+  exercise: SpellingExercise;
+  /** What was saved for it. */
+  answer: string | null;
 }
 
 export interface TestSetupInfo {

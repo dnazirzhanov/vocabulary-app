@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../lib/apiError.ts';
 import { t } from '../i18n/index.ts';
 import { submitAnswer, type Submission, type WritingQuestion } from './api.ts';
-import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from './stopwatch.ts';
+import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from '../lib/stopwatch.ts';
 import styles from './Writing.module.css';
 
 interface Props {

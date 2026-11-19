@@ -727,6 +727,8 @@ export const kk: Messages = {
   theTestHasChangedStartAgain: 'Тест өзгерді. Қайтадан бастаңыз.',
   exitTheTest: 'Тесттен шығу',
   testMusic: 'Музыка',
+  testSavingRetry: 'Байланыс жоқ: жауаптар байланыс қалпына келгенде сақталады.',
+  readingTime: 'Оқу уақыты',
   testWordOf: (n: number, total: number) => `${total} сөздің ${n}-сөзі`,
   testToCheck: 'Тексеруге',
   testCheckTitle: 'Тапсырмас бұрын тексеріңіз',

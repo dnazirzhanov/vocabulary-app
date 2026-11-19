@@ -728,6 +728,8 @@ export const ky: Messages = {
   theTestHasChangedStartAgain: 'Тест өзгөрдү. Кайрадан баштаңыз.',
   exitTheTest: 'Тесттен чыгуу',
   testMusic: 'Музыка',
+  testSavingRetry: 'Байланыш жок: жооптор байланыш келери менен сакталат.',
+  readingTime: 'Окуу убактысы',
   testWordOf: (n: number, total: number) => `${total} сөздүн ${n}-сөзү`,
   testToCheck: 'Текшерүүгө',
   testCheckTitle: 'Тапшыруудан мурун текшериңиз',

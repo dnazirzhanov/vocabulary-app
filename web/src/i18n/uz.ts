@@ -730,6 +730,8 @@ export const uz: Messages = {
   theTestHasChangedStartAgain: 'Test o‘zgardi. Qaytadan boshlang.',
   exitTheTest: 'Testdan chiqish',
   testMusic: 'Musiqa',
+  testSavingRetry: 'Aloqa yo‘q: javoblar aloqa tiklanishi bilan saqlanadi.',
+  readingTime: 'O‘qish vaqti',
   testWordOf: (n: number, total: number) => `${total} ta so‘zdan ${n}-so‘z`,
   testToCheck: 'Tekshirishga',
   testCheckTitle: 'Topshirishdan oldin tekshiring',

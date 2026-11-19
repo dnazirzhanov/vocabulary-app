@@ -191,7 +191,7 @@ test('two students get their own order, and the results are open by name', async
   await expect(annaPage.getByRole('group', { name: 'Подсказки' })).toHaveCount(0);
   await expect(annaPage.getByRole('timer')).toHaveText(/^(10:00|9:\d\d)$/);
   const annaOrder = await answerAll(annaPage);
-  await expect(annaPage.getByRole('img', { name: '9 из 9' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '9 из 9 · 100%' })).toBeVisible();
   await expect(annaPage.getByRole('heading', { level: 1, name: 'Без единой ошибки!' })).toBeVisible();
 
   await openDeckTest(ivanPage);
@@ -200,7 +200,7 @@ test('two students get their own order, and the results are open by name', async
     .filter((meaningText) => meaningText !== 'галька')
     .slice(0, 5);
   const ivanOrder = await answerAll(ivanPage, wrong);
-  await expect(ivanPage.getByRole('img', { name: '4 из 9' })).toBeVisible();
+  await expect(ivanPage.getByRole('img', { name: '4 из 9 · 44%' })).toBeVisible();
   await expect(ivanPage.getByRole('heading', { level: 1, name: 'Пока не сдан' })).toBeVisible();
   await expect(ivanPage.getByRole('region', { name: 'Ошибки' }).getByRole('listitem')).toHaveCount(5);
 
@@ -212,9 +212,9 @@ test('two students get their own order, and the results are open by name', async
 
   await openDeckTest(page);
   const passed = page.getByRole('region', { name: 'Сдали', exact: true });
-  await expect(passed.getByRole('listitem')).toHaveText(['Анна9 из 9']);
+  await expect(passed.getByRole('listitem')).toHaveText(['Анна9 из 9 · 100%']);
   const failed = page.getByRole('region', { name: 'Не сдали' });
-  await expect(failed.getByRole('listitem')).toHaveText(['Иван4 из 9']);
+  await expect(failed.getByRole('listitem')).toHaveText(['Иван4 из 9 · 44%']);
   const waiting = page.getByRole('region', { name: 'Ещё не проходили' });
   await expect(waiting.getByRole('listitem')).toHaveText(['Дина']);
 
@@ -223,7 +223,7 @@ test('two students get their own order, and the results are open by name', async
   await page.getByRole('button', { name: 'К группе', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Тесты/ })).toContainText('Сдали 1 из 3 · Unit 4');
   await annaPage.getByRole('button', { name: 'Готово', exact: true }).click();
-  await expect(annaPage.getByText('9 из 9 · Сдано')).toBeVisible();
+  await expect(annaPage.getByText('9 из 9 · 100% · Сдано')).toBeVisible();
   await expect(annaPage.getByRole('button', { name: /Начать тест/ })).toHaveCount(0);
   await anna.close();
   await ivan.close();
@@ -294,14 +294,14 @@ test('when the time is up the tiles lock, the built word counts, and the group s
   });
   await annaPage.clock.fastForward(61_000);
 
-  await expect(annaPage.getByRole('img', { name: '2 из 10' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '2 из 10 · 20%' })).toBeVisible();
   await expect(annaPage.getByText('Время вышло')).toBeVisible();
   await expect(annaPage.getByRole('heading', { level: 1, name: 'Пока не сдан' })).toBeVisible();
   await expect(annaPage.getByRole('region', { name: 'Не успели' }).getByRole('listitem')).toHaveCount(8);
 
   await learner.travelTo(new Date(Date.now() + 61_000));
   await openDeckTest(page);
-  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна2 из 10']);
+  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна2 из 10 · 20%']);
   await anna.close();
 });
 
@@ -323,7 +323,7 @@ test('someone who starts and never comes back still gets a result', async ({ pag
   await learner.travelTo(new Date(Date.now() + 2 * 60_000));
   await page.reload();
   await openDeckTest(page);
-  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 10']);
+  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 10 · 0%']);
 });
 
 test('practice stays private and shows its mistakes', async ({ page, context, browser }) => {
@@ -339,7 +339,7 @@ test('practice stays private and shows its mistakes', async ({ page, context, br
   await expect(annaPage.locator('[data-spelling]').getByText(/^Тренировка · слово 1 из \d+$/)).toBeVisible();
   await expect(annaPage.getByRole('button', { name: /Подсказка/ })).toHaveCount(0);
   await answerAll(annaPage, ['неудача']);
-  await expect(annaPage.getByRole('img', { name: '2 из 3' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '2 из 3 · 66%' })).toBeVisible();
   await expect(annaPage.getByText('Сдано', { exact: true })).toHaveCount(0);
   await expect(annaPage.getByRole('region', { name: 'Ошибки' })).toContainText('setback');
 
@@ -466,7 +466,7 @@ test('back, skip and next walk through the words; the check shows what is empty;
   await expect(checkHeading(page)).toBeVisible();
   await handIn(page);
 
-  await expect(page.getByRole('img', { name: '1 из 3' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '1 из 3 · 33%' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Ошибки' })).toContainText(WORDS[first]);
   await expect(page.getByRole('region', { name: 'Пропущено' })).toContainText(WORDS[second]);
   await expect(page.getByRole('region', { name: 'Не успели' })).toHaveCount(0);
@@ -478,7 +478,7 @@ test('back, skip and next walk through the words; the check shows what is empty;
   await expect(history).toContainText('Тест');
   await expect(history).toContainText('1 из 3');
   await history.getByRole('button').click();
-  await expect(page.getByRole('img', { name: '1 из 3' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '1 из 3 · 33%' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Пропущено' })).toContainText(WORDS[second]);
 });
 
@@ -498,32 +498,32 @@ test('the owner opens the test again: a student who passed takes it again, and t
   await startTest(annaPage);
   await answerAll(annaPage);
   await button(annaPage, 'Готово').click();
-  await expect(annaPage.getByText('3 из 3 · Сдано')).toBeVisible();
+  await expect(annaPage.getByText('3 из 3 · 100% · Сдано')).toBeVisible();
   await expect(annaPage.getByRole('button', { name: 'Начать тест' })).toHaveCount(0);
 
   await openDeckTest(page);
   await expect(page.getByRole('region', { name: 'Сдали', exact: true }).getByRole('listitem')).toHaveText([
-    'Анна3 из 3',
+    'Анна3 из 3 · 100%',
   ]);
   await button(page, 'Закрыть тест').click();
   await button(page, 'Открыть тест').click();
   await expect(button(page, 'Закрыть тест')).toBeVisible();
   // The old result stands until there is a new one.
   await expect(page.getByRole('region', { name: 'Сдали', exact: true }).getByRole('listitem')).toHaveText([
-    'Анна3 из 3',
+    'Анна3 из 3 · 100%',
   ]);
 
   // A student already on the page sees it open, without reloading.
   await annaPage.clock.fastForward(31_000);
-  await expect(annaPage.getByText('Прошлый раз: 3 из 3 · Сдано')).toBeVisible();
+  await expect(annaPage.getByText('Прошлый раз: 3 из 3 · 100% · Сдано')).toBeVisible();
   await startTest(annaPage);
   await answerAll(annaPage, Object.keys(WORDS).slice(0, 3));
   await button(annaPage, 'Готово').click();
-  await expect(annaPage.getByText('0 из 3 · Не сдано')).toBeVisible();
+  await expect(annaPage.getByText('0 из 3 · 0% · Не сдано')).toBeVisible();
 
   await page.reload();
   await openDeckTest(page);
-  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 3']);
+  await expect(page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem')).toHaveText(['Анна0 из 3 · 0%']);
   await expect(page.getByRole('region', { name: 'Сдали', exact: true })).toHaveCount(0);
   await anna.close();
 });
@@ -554,7 +554,7 @@ test('words misspelled and skipped in a test wait in «Трудные» on the d
   await handIn(annaPage);
 
   // The feedback, in its groups.
-  await expect(annaPage.getByRole('img', { name: '1 из 3' })).toBeVisible();
+  await expect(annaPage.getByRole('img', { name: '1 из 3 · 33%' })).toBeVisible();
   await expect(annaPage.getByRole('region', { name: 'Ошибки' })).toContainText(WORDS[misspelled]);
   await expect(annaPage.getByRole('region', { name: 'Пропущено' })).toContainText(WORDS[skipped]);
   await button(annaPage, 'Готово').click();
@@ -672,7 +672,7 @@ test('music plays while the words are answered, can be turned off, and stops at 
   await keepsPlaying();
 
   await answerAll(page);
-  await expect(page.getByRole('img', { name: '3 из 3' })).toBeVisible();
+  await expect(page.getByRole('img', { name: '3 из 3 · 100%' })).toBeVisible();
   await isSilent();
 
   // Off stays off in the next one, and is remembered on this device.
@@ -682,5 +682,67 @@ test('music plays while the words are answered, can be turned off, and stops at 
   await expect(page.getByRole('button', { name: 'Музыка' })).toHaveAttribute('aria-pressed', 'false');
   await isSilent();
   expect(await page.evaluate(() => localStorage.getItem('test-music'))).toBe('off');
+  await anna.close();
+});
+
+test('words move at once while answers save behind, and any keyboard layout types', async ({ page, context }) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+  // A slow classroom network: every save takes three seconds.
+  let saves = 0;
+  await page.route('**/api/test-attempts/*/questions/*', async (route) => {
+    await new Promise((done) => setTimeout(done, 3000));
+    saves += 1;
+    await route.continue();
+  });
+  await openDeckTest(page);
+  await startTest(page);
+
+  // A Russian layout: the key A types «ф», but it is still the key A.
+  const first = (await meaning(page).textContent())!;
+  for (const letter of WORDS[first]) {
+    await page.evaluate(
+      (code) => document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ф', code, bubbles: true })),
+      `Key${letter.toUpperCase()}`,
+    );
+  }
+  await expect(
+    page.getByRole('group', { name: `Ответ: ${WORDS[first].length} из ${WORDS[first].length} букв` }),
+  ).toBeVisible();
+
+  // «Дальше» shows the next word at once, its letters ready, while the save is still on its way.
+  await button(page, 'Дальше').click();
+  await expect(meaning(page)).not.toHaveText(first, { timeout: 1000 });
+  const letters = page.getByRole('group', { name: 'Буквы' }).getByRole('button');
+  await expect(letters.first()).toBeEnabled({ timeout: 1000 });
+  expect(saves).toBe(0);
+  await button(page, 'Пропустить').click();
+  await build(page, WORDS[(await meaning(page).textContent())!]);
+  await button(page, 'К проверке').click();
+
+  // Handing in waits for every save, then scores all of them.
+  await handIn(page);
+  await expect(page.getByRole('img', { name: '2 из 3 · 66%' })).toBeVisible({ timeout: 20_000 });
+  expect(saves).toBe(3);
+});
+
+test('each score says its percent, and the bar shows the pass mark', async ({ page, context, browser }) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: { pass_percent: 80 } });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+  const anna = await member(browser, group.code, 'Анна');
+  const annaPage = await anna.newPage();
+  await openDeckTest(annaPage);
+  await startTest(annaPage);
+  await answerAll(annaPage, ['неудача']);
+  await expect(annaPage.getByRole('img', { name: '2 из 3 · 66%' })).toBeVisible();
+
+  await openDeckTest(page);
+  const row = page.getByRole('region', { name: 'Не сдали' }).getByRole('listitem');
+  await expect(row).toHaveText(['Анна2 из 3 · 66%']);
+  // The tick at 80 %, past the end of a 66 % bar.
+  const tick = row.locator('i');
+  await expect(tick).toHaveAttribute('style', /left: 80%/);
   await anna.close();
 });

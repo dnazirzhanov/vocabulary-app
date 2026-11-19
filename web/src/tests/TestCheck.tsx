@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TestAttempt } from '../lib/types.ts';
+import type { TestWordState } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -8,7 +8,8 @@ import styles from './Tests.module.css';
 import { t } from '../i18n/index.ts';
 
 interface TestCheckProps {
-  attempt: TestAttempt;
+  /** Every word as this device knows it, answers given here included. */
+  words: TestWordState[];
   busy: boolean;
   /** Back to one word, to answer or change it. */
   onOpen: (index: number) => void;
@@ -18,14 +19,14 @@ interface TestCheckProps {
 }
 
 /**
- * Before handing in (ADR 0068): every word by its meaning, done or still empty, each a way back to
+ * Before handing in (ADR 0069): every word by its meaning, done or still empty, each a way back to
  * it. «Сдать» hands in at once when everything has an answer, and asks first when something is empty.
  */
-export function TestCheck({ attempt, busy, onOpen, onBack, onHandIn }: TestCheckProps) {
+export function TestCheck({ words, busy, onOpen, onBack, onHandIn }: TestCheckProps) {
   const [asking, setAsking] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
-  const empty = attempt.words.filter((word) => word.state !== 'answered').length;
+  const empty = words.filter((word) => word.state !== 'answered').length;
   const label = { answered: t.testStateAnswered, skipped: t.skipped, empty: t.testStateEmpty };
 
   return (
@@ -35,7 +36,7 @@ export function TestCheck({ attempt, busy, onOpen, onBack, onHandIn }: TestCheck
       </h1>
       <p className={shared.note}>{empty ? t.testCheckEmpty(empty) : t.testCheckAllDone}</p>
       <ol className={styles.checkList} aria-label={t.testCheckTitle}>
-        {attempt.words.map((word, index) => (
+        {words.map((word, index) => (
           <li key={index}>
             <button
               type="button"

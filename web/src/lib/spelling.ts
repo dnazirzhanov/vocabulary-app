@@ -43,6 +43,16 @@ export function withSeparators(letters: string, separators: { after: number; cha
 }
 
 /** A typed letter picks the first tile with it still in the bank (repeated letters too). */
+/**
+ * The English letter a key stands for, whatever the keyboard layout: with a Russian layout on, the
+ * key A types «ф», but its physical code is still `KeyA`. Anything else is passed through.
+ */
+export function letterOfKey(key: string, code: string | undefined): string {
+  if (/^[a-z]$/i.test(key)) return key;
+  const physical = /^Key([A-Z])$/.exec(code ?? '');
+  return physical ? physical[1].toLowerCase() : key;
+}
+
 export function tileForKey(tiles: string[], picked: Picked, key: string): number | null {
   const letter = key.toLowerCase();
   if (!/^[a-z]$/.test(letter)) return null;
