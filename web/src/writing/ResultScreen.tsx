@@ -53,12 +53,19 @@ export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Pr
       ) : (
         <section aria-labelledby="w-overall" className={styles.verdict}>
           {ev && (
-            <h2 id="w-overall" className={styles.verdictHeading}>
-              {t.writingTooLittleHeading}
-            </h2>
+            <header className={styles.verdictHead}>
+              <h2 id="w-overall" className={styles.verdictHeading}>
+                {t.writingTooLittleHeading}
+              </h2>
+              <p className={styles.verdictSummary}>{ev.summary}</p>
+            </header>
           )}
-          {ev && <p className={styles.text}>{ev.summary}</p>}
-          <p className={`${styles.text} ${styles.essay}`}>{submission.answer}</p>
+          <div className={styles.verdictAnswer}>
+            <h3 className={styles.paneTitle}>{t.writingYourAnswer}</h3>
+            <p className={styles.essay} lang="en">
+              {submission.answer}
+            </p>
+          </div>
         </section>
       )}
 
