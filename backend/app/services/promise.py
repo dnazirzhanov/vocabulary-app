@@ -157,15 +157,19 @@ def set_weekdays(
     )
     if not started:
         db.execute(delete(PromiseChange).where(PromiseChange.user_id == user.id))
-        db.add(
-            PromiseChange(
-                user_id=user.id,
-                effective_from=BASELINE,
-                weekdays=mask,
-                start_minute=start,
-                minutes=minutes,
+        db.add(PromiseChange(user_id=user.id, effective_from=BASELINE, weekdays=mask))
+        if start is not None:
+            # The days are promised as from always (nothing to protect yet), but a study time from
+            # today: a week before it was promised is never looked back on (ADR 0071).
+            db.add(
+                PromiseChange(
+                    user_id=user.id,
+                    effective_from=today,
+                    weekdays=mask,
+                    start_minute=start,
+                    minutes=minutes,
+                )
             )
-        )
     else:
         recorded = db.scalar(
             select(func.count()).select_from(PromiseChange).where(PromiseChange.user_id == user.id)
