@@ -1092,6 +1092,10 @@ export const uz: Messages = {
   writingMinutes: (n: number) => `~${n} daq`,
   writingMyAnswers: 'Mening javoblarim',
   writingNotChecked: 'Tekshirilmagan',
+  writingArchive: 'Barcha insholarim',
+  writingArchiveEmpty:
+    'Bu yerda barcha insholaringiz baholari bilan bo‘ladi: ularni qayta o‘qish va solishtirish mumkin.',
+  writingArchiveAll: (n: number) => `Barcha insholar · ${n}`,
   writingPlaceholder: 'Javobingizni yozishni boshlang…',
   writingYourAnswer: 'Sizning javobingiz',
   writingWords: (n: number) => `So‘zlar: ${n}`,

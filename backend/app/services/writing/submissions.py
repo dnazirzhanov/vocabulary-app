@@ -17,6 +17,9 @@ from app.services.writing.schema import Evaluation
 
 # A `pending` row older than this was abandoned (the server restarted mid-call): it may be retried.
 STALE_AFTER = timedelta(minutes=3)
+# The archive: every essay a learner wrote, with enough of each to recognise it.
+ARCHIVE_LIMIT = 500
+EXCERPT_CHARS = 140
 
 
 def _title(question_id: str) -> str:
@@ -68,8 +71,17 @@ def read(db: Session, user: User, submission_id: uuid.UUID) -> SubmissionOut:
     return _out(_mine(db, user, submission_id))
 
 
+def excerpt(answer: str) -> str:
+    """The essay's opening on one line, cut at a word and marked when cut."""
+    flat = " ".join(answer.split())
+    if len(flat) <= EXCERPT_CHARS:
+        return flat
+    cut = flat[:EXCERPT_CHARS].rsplit(" ", 1)[0] or flat[:EXCERPT_CHARS]
+    return cut.rstrip(" ,;:.") + "…"
+
+
 def list_for_user(
-    db: Session, user: User, question_id: str | None = None, limit: int = 20
+    db: Session, user: User, question_id: str | None = None, limit: int = ARCHIVE_LIMIT
 ) -> list[SubmissionSummaryOut]:
     query = select(WritingSubmission).where(WritingSubmission.user_id == user.id)
     if question_id is not None:
@@ -82,6 +94,9 @@ def list_for_user(
             question_title=_title(r.question_id),
             status=r.status,
             overall=(r.evaluation or {}).get("overall"),
+            cefr_level=(r.evaluation or {}).get("cefr_level"),
+            word_count=len(r.answer.split()),
+            excerpt=excerpt(r.answer),
             created_at=r.created_at,
         )
         for r in rows

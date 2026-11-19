@@ -61,4 +61,7 @@ class SubmissionSummaryOut(BaseModel):
     question_title: str
     status: SubmissionStatus
     overall: int | None
+    cefr_level: str | None = None
+    word_count: int = 0
+    excerpt: str = ""
     created_at: datetime

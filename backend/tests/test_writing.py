@@ -3,14 +3,16 @@ duplicates, persistence, and ownership. The model is never called: `evaluator._a
 
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.errors import ApiError
+from app.models import WritingSubmission
 from app.services.writing import evaluator
 from app.services.writing import questions as bank
 from app.services.writing.schema import ModelEvaluation, clean
@@ -313,6 +315,40 @@ def test_submissions_are_listed_newest_first_and_filterable(
         "/api/writing/submissions?question_id=life-morning", headers=as_("ann")
     ).json()
     assert [s["question_id"] for s in only] == ["life-morning"] and only[0]["overall"] == 3
+
+
+def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
+    client: TestClient, model: Model, db: Session
+) -> None:
+    first = post(client).json()
+    owner = db.get(WritingSubmission, uuid.UUID(first["id"]))
+    assert owner is not None
+    # More essays than the old list showed (20): an archive leaves none out.
+    for n in range(1, 25):
+        db.add(
+            WritingSubmission(
+                user_id=owner.user_id,
+                client_id=uuid.uuid4(),
+                question_id="edu-subject",
+                answer=f"Essay number {n}. " + "word " * 60,
+                feedback_language="ru",
+                status="failed",
+                failure_code="writing_unavailable",
+                created_at=MOMENT.replace(day=1) + timedelta(hours=n),
+            )
+        )
+    db.commit()
+
+    everything = client.get("/api/writing/submissions", headers=as_("ann")).json()
+    assert len(everything) == 25
+    newest = everything[0]
+    assert newest["id"] == first["id"]
+    assert newest["word_count"] == len(ANSWER.split())
+    assert newest["excerpt"] == ANSWER
+    assert newest["cefr_level"] == "A2"
+    oldest = everything[-1]
+    assert oldest["excerpt"].startswith("Essay number 1. word") and len(oldest["excerpt"]) <= 141
+    assert oldest["excerpt"].endswith("…") and oldest["cefr_level"] is None
 
 
 def test_one_learner_cannot_read_another_learners_submission(

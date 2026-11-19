@@ -61,6 +61,9 @@ export interface SubmissionSummary {
   question_title: string;
   status: SubmissionStatus;
   overall: number | null;
+  cefr_level: string | null;
+  word_count: number;
+  excerpt: string;
   created_at: string;
 }
 

@@ -1090,6 +1090,10 @@ export const tg: Messages = {
   writingMinutes: (n: number) => `~${n} дақ`,
   writingMyAnswers: 'Ҷавобҳои ман',
   writingNotChecked: 'Санҷида нашудааст',
+  writingArchive: 'Ҳамаи иншоҳои ман',
+  writingArchiveEmpty:
+    'Ин ҷо ҳамаи иншоҳои шумо бо баҳояшон мешаванд: онҳоро аз нав хондан ва муқоиса кардан мумкин аст.',
+  writingArchiveAll: (n: number) => `Ҳамаи иншоҳо · ${n}`,
   writingPlaceholder: 'Навиштани ҷавобро оғоз кунед…',
   writingYourAnswer: 'Ҷавоби шумо',
   writingWords: (n: number) => `Калимаҳо: ${n}`,
