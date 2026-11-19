@@ -16,9 +16,13 @@ interface Props {
   onPickTopic: (topic: string) => void;
   onOpen: (submission: Submission) => void;
   onRetry: (question: WritingQuestion, text: string) => void;
+  onOpenArchive: () => void;
 }
 
-export function WritingHome({ onPickTopic, onOpen, onRetry }: Props) {
+/** How many of the latest essays the home shows; the archive has them all. */
+const LATEST = 3;
+
+export function WritingHome({ onPickTopic, onOpen, onRetry, onOpenArchive }: Props) {
   const [topics, setTopics] = useState<Topic[] | null>(null);
   const [mine, setMine] = useState<SubmissionSummary[]>([]);
   const [error, setError] = useState(false);
@@ -30,7 +34,7 @@ export function WritingHome({ onPickTopic, onOpen, onRetry }: Props) {
       .catch(() => live && setError(true));
     // The past answers are a bonus: if they don't load, the topics are still there.
     listSubmissions()
-      .then((got) => live && setMine(got.slice(0, 5)))
+      .then((got) => live && setMine(got))
       .catch(() => undefined);
     return () => {
       live = false;
@@ -74,7 +78,7 @@ export function WritingHome({ onPickTopic, onOpen, onRetry }: Props) {
             {t.writingMyAnswers}
           </h2>
           <ul className={styles.list}>
-            {mine.map((item) => (
+            {mine.slice(0, LATEST).map((item) => (
               <li key={item.id}>
                 <button type="button" className={styles.row} onClick={() => void open(item)}>
                   <span className={styles.rowName}>{item.question_title}</span>
@@ -85,6 +89,11 @@ export function WritingHome({ onPickTopic, onOpen, onRetry }: Props) {
                 </button>
               </li>
             ))}
+            <li>
+              <button type="button" className={`${styles.row} ${styles.allEssays}`} onClick={onOpenArchive}>
+                {t.writingArchiveAll(mine.length)}
+              </button>
+            </li>
           </ul>
         </section>
       )}
