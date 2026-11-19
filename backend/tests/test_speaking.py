@@ -874,16 +874,16 @@ def test_compute_fluency_slow_speaker() -> None:
 
 
 def test_vocabulary_minimum_evidence_check() -> None:
-    assert vocab_min(4) is False
-    assert vocab_min(5) is True
+    assert vocab_min(39) is False
+    assert vocab_min(40) is True
 
 
 def test_compute_vocabulary_basic() -> None:
     # Enough common English words to exceed the 30-word threshold.
     transcript = " ".join(["The dog runs fast and the cat jumps high"] * 5)
     result = compute_vocabulary(transcript)
-    assert result.score >= 0.0
-    assert result.score <= 100.0
+    assert result.score is not None
+    assert 0.0 <= result.score <= 100.0
     assert result.unique_lemmas > 0
 
 
@@ -1070,3 +1070,189 @@ def test_coherence_skipped_when_no_key(client: TestClient, monkeypatch: pytest.M
     resp = client.get(f"/api/speaking/sessions/{session_id}", headers=as_("karl"))
     body = resp.json()
     assert body["assessment"]["coherence_score"] is None
+
+
+# ─── Speaking v2: what each kind of answer is scored on, and why a score is missing ─────────
+
+ANSWER_B2 = (
+    "If I were to describe my hometown, I'd say that it is easily one of the best places in the "
+    "world. Well, obviously I'm biased because I was born there and I love my country and my "
+    "city. I've got lots of relatives, friends and beloved people living there, so I appreciate "
+    "it a lot. In the morning I usually try to wake up as early as possible, sometimes at four, "
+    "but I rarely succeed in that, I have to admit. After waking up I warm my body up by doing "
+    "some physical exercise, and then I have breakfast with my family before work."
+)
+
+
+def _words_of(text: str, wpm: float = 130.0) -> list[TranscriptWord]:
+    step = int(60_000 / wpm)
+    return [
+        TranscriptWord(word=w, start_ms=i * step, end_ms=i * step + step - 60, confidence=1.0)
+        for i, w in enumerate(text.split())
+    ]
+
+
+def _run_job(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    user: str,
+    *,
+    exercise: str = "spontaneous",
+    transcript: str = ANSWER_B2,
+    **patches: object,
+) -> dict[str, object]:
+    """One answer through the worker with Whisper (and anything in `patches`) faked."""
+    import app.services.speaking.orchestration as orch
+    from app.services.speaking.storage import get_storage
+
+    _enable_speaking(monkeypatch)
+    if exercise == "pronunciation":
+        session_id = _upload_pronunciation_session(client, user)["id"]
+    else:
+        session_id = _upload_session(client, user)["id"]
+    words = _words_of(transcript)
+    fake = TranscriptResult(
+        transcript=transcript, words=words, duration_ms=words[-1].end_ms + 200, raw={}
+    )
+    db: Session = get_sessionmaker()()
+    job = jobs_svc.claim_one(db, "test-v2", datetime.now(UTC))
+    while job is not None and str(job.session_id) != session_id:
+        db.commit()
+        job = jobs_svc.claim_one(db, "test-v2", datetime.now(UTC))
+    assert job is not None
+    db.commit()
+    with patch("app.services.speaking.orchestration.transcribe", return_value=fake):
+        for name, value in patches.items():
+            monkeypatch.setattr(orch, name, value)
+        orch.run_assess_job(db, get_storage(get_settings()), job, openai_api_key=None, now=MOMENT)
+    db.close()
+    body = client.get(f"/api/speaking/sessions/{session_id}", headers=as_(user)).json()
+    assert body["status"] == "done", body
+    return dict(body["assessment"])
+
+
+def test_a_free_answer_gets_a_vocabulary_score_with_its_profile(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    a = _run_job(client, monkeypatch, "vera")
+    assert a["vocabulary_score"] is not None
+    vocab = a["evidence"]["vocabulary"]  # type: ignore[index]
+    assert set(vocab["profile"]) == {"A1-A2", "B1", "B2", "C1+"}
+    assert 0 < vocab["mattr"] <= 1
+
+
+def test_a_failing_vocabulary_scorer_says_so_instead_of_too_few_words(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Production recorded «insufficient_evidence» for 199-word answers: the spaCy model was
+    missing and the error was swallowed. A failure must be reported as one."""
+
+    def missing_model(_: str) -> object:
+        raise OSError("[E050] Can't find model 'en_core_web_sm'")
+
+    a = _run_job(client, monkeypatch, "viktor", compute_vocabulary=missing_model)
+    assert a["vocabulary_score"] is None
+    assert a["evidence"]["vocabulary"] == {"skipped": "error:OSError"}  # type: ignore[index]
+
+
+def test_quoted_misuses_cost_a_little_and_are_kept_as_evidence(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services.speaking.vocabulary_llm import validate
+
+    plain = _run_job(client, monkeypatch, "wanda")
+    evidence = validate(
+        {
+            "misused": [
+                {"quote": "beloved people", "better": "loved ones", "why": "Natural phrase."}
+            ]
+        },
+        ANSWER_B2,
+    )
+    import app.services.speaking.orchestration as orch
+
+    monkeypatch.setattr(get_settings(), "openai_api_key", None)
+    with patch.object(orch, "find_vocabulary_evidence", return_value=evidence):
+        # The evidence call needs a key; give one only for this run.
+        a = _run_job_with_key(client, monkeypatch, "walter")
+    assert a["vocabulary_score"] == pytest.approx(plain["vocabulary_score"] - 3.0, abs=0.01)  # type: ignore[operator]
+    stored = a["evidence"]["vocabulary"]  # type: ignore[index]
+    assert stored["evidence"]["misused"][0]["better"] == "loved ones"
+    assert stored["misuse_penalty"] == 3.0
+
+
+def _run_job_with_key(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, user: str
+) -> dict[str, object]:
+    """As _run_job, with an OpenAI key, and grammar/coherence faked out (no network)."""
+    import app.services.speaking.orchestration as orch
+    from app.services.speaking.storage import get_storage
+
+    _enable_speaking(monkeypatch)
+    session_id = _upload_session(client, user)["id"]
+    words = _words_of(ANSWER_B2)
+    fake = TranscriptResult(
+        transcript=ANSWER_B2, words=words, duration_ms=words[-1].end_ms + 200, raw={}
+    )
+    db: Session = get_sessionmaker()()
+    job = jobs_svc.claim_one(db, "test-v2", datetime.now(UTC))
+    while job is not None and str(job.session_id) != session_id:
+        db.commit()
+        job = jobs_svc.claim_one(db, "test-v2", datetime.now(UTC))
+    assert job is not None
+    db.commit()
+    with (
+        patch.object(orch, "transcribe", return_value=fake),
+        patch.object(orch, "check_grammar_llm", side_effect=RuntimeError("offline")),
+        patch.object(orch, "assess_coherence", side_effect=RuntimeError("offline")),
+        patch.object(orch, "generate_feedback", side_effect=RuntimeError("offline")),
+    ):
+        orch.run_assess_job(db, get_storage(get_settings()), job, openai_api_key="k", now=MOMENT)
+    db.close()
+    return dict(
+        client.get(f"/api/speaking/sessions/{session_id}", headers=as_(user)).json()["assessment"]
+    )
+
+
+def test_read_aloud_is_scored_on_pronunciation_and_fluency_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The words of a read-aloud sentence are ours: they say nothing about the learner's
+    vocabulary, grammar or ideas."""
+    a = _run_job(client, monkeypatch, "xenia", exercise="pronunciation", transcript=ANSWER_B2)
+    for measure in ("vocabulary", "grammar", "coherence"):
+        assert a[f"{measure}_score"] is None
+        assert a["evidence"][measure] == {"skipped": "read_aloud"}  # type: ignore[index]
+
+
+def test_fluency_evidence_lists_each_pause(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    answer = "I think that um the best place is Paris. Because it is very beautiful and calm."
+    words = _words_of(answer, wpm=110)
+    # A long pause after «best», inside a phrase.
+    words = [
+        TranscriptWord(
+            w.word, w.start_ms + (900 if i > 5 else 0), w.end_ms + (900 if i > 5 else 0), 1
+        )
+        for i, w in enumerate(words)
+    ]
+    import app.services.speaking.orchestration as orch
+
+    monkeypatch.setattr(orch, "fluency_min_evidence", lambda *_: True)
+    from app.services.speaking.fluency import FluencyResult
+
+    seen: dict[str, FluencyResult] = {}
+    real = orch._fluency
+
+    def spy(transcript: TranscriptResult, pron: object, wav: object) -> FluencyResult:
+        t = TranscriptResult(transcript=answer, words=words, duration_ms=words[-1].end_ms, raw={})
+        seen["r"] = real(t, None, None)
+        return seen["r"]
+
+    a = _run_job(client, monkeypatch, "yuri", transcript=answer, _fluency=spy)
+    fluency = a["evidence"]["fluency"]  # type: ignore[index]
+    assert fluency["filled_pauses"] == 1  # «um», from Whisper's own words
+    places = {(p["before"], p["after"]) for p in fluency["pauses"]}
+    assert ("best", "place") in places
+    assert fluency["timing_source"] == "whisper"

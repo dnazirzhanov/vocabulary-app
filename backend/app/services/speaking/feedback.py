@@ -139,20 +139,35 @@ def generate_feedback(
         evidence_parts.append("grammar_errors: []")
 
     if fluency_result is not None:
+        f = fluency_result.raw
+        # The longest pauses inside a phrase, with the words around them: what to comment on.
+        listed = f.get("pauses")
+        inside = [
+            p
+            for p in (listed if isinstance(listed, list) else [])
+            if isinstance(p, dict) and p.get("inside_phrase")
+        ]
+        worst = sorted(inside, key=lambda p: -int(p.get("ms", 0)))[:3]
+        places = "; ".join(
+            f'{p["kind"]} {p["ms"]}ms between "{p["before"]}" and "{p["after"]}"' for p in worst
+        )
         evidence_parts.append(
             f"fluency: wpm={fluency_result.wpm:.0f}, "
-            f"pause_ratio={fluency_result.pause_ratio:.2f}, "
-            f"score={fluency_result.score:.0f}/100"
+            f"silent_pauses={f.get('silent_pauses', fluency_result.pause_count)}, "
+            f"pauses_inside_phrase={f.get('pauses_inside_phrase', '?')}, "
+            f"filled_pauses_um_uh={f.get('filled_pauses', '?')}, "
+            f"mean_words_between_pauses={f.get('mean_run_words', '?')}, "
+            f"score={fluency_result.score:.0f}/100, worst_pauses=[{places}]"
         )
     else:
         evidence_parts.append("fluency: not available")
 
-    if vocab_result is not None:
-        dist = ", ".join(f"{k}:{v}" for k, v in sorted(vocab_result.cefr_distribution.items()))
+    if vocab_result is not None and vocab_result.score is not None:
+        v = vocab_result.raw
         evidence_parts.append(
             f"vocabulary: score={vocab_result.score:.0f}/100, "
-            f"unique_lemmas={vocab_result.unique_lemmas}, "
-            f"cefr_distribution=[{dist}]"
+            f"level_profile={v.get('profile')}, "
+            f"variety_mattr={v.get('mattr')}, repeated={v.get('repeated')}"
         )
     else:
         evidence_parts.append("vocabulary: not available")

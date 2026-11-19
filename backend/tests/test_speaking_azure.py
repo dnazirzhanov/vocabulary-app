@@ -332,3 +332,27 @@ def test_filled_pauses_count_as_hesitation_not_as_speech() -> None:
     assert b.wpm == a.wpm  # fillers do not raise the speech rate
     assert b.raw["filler_count"] == 5
     assert b.pause_ratio > a.pause_ratio
+
+
+def test_a_three_minute_answer_is_cut_into_pieces_azure_accepts() -> None:
+    """Answers may now be 3 minutes long: every piece stays under Azure's 30 s limit."""
+    words = _speech(450, every_ms=400, pauses={i: 700 for i in range(25, 450, 25)})
+    total = words[-1].end_ms + 300
+    assert total >= 180_000
+    pieces = plan_pieces(words, total)
+    assert all(p.end_ms - p.start_ms <= 28_000 for p in pieces)
+    assert pieces[0].first == 0 and pieces[-1].last == 450
+    assert len(pieces) >= 7
+
+
+def test_word_times_are_kept_on_the_whole_recordings_clock(azure) -> None:  # type: ignore[no-untyped-def]
+    """Azure's word offsets (100 ns units, per piece) become ms from the recording's start."""
+    words = _speech(90, pauses={30: 2_000})
+    total = words[-1].end_ms + 500
+    pieces = plan_pieces(words, total)
+    azure(_rest_response(["a"]), _rest_response(["b"]))
+    result = pa.assess_free_speech(_silence_wav(total), words, total, "key")
+    second = next(w for w in result.words if w.word == "b")
+    # _rest_response puts the first word at Offset 700000 (70 ms) into its piece.
+    assert second.start_ms == pieces[1].start_ms + 70
+    assert second.end_ms == pieces[1].start_ms + 70 + 260
