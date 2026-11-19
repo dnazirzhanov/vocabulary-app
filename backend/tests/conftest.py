@@ -82,7 +82,8 @@ def db(database: None) -> Iterator[Session]:
                 "TRUNCATE learning_sessions, review_attempts, user_word_progress,"
                 " spelling_progress, pace_dismissals, deck_paces, push_subscriptions, groups,"
                 " group_members, deck_assignments, deleted_logins, study_day_totals,"
-                " speaking_assessments, speaking_jobs, speaking_audio_assets, speaking_sessions"
+                " speaking_assessments, speaking_jobs, speaking_audio_assets, speaking_sessions,"
+                " pronunciation_audio"
                 " CASCADE"
             )
         )

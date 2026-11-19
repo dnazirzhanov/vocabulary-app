@@ -87,6 +87,8 @@ class Settings(BaseSettings):
     azure_speech_key: str | None = None
     # Azure region for pronunciation assessment. Must be an EU region (GDPR requirement).
     azure_speech_region: str = "westeurope"
+    # New words and examples one learner may have spoken per day (each one a paid call, ADR 0070).
+    pronunciations_per_day: int = 500
     # Identifier for the speaking worker instance; used in claimed_by for observability.
     speaking_worker_id: str = "default"
     # LanguageTool REST API base URL (Chunk 5). Optional — grammar_score stays null if unset.

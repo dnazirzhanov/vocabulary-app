@@ -40,6 +40,7 @@ from app.models.speaking import (
     SpeakingJob,
     SpeakingSession,
 )
+from app.models.speech import PronunciationAudio
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     CardReport,
@@ -74,6 +75,7 @@ __all__ = [
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
+    "PronunciationAudio",
     "PushSubscription",
     "Reading",
     "ReadingAnswer",

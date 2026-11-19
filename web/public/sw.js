@@ -7,7 +7,8 @@ const SHELL = [];
 const SHELL_CACHE = `shell-${VERSION}`;
 // A kept file is the same file whatever the request said: some servers add `Vary: Origin`, which
 // would otherwise keep a navigation from matching the page kept at install.
-const AUDIO_CACHE = 'audio-1';
+// A new name when the recordings change voice (ADR 0070): the old ones go on activation.
+const AUDIO_CACHE = 'audio-2';
 const READING_CACHE = 'reading-1';
 
 self.addEventListener('install', (event) => {
@@ -21,15 +22,13 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // Older versions of the app go; recorded audio stays.
+  // Older versions of the app go, and recordings in an older voice; today's recordings stay.
+  const old = (name) =>
+    (name.startsWith('shell-') && name !== SHELL_CACHE) || (name.startsWith('audio-') && name !== AUDIO_CACHE);
   event.waitUntil(
     caches
       .keys()
-      .then((names) =>
-        Promise.all(
-          names.filter((name) => name.startsWith('shell-') && name !== SHELL_CACHE).map((name) => caches.delete(name)),
-        ),
-      )
+      .then((names) => Promise.all(names.filter(old).map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });
