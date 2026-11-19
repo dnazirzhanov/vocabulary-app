@@ -50,6 +50,16 @@ export function tileForKey(tiles: string[], picked: Picked, key: string): number
   return index === -1 ? null : index;
 }
 
+/** The tiles that build a saved answer (going back to a word in a test); separators are built in. */
+export function picksOf(tiles: string[], answer: string | null | undefined): Picked {
+  const picked: Picked = [];
+  for (const char of answer ?? '') {
+    const tile = tileForKey(tiles, picked, char);
+    if (tile !== null) picked.push(tile);
+  }
+  return picked;
+}
+
 /** Letter by letter, which ones differ from the word (the feedback marks them; not colour alone). */
 export function differences(answer: string, target: string): { letter: string; differs: boolean }[] {
   return [...answer].map((letter, index) => ({ letter, differs: letter !== target[index] }));

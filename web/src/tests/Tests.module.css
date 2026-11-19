@@ -160,7 +160,6 @@
   text-align: right;
 }
 
-/* The last minute: darker and bolder, not alarm red, so it doesn't rattle anyone. */
 .music {
   display: grid;
   flex: none;
@@ -189,6 +188,7 @@
   height: 22px;
 }
 
+/* The last minute: darker and bolder, not alarm red, so it doesn't rattle anyone. */
 .clock[data-low] {
   color: var(--color-text);
   font-weight: var(--weight-display);
@@ -287,4 +287,177 @@
 .wordChoices span {
   color: var(--color-text-muted);
   font-size: var(--text-meta);
+}
+
+/* Before handing in: every word by its meaning and its state, each a way back to it. */
+.check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: var(--width-prompt);
+  margin: 0 auto;
+}
+
+.checkTitle {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.checkList {
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  list-style: none;
+}
+
+.checkList li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.checkRow {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkRow:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+}
+
+.checkNumber {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.checkMeaning {
+  overflow-wrap: anywhere;
+}
+
+.checkState {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* Done is quiet; what is still empty stands out, in the accent, never red. */
+.checkRow[data-state='answered'] .checkState {
+  color: var(--color-text-muted);
+}
+
+.checkRow[data-state='skipped'] .checkState,
+.checkRow[data-state='empty'] .checkState {
+  color: var(--color-primary-strong);
+}
+
+.checkActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.checkHandIn {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkBack {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.checkBack svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* My attempts: every one I finished, newest first, each opening its result. */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.historyList {
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  list-style: none;
+}
+
+.historyList li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'when score'
+    'kind verdict';
+  align-items: baseline;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.historyRow:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+}
+
+.historyWhen {
+  grid-area: when;
+  font-weight: var(--weight-strong);
+}
+
+.historyKind {
+  grid-area: kind;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.historyScore {
+  grid-area: score;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.historyVerdict {
+  grid-area: verdict;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-align: right;
 }

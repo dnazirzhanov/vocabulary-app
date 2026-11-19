@@ -1430,3 +1430,152 @@ def test_cleanup_removes_old_practice_and_keeps_tests(client: TestClient, db: Se
     left = db.execute(select(GroupTestAttempt.kind, func.count()).group_by(GroupTestAttempt.kind))
     assert {kind: count for kind, count in left} == {"test": 1, "practice": 1}
     assert names(room.detail("pavel")["passed"]) == ["Павел"]
+
+
+# --- going back and forth, then handing in --------------------------------------------------
+
+
+def _save(
+    client: TestClient,
+    attempt: dict[str, Any],
+    answer: str | None,
+    at: int | None,
+    user: str = "pavel",
+    moment: datetime = NOW,
+) -> dict[str, Any]:
+    query = "" if at is None else f"?at={at}"
+    response = client.put(
+        f"/api/test-attempts/{attempt['id']}/questions/{attempt['question']['id']}{query}",
+        json={"answer": answer},
+        headers=as_(user, moment),
+    )
+    assert response.status_code == 200, response.text
+    result: dict[str, Any] = response.json()
+    return result
+
+
+def _go(
+    client: TestClient, attempt: dict[str, Any], at: int, user: str = "pavel"
+) -> dict[str, Any]:
+    response = client.get(f"/api/test-attempts/{attempt['id']}?at={at}", headers=as_(user))
+    assert response.status_code == 200, response.text
+    result: dict[str, Any] = response.json()
+    return result
+
+
+def _submit(
+    client: TestClient, attempt: dict[str, Any], user: str = "pavel", moment: datetime = NOW
+) -> dict[str, Any]:
+    response = client.post(f"/api/test-attempts/{attempt['id']}/submit", headers=as_(user, moment))
+    assert response.status_code == 200, response.text
+    result: dict[str, Any] = response.json()
+    return result
+
+
+def test_back_shows_the_previous_word_with_its_saved_answer(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    assert attempt["position"] == 0 and attempt["answer"] is None
+    first_key, first = attempt["question"]["id"], _right(attempt)
+
+    attempt = _save(client, attempt, first, at=1)
+    assert attempt["position"] == 1 and attempt["question"]["id"] != first_key
+    assert attempt["result"] is None  # nothing finishes by answering
+
+    back = _go(client, attempt, 0)
+    assert back["question"]["id"] == first_key and back["answer"] == first
+    # The meaning is all a word shows; never the word itself.
+    assert first not in str(back["words"]) and first not in str(back["question"])
+
+
+def test_an_answer_can_be_changed_until_it_is_handed_in(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    right = _right(attempt)
+    attempt = _save(client, attempt, "zzz", at=0)
+    assert attempt["answer"] == "zzz"
+    attempt = _save(client, attempt, right, at=0)  # back to it, and fixed
+    attempt = _save(client, _go(client, attempt, 1), _right(_go(client, attempt, 1)), at=1)
+    # Every word answered: still running, waiting to be handed in.
+    assert attempt["result"] is None and attempt["question"] is not None
+    assert [w["state"] for w in attempt["words"]] == ["answered", "answered"]
+
+    done = _submit(client, attempt)
+    assert (done["result"]["correct"], done["result"]["total"]) == (2, 2)
+    # Handed in: nothing changes it any more, and handing in again changes nothing.
+    again = _save(client, {"id": attempt["id"], "question": attempt["question"]}, "zzz", at=0)
+    assert again["result"]["correct"] == 2
+    assert _submit(client, attempt)["result"]["correct"] == 2
+
+
+def test_a_skip_leaves_the_word_empty_and_the_check_shows_it(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    attempt = _save(client, attempt, _right(attempt), at=1)
+    attempt = _save(client, attempt, None, at=2)  # skipped
+    assert attempt["position"] == 2
+    assert [w["state"] for w in attempt["words"]] == ["answered", "skipped", "empty"]
+    assert attempt["answered"] == 2  # the bar counts the skip as dealt with
+
+    # A skipped word answered later counts as answered.
+    skipped = _go(client, attempt, 1)
+    assert skipped["answer"] is None
+    answered = _save(client, skipped, _right(skipped), at=2)
+    assert [w["state"] for w in answered["words"]] == ["answered", "answered", "empty"]
+
+    # And an answered word can be emptied again.
+    emptied = _save(client, _go(client, answered, 0), None, at=0)
+    assert [w["state"] for w in emptied["words"]] == ["skipped", "answered", "empty"]
+
+
+def test_handing_in_counts_empty_words_as_skipped_and_wrong(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    attempt = _save(client, attempt, _right(attempt), at=1)
+    attempt = _save(client, attempt, None, at=2)
+
+    done = _submit(client, attempt)
+    result = done["result"]
+    assert (result["correct"], result["total"], result["timed_out"]) == (1, 3, False)
+    assert [m["skipped"] for m in result["mistakes"]] == [True, True]
+    assert done["question"] is None and done["words"] == []
+
+
+def test_time_up_hands_in_what_was_saved_by_going_back_and_forth(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready(minutes=5)
+    attempt = room.start("pavel").json()
+    attempt = _save(client, attempt, _right(attempt), at=1)
+    attempt = _save(client, attempt, None, at=2)
+
+    up = NOW + timedelta(minutes=5)
+    late = _save(client, attempt, "zzz", at=2, moment=up + timedelta(minutes=1))
+    result = late["result"]
+    assert (result["correct"], result["total"], result["timed_out"]) == (1, 3, True)
+    by_skip = sorted(m["skipped"] for m in result["mistakes"])
+    assert by_skip == [False, True]  # one skipped, one the time ran out on
+
+
+def test_my_attempts_are_all_kept_newest_first(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain"])
+    room.ready()
+    room.take("pavel", wrong=1)
+    for minutes in (1, 2):
+        later = NOW + timedelta(minutes=minutes)
+        practice = room.start("pavel", "practice", later).json()
+        _submit(client, practice, moment=later)
+
+    history = room.detail("pavel")["mine"]["history"]
+    assert [h["kind"] for h in history] == ["practice", "practice", "test"]
+    test_row = history[-1]
+    assert (test_row["correct"], test_row["total"], test_row["passed"]) == (1, 2, False)
+    assert history[0]["passed"] is None
+    # Each opens to its own result.
+    old = client.get(f"/api/test-attempts/{test_row['id']}", headers=as_("pavel")).json()
+    assert old["result"]["correct"] == 1 and len(old["result"]["mistakes"]) == 1
+    # Mine alone: someone else's page lists only theirs.
+    assert room.detail("ivan")["mine"]["history"] == []
