@@ -450,6 +450,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       reading={me.reading === true}
       mentor={me.mentor === true}
       speaking={speakingEnabled}
+      writing={me.writing === true}
     >
       {tabScreen()}
     </NavShell>

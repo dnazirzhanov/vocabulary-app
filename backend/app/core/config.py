@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     reading_testers: str = ""
     # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
     mentor_testers: str = ""
+    # Sign-ins (same format) who see the Writing tab; empty: nobody.
+    writing_testers: str = ""
     # Mentor chat messages per user per day: each costs a model call.
     mentor_chats_per_day: int = 20
     # Set to true in e2e tests (via MENTOR_CHAT_DEMO=true) to force demo replies without a key.
