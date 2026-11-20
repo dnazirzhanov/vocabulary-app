@@ -7,6 +7,27 @@ from typing import Any
 def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     """The tool a question plainly asks for, by its words, with fixed arguments."""
     said = message.lower()
+    # Looking things up (ADR 0079).
+    if "напоминани" in said or "reminder" in said:
+        on = not any(w in said for w in ("выключ", "отключ", "не нужн", "turn off"))
+        return [("propose_reminders", {"afternoon": on, "morning": on})]
+    if "вчера" in said or "yesterday" in said:
+        return [("get_practice", {"from": "yesterday", "to": "yesterday"})]
+    if any(w in said for w in ("трудн", "сложн", "hard words", "struggl")):
+        return [("get_words", {"state": "struggling"})]
+    about_essays = any(w in said for w in ("эссе", "сочинени", "essay"))
+    if about_essays and any(w in said for w in ("улучш", "ошибк", "оценк", "отзыв", "feedback")):
+        return [("get_writing", {})]
+    if any(w in said for w in ("произнош", "pronunciation")):
+        return [("get_speaking", {})]
+    if any(w in said for w in ("прочитал", "статьи", "articles")):
+        return [("get_reading", {})]
+    if any(w in said for w in ("задани", "дедлайн", "учитель", "deadline")):
+        return [("get_assignments", {})]
+    if any(w in said for w in ("прогресс", "за неделю", "за месяц", "progress")):
+        return [("get_progress", {"period": "month" if "месяц" in said else "week"})]
+    if any(w in said for w in ("расписание на", "что у меня", "schedule for")):
+        return [("get_calendar", {"date": "today"})]
     if any(w in said for w in ("мой день", "my day", "как выглядит")):
         return [("show", {"component": "day"})]
     if any(w in said for w in ("разминк", "warm up", "warm-up")):

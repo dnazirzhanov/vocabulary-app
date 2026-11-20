@@ -425,6 +425,10 @@ export type MentorCard =
   | { type: 'words'; words: { en: string; l1: string }[]; due: number }
   | { type: 'day_check'; current: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null }
   | { type: 'choice'; question: string; options: string[] }
+  | {
+      type: 'reminders';
+      changes: Partial<Record<'morning' | 'afternoon' | 'deadline' | 'report', boolean>>;
+    }
   | { type: 'celebrate'; milestones: { kind: 'streak_weeks' | 'days_this_week' | 'words_known'; value: number }[] }
   | { type: 'done' }
   | {
@@ -477,7 +481,17 @@ export type MentorToolName =
   | 'offer_replies'
   | 'remember'
   | 'recall'
-  | 'show';
+  | 'show'
+  // Reading the app (ADR 0079): steps without cards.
+  | 'get_practice'
+  | 'get_words'
+  | 'get_writing'
+  | 'get_speaking'
+  | 'get_reading'
+  | 'get_assignments'
+  | 'get_calendar'
+  | 'get_progress'
+  | 'propose_reminders';
 
 export interface MentorToolEvent {
   id: string;

@@ -137,6 +137,12 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- Everything in the app can be looked up (ADR 0079): other days' practice (get_practice), \
+their words (get_words), essays and feedback (get_writing), speaking results (get_speaking), \
+reading (get_reading), group decks and deadlines (get_assignments), a date's plan \
+(get_calendar), a week's or month's progress (get_progress). Look it up before you answer, \
+and never say you don't know or can't see something before you have. Reminders: \
+propose_reminders.
 - Whether they did something today: answer from «Practice today so far» below, exactly: what, \
 when, how long, finished or not. It is complete, so never say you have no data about today; \
 if something isn't listed, it wasn't done in the app today. An unfinished lesson can be \
@@ -1242,7 +1248,7 @@ def chat(
 
 
 # At most this many rounds of tool calls before the mentor must answer.
-MAX_TOOL_ROUNDS = 3
+MAX_TOOL_ROUNDS = 4  # a lookup, then often a component, then the answer (ADR 0079)
 
 
 def stream_chat(
