@@ -244,6 +244,12 @@ function kindLabel(k: EventKind): string {
       return t.scheduleKindChore;
     case 'personal':
       return t.scheduleKindPersonal;
+    case 'rest':
+      return t.scheduleKindRest;
+    case 'play':
+      return t.scheduleKindPlay;
+    case 'sleep':
+      return t.scheduleKindSleep;
     case 'other':
       return t.scheduleKindOther;
   }

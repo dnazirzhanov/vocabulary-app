@@ -1,4 +1,14 @@
-export type EventKind = 'school' | 'work' | 'sport' | 'chore' | 'personal' | 'other';
+export type EventKind =
+  | 'school'
+  | 'work'
+  | 'sport'
+  | 'chore'
+  | 'personal'
+  | 'other'
+  // Time that is protected, never filled with study (ADR 0076).
+  | 'rest'
+  | 'play'
+  | 'sleep';
 
 export interface ScheduleEvent {
   id: string;
@@ -36,7 +46,20 @@ export function happensOn(event: ScheduleEvent, d: Date): boolean {
   return Boolean(event.weekdays & (1 << ((d.getDay() + 6) % 7))) && !event.skipped.includes(day);
 }
 
-export const EVENT_KINDS: EventKind[] = ['school', 'work', 'sport', 'chore', 'personal', 'other'];
+export const EVENT_KINDS: EventKind[] = [
+  'school',
+  'work',
+  'sport',
+  'chore',
+  'personal',
+  'rest',
+  'play',
+  'sleep',
+  'other',
+];
+
+/** Rest, play and sleep: the coach never puts study there, and the mentor defends them. */
+export const PROTECTED_KINDS: ReadonlySet<EventKind> = new Set(['rest', 'play', 'sleep']);
 
 /** Pack a list of weekday indices (0 = Mon … 6 = Sun) into a bitmask. */
 export function daysToMask(days: readonly number[]): number {

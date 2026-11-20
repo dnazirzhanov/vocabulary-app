@@ -5,7 +5,7 @@ import { study } from '../study/device.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { listEvents } from '../schedule/api.ts';
-import type { ScheduleEvent } from '../schedule/types.ts';
+import { happensOn, type ScheduleEvent } from '../schedule/types.ts';
 import { ScheduleView } from '../schedule/ScheduleView.tsx';
 import { collectMentorInput } from './inputs.ts';
 import { markLaunched, reconcileDone } from './done.ts';
@@ -16,6 +16,7 @@ import type { Activity } from './chat/ToolCards.tsx';
 import { planToday, withWeek } from './plan.ts';
 import { busyNow, freeUntil, slotsFor } from './slots.ts';
 import { minimumOf, rescueOptions } from './rescue.ts';
+import { loadFor, type DayType } from './dayPlan.ts';
 import { pickTip } from './tip.ts';
 import { titleOf, TodayView } from './TodayView.tsx';
 import type { MentorGoalType, MentorInput, PlanItem, Tip } from './types.ts';
@@ -161,20 +162,23 @@ export function MentorScreen({
   });
   // Today's choice when it didn't work (ADR 0074): the minimum, a later start, or nothing today.
   const override = coach?.today?.override_mode ?? null;
-  const items = override === 'minimum' ? minimumOf(planned) : override === 'skip' ? [] : planned;
+  // What kind of day it is sets the load first (ADR 0076); today's choice then bends that.
+  const dayType = coach?.today?.day_type ?? null;
+  const loaded = loadFor(dayType, planned);
+  const items = override === 'minimum' ? minimumOf(loaded) : override === 'skip' ? [] : loaded;
   const tip = pickTip(input);
   const doneItems = reconcileDone(account, new Set(planned.map(keyOf)));
 
   const minute = now.getHours() * 60 + now.getMinutes();
-  const weekday = (now.getDay() + 6) % 7;
+  // Today's blocks: one-offs on their date, repeating ones unless skipped today (ADR 0074).
   const today = events
-    .filter((e) => e.weekdays & (1 << weekday))
+    .filter((e) => happensOn(e, now))
     .map((e) => ({ start: e.startMinute, end: e.endMinute, title: e.title }));
   const studyStart =
     override === 'moved' ? (coach?.today.override_start ?? null) : (coach?.commitment.start_minute ?? null);
   const slots = slotsFor(items, today, minute, studyStart);
   const rescue = rescueOptions(
-    planned.map((item) => ({ title: titleOf(item), minutes: item.minutes })),
+    loaded.map((item) => ({ title: titleOf(item), minutes: item.minutes })),
     today,
     minute,
     coach?.commitment.start_minute ?? null,
@@ -184,7 +188,7 @@ export function MentorScreen({
       ? coach.commitment.start_minute + coach.commitment.minutes
       : null;
   const nudge =
-    coach && coach.today.promised && !coach.today.studied && planned.length > 0
+    coach && coach.today.promised && !coach.today.studied && loaded.length > 0
       ? coach.today.missed_yesterday
         ? ('missed' as const)
         : promisedEnd !== null && minute > promisedEnd
@@ -346,6 +350,7 @@ export function MentorScreen({
             void api.coachToday(option.mode, option.start ?? undefined).then(keepCoach, () => undefined)
           }
           onUndoRescue={() => void api.coachToday(null).then(keepCoach, () => undefined)}
+          onDayType={(type: DayType | null) => void api.coachDayType(type).then(keepCoach, () => undefined)}
           onDecide={(accept) => {
             const adjustment = coach?.adjustment;
             if (adjustment) void api.coachDecide(adjustment.id, accept).then(keepCoach, () => undefined);

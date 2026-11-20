@@ -209,7 +209,10 @@ function ScheduleCard({ events }: { events: Extract<MentorCard, { type: 'schedul
   );
 }
 
-const REASON: Record<string, () => string> = {
+type StudyOption = Extract<MentorCard, { type: 'study_times' }>['options'][number];
+
+const REASON: Record<string, (o: StudyOption) => string> = {
+  works: (o) => t.mentorReasonWorks(o.kept ?? 0, o.tried ?? 0),
   habit: () => t.mentorReasonHabit,
   preferred: () => t.mentorReasonPreferred,
   after_block: () => t.mentorReasonAfterBlock,
@@ -253,7 +256,7 @@ function StudyTimesCard({ options }: { options: Extract<MentorCard, { type: 'stu
             <small>
               {o.reasons
                 .filter((r) => r in REASON)
-                .map((r) => REASON[r]())
+                .map((r) => REASON[r](o))
                 .join(' · ') || t.mentorReasonFree}
             </small>
           </button>

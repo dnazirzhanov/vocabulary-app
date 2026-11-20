@@ -160,6 +160,15 @@
 .kind_personal.kindSelected {
   background: color-mix(in srgb, #ec4899 18%, var(--color-surface));
 }
+.kind_rest.kindSelected {
+  background: color-mix(in srgb, #0f8b8d 18%, var(--color-surface));
+}
+.kind_play.kindSelected {
+  background: color-mix(in srgb, #ca8a04 18%, var(--color-surface));
+}
+.kind_sleep.kindSelected {
+  background: color-mix(in srgb, #4f46e5 18%, var(--color-surface));
+}
 .kind_other.kindSelected {
   background: color-mix(in srgb, #6b7280 18%, var(--color-surface));
 }
@@ -179,6 +188,15 @@
 }
 .kindDotLarge.kind_personal {
   background: #ec4899;
+}
+.kindDotLarge.kind_rest {
+  background: #0f8b8d;
+}
+.kindDotLarge.kind_play {
+  background: #ca8a04;
+}
+.kindDotLarge.kind_sleep {
+  background: #4f46e5;
 }
 .kindDotLarge.kind_other {
   background: #6b7280;

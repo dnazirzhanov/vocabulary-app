@@ -371,6 +371,9 @@ export const api = {
     mode === null
       ? request<Coach>('DELETE', '/mentor/coach/today')
       : request<Coach>('PUT', '/mentor/coach/today', { mode, start_minute: startMinute }),
+  /** What kind of day today is (ADR 0076); null clears it. */
+  coachDayType: (type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null) =>
+    request<Coach>('PUT', '/mentor/coach/day-type', { type }),
   // What the mentor knows (ADR 0075).
   mentorMemory: () => request<MentorMemory>('GET', '/mentor/memory'),
   mentorAddFact: (kind: FactKind, text: string, source: 'chat' | 'user' = 'user') =>
@@ -415,7 +418,14 @@ export type MentorCard =
     }
   | {
       type: 'study_times';
-      options: { weekdays: number[]; start_minute: number; minutes: number; reasons: string[] }[];
+      options: {
+        weekdays: number[];
+        start_minute: number;
+        minutes: number;
+        reasons: string[];
+        kept?: number;
+        tried?: number;
+      }[];
     }
   | {
       type: 'goal';
@@ -522,6 +532,7 @@ export interface Coach {
     studied: boolean;
     promised: boolean;
     missed_yesterday: boolean;
+    day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
   };
   adjustment: {
     id: string;
@@ -558,7 +569,9 @@ export interface StudyTimeOption {
   weekdays: number[];
   start_minute: number;
   minutes: number;
-  reasons: ('free' | 'habit' | 'preferred' | 'after_block')[];
+  reasons: ('free' | 'habit' | 'preferred' | 'after_block' | 'works')[];
+  kept?: number;
+  tried?: number;
 }
 
 /** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
