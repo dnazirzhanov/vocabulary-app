@@ -370,11 +370,15 @@ def weekly_review(
         return existing if existing.status == "proposed" else None
     last_week = week_of(week_start - timedelta(days=1))
     time = promise.time_on(last_week[-1])
-    if time is None:
-        return None  # nothing promised at a time: nothing to look back on yet
+    if time is None or promise.time_on(last_week[0]) is None:
+        # Nothing promised at a time, or not for the whole week: too little to judge from.
+        return None
     since = datetime.combine(last_week[0], datetime.min.time(), zone)
     activity = activity_in(db, user, since, zone)
-    promised_days = [day for day in last_week if promise.promised_on(day)]
+    # Only days the study time was already promised on count: not the days before it.
+    promised_days = [
+        day for day in last_week if promise.promised_on(day) and promise.time_on(day) is not None
+    ]
     kept_days = [day for day in promised_days if activity.minutes.get(day)]
     studied = [day for day in last_week if day in activity.minutes]
     week = adapt.Week(

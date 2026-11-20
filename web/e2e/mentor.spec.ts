@@ -13,18 +13,17 @@ test("the Mentor tab shows a greeting, a tip, and today's plan", async ({ page }
   await expect(greeting).toBeVisible();
   await expect(greeting).toHaveText(/Доброе утро|Добрый день|Добрый вечер|Доброй ночи/);
 
-  // The tip is always shown under its «Совет» heading; its wording depends on real state.
-  await expect(page.getByText('Совет', { exact: true })).toBeVisible();
-
-  // Plan section is always rendered with its heading — empty state or cards beneath it.
+  // «Сейчас» leads with one thing to do (or that the day is done), then the day's checklist.
+  await expect(page.getByRole('heading', { level: 2, name: 'Сейчас' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'План на сегодня' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Время занятий' })).toBeVisible();
 });
 
 async function openChat(page: import('@playwright/test').Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Написать наставнику' }).click();
+  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
   await expect(page.getByRole('heading', { level: 2, name: /^Чем займёмся/ })).toBeVisible();
 }
 
@@ -122,7 +121,10 @@ test('the goal chip shows the current goal and «Изменить цель» ope
   await expect(page.getByText('Общий', { exact: false })).toBeVisible();
 
   // «Изменить цель» opens the GoalSetup screen.
-  await page.getByRole('button', { name: 'Изменить цель' }).click();
+  await page
+    .getByRole('button', { name: /Изменить$/ })
+    .first()
+    .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Какова ваша цель в английском?' })).toBeVisible();
 
   // Select a different goal type and save.
@@ -135,4 +137,21 @@ test('the goal chip shows the current goal and «Изменить цель» ope
 
   // After saving, the dashboard returns.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Доброе утро|Добрый день|Добрый вечер|Доброй ночи/);
+});
+
+// ADR 0071: each task gets a time from the learner's own day: from the promised study time,
+// around the schedule. A school day from 08:00 to 22:00 leaves no room until tomorrow.
+test("today's tasks get times from the promised study time and the schedule", async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-19T15:00:00'));
+  await page.request.put('/api/mentor/coach/commitment', {
+    data: { weekdays: [0, 1, 2, 3, 4, 5, 6], start_minute: 19 * 60 + 30, minutes: 20 },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  const time = page.getByRole('region', { name: 'Время занятий' });
+  await expect(time).toContainText('19:30');
+  await expect(time).toContainText('Каждый день · 20 мин');
+  const tasks = page.getByRole('region', { name: 'План на сегодня' }).getByRole('listitem');
+  if ((await tasks.count()) > 0) await expect(tasks.first()).toContainText('19:30');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
