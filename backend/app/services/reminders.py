@@ -266,6 +266,7 @@ def send_reminders(
     for subscription, user in rows:
         by_user[user.id].append(subscription)
         users[user.id] = user
+    promises = load_promises(db, list(users.values()))
     sent = 0
     for user_id, subscriptions in by_user.items():
         user = users[user_id]
@@ -273,9 +274,16 @@ def send_reminders(
         zone = ZoneInfo(user.time_zone)
         local = now.astimezone(zone)
         today = local.date()
-        if MORNING[0] <= local.hour < MORNING[1]:
+        minute = local.hour * 60 + local.minute
+        # The day's second reminder comes at the learner's own study time when they promised one
+        # (ADR 0071), else in the late afternoon.
+        study = promises[user_id].time_on(today)
+        second = (study[0], study[0] + 60) if study else (AFTERNOON[0] * 60, AFTERNOON[1] * 60)
+        # A morning study time is reminded of instead of the morning note, never as well.
+        morning_free = second[1] <= MORNING[0] * 60 or second[0] >= MORNING[1] * 60
+        if MORNING[0] <= local.hour < MORNING[1] and morning_free:
             field, make = "last_morning_on", morning_message
-        elif AFTERNOON[0] <= local.hour < AFTERNOON[1]:
+        elif second[0] <= minute < second[1]:
             field, make = "last_sent_on", afternoon_message
         else:
             continue

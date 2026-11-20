@@ -431,3 +431,40 @@ def test_a_notification_comes_in_the_learners_own_language(
     (morning,) = due(db, utc(5, 2))
     assert expected in morning["body"]
     assert morning["lang"] == language
+
+
+def test_a_promised_study_time_moves_the_second_reminder_to_it(
+    client: TestClient, db: Session, phone: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0071: «пн–вс в 20:00» means the reminder comes at 20:00, not at five."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "mentor_testers", "*")
+    phone("anna", BISHKEK)
+    committed = client.put(
+        "/api/mentor/coach/commitment",
+        json={"weekdays": EVERY_DAY, "start_minute": 20 * 60, "minutes": 20},
+        headers=as_("anna", utc(4, 6)),
+    )
+    assert committed.status_code == 200, committed.text
+    assert due(db, utc(5, 11)) == []  # 17:05 in Bishkek: not the study time
+    assert [item["title"] for item in due(db, utc(5, 14))] == ["Сегодня ещё не занимались"]
+    assert due(db, utc(5, 15)) == []  # once a day
+
+
+def test_a_morning_study_time_takes_the_place_of_the_morning_note(
+    client: TestClient, db: Session, phone: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "mentor_testers", "*")
+    phone("anna", BISHKEK)
+    client.put(
+        "/api/mentor/coach/commitment",
+        json={"weekdays": EVERY_DAY, "start_minute": 8 * 60, "minutes": 15},
+        headers=as_("anna", utc(4, 6)),
+    )
+    # 08:05: the study-time reminder, and not a second one at nine.
+    assert [item["title"] for item in due(db, utc(5, 2))] == ["Сегодня ещё не занимались"]
+    assert due(db, utc(5, 3)) == []
+    assert due(db, utc(5, 11)) == []
