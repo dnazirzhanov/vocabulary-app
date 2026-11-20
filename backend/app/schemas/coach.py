@@ -1,8 +1,8 @@
 """The mentor's coach (ADR 0071): what the app sends and gets back."""
 
 import uuid
-from datetime import date
-from typing import Annotated, Literal
+from datetime import date, datetime
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -105,3 +105,34 @@ class CommitmentIn(_Input):
 
 class DecisionIn(_Input):
     accept: bool
+
+
+# --- what the mentor knows (ADR 0075) -------------------------------------------------------
+
+FactKindIn = Literal["why", "likes", "dislikes", "constraint", "energy", "word", "other"]
+
+
+class FactIn(_Input):
+    kind: FactKindIn
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    # "chat" when it came from the mentor's «Запомнить?», "user" when written on the page.
+    source: Literal["chat", "user"] = "user"
+
+
+class FactOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    text: str
+    source: str
+    created_at: datetime
+
+
+class TimelineOut(BaseModel):
+    at: datetime
+    kind: str
+    note: dict[str, Any]
+
+
+class MemoryOut(BaseModel):
+    facts: list[FactOut]
+    timeline: list[TimelineOut]

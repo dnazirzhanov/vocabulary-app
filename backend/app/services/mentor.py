@@ -30,7 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import mentor_demo, mentor_tools
+from app.services import memory, mentor_demo, mentor_tools
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
@@ -124,6 +124,11 @@ propose_exception; for illness or a trip offer a pause, so no promised day count
 - If they missed yesterday, say kindly that today matters most and that 5 minutes counts \
 (never miss twice); don't scold.
 - End most answers by calling offer_replies with 2–4 short replies they might tap.
+- When the learner tells you something lasting about themselves (why they learn, what they \
+like or dislike, what limits their time, when they have energy, their own words for things), \
+call remember with one short fact in their language; it is saved only if they tap. Don't \
+remember passing moods or anything private that a family or teacher should not see.
+- Before answering about something they told you before, call recall.
 Formatting rules (follow these strictly):
 - Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
 - Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
@@ -1147,6 +1152,10 @@ def _build_context(
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
+    # What the mentor remembers (ADR 0075): facts, the plan's story, earlier chats.
+    known = memory.block(db, user, time_zone, conversation)
+    if known:
+        system = f"{system}\n\n{known}"
     history = _recent_history(db, conversation)
     demo = settings.mentor_chat_demo or (
         not settings.deepseek_api_key and settings.environment != "production"
@@ -1432,3 +1441,31 @@ def _call_deepseek(system: str, messages: list[dict[str, str]], settings: Settin
         logger.warning("mentor chat: empty response from DeepSeek")
         raise ApiError(502, "mentor_failed", "The mentor service answered with nothing")
     return choice.message.content
+
+
+SUMMARY_PROMPT = (
+    "Summarise this chat between an English learner and their study mentor in at most two short "
+    "sentences, in English: what it was about and anything decided or promised. No greetings."
+)
+
+
+def summarize_if_due(
+    db: Session, user: User, conversation: MentorConversation, settings: Settings
+) -> None:
+    """After an answer (ADR 0075): a chat long enough to need it gets a short summary, which later
+    chats read. Without a model, its title stands in. A failure leaves the old summary."""
+    if not memory.needs_summary(db, conversation):
+        return
+    if settings.mentor_chat_demo or not settings.deepseek_api_key:
+        memory.save_summary(db, conversation, conversation.title)
+        return
+    try:
+        summary = _call_deepseek(
+            SUMMARY_PROMPT,
+            [{"role": "user", "content": memory.transcript(db, conversation)}],
+            settings,
+        )
+    except ApiError:
+        logger.warning("mentor summary failed")
+        return
+    memory.save_summary(db, conversation, summary)

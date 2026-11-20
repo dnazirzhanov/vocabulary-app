@@ -10,6 +10,7 @@ import { ScheduleView } from '../schedule/ScheduleView.tsx';
 import { collectMentorInput } from './inputs.ts';
 import { markLaunched, reconcileDone } from './done.ts';
 import { GoalSetup } from './GoalSetup.tsx';
+import { MemoryScreen } from './MemoryScreen.tsx';
 import { ChatScreen } from './chat/ChatScreen.tsx';
 import type { Activity } from './chat/ToolCards.tsx';
 import { planToday, withWeek } from './plan.ts';
@@ -58,6 +59,7 @@ export function MentorScreen({
   const [busy, setBusy] = useState(false);
   const [chat, setChat] = useState<{ ask: string | null } | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
@@ -239,6 +241,14 @@ export function MentorScreen({
     }
   };
 
+  if (memoryOpen) {
+    return (
+      <main className={styles.chatScreen}>
+        <MemoryScreen onBack={() => setMemoryOpen(false)} />
+      </main>
+    );
+  }
+
   if (scheduleOpen) {
     return (
       <main className={styles.chatScreen}>
@@ -289,6 +299,10 @@ export function MentorScreen({
             setChat(null);
             setScheduleOpen(true);
           }}
+          onOpenMemory={() => {
+            setChat(null);
+            setMemoryOpen(true);
+          }}
         />
       </main>
     );
@@ -324,6 +338,7 @@ export function MentorScreen({
           onStart={(item) => void launch(item)}
           onAsk={(question) => setChat({ ask: question ?? null })}
           onOpenCalendar={() => setScheduleOpen(true)}
+          onOpenMemory={() => setMemoryOpen(true)}
           onEditGoal={() => setEditingGoal(true)}
           rescue={rescue}
           nudge={nudge}

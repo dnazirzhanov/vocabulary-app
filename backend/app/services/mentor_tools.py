@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.models import User
+from app.services import memory
 from app.services import promise as promises
 from app.services.coach import service as coach
 from app.services.coach.goal import GOAL_KINDS, Goal, feasibility
@@ -197,6 +198,44 @@ TOOLS: list[dict[str, Any]] = [
                     }
                 },
                 "required": ["replies"],
+            },
+        },
+    },
+]
+
+
+TOOLS += [
+    {
+        "type": "function",
+        "function": {
+            "name": "remember",
+            "description": (
+                "Offer to remember one lasting fact about the learner (why they learn, likes, "
+                "dislikes, a limit on their time, when they have energy, their own word for "
+                "something). Shows a chip; saved only if they tap it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": list(memory.FACT_KINDS)},
+                    "text": {"type": "string", "description": "One short fact, their language"},
+                },
+                "required": ["kind", "text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recall",
+            "description": (
+                "Look up what the learner told you before, what happened with their plan, and "
+                "earlier chats, by a few words."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query"],
             },
         },
     },
@@ -457,7 +496,26 @@ def offer_replies(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult({"type": "replies", "replies": replies}, {"shown": len(replies)})
 
 
+def remember(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    kind = args.get("kind") if args.get("kind") in memory.FACT_KINDS else "other"
+    text = " ".join(str(args.get("text") or "").split())[:200]
+    if not text:
+        return ToolResult(None, {"error": "no fact"})
+    return ToolResult(
+        {"type": "memory", "kind": kind, "text": text}, {"offered": text, "saved": False}
+    )
+
+
+def recall(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    query = str(args.get("query") or "").strip()[:80]
+    if not query:
+        return ToolResult(None, {"error": "no query"})
+    return ToolResult(None, dict(memory.search(ctx.db, ctx.user, query, ctx.zone)))
+
+
 RUNNERS = {
+    "remember": remember,
+    "recall": recall,
     "propose_exception": propose_exception,
     "offer_replies": offer_replies,
     "what_now": what_now,

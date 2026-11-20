@@ -24,10 +24,12 @@ from app.models.learning import (
     UserWordProgress,
 )
 from app.models.mentor import (
+    LearnerFact,
     MentorAdjustment,
     MentorConversation,
     MentorGoal,
     MentorMessage,
+    MentorTimelineEvent,
 )
 from app.models.reading import (
     Reading,
@@ -75,12 +77,14 @@ __all__ = [
     "GroupTest",
     "GroupTestAttempt",
     "GroupTestQuestion",
+    "LearnerFact",
     "LearningSession",
     "MentorAdjustment",
     "MentorConversation",
     "MentorDayOverride",
     "MentorGoal",
     "MentorMessage",
+    "MentorTimelineEvent",
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
