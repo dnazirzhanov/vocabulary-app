@@ -5,7 +5,7 @@ learner's real activity; the rules themselves live in the sibling modules."""
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from statistics import median
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -27,6 +27,7 @@ from app.models import (
     User,
     WritingSubmission,
 )
+from app.services import memory
 from app.services import promise as promises
 from app.services.coach import adapt
 from app.services.coach.breakdown import Skill, Target, most_behind, weekly_targets, with_progress
@@ -90,6 +91,9 @@ def set_goal(
     db.add(goal)
     # The older screens read the goal's kind from here.
     user.mentor_goal = kind
+    memory.note(
+        db, user, "goal_set", {"kind": kind, "target": target, "deadline": str(deadline or "")}, now
+    )
     db.commit()
     return goal
 
@@ -391,6 +395,7 @@ def set_today(
         )
     else:
         found.mode, found.start_minute, found.created_at = mode, start_minute, now
+    memory.note(db, user, "today_changed" if mode else "today_restored", {"mode": mode}, now)
     db.commit()
 
 
@@ -420,6 +425,7 @@ def commit(
     start_minute: int,
     minutes: int,
     today: date,
+    now: datetime | None = None,
 ) -> None:
     """The learner's promise (ADR 0039) with its study time: these days, at this time, this long,
     from tomorrow."""
@@ -427,6 +433,17 @@ def commit(
         raise ApiError(400, "no_days", "Choose at least one day")
     promises.set_weekdays(db, user, weekdays, today, (start_minute, minutes))
     user.mentor_daily_minutes = minutes
+    memory.note(
+        db,
+        user,
+        "time_promised",
+        {
+            "days": "".join(str(d) for d in weekdays),
+            "start": f"{start_minute // 60:02d}:{start_minute % 60:02d}",
+            "minutes": minutes,
+        },
+        now or datetime.combine(today, datetime.min.time(), UTC),
+    )
     db.commit()
 
 
@@ -530,6 +547,7 @@ def decide(
     if row.status != "proposed":
         return
     row.status, row.decided_at = ("accepted" if accept else "dismissed"), now
+    memory.note(db, user, f"adjustment_{row.status}", {"kind": row.kind, **row.proposal}, now)
     if accept and row.kind != "behind":
         today = now.astimezone(zone).date()
         promise = promises.promise_of(db, user)
@@ -539,5 +557,5 @@ def decide(
             days = days[:-1]  # the last promised day of the week goes
         start = row.proposal.get("start") or start
         minutes = row.proposal.get("minutes") or minutes
-        commit(db, user, days, start, minutes, today)
+        commit(db, user, days, start, minutes, today, now)
     db.commit()

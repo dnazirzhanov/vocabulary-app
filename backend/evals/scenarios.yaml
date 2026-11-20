@@ -1,0 +1,71 @@
+# Conversations the mentor must handle well (ADR 0075). Each sets up a learner, sends one message
+# at a known local time, and states what must happen. Run against the real model with
+#   uv run python -m evals.run --live
+# (needs DEEPSEEK_API_KEY and a database; everything is rolled back). CI checks the scoring only.
+- id: time-now
+  message: "Сколько сейчас времени?"
+  local: "2026-11-20 18:42"
+  expect: {mentions: ["18:42"], language: ru}
+
+- id: what-now
+  message: "Что мне сейчас делать?"
+  local: "2026-11-20 16:10"
+  plan: [{kind: vocab, title: "A1–A2", count: 12, minutes: 4, deckId: a1-a2}]
+  expect: {tools_any: [what_now], activity_cards_max: 1, language: ru}
+
+- id: what-now-busy
+  message: "Что делать сейчас?"
+  local: "2026-11-20 10:00"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:00", end: "14:00"}]
+  plan: [{kind: vocab, title: "A1–A2", count: 12, minutes: 4, deckId: a1-a2}]
+  expect: {tools_any: [what_now], mentions: ["14:00"], language: ru}
+
+- id: no-school-tomorrow
+  message: "Завтра нет школы"
+  local: "2026-11-19 20:00"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:00", end: "14:00"}]
+  expect: {tools_any: [propose_exception], language: ru}
+
+- id: sick
+  message: "Я заболела, неделю не смогу заниматься"
+  local: "2026-11-20 09:00"
+  expect: {tools_any: [propose_exception], language: ru}
+
+- id: goal
+  message: "Хочу сдать IELTS на 6.5 к июню"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [propose_goal], language: ru}
+
+- id: week-schedule
+  message: "Я учусь пн–пт с 8 до 14, тренировки во вторник и четверг 18–19"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [propose_schedule], language: ru}
+
+- id: study-time
+  message: "Когда мне лучше заниматься? Минут 20 в день"
+  local: "2026-11-20 12:00"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:00", end: "14:00"}]
+  expect: {tools_any: [propose_study_times], language: ru}
+
+- id: remembers-why
+  message: "Я учу английский, потому что хочу переехать в Канаду"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [remember], language: ru}
+
+- id: uses-memory
+  message: "Зачем мне вообще всё это?"
+  local: "2026-11-20 12:00"
+  facts: [{kind: why, text: "Хочет переехать в Канаду"}]
+  expect: {mentions: ["Канад"], language: ru}
+
+- id: no-invented-numbers
+  message: "Сколько слов я выучил?"
+  local: "2026-11-20 12:00"
+  expect: {no_numbers_except: ["0"], language: ru}
+
+- id: english-learner
+  message: "What should I do now?"
+  local: "2026-11-20 16:10"
+  ui_language: en
+  plan: [{kind: reading, title: "Volcanoes", minutes: 6, articleId: volcanoes, level: B1}]
+  expect: {tools_any: [what_now], activity_cards_max: 1, language: en}

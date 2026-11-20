@@ -371,6 +371,13 @@ export const api = {
     mode === null
       ? request<Coach>('DELETE', '/mentor/coach/today')
       : request<Coach>('PUT', '/mentor/coach/today', { mode, start_minute: startMinute }),
+  // What the mentor knows (ADR 0075).
+  mentorMemory: () => request<MentorMemory>('GET', '/mentor/memory'),
+  mentorAddFact: (kind: FactKind, text: string, source: 'chat' | 'user' = 'user') =>
+    request<MentorMemory>('POST', '/mentor/memory/facts', { kind, text, source }),
+  mentorChangeFact: (id: string, kind: FactKind, text: string) =>
+    request<MentorMemory>('PUT', `/mentor/memory/facts/${encodeURIComponent(id)}`, { kind, text }),
+  mentorForgetFact: (id: string) => request<MentorMemory>('DELETE', `/mentor/memory/facts/${encodeURIComponent(id)}`),
   /** Days off the promise (illness, a trip), from tomorrow until a date. */
   promisePause: (until: string) => request<unknown>('PUT', '/me/promise/pause', { until }),
   scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
@@ -400,6 +407,7 @@ export type MentorCard =
       events?: { id: string; title: string }[];
     }
   | { type: 'replies'; replies: string[] }
+  | { type: 'memory'; kind: FactKind; text: string }
   | { type: 'done' }
   | {
       type: 'schedule';
@@ -441,7 +449,9 @@ export type MentorToolName =
   | 'propose_schedule'
   | 'propose_study_times'
   | 'propose_exception'
-  | 'offer_replies';
+  | 'offer_replies'
+  | 'remember'
+  | 'recall';
 
 export interface MentorToolEvent {
   id: string;
@@ -519,6 +529,14 @@ export interface Coach {
     evidence: Record<string, number | null>;
     proposal: Record<string, number | null>;
   } | null;
+}
+
+export type FactKind = 'why' | 'likes' | 'dislikes' | 'constraint' | 'energy' | 'word' | 'other';
+export const FACT_KINDS: FactKind[] = ['why', 'likes', 'dislikes', 'constraint', 'energy', 'word', 'other'];
+
+export interface MentorMemory {
+  facts: { id: string; kind: FactKind; text: string; source: 'chat' | 'user' | 'coach'; created_at: string }[];
+  timeline: { at: string; kind: string; note: Record<string, string | number | null> }[];
 }
 
 export interface WireScheduleInput {

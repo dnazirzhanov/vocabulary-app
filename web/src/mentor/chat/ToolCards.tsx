@@ -33,6 +33,8 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   propose_study_times: () => t.mentorToolTimes,
   propose_exception: () => t.mentorToolException,
   offer_replies: () => '',
+  remember: () => t.mentorToolRemember,
+  recall: () => t.mentorToolRecall,
 };
 
 export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }) {
@@ -84,6 +86,8 @@ export function ToolCard({ card, onStart }: CardProps) {
       return <ExceptionCard change={card} />;
     case 'replies':
       return null; // shown as chips under the answer
+    case 'memory':
+      return <MemoryChip fact={card} />;
   }
 }
 
@@ -466,6 +470,44 @@ function ExceptionCard({ change }: { change: Extract<MentorCard, { type: 'except
         >
           {t.mentorExceptionApply}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** «Запомнить?» (ADR 0075): a fact about the learner, kept only if they tap. */
+function MemoryChip({ fact }: { fact: Extract<MentorCard, { type: 'memory' }> }) {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'no'>('idle');
+  if (state === 'no') return null;
+  return (
+    <div className={styles.memory}>
+      <p className={styles.memoryText}>
+        <SparkleIcon aria-hidden="true" /> {fact.text}
+      </p>
+      {state === 'saved' ? (
+        <p className={styles.saved} role="status">
+          <CheckIcon aria-hidden="true" /> {t.mentorRemembered}
+        </p>
+      ) : (
+        <div className={styles.memoryActions}>
+          <button
+            type="button"
+            className={styles.confirmButton}
+            disabled={state === 'saving'}
+            onClick={() => {
+              setState('saving');
+              api.mentorAddFact(fact.kind, fact.text, 'chat').then(
+                () => setState('saved'),
+                () => setState('idle'),
+              );
+            }}
+          >
+            {t.mentorRememberAsk}
+          </button>
+          <button type="button" className={styles.memoryNo} onClick={() => setState('no')}>
+            {t.mentorRememberNo}
+          </button>
+        </div>
       )}
     </div>
   );

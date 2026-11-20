@@ -53,6 +53,7 @@ interface TodayViewProps {
   onStart: (item: PlanItem) => void;
   onAsk: (question?: string) => void;
   onOpenCalendar: () => void;
+  onOpenMemory: () => void;
   onEditGoal: () => void;
   onDecide: (accept: boolean) => void;
   /** When today doesn't work (ADR 0074): the ways out, today's choice, and how to undo it. */
@@ -387,6 +388,11 @@ export function TodayView(props: TodayViewProps) {
         <button type="button" className={styles.calendarRow} onClick={props.onOpenCalendar}>
           <CalendarIcon aria-hidden="true" />
           <span>{t.scheduleHeading}</span>
+          <ForwardIcon aria-hidden="true" />
+        </button>
+        <button type="button" className={styles.calendarRow} onClick={props.onOpenMemory}>
+          <SparkleIcon aria-hidden="true" />
+          <span>{t.memoryTitle}</span>
           <ForwardIcon aria-hidden="true" />
         </button>
       </section>

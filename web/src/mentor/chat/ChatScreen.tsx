@@ -62,6 +62,7 @@ interface ChatScreenProps {
   onBack: () => void;
   onStart: (activity: Activity) => Promise<void> | void;
   onOpenCalendar: () => void;
+  onOpenMemory: () => void;
 }
 
 const GROUP_LABEL: Record<ChatGroup, () => string> = {
@@ -71,7 +72,7 @@ const GROUP_LABEL: Record<ChatGroup, () => string> = {
   earlier: () => t.mentorChatEarlier,
 };
 
-export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCalendar }: ChatScreenProps) {
+export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCalendar, onOpenMemory }: ChatScreenProps) {
   const [chats, setChats] = useState<MentorConversation[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -340,6 +341,9 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
             </section>
           ))}
         </nav>
+        <button type="button" className={styles.calendarLink} onClick={onOpenMemory}>
+          <SparkleIcon aria-hidden="true" /> {t.memoryTitle}
+        </button>
         <button type="button" className={styles.calendarLink} onClick={onOpenCalendar}>
           <CalendarIcon aria-hidden="true" /> {t.scheduleHeading}
         </button>
