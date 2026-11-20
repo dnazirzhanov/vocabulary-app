@@ -15,7 +15,7 @@ import type { Activity } from './chat/ToolCards.tsx';
 import { planToday, withWeek } from './plan.ts';
 import { busyNow, freeUntil, slotsFor } from './slots.ts';
 import { pickTip } from './tip.ts';
-import { TodayView } from './TodayView.tsx';
+import { titleOf, TodayView } from './TodayView.tsx';
 import type { MentorGoalType, MentorInput, PlanItem, Tip } from './types.ts';
 import styles from './MentorScreen.module.css';
 
@@ -222,6 +222,26 @@ export function MentorScreen({
           onBack={() => {
             setScheduleOpen(false);
             void load();
+          }}
+          study={items.map((item, i) => ({
+            key: keyOf(item),
+            title: titleOf(item),
+            minutes: item.minutes,
+            at: slots[i],
+            onStart: () => void launch(item),
+          }))}
+          commitment={
+            coach
+              ? {
+                  weekdays: coach.commitment.weekdays,
+                  start: coach.commitment.start_minute,
+                  minutes: coach.commitment.minutes,
+                }
+              : null
+          }
+          onAsk={(question) => {
+            setScheduleOpen(false);
+            setChat({ ask: question });
           }}
         />
       </main>
