@@ -1,220 +1,509 @@
-.screen {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--color-bg);
-}
+/* The week (ADR 0073): a strip of real dates above a timeline. One day on phones, the whole week
+   from 1024 px. Blocks are tinted by kind with a strong left edge; study blocks are dashed orange,
+   so what the learner does for English stands apart from the rest of the day. */
 
-.errorScreen {
-  padding: var(--space-5) var(--gutter);
+.screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  background: var(--color-bg);
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: max(var(--space-3), env(safe-area-inset-top)) var(--gutter) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
+  /* Room on the right for the app's settings gear. */
+  padding: max(var(--space-2), env(safe-area-inset-top)) calc(var(--gutter) + 52px) var(--space-1) var(--gutter);
 }
 
-.backBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 600px) {
+  .title {
+    font-size: var(--text-title);
+  }
+}
+
+.iconButton,
+.addButton {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
   color: var(--color-text);
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.backBtn svg {
+.iconButton:hover {
+  background: var(--color-primary-tint);
+}
+
+.iconButton svg,
+.addButton svg {
+  width: 22px;
+  height: 22px;
+}
+
+.addButton {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* The week strip */
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}
+
+.days {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.day:hover {
+  background: var(--color-primary-tint);
+}
+
+.day[aria-pressed='true'] {
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.dayName {
+  font-size: 0.75rem;
+  font-weight: var(--weight-strong);
+  opacity: 0.75;
+}
+
+.dayNumber {
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.day[aria-current='date'] .dayNumber {
+  color: var(--color-primary-strong);
+}
+
+.day[aria-current='date'][aria-pressed='true'] .dayNumber {
+  color: var(--color-surface);
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.dot[data-on] {
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.todayLink {
+  justify-self: center;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.problem {
+  margin: var(--space-2) var(--gutter);
+  color: var(--color-error);
+}
+
+/* Filling an empty week */
+.fill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--gutter);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.fill h2 {
+  margin: 0;
+  font-size: var(--text-option);
+}
+
+.fill p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.tell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tell textarea {
+  min-height: 64px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.or {
+  font-size: var(--text-meta);
+}
+
+.templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.template:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.primary svg {
   width: 18px;
   height: 18px;
 }
 
-.title {
-  margin: 0;
-  font-size: var(--text-option);
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.gridWrap {
-  flex: 1;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Sticky day header row ───────────────────────────── */
-.headerRow {
-  display: grid;
-  grid-template-columns: 56px repeat(7, minmax(90px, 1fr));
-  position: sticky;
-  top: 0;
-  background: var(--color-bg);
-  z-index: 2;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.cornerHead {
-  /* Empty — aligns with hour-axis column */
-}
-
-.dayHead {
-  text-align: center;
-  padding: var(--space-2) var(--space-1);
-  font-size: var(--text-meta);
+.quiet {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
   color: var(--color-text-muted);
-  font-weight: var(--weight-strong);
-  border-left: 1px solid var(--color-border);
-}
-
-.dayHeadToday {
-  color: var(--color-primary);
-}
-
-/* ── Grid body: hour axis + 7 day columns ────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: 56px repeat(7, minmax(90px, 1fr));
-  min-width: min-content;
-  position: relative;
-}
-
-/* ── Hour axis: labels are absolutely positioned ON hour lines ─ */
-.hourAxis {
-  position: relative;
-  border-right: 1px solid var(--color-border);
-}
-
-.hourLabel {
-  position: absolute;
-  right: 6px;
-  /* translate up by half its height so the baseline sits exactly on the hour line */
-  transform: translateY(-50%);
-  font-size: 10px;
-  color: var(--color-text-muted);
-  background: var(--color-bg);
-  padding: 0 2px;
-  line-height: 1;
-}
-
-/* First label (top of grid): keep visible instead of clipping. */
-.hourAxis .hourLabel:first-child {
-  transform: translateY(0);
-}
-
-/* ── Day columns ─────────────────────────────────────── */
-.dayCol {
-  position: relative;
-  border-left: 1px solid var(--color-border);
+  font: inherit;
   cursor: pointer;
-  min-width: 0;
+}
+
+.previewSheet {
+  position: fixed;
+  inset: auto var(--gutter) max(var(--space-4), env(safe-area-inset-bottom)) var(--gutter);
+  z-index: 20;
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow:
+    var(--shadow-sheet),
+    0 0 0 1px var(--color-border);
+}
+
+.previewSheet ul {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-4);
+}
+
+.previewTitle {
+  margin: 0;
+  font-weight: var(--weight-display);
+}
+
+.previewNote {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.previewActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The timeline */
+.timeline {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--gutter) var(--space-6) 0;
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.25rem repeat(var(--cols, 1), minmax(0, 1fr));
+}
+
+.timeline[data-days='7'] .grid {
+  --cols: 7;
+}
+
+.axis {
+  position: relative;
+}
+
+.axis span {
+  position: absolute;
+  right: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+}
+
+.column {
+  position: relative;
+  border-left: 1px solid var(--color-border);
+  touch-action: pan-y;
 }
 
 .hourLine {
   position: absolute;
-  left: 0;
   right: 0;
+  left: 0;
   height: 1px;
   background: var(--color-border);
   pointer-events: none;
 }
 
-.nowMarker {
+.gap {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--color-primary);
-  z-index: 1;
+  left: var(--space-2);
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
   pointer-events: none;
 }
 
-.nowMarker::before {
-  content: '';
+.event {
   position: absolute;
-  left: -5px;
-  top: -4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-primary);
-}
-
-/* ── Event blocks ────────────────────────────────────── */
-.eventBlock {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  padding: 4px 6px;
-  border: none;
-  border-left: 3px solid;
-  border-radius: 4px;
-  text-align: left;
-  font-size: var(--text-meta);
-  font-family: inherit;
-  color: var(--color-text);
-  cursor: pointer;
-  overflow: hidden;
-  z-index: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 1px;
+  overflow: hidden;
+  padding: 3px var(--space-2);
+  border: 0;
+  border-left: 4px solid var(--kind);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--kind) 14%, var(--color-surface));
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  touch-action: none;
 }
 
-.eventTime {
-  display: block;
-  font-size: 10px;
-  color: var(--color-text-muted);
-  line-height: 1;
+.event[data-dragging] {
+  z-index: 3;
+  box-shadow: var(--shadow-sheet);
+  cursor: grabbing;
+}
+
+.event[data-kind='school'] {
+  --kind: #2f6fde;
+}
+
+.event[data-kind='work'] {
+  --kind: #7a4fd6;
+}
+
+.event[data-kind='sport'] {
+  --kind: #1f8a4c;
+}
+
+.event[data-kind='chore'] {
+  --kind: #b45c12;
+}
+
+.event[data-kind='personal'] {
+  --kind: #c0357a;
+}
+
+.event[data-kind='other'] {
+  --kind: #5f6672;
 }
 
 .eventTitle {
-  display: block;
-  font-weight: var(--weight-strong);
-  white-space: nowrap;
+  max-width: 100%;
   overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: var(--weight-strong);
   text-overflow: ellipsis;
-  line-height: 1.25;
+  white-space: nowrap;
 }
 
-/* Colors per kind: left-border + tinted background. */
-.kind_school {
-  border-left-color: #3b82f6;
-  background: color-mix(in srgb, #3b82f6 15%, var(--color-surface));
-}
-.kind_work {
-  border-left-color: #8b5cf6;
-  background: color-mix(in srgb, #8b5cf6 15%, var(--color-surface));
-}
-.kind_sport {
-  border-left-color: #22c55e;
-  background: color-mix(in srgb, #22c55e 15%, var(--color-surface));
-}
-.kind_chore {
-  border-left-color: #f97316;
-  background: color-mix(in srgb, #f97316 15%, var(--color-surface));
-}
-.kind_personal {
-  border-left-color: #ec4899;
-  background: color-mix(in srgb, #ec4899 15%, var(--color-surface));
-}
-.kind_other {
-  border-left-color: #6b7280;
-  background: color-mix(in srgb, #6b7280 15%, var(--color-surface));
-}
-
-.empty {
-  text-align: center;
+.eventTime {
   color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  padding: var(--space-4) var(--gutter);
-  margin: 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.promised {
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  z-index: 1;
+  padding: 2px var(--space-2);
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  color: var(--color-primary-strong);
+  font-size: 0.75rem;
+  font-weight: var(--weight-strong);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.study {
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 2px 2px 2px var(--space-2);
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+}
+
+.studyText {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-primary-strong);
+  font-size: 0.8125rem;
+  font-weight: var(--weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studyStart {
+  flex: none;
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.now {
+  position: absolute;
+  right: 0;
+  left: -4px;
+  z-index: 4;
+  height: 2px;
+  background: var(--color-error);
+  pointer-events: none;
+}
+
+.now::before {
+  position: absolute;
+  top: -4px;
+  left: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-error);
+  content: '';
+}
+
+.timeline[data-days='7'] .study {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.timeline[data-days='7'] .studyText {
+  max-width: 100%;
 }

@@ -67,7 +67,7 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
         endMinute,
       });
     } catch {
-      setError('Could not save. Try again.');
+      setError(t.scheduleSaveFailed);
       setBusy(false);
     }
   };
@@ -78,7 +78,7 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
     try {
       await onDelete();
     } catch {
-      setError('Could not delete. Try again.');
+      setError(t.scheduleDeleteFailed);
       setBusy(false);
     }
   };
