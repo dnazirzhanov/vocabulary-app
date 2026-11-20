@@ -727,6 +727,7 @@ export const kk: Messages = {
   theTestHasChangedStartAgain: 'Тест өзгерді. Қайтадан бастаңыз.',
   exitTheTest: 'Тесттен шығу',
   testMusic: 'Музыка',
+  mentorToolStats: 'Статистиканы қарап жатырмын',
   mentorToolPractice: 'Не істегеніңді қарап жатырмын',
   mentorToolWords: 'Сөздеріңді қарап жатырмын',
   mentorToolWriting: 'Эсселеріңді қарап жатырмын',

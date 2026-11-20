@@ -137,6 +137,9 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- For statistics (words in progress, learned or mastered, this and last week's numbers, \
+retention and accuracy, decks, reading, how long and how regularly they study), call get_stats; \
+never guess them.
 - Everything in the app can be looked up (ADR 0079): other days' practice (get_practice), \
 their words (get_words), essays and feedback (get_writing), speaking results (get_speaking), \
 reading (get_reading), group decks and deadlines (get_assignments), a date's plan \
@@ -173,34 +176,40 @@ Current learner state (use this to give personal, relevant advice):
 - Local date and time: {LOCAL_DATE} {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
-- Studying since: {STUDYING_SINCE}
-- Last study session: {LAST_STUDY}
-- Vocabulary in progress: {WORDS_IN_PROGRESS} words
-- Vocabulary recalled at least once: {WORDS_LEARNED} words
-- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
-- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
-- New words learned today: {WORDS_TODAY}
-- New words learned this week: {WORDS_THIS_WEEK}
-- New words learned last week: {WORDS_LAST_WEEK}
-- Study sessions completed this week: {SESSIONS_THIS_WEEK}
-- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words{OVERDUE_VOCAB_PART}
-- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
 - Spelling due today: {DUE_SPELLING} words
-{SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
+- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
-- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
-- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
-{PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
-- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
-- Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
+{PROMISE_LINE}{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{LAST_STUDIED_DECK_LINE}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
 {URGENCY_HINT}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
+
+
+# The rest of what used to be in every prompt (ADR 0079): fetched with get_stats when needed.
+_STATS = """\
+The learner's statistics (from get_stats):
+- Studying since: {STUDYING_SINCE}
+- Last study session: {LAST_STUDY}
+- Vocabulary in progress: {WORDS_IN_PROGRESS} words
+- Vocabulary recalled at least once: {WORDS_LEARNED} words
+- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
+- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
+- New words learned this week: {WORDS_THIS_WEEK}
+- New words learned last week: {WORDS_LAST_WEEK}
+- Study sessions completed this week: {SESSIONS_THIS_WEEK}
+- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
+- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
+- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
+- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
+- Vocabulary retention rate (last 7 days): {RETENTION}
+- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
+- Reading comprehension accuracy (all time): {READING_ACCURACY}
+- New words learned today: {WORDS_TODAY}
+{SAMPLE_DUE_LINE}{STRUGGLING_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}"""
 
 
 def _time_of_day(hour: int) -> str:
@@ -572,6 +581,7 @@ def _system_prompt(
     time_zone: ZoneInfo,
     ctx: LearnerContext,
     plan: list[dict[str, Any]] | None = None,
+    template: str | None = None,
 ) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
@@ -737,7 +747,8 @@ def _system_prompt(
     else:
         urgency_hint = ""
     return (
-        _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
+        (template or _SYSTEM)
+        .replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
         .replace("{LOCAL_DATE}", local_date_str)
         .replace("{LOCAL_TIME}", local_time)
@@ -791,6 +802,22 @@ def _system_prompt(
         .replace("{TONE_HINT}", tone_hint)
         .replace("{URGENCY_HINT}", urgency_hint)
     )
+
+
+def _stats_text(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext) -> str:
+    """The statistics no longer in every prompt, worded as they were (ADR 0079)."""
+    return _system_prompt(user, now, time_zone, ctx, template=_STATS)
+
+
+def learner_context(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LearnerContext:
+    """Everything the mentor is told about a learner, from the database."""
+    ctx = _learner_state(db, user, now, time_zone)
+    _fill_context(db, user, now, time_zone, ctx)
+    return ctx
+
+
+def stats_for(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> str:
+    return _stats_text(user, now, time_zone, learner_context(db, user, now, time_zone))
 
 
 _DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -1156,19 +1183,9 @@ def _persist(
     db.commit()
 
 
-def _build_context(
-    db: Session,
-    user: User,
-    message: str,
-    settings: Settings,
-    now: datetime,
-    time_zone: ZoneInfo,
-    plan: list[dict[str, Any]] | None = None,
-    tip_id: str | None = None,
-    conversation: MentorConversation | None = None,
-) -> tuple[str, list[dict[str, str]], str, bool]:
-    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    ctx = _learner_state(db, user, now, time_zone)
+def _fill_context(
+    db: Session, user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext
+) -> None:
     words_in_progress, words_learned = _vocab_summary(db, user)
     ctx.words_in_progress = words_in_progress
     ctx.words_learned = words_learned
@@ -1194,6 +1211,21 @@ def _build_context(
     ctx.reading_level_counts = _reading_level_breakdown(db, user)
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
     ctx.day_type = day_type_on(db, user, local_date(now, time_zone))
+
+
+def _build_context(
+    db: Session,
+    user: User,
+    message: str,
+    settings: Settings,
+    now: datetime,
+    time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
+    conversation: MentorConversation | None = None,
+) -> tuple[str, list[dict[str, str]], str, bool]:
+    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
+    ctx = learner_context(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     # What the mentor remembers (ADR 0075): facts, the plan's story, earlier chats.

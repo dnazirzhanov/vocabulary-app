@@ -295,6 +295,14 @@ NOTIFY_KINDS = ("morning", "afternoon", "deadline", "report")
 # Reading the app (ADR 0079): the learner's own data, facts only, nothing changes.
 TOOLS += [
     _lookup(
+        "get_stats",
+        "The learner's statistics: words in progress, learned and mastered, this and last "
+        "week's new words, lessons and reviews, retention and accuracy (vocabulary, spelling, "
+        "reading), decks with words due, struggling words, reading library, how long and how "
+        "regularly they study.",
+        {},
+    ),
+    _lookup(
         "get_practice",
         "Each day's practice (lessons, writing, speaking, reading: when, how long, finished or "
         "not) between two dates, up to 31 days and 90 days back. Default: the last 7 days.",
@@ -753,7 +761,14 @@ def propose_reminders(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(card, {"current": current, "changes": changes, "saved": False})
 
 
+def get_stats(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    from app.services import mentor  # the mentor imports this module
+
+    return ToolResult(None, {"stats": mentor.stats_for(ctx.db, ctx.user, ctx.now, ctx.zone)})
+
+
 RUNNERS = {
+    "get_stats": get_stats,
     **{name: _reader(name) for name in mentor_lookups.LOOKUPS},
     "propose_reminders": propose_reminders,
     "show": show,

@@ -32,7 +32,10 @@ data (fixed for today in #133).
 - **Checked by:** tests for each tool (facts right, another learner's data never visible, arguments bounded), the
   demo matcher for the e2e tests, and new scripted conversations for the live evals.
 
-## Not in this step
-Slimming the prompt. The 40-line statistics block stays for now: 139 test assertions pin it, and what it costs is now
-measured (ADR 0078). Once the tools are proven live, the block shrinks to a few lines and those tests move to the
-tools.
+## The smaller prompt (second step)
+What every answer needs stays in the prompt: who the learner is, the time, the streak and the promise, what is due
+today, goal, level, the day's schedule and plan, today's practice, and what the mentor remembers. The other ~25
+statistics lines (words in progress, learned and mastered; this and last week's numbers; retention and accuracy;
+decks; reading; how long and how regularly they study) moved to `get_stats`, worded exactly as before. For a busy
+learner the prompt is about 1,000 characters (16%) shorter. The 33 tests of their wording now check `get_stats`, and a
+test holds them out of the prompt.

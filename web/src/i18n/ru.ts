@@ -722,6 +722,7 @@ export const ru = {
   theTestHasChangedStartAgain: 'Тест изменился. Начните заново.',
   exitTheTest: 'Выйти из теста',
   testMusic: 'Музыка',
+  mentorToolStats: 'Смотрю статистику',
   mentorToolPractice: 'Смотрю, что ты делал',
   mentorToolWords: 'Смотрю твои слова',
   mentorToolWriting: 'Смотрю твои эссе',

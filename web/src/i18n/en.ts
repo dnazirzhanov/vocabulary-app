@@ -729,6 +729,7 @@ export const en: Messages = {
   theTestHasChangedStartAgain: 'The test has changed. Start again.',
   exitTheTest: 'Exit the test',
   testMusic: 'Music',
+  mentorToolStats: 'Checking your statistics',
   mentorToolPractice: 'Checking your practice',
   mentorToolWords: 'Checking your words',
   mentorToolWriting: 'Checking your essays',
