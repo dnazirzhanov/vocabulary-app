@@ -394,12 +394,14 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
                   </li>
                 ) : (
                   <li key={i} className={styles.mentorTurn}>
-                    {turn.steps.map((step) => (
-                      <div key={step.id} className={styles.stepBlock}>
-                        <ToolStep name={step.name} done={step.status === 'done'} />
-                        {step.card && <ToolCard card={step.card} onStart={onStart} />}
-                      </div>
-                    ))}
+                    {turn.steps
+                      .filter((step) => step.name !== 'offer_replies')
+                      .map((step) => (
+                        <div key={step.id} className={styles.stepBlock}>
+                          <ToolStep name={step.name} done={step.status === 'done'} />
+                          {step.card && <ToolCard card={step.card} onStart={onStart} />}
+                        </div>
+                      ))}
                     {turn.text ? (
                       <div className={styles.answer}>
                         <MentorMarkdown text={turn.text} />
@@ -442,6 +444,10 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
                           </button>
                         )}
                       </div>
+                    )}
+                    {/* Quick replies (ADR 0074): tap instead of typing, on the latest answer only. */}
+                    {i === turns.length - 1 && !sending && (
+                      <Replies steps={turn.steps} onPick={(reply) => void send(reply)} />
                     )}
                   </li>
                 ),
@@ -537,6 +543,20 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
           </button>
         </div>
       </Dialog>
+    </div>
+  );
+}
+
+function Replies({ steps, onPick }: { steps: MentorToolEvent[]; onPick: (reply: string) => void }) {
+  const card = steps.map((s) => s.card).find((c) => c?.type === 'replies');
+  if (!card || card.type !== 'replies') return null;
+  return (
+    <div className={styles.replies} role="group" aria-label={t.mentorQuickReplies}>
+      {card.replies.map((reply) => (
+        <button key={reply} type="button" className={styles.reply} onClick={() => onPick(reply)}>
+          {reply}
+        </button>
+      ))}
     </div>
   );
 }

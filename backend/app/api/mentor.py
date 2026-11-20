@@ -24,6 +24,8 @@ from app.schemas.coach import (
     GoalOut,
     StudyTimeOut,
     TargetOut,
+    TodayIn,
+    TodayOut,
 )
 from app.schemas.mentor import (
     ConversationIn,
@@ -186,6 +188,7 @@ def _coach_out(state: coach.CoachState) -> CoachOut:
         )
         if adjustment
         else None,
+        today=TodayOut(**vars(state.today)),
     )
 
 
@@ -232,6 +235,23 @@ def mentor_commit(
 ) -> CoachOut:
     today = now.astimezone(time_zone).date()
     coach.commit(db, user, sorted(set(body.weekdays)), body.start_minute, body.minutes, today)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
+def mentor_set_today(
+    body: TodayIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    """When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow."""
+    if body.mode == "moved" and body.start_minute is None:
+        raise ApiError(422, "start_required", "A moved plan needs its new time")
+    coach.set_today(db, user, body.mode, body.start_minute, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.delete("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
+def mentor_undo_today(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> CoachOut:
+    coach.set_today(db, user, None, None, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
 
 

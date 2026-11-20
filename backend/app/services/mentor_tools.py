@@ -7,7 +7,7 @@ or the Writing and Speaking sections."""
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -147,6 +147,56 @@ TOOLS: list[dict[str, Any]] = [
                     "preference": {"type": "string", "enum": ["morning", "day", "evening"]},
                 },
                 "required": ["minutes"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_exception",
+            "description": (
+                "When the learner says a day is different: a usual block isn't happening "
+                "(skip_day: 'no school tomorrow'), something extra on one date (one_off: "
+                "'a concert on Saturday 15-18'), or days off from studying (pause: illness, "
+                "a trip, until a date). "
+                "Shows a card to confirm. Does not save it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": ["skip_day", "one_off", "pause"]},
+                    "date": {"type": "string", "description": "YYYY-MM-DD; the first day"},
+                    "until": {"type": "string", "description": "YYYY-MM-DD; pause only"},
+                    "title": {
+                        "type": "string",
+                        "description": "one_off: what it is; skip_day: which block (empty: all)",
+                    },
+                    "start": {"type": "string", "description": "HH:MM, one_off only"},
+                    "end": {"type": "string", "description": "HH:MM, one_off only"},
+                },
+                "required": ["kind", "date"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "offer_replies",
+            "description": (
+                "End an answer with 2–4 short replies the learner might tap instead of typing, in "
+                "their language (e.g. 'Starting now', 'Later', 'Not today'). Call it last."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "replies": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 4,
+                    }
+                },
+                "required": ["replies"],
             },
         },
     },
@@ -350,7 +400,66 @@ def propose_study_times(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult
     return ToolResult(card, {"options": told, "saved": False})
 
 
+# How far ahead a one-day change may be planned, and how long a pause may last (as promises).
+EXCEPTION_DAYS_AHEAD = 60
+MAX_PAUSE_DAYS = promises.MAX_PAUSE_DAYS
+
+
+def _day(text: Any, today: date) -> date | None:
+    """A date as YYYY-MM-DD, or «today» / «tomorrow» as words."""
+    word = str(text).strip().lower()
+    if word in ("today", "tomorrow"):
+        return today + timedelta(days=word == "tomorrow")
+    try:
+        return date.fromisoformat(word)
+    except ValueError:
+        return None
+
+
+def propose_exception(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """A one-day change or a pause, checked; the learner's tap applies it."""
+    kind = args.get("kind")
+    today = ctx.now.astimezone(ctx.zone).date()
+    day = _day(args.get("date"), today)
+    if kind not in ("skip_day", "one_off", "pause") or day is None:
+        return ToolResult(None, {"error": "need kind and a YYYY-MM-DD date"})
+    if not today <= day <= today + timedelta(days=EXCEPTION_DAYS_AHEAD):
+        return ToolResult(None, {"error": "the date must be from today to 60 days ahead"})
+    title = str(args.get("title") or "").strip()[:80]
+    card: dict[str, Any] = {"type": "exception", "kind": kind, "date": day.isoformat()}
+    if kind == "pause":
+        until = _day(args.get("until"), today) or day
+        until = min(max(until, day), today + timedelta(days=MAX_PAUSE_DAYS))
+        card["until"] = until.isoformat()
+    elif kind == "one_off":
+        start, end = _minute(args.get("start")), _minute(args.get("end"))
+        if not title or start is None or end is None or not start < end <= 1440:
+            return ToolResult(None, {"error": "a one-off needs a title and HH:MM start < end"})
+        card |= {"title": title, "start_minute": start, "end_minute": end}
+    else:
+        # «школы» names «Школа»: the word without its last letter, so endings don't matter.
+        stem = title.casefold()[:-1] if len(title) > 4 else title.casefold()
+        blocks = [
+            (event_id, name)
+            for event_id, name in coach.repeating_on(ctx.db, ctx.user, day)
+            if not stem or stem in name.casefold()
+        ]
+        if not blocks:
+            return ToolResult(None, {"error": "no usual block that day", "saved": False})
+        card["events"] = [{"id": str(i), "title": name} for i, name in blocks]
+    return ToolResult(card, {**card, "saved": False})
+
+
+def offer_replies(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    replies = [str(r).strip()[:40] for r in (args.get("replies") or []) if str(r).strip()][:4]
+    if not replies:
+        return ToolResult(None, {"shown": 0})
+    return ToolResult({"type": "replies", "replies": replies}, {"shown": len(replies)})
+
+
 RUNNERS = {
+    "propose_exception": propose_exception,
+    "offer_replies": offer_replies,
     "what_now": what_now,
     "suggest_activity": suggest_activity,
     "get_week_plan": get_week_plan,

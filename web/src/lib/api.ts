@@ -359,44 +359,20 @@ export const api = {
     request<Coach>('PUT', '/mentor/coach/commitment', { weekdays, start_minute: startMinute, minutes }),
   coachDecide: (id: string, accept: boolean) =>
     request<Coach>('POST', `/mentor/coach/adjustments/${encodeURIComponent(id)}`, { accept }),
-  scheduleList: () =>
-    request<{
-      events: Array<{
-        id: string;
-        title: string;
-        kind: string;
-        weekdays: number;
-        start_minute: number;
-        end_minute: number;
-      }>;
-    }>('GET', '/mentor/schedule'),
-  scheduleCreate: (body: { title: string; kind: string; weekdays: number; start_minute: number; end_minute: number }) =>
-    request<{
-      id: string;
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    }>('POST', '/mentor/schedule', body),
-  scheduleUpdate: (
-    id: string,
-    body: {
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    },
-  ) =>
-    request<{
-      id: string;
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    }>('PUT', `/mentor/schedule/${id}`, body),
+  scheduleList: () => request<{ events: WireScheduleEvent[] }>('GET', '/mentor/schedule'),
+  scheduleCreate: (body: WireScheduleInput) => request<WireScheduleEvent>('POST', '/mentor/schedule', body),
+  scheduleUpdate: (id: string, body: WireScheduleInput) =>
+    request<WireScheduleEvent>('PUT', `/mentor/schedule/${id}`, body),
+  /** «Только в этот день: не будет» (ADR 0074). */
+  scheduleSkip: (id: string, date: string) => request<null>('POST', `/mentor/schedule/${id}/skips`, { date }),
+  scheduleUnskip: (id: string, date: string) => request<null>('DELETE', `/mentor/schedule/${id}/skips/${date}`),
+  /** When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow; null undoes it. */
+  coachToday: (mode: 'minimum' | 'moved' | 'skip' | null, startMinute?: number) =>
+    mode === null
+      ? request<Coach>('DELETE', '/mentor/coach/today')
+      : request<Coach>('PUT', '/mentor/coach/today', { mode, start_minute: startMinute }),
+  /** Days off the promise (illness, a trip), from tomorrow until a date. */
+  promisePause: (until: string) => request<unknown>('PUT', '/me/promise/pause', { until }),
   scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
 };
 
@@ -413,6 +389,17 @@ export type MentorCard =
       why: string | null;
     }
   | { type: 'busy'; busy_with: string | null; until: number | null }
+  | {
+      type: 'exception';
+      kind: 'skip_day' | 'one_off' | 'pause';
+      date: string;
+      until?: string;
+      title?: string;
+      start_minute?: number;
+      end_minute?: number;
+      events?: { id: string; title: string }[];
+    }
+  | { type: 'replies'; replies: string[] }
   | { type: 'done' }
   | {
       type: 'schedule';
@@ -447,7 +434,14 @@ export type MentorCard =
     };
 
 export type MentorToolName =
-  'what_now' | 'suggest_activity' | 'get_week_plan' | 'propose_goal' | 'propose_schedule' | 'propose_study_times';
+  | 'what_now'
+  | 'suggest_activity'
+  | 'get_week_plan'
+  | 'propose_goal'
+  | 'propose_schedule'
+  | 'propose_study_times'
+  | 'propose_exception'
+  | 'offer_replies';
 
 export interface MentorToolEvent {
   id: string;
@@ -512,12 +506,34 @@ export interface Coach {
   promised: boolean[];
   studied: boolean[];
   commitment: { weekdays: number[]; start_minute: number | null; minutes: number | null; pending_from: string | null };
+  today: {
+    override_mode: 'minimum' | 'moved' | 'skip' | null;
+    override_start: number | null;
+    studied: boolean;
+    promised: boolean;
+    missed_yesterday: boolean;
+  };
   adjustment: {
     id: string;
     kind: 'easier_minutes' | 'fewer_days' | 'move_time' | 'more_minutes' | 'behind';
     evidence: Record<string, number | null>;
     proposal: Record<string, number | null>;
   } | null;
+}
+
+export interface WireScheduleInput {
+  title: string;
+  kind: string;
+  weekdays: number;
+  start_minute: number;
+  end_minute: number;
+  on_date?: string | null;
+}
+
+export interface WireScheduleEvent extends WireScheduleInput {
+  id: string;
+  on_date: string | null;
+  skipped: string[];
 }
 
 export interface StudyTimeOption {

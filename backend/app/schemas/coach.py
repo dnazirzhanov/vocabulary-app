@@ -60,6 +60,21 @@ class AdjustmentOut(BaseModel):
     proposal: dict[str, int | None]
 
 
+class TodayOut(BaseModel):
+    """Today against the promise (ADR 0074)."""
+
+    override_mode: Literal["minimum", "moved", "skip"] | None
+    override_start: int | None
+    studied: bool
+    promised: bool
+    missed_yesterday: bool
+
+
+class TodayIn(_Input):
+    mode: Literal["minimum", "moved", "skip"]
+    start_minute: Annotated[int, Field(ge=0, le=1439)] | None = None
+
+
 class CoachOut(BaseModel):
     goal: GoalOut | None
     feasibility: FeasibilityOut | None
@@ -72,6 +87,7 @@ class CoachOut(BaseModel):
     studied: list[bool]
     commitment: CommitmentOut
     adjustment: AdjustmentOut | None
+    today: TodayOut
 
 
 class StudyTimeOut(BaseModel):

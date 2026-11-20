@@ -17,10 +17,12 @@ from app.core.errors import ApiError
 from app.models import (
     LearningSession,
     MentorAdjustment,
+    MentorDayOverride,
     MentorGoal,
     ReadingAnswer,
     ReviewAttempt,
     ScheduleEvent,
+    ScheduleSkip,
     SpeakingSession,
     User,
     WritingSubmission,
@@ -212,10 +214,48 @@ def activity_in(db: Session, user: User, since: datetime, zone: ZoneInfo) -> Act
 
 
 def schedule_of(db: Session, user: User) -> list[tuple[str, Block]]:
+    """The learner's repeating week (one-off blocks are a single day's, not the week's)."""
     return [
         (event.title, Block(event.weekdays, event.start_minute, event.end_minute))
-        for event in db.scalars(select(ScheduleEvent).where(ScheduleEvent.user_id == user.id))
+        for event in db.scalars(
+            select(ScheduleEvent).where(
+                ScheduleEvent.user_id == user.id, ScheduleEvent.on_date.is_(None)
+            )
+        )
     ]
+
+
+def repeating_on(db: Session, user: User, day: date) -> list[tuple[Any, str]]:
+    """The repeating blocks on a date's weekday, as (id, title): what a skip can take off."""
+    mask = 1 << day.weekday()
+    return [
+        (event.id, event.title)
+        for event in db.scalars(
+            select(ScheduleEvent)
+            .where(ScheduleEvent.user_id == user.id, ScheduleEvent.on_date.is_(None))
+            .order_by(ScheduleEvent.start_minute)
+        )
+        if event.weekdays & mask
+    ]
+
+
+def blocks_on(db: Session, user: User, day: date) -> list[tuple[str, Block]]:
+    """One date's blocks (ADR 0074): the repeating ones not skipped that day, and that day's
+    one-offs. Each carries the date's weekday."""
+    mask = 1 << day.weekday()
+    skipped = set(
+        db.scalars(
+            select(ScheduleSkip.event_id)
+            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
+            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == day)
+        )
+    )
+    found: list[tuple[str, Block]] = []
+    for event in db.scalars(select(ScheduleEvent).where(ScheduleEvent.user_id == user.id)):
+        repeats = event.on_date is None and event.weekdays & mask and event.id not in skipped
+        if repeats or event.on_date == day:
+            found.append((event.title, Block(mask, event.start_minute, event.end_minute)))
+    return found
 
 
 # --- the coach, put together ----------------------------------------------------------------
@@ -241,6 +281,19 @@ class CoachState:
     studied: list[bool]
     commitment: Commitment
     adjustment: MentorAdjustment | None
+    today: "Today"
+
+
+@dataclass(frozen=True)
+class Today:
+    """Today against the promise (ADR 0074): what was chosen when it didn't work, whether it is
+    done, and whether yesterday's promise was missed (never twice in a row)."""
+
+    override_mode: str | None
+    override_start: int | None
+    studied: bool
+    promised: bool
+    missed_yesterday: bool
 
 
 def _commitment(promise: promises.Promise, today: date) -> Commitment:
@@ -280,6 +333,22 @@ def coach_state(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Coach
         for day in week
     ]
     adjustment = weekly_review(db, user, now, zone, promise, seen)
+    yesterday = today - timedelta(days=1)
+    before = activity_in(
+        db, user, datetime.combine(yesterday, datetime.min.time(), zone), zone
+    ).minutes
+    override = db.get(MentorDayOverride, (user.id, today))
+    today_state = Today(
+        override_mode=override.mode if override else None,
+        override_start=override.start_minute if override else None,
+        studied=bool(studied[today.weekday()]),
+        promised=promise.promised_on(today),
+        # Only once a study time was promised for that day: a new learner has missed nothing.
+        missed_yesterday=promise.promised_on(yesterday)
+        and promise.time_on(yesterday) is not None
+        and not before.get(yesterday)
+        and not (studied_days.get(yesterday) and studied_days[yesterday].studied),
+    )
     return CoachState(
         goal=row,
         feasibility=seen,
@@ -290,7 +359,39 @@ def coach_state(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Coach
         studied=studied,
         commitment=commitment,
         adjustment=adjustment,
+        today=today_state,
     )
+
+
+# --- when today doesn't work (ADR 0074) ------------------------------------------------------
+
+RESCUE_MODES = ("minimum", "moved", "skip")
+
+
+def set_today(
+    db: Session,
+    user: User,
+    mode: str | None,
+    start_minute: int | None,
+    now: datetime,
+    zone: ZoneInfo,
+) -> None:
+    """Today's choice: the 5-minute minimum, moved to a later time, or skipped (tomorrow keeps its
+    usual load). None undoes it."""
+    today = now.astimezone(zone).date()
+    found = db.get(MentorDayOverride, (user.id, today))
+    if mode is None:
+        if found is not None:
+            db.delete(found)
+    elif found is None:
+        db.add(
+            MentorDayOverride(
+                user_id=user.id, date=today, mode=mode, start_minute=start_minute, created_at=now
+            )
+        )
+    else:
+        found.mode, found.start_minute, found.created_at = mode, start_minute, now
+    db.commit()
 
 
 # --- study times and the commitment ---------------------------------------------------------
@@ -339,7 +440,7 @@ def now_for(
     time = promises.promise_of(db, user).time_on(local.date())
     return what_now(
         tasks,
-        schedule_of(db, user),
+        blocks_on(db, user, local.date()),
         local.weekday(),
         local.hour * 60 + local.minute,
         time[0] if time else None,

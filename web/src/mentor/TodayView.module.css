@@ -557,3 +557,88 @@ button.task:hover {
   text-align: left;
   cursor: text;
 }
+
+/* When today doesn't work (ADR 0074) */
+.linkButton {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.override {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.override span {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+.nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-tint);
+}
+
+.nudge p {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+}
+
+.rescue {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rescueOption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rescueOption:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.rescueTitle {
+  font-weight: var(--weight-display);
+}
+
+.rescueLead {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}

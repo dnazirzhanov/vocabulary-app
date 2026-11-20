@@ -202,7 +202,14 @@ def afternoon_message(db: Session, user: User, now: datetime, zone: ZoneInfo) ->
     words = _words_due(db, user, now, zone) if user.notify_deadline else []
     line = _words_line(texts, words, today) if words else None
     if _state_today(db, user, now, zone, today) == "pending":
-        return Reminder(texts.not_yet_title, line or texts.still_time)
+        promise = promise_of(db, user)
+        yesterday = today - timedelta(days=1)
+        studied = days_by_user(db, [user], local_day_bounds(yesterday, zone)[0], zone)[user.id]
+        day = studied.get(yesterday)
+        missed = promise.promised_on(yesterday) and not (day and day.studied)
+        return Reminder(
+            texts.not_yet_title, line or (texts.never_twice if missed else texts.still_time)
+        )
     if not line:
         return None
     return Reminder(texts.deadline_title if words[0][2] == today else texts.words_title, line)

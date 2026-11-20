@@ -15,9 +15,9 @@ import { describeError } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { BackIcon, CheckIcon, ForwardIcon, PlusIcon, SparkleIcon } from '../ui/icons.tsx';
 import { EventDialog } from './EventDialog.tsx';
-import { createEvent, deleteEvent, listEvents, updateEvent } from './api.ts';
+import { createEvent, deleteEvent, listEvents, skipDay, updateEvent } from './api.ts';
 import { freeGaps, hourRange, placeLanes, snap, weekOf } from './layout.ts';
-import type { ScheduleEvent, ScheduleEventInput } from './types.ts';
+import { happensOn, isoDay, type ScheduleEvent, type ScheduleEventInput } from './types.ts';
 import styles from './ScheduleView.module.css';
 
 export interface StudyBlock {
@@ -96,6 +96,7 @@ export function ScheduleView({ onBack, study = [], commitment = null, onAsk }: S
     event: ScheduleEvent | null;
     start?: number;
     weekday?: number;
+    date?: Date;
     n: number;
   } | null>(null);
   const [preview, setPreview] = useState<{ name: string; events: ScheduleEventInput[] } | null>(null);
@@ -186,7 +187,7 @@ export function ScheduleView({ onBack, study = [], commitment = null, onAsk }: S
         </button>
         <ol className={styles.days}>
           {week.map((d) => {
-            const busy = (events ?? []).some((e) => e.weekdays & (1 << weekdayOf(d)));
+            const busy = (events ?? []).some((e) => happensOn(e, d));
             return (
               <li key={d.toISOString()}>
                 <button
@@ -276,8 +277,8 @@ export function ScheduleView({ onBack, study = [], commitment = null, onAsk }: S
           events={events}
           study={study}
           commitment={commitment}
-          onEdit={(event) => setDialog({ event, n: Date.now() })}
-          onCreate={(weekday, start) => setDialog({ event: null, start, weekday, n: Date.now() })}
+          onEdit={(event, date) => setDialog({ event, date, n: Date.now() })}
+          onCreate={(date, start) => setDialog({ event: null, start, weekday: weekdayOf(date), date, n: Date.now() })}
           onMove={(event, start, end) => void move(event, start, end)}
         />
       )}
@@ -292,6 +293,16 @@ export function ScheduleView({ onBack, study = [], commitment = null, onAsk }: S
         onClose={() => setDialog(null)}
         onSave={save}
         onDelete={dialog?.event ? remove : undefined}
+        date={dialog?.date ?? day}
+        onSkipDay={
+          dialog?.event && !dialog.event.onDate
+            ? async () => {
+                await skipDay(dialog.event!.id, isoDay(dialog.date ?? day));
+                setDialog(null);
+                await refresh();
+              }
+            : undefined
+        }
       />
 
       {preview && (
@@ -325,8 +336,8 @@ interface TimelineProps {
   events: ScheduleEvent[];
   study: StudyBlock[];
   commitment: ScheduleViewProps['commitment'];
-  onEdit: (event: ScheduleEvent) => void;
-  onCreate: (weekday: number, start: number) => void;
+  onEdit: (event: ScheduleEvent, date: Date) => void;
+  onCreate: (date: Date, start: number) => void;
   onMove: (event: ScheduleEvent, start: number, end: number) => void;
 }
 
@@ -373,12 +384,12 @@ function Timeline({ days, now, events, study, commitment, onEdit, onCreate, onMo
       setDrag({ ...drag, end, moved: true });
     }
   };
-  const finish = () => {
+  const finish = (date: Date) => {
     if (!drag) return;
     if (drag.moved && (drag.start !== drag.event.startMinute || drag.end !== drag.event.endMinute)) {
       onMove(drag.event, drag.start, drag.end);
     } else if (!drag.moved) {
-      onEdit(drag.event);
+      onEdit(drag.event, date);
     }
     setDrag(null);
   };
@@ -397,7 +408,7 @@ function Timeline({ days, now, events, study, commitment, onEdit, onCreate, onMo
           const weekday = weekdayOf(date);
           const isToday = sameDay(date, now);
           const shown = events
-            .filter((e) => e.weekdays & (1 << weekday))
+            .filter((e) => happensOn(e, date))
             .map((e) => (drag && drag.event.id === e.id ? { ...e, startMinute: drag.start, endMinute: drag.end } : e));
           const placed = placeLanes(shown.map((e) => ({ ...e, start: e.startMinute, end: e.endMinute })));
           const promised =
@@ -423,12 +434,12 @@ function Timeline({ days, now, events, study, commitment, onEdit, onCreate, onMo
               className={styles.column}
               aria-label={date.toLocaleDateString(uiLanguage, { weekday: 'long', day: 'numeric', month: 'long' })}
               onPointerMove={follow}
-              onPointerUp={finish}
+              onPointerUp={() => finish(date)}
               onPointerCancel={() => setDrag(null)}
               onClick={(e) => {
                 if (e.target !== e.currentTarget) return;
                 const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-                onCreate(weekday, snap(first * 60 + y / PX));
+                onCreate(date, snap(first * 60 + y / PX));
               }}
             >
               {hours.map((h) => (
@@ -463,7 +474,7 @@ function Timeline({ days, now, events, study, commitment, onEdit, onCreate, onMo
                     onKeyDown={(k) => {
                       if (k.key === 'Enter' || k.key === ' ') {
                         k.preventDefault();
-                        onEdit(e);
+                        onEdit(e, date);
                       }
                     }}
                     aria-label={`${e.title}, ${hhmm(e.startMinute)}–${hhmm(e.endMinute)}`}

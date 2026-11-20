@@ -1,6 +1,7 @@
 """API contracts for the weekly schedule — the learner's life calendar."""
 
 import uuid
+from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
@@ -16,6 +17,8 @@ class ScheduleEventIn(BaseModel):
     weekdays: Annotated[int, Field(ge=1, le=127)]
     start_minute: Annotated[int, Field(ge=0, le=1439)]
     end_minute: Annotated[int, Field(ge=1, le=1440)]
+    # A block on this date only (ADR 0074); its weekdays become that date's weekday.
+    on_date: date | None = None
 
     @model_validator(mode="after")
     def _end_after_start(self) -> "ScheduleEventIn":
@@ -31,6 +34,13 @@ class ScheduleEventOut(BaseModel):
     weekdays: int
     start_minute: int
     end_minute: int
+    on_date: date | None = None
+    # Dates this repeating block isn't happening, from a week ago on.
+    skipped: list[date] = []
+
+
+class SkipIn(BaseModel):
+    date: date
 
 
 class ScheduleEventsOut(BaseModel):
