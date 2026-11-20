@@ -431,6 +431,8 @@ def propose_study_times(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult
             "start_minute": o.start,
             "minutes": o.minutes,
             "reasons": list(o.reasons),
+            "kept": o.kept,
+            "tried": o.tried,
         }
         for o in options
     ]

@@ -29,6 +29,7 @@ import { hhmm } from './chat/format.ts';
 import { skillName, statusText } from './chat/ToolCards.tsx';
 import type { PlanItem } from './types.ts';
 import styles from './TodayView.module.css';
+import { DAY_TYPES, type DayType } from './dayPlan.ts';
 
 export interface Slotted {
   item: PlanItem;
@@ -60,6 +61,7 @@ interface TodayViewProps {
   rescue: Rescue[];
   onRescue: (option: Rescue) => void;
   onUndoRescue: () => void;
+  onDayType: (type: DayType | null) => void;
   /** Yesterday's promise was missed, or today's study time passed with nothing done. */
   nudge: 'missed' | 'passed' | null;
 }
@@ -111,10 +113,20 @@ function adjustmentText(a: NonNullable<Coach['adjustment']>): string {
   }
 }
 
+export const dayTypeName = (type: DayType): string =>
+  ({
+    study: t.mentorDayStudy,
+    light: t.mentorDayLight,
+    weekend: t.mentorDayWeekend,
+    sick: t.mentorDaySick,
+    exam: t.mentorDayExam,
+  })[type];
+
 export function TodayView(props: TodayViewProps) {
   const { coach, tasks, done, busy } = props;
   const [rescuing, setRescuing] = useState(false);
   const override = coach?.today?.override_mode ?? null;
+  const dayType = coach?.today?.day_type ?? null;
   const next = tasks.find((s) => s.item) ?? null;
   const total = tasks.length + done.length;
   const left = tasks.reduce((sum, s) => sum + s.item.minutes, 0);
@@ -129,7 +141,31 @@ export function TodayView(props: TodayViewProps) {
         <h1 className={styles.greeting} tabIndex={-1} data-autofocus>
           {props.greeting}
         </h1>
+        {dayType && (
+          <p className={styles.dayType}>
+            <span>{dayTypeName(dayType)}</span>
+            <button type="button" className={styles.linkButton} onClick={() => props.onDayType(null)}>
+              {t.mentorDayTypeChange}
+            </button>
+          </p>
+        )}
       </header>
+
+      {/* What kind of day it is sets how much the plan asks (ADR 0076). */}
+      {coach && !dayType && (
+        <section className={styles.dayCheck} aria-labelledby="day-check">
+          <h2 id="day-check" className={styles.dayCheckTitle}>
+            {t.mentorDayTypeAsk}
+          </h2>
+          <div className={styles.dayChips}>
+            {DAY_TYPES.map((type) => (
+              <button key={type} type="button" className={styles.dayChip} onClick={() => props.onDayType(type)}>
+                {dayTypeName(type)}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* The goal, and honestly whether it is on track. */}
       {props.goalLabel ? (
@@ -187,6 +223,8 @@ export function TodayView(props: TodayViewProps) {
               <ForwardIcon aria-hidden="true" />
             </button>
           </div>
+        ) : dayType === 'sick' ? (
+          <p className={styles.nowDone}>{t.mentorSickDay}</p>
         ) : override === 'skip' ? (
           <p className={styles.nowDone}>{t.mentorTodaySkipped}</p>
         ) : (

@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.locale import DEFAULT, Texts, texts_for
 from app.core.logging import logger
-from app.models import DeckAssignment, Group, GroupMember, PushSubscription, User
+from app.models import DeckAssignment, Group, GroupMember, MentorDayType, PushSubscription, User
 from app.services import decks, pace
 from app.services.progress import local_day_bounds
 from app.services.promise import load_promises, promise_of, today_state
@@ -193,12 +193,19 @@ def morning_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> R
     return None
 
 
+def _sick(db: Session, user: User, day: date) -> bool:
+    found = db.get(MentorDayType, (user.id, day))
+    return found is not None and found.type == "sick"
+
+
 def afternoon_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Reminder | None:
     """Only if today is still open: the promise not done yet, or words left for a deadline."""
     if not user.notify_afternoon:
         return None
     texts = texts_for(user.ui_language)
     today = local_date(now, zone)
+    if _sick(db, user, today):
+        return None  # a sick day asks nothing (ADR 0076)
     words = _words_due(db, user, now, zone) if user.notify_deadline else []
     line = _words_line(texts, words, today) if words else None
     if _state_today(db, user, now, zone, today) == "pending":
@@ -206,7 +213,11 @@ def afternoon_message(db: Session, user: User, now: datetime, zone: ZoneInfo) ->
         yesterday = today - timedelta(days=1)
         studied = days_by_user(db, [user], local_day_bounds(yesterday, zone)[0], zone)[user.id]
         day = studied.get(yesterday)
-        missed = promise.promised_on(yesterday) and not (day and day.studied)
+        missed = (
+            promise.promised_on(yesterday)
+            and not (day and day.studied)
+            and not _sick(db, user, yesterday)
+        )
         return Reminder(
             texts.not_yet_title, line or (texts.never_twice if missed else texts.still_time)
         )

@@ -18,6 +18,7 @@ from app.schemas.coach import (
     CoachOut,
     CommitmentIn,
     CommitmentOut,
+    DayTypeIn,
     DecisionIn,
     FactIn,
     FactOut,
@@ -230,6 +231,8 @@ def mentor_study_times(
             start_minute=o.start,
             minutes=o.minutes,
             reasons=list(o.reasons),
+            kept=o.kept,
+            tried=o.tried,
         )
         for o in options
     ]
@@ -258,6 +261,15 @@ def mentor_set_today(
 @router.delete("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
 def mentor_undo_today(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> CoachOut:
     coach.set_today(db, user, None, None, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/day-type", dependencies=[Depends(_require_mentor)])
+def mentor_day_type(
+    body: DayTypeIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    """What kind of day today is (ADR 0076): it sets how much the plan asks."""
+    coach.set_day_type(db, user, body.type, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
 
 

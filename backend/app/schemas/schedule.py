@@ -6,7 +6,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-EventKind = Literal["school", "work", "sport", "chore", "personal", "other"]
+EventKind = Literal[
+    "school", "work", "sport", "chore", "personal", "other", "rest", "play", "sleep"
+]
 
 EventTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 

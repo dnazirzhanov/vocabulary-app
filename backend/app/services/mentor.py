@@ -25,12 +25,14 @@ from app.models import (
     ReadingAnswer,
     ReviewAttempt,
     ScheduleEvent,
+    ScheduleSkip,
     SpellingProgress,
     User,
     UserWordProgress,
     Word,
 )
 from app.services import memory, mentor_demo, mentor_tools
+from app.services.coach.service import day_type_on
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
@@ -95,6 +97,8 @@ class LearnerContext:
     reading_level_counts: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     # Today's recurring events in local-clock order: (title, kind, start_minute, end_minute).
     schedule_today: list[tuple[str, str, int, int]] = dataclasses.field(default_factory=list)
+    # What kind of day the learner said today is (ADR 0076).
+    day_type: str | None = None
 
 
 _SYSTEM = """\
@@ -129,6 +133,10 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- Blocks of kind rest, play and sleep are protected: never put study there, and if the learner \
+wants to give them up to study more, gently defend them (rest helps memory; sleep most of all).
+- Follow today's kind of day (below, if said): a light day asks about half, an exam day only 5 \
+minutes, a sick day nothing (wish them well; don't suggest studying).
 Formatting rules (follow these strictly):
 - Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
 - Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
@@ -505,21 +513,39 @@ def _struggling_words(db: Session, user: User, now: datetime, n: int = 3) -> lis
     return [f"{row.headword} ({row.translation})" for row in rows]
 
 
+DAY_TYPE_LINES = {
+    "study": "ordinary study day: the usual plan.",
+    "light": "light day: about half the usual plan, the most important first.",
+    "weekend": "day off: the usual plan, at any free time.",
+    "sick": "sick day: nothing is asked and nothing counts as missed.",
+    "exam": "exam day: only the 5-minute minimum.",
+}
+
+
 def _schedule_today(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
 ) -> list[tuple[str, str, int, int]]:
-    """Events whose weekdays bitmask includes today's local weekday, sorted by start_minute."""
-    today_weekday = local_date(now, time_zone).weekday()  # 0=Mon .. 6=Sun
-    bit = 1 << today_weekday
+    """Today's blocks, sorted by start: repeating ones not skipped today, and today's one-offs
+    (ADR 0074)."""
+    today = local_date(now, time_zone)
+    bit = 1 << today.weekday()
+    skipped = set(
+        db.scalars(
+            select(ScheduleSkip.event_id)
+            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
+            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == today)
+        )
+    )
     rows = db.scalars(
         select(ScheduleEvent)
-        .where(
-            ScheduleEvent.user_id == user.id,
-            ScheduleEvent.weekdays.op("&")(bit) != 0,
-        )
+        .where(ScheduleEvent.user_id == user.id)
         .order_by(ScheduleEvent.start_minute)
     ).all()
-    return [(e.title, e.kind, e.start_minute, e.end_minute) for e in rows]
+    return [
+        (e.title, e.kind, e.start_minute, e.end_minute)
+        for e in rows
+        if e.on_date == today or (e.on_date is None and e.weekdays & bit and e.id not in skipped)
+    ]
 
 
 def _course_level(db: Session, user: User) -> str | None:
@@ -593,6 +619,8 @@ def _system_prompt(
         schedule_section = "Today's schedule (local time):\n" + "\n".join(schedule_lines) + "\n"
     else:
         schedule_section = ""
+    if ctx.day_type in DAY_TYPE_LINES:
+        schedule_section += f"Today: {DAY_TYPE_LINES[ctx.day_type]}\n"
     if ctx.deck_rows:
         deck_lines: list[str] = []
         for title, n_due, n_started in ctx.deck_rows:
@@ -1150,6 +1178,7 @@ def _build_context(
     ctx.reading_accuracy = _reading_accuracy(db, user)
     ctx.reading_level_counts = _reading_level_breakdown(db, user)
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
+    ctx.day_type = day_type_on(db, user, local_date(now, time_zone))
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     # What the mentor remembers (ADR 0075): facts, the plan's story, earlier chats.

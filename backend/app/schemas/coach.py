@@ -68,11 +68,18 @@ class TodayOut(BaseModel):
     studied: bool
     promised: bool
     missed_yesterday: bool
+    day_type: Literal["study", "light", "weekend", "sick", "exam"] | None = None
 
 
 class TodayIn(_Input):
     mode: Literal["minimum", "moved", "skip"]
     start_minute: Annotated[int, Field(ge=0, le=1439)] | None = None
+
+
+class DayTypeIn(_Input):
+    """What kind of day today is (ADR 0076); null clears it."""
+
+    type: Literal["study", "light", "weekend", "sick", "exam"] | None
 
 
 class CoachOut(BaseModel):
@@ -94,7 +101,10 @@ class StudyTimeOut(BaseModel):
     weekdays: list[int]
     start_minute: int
     minutes: int
-    reasons: list[Literal["free", "habit", "preferred", "after_block"]]
+    reasons: list[Literal["free", "habit", "preferred", "after_block", "works"]]
+    # How often a study time near here was kept when promised (ADR 0076).
+    kept: int = 0
+    tried: int = 0
 
 
 class CommitmentIn(_Input):
