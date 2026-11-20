@@ -447,12 +447,15 @@ def test_history_context_capped_at_ten_turns(
 ) -> None:
     """_recent_history returns at most _HISTORY_TURNS * 2 = 20 messages for LLM context."""
     from app.models import MentorMessage
-    from app.services.mentor import _HISTORY_TURNS, _recent_history
+    from app.services.mentor import _HISTORY_TURNS, _recent_history, latest_conversation
 
     _enable_mentor(monkeypatch)
     client.post("/api/mentor/chat", json={"message": "seed"}, headers=as_("iris"))
     user = db.scalar(select(User).where(User.auth_subject == "dev|iris"))
     assert user is not None
+
+    conversation = latest_conversation(db, user)
+    assert conversation is not None
 
     # Insert 25 extra messages so the total is well above the 20-message cap.
     base_time = MOMENT + timedelta(seconds=10)
@@ -463,12 +466,14 @@ def test_history_context_capped_at_ten_turns(
                 role="user" if i % 2 == 0 else "assistant",
                 content=f"msg {i}",
                 created_at=base_time + timedelta(seconds=i),
+                conversation_id=conversation.id,
             )
         )
     db.commit()
 
-    messages = _recent_history(db, user)
-    assert len(messages) <= _HISTORY_TURNS * 2
+    messages = _recent_history(db, conversation)
+    assert len(messages) == _HISTORY_TURNS * 2
+    assert messages[-1].content == "msg 24"  # the latest ones, in order
 
 
 def test_history_requires_tester_flag(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

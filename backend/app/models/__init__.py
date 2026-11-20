@@ -23,7 +23,12 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
-from app.models.mentor import MentorAdjustment, MentorGoal, MentorMessage
+from app.models.mentor import (
+    MentorAdjustment,
+    MentorConversation,
+    MentorGoal,
+    MentorMessage,
+)
 from app.models.reading import (
     Reading,
     ReadingAnswer,
@@ -72,6 +77,7 @@ __all__ = [
     "GroupTestQuestion",
     "LearningSession",
     "MentorAdjustment",
+    "MentorConversation",
     "MentorGoal",
     "MentorMessage",
     "PaceDismissal",
