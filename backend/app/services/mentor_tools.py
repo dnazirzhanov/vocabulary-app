@@ -11,13 +11,17 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import User, UserWordProgress, Word
+from app.schemas import gen_ui
 from app.services import memory
 from app.services import promise as promises
 from app.services.coach import service as coach
 from app.services.coach.goal import GOAL_KINDS, Goal, feasibility
+from app.services.study_days import HISTORY_DAYS, days_by_user
 
 ACTIVITY_KINDS = ("vocab", "spelling", "reading", "writing", "speaking")
 EVENT_KINDS = ("school", "work", "sport", "chore", "personal", "other")
@@ -236,6 +240,37 @@ TOOLS += [
                 "type": "object",
                 "properties": {"query": {"type": "string"}},
                 "required": ["query"],
+            },
+        },
+    },
+]
+
+
+TOOLS += [
+    {
+        "type": "function",
+        "function": {
+            "name": "show",
+            "description": (
+                "Put one interactive component on screen (the app fills in every fact): "
+                "day = today on a timeline with blocks and the study time, for questions about "
+                "when or how today looks; words = a warm-up of words due for review; "
+                "day_check = ask what kind of day today is (ordinary, light, day off, exam, sick); "
+                "choice = one question with 2-4 short answers the learner taps instead of typing; "
+                "celebrate = their real milestones, when they did well."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "component": {"type": "string", "enum": list(gen_ui.COMPONENTS)},
+                    "question": {"type": "string", "description": "choice only"},
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "choice only: 2-4 answers, a few words each",
+                    },
+                },
+                "required": ["component"],
             },
         },
     },
@@ -515,7 +550,102 @@ def recall(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(None, dict(memory.search(ctx.db, ctx.user, query, ctx.zone)))
 
 
+def _day_card(ctx: ToolContext) -> gen_ui.DayCard:
+    today = ctx.now.astimezone(ctx.zone).date()
+    state = coach.coach_state(ctx.db, ctx.user, ctx.now, ctx.zone)
+    moved = state.today.override_mode == "moved"
+    return gen_ui.DayCard(
+        date=today.isoformat(),
+        blocks=[
+            gen_ui.DayBlock(title=t, kind=k, start_minute=a, end_minute=b)
+            for t, k, a, b in coach.today_blocks(ctx.db, ctx.user, today)
+        ],
+        study_start=state.today.override_start if moved else state.commitment.start_minute,
+        day_type=state.today.day_type,
+    )
+
+
+def _words_card(ctx: ToolContext) -> gen_ui.WordsCard | None:
+    due = (
+        ctx.db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == ctx.user.id, UserWordProgress.due_at <= ctx.now
+            )
+        )
+        or 0
+    )
+    rows = ctx.db.execute(
+        select(Word.headword, Word.translation)
+        .join(UserWordProgress, UserWordProgress.word_id == Word.id)
+        .where(UserWordProgress.user_id == ctx.user.id, UserWordProgress.due_at <= ctx.now)
+        .order_by(UserWordProgress.due_at)
+        .limit(5)
+    ).all()
+    if not rows:
+        return None
+    return gen_ui.WordsCard(words=[gen_ui.Word(en=r[0], l1=r[1]) for r in rows], due=due)
+
+
+def _celebrate_card(ctx: ToolContext) -> gen_ui.CelebrateCard | None:
+    today = ctx.now.astimezone(ctx.zone).date()
+    since = datetime.combine(today - timedelta(days=HISTORY_DAYS), datetime.min.time(), ctx.zone)
+    days = days_by_user(ctx.db, [ctx.user], since, ctx.zone)[ctx.user.id]
+    streak = promises.week_streak(promises.promise_of(ctx.db, ctx.user), days, today)
+    # Any practice counts here, as on the home's week (lessons, writing, speaking, reading).
+    this_week = sum(coach.coach_state(ctx.db, ctx.user, ctx.now, ctx.zone).studied)
+    known = (
+        ctx.db.scalar(
+            select(func.count()).where(
+                UserWordProgress.user_id == ctx.user.id,
+                UserWordProgress.first_recalled_at.is_not(None),
+            )
+        )
+        or 0
+    )
+    found = [
+        gen_ui.Milestone(kind=kind, value=value)
+        for kind, value in (
+            ("streak_weeks", streak),
+            ("days_this_week", this_week),
+            ("words_known", known),
+        )
+        if value > 0
+    ]
+    return gen_ui.CelebrateCard(milestones=found) if found else None
+
+
+def show(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """One component from the catalogue (ADR 0077), its facts filled in here and validated."""
+    component = args.get("component")
+    card: BaseModel | None
+    try:
+        if component == "day":
+            card = _day_card(ctx)
+        elif component == "words":
+            card = _words_card(ctx)
+        elif component == "day_check":
+            card = gen_ui.DayCheckCard(
+                current=coach.day_type_on(ctx.db, ctx.user, ctx.now.astimezone(ctx.zone).date())
+            )
+        elif component == "choice":
+            options = [" ".join(str(o).split())[:40] for o in args.get("options") or []]
+            card = gen_ui.ChoiceCard(
+                question=str(args.get("question") or ""), options=[o for o in options if o][:4]
+            )
+        elif component == "celebrate":
+            card = _celebrate_card(ctx)
+        else:
+            return ToolResult(None, {"error": f"unknown component; use one of {gen_ui.COMPONENTS}"})
+    except ValidationError as invalid:
+        return ToolResult(None, {"error": invalid.errors(include_url=False)[0]["msg"]})
+    if card is None:
+        return ToolResult(None, {"shown": False, "why": "nothing to show (no data for it)"})
+    shown = card.model_dump()
+    return ToolResult(shown, {"shown": True, **shown})
+
+
 RUNNERS = {
+    "show": show,
     "remember": remember,
     "recall": recall,
     "propose_exception": propose_exception,

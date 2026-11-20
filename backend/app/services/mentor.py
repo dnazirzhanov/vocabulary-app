@@ -24,15 +24,13 @@ from app.models import (
     MentorMessage,
     ReadingAnswer,
     ReviewAttempt,
-    ScheduleEvent,
-    ScheduleSkip,
     SpellingProgress,
     User,
     UserWordProgress,
     Word,
 )
 from app.services import memory, mentor_demo, mentor_tools
-from app.services.coach.service import day_type_on
+from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
@@ -133,6 +131,11 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- Use show to put one interactive component on screen instead of describing it: day when \
+they ask how today looks or where something fits; words for a quick warm-up; day_check when \
+the plan seems too much (tired, sick, an exam); choice whenever you ask a question with a few \
+likely answers; celebrate when they did well. At most one show per answer; say in one \
+sentence what it shows, never repeat its contents.
 - Blocks of kind rest, play and sleep are protected: never put study there, and if the learner \
 wants to give them up to study more, gently defend them (rest helps memory; sleep most of all).
 - Follow today's kind of day (below, if said): a light day asks about half, an exam day only 5 \
@@ -525,27 +528,8 @@ DAY_TYPE_LINES = {
 def _schedule_today(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
 ) -> list[tuple[str, str, int, int]]:
-    """Today's blocks, sorted by start: repeating ones not skipped today, and today's one-offs
-    (ADR 0074)."""
-    today = local_date(now, time_zone)
-    bit = 1 << today.weekday()
-    skipped = set(
-        db.scalars(
-            select(ScheduleSkip.event_id)
-            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
-            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == today)
-        )
-    )
-    rows = db.scalars(
-        select(ScheduleEvent)
-        .where(ScheduleEvent.user_id == user.id)
-        .order_by(ScheduleEvent.start_minute)
-    ).all()
-    return [
-        (e.title, e.kind, e.start_minute, e.end_minute)
-        for e in rows
-        if e.on_date == today or (e.on_date is None and e.weekdays & bit and e.id not in skipped)
-    ]
+    """Today's blocks, sorted by start (ADR 0074): skips taken off, one-offs on their date."""
+    return today_blocks(db, user, local_date(now, time_zone))
 
 
 def _course_level(db: Session, user: User) -> str | None:

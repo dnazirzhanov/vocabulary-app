@@ -411,6 +411,18 @@ export type MentorCard =
     }
   | { type: 'replies'; replies: string[] }
   | { type: 'memory'; kind: FactKind; text: string }
+  // The mentor's components (ADR 0077): the server fills in every fact.
+  | {
+      type: 'day';
+      date: string;
+      blocks: { title: string; kind: string; start_minute: number; end_minute: number }[];
+      study_start: number | null;
+      day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    }
+  | { type: 'words'; words: { en: string; l1: string }[]; due: number }
+  | { type: 'day_check'; current: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null }
+  | { type: 'choice'; question: string; options: string[] }
+  | { type: 'celebrate'; milestones: { kind: 'streak_weeks' | 'days_this_week' | 'words_known'; value: number }[] }
   | { type: 'done' }
   | {
       type: 'schedule';
@@ -461,7 +473,8 @@ export type MentorToolName =
   | 'propose_exception'
   | 'offer_replies'
   | 'remember'
-  | 'recall';
+  | 'recall'
+  | 'show';
 
 export interface MentorToolEvent {
   id: string;

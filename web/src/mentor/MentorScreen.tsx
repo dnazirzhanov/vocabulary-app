@@ -93,6 +93,13 @@ export function MentorScreen({
     void load();
   }, [load]);
 
+  // Something applied from the chat (the kind of day, ADR 0077): the plan follows.
+  useEffect(() => {
+    const reload = () => void load();
+    window.addEventListener('mentor:changed', reload);
+    return () => window.removeEventListener('mentor:changed', reload);
+  }, [load]);
+
   // The times move on: «free until», «now» and slots stay true while the tab is open.
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 60_000);

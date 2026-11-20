@@ -7,6 +7,25 @@ from typing import Any
 def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     """The tool a question plainly asks for, by its words, with fixed arguments."""
     said = message.lower()
+    if any(w in said for w in ("мой день", "my day", "как выглядит")):
+        return [("show", {"component": "day"})]
+    if any(w in said for w in ("разминк", "warm up", "warm-up")):
+        return [("show", {"component": "words"})]
+    if any(w in said for w in ("устал", "нет сил", "tired")):
+        return [("show", {"component": "day_check"})]
+    if any(w in said for w in ("получилось", "я сделал", "i did it")):
+        return [("show", {"component": "celebrate"})]
+    if any(w in said for w in ("сколько минут", "how many minutes")):
+        return [
+            (
+                "show",
+                {
+                    "component": "choice",
+                    "question": message.strip()[:120],
+                    "options": ["10", "15", "20", "30"],
+                },
+            )
+        ]
     if any(w in said for w in ("я люблю", "мне нравится", "i love", "i like")):
         return [("remember", {"kind": "likes", "text": message.strip()[:200]})]
     if any(w in said for w in ("помнишь", "remember what", "я говорил", "я говорила")):

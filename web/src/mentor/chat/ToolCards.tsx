@@ -4,7 +4,7 @@
  * only when the learner confirms it here.
  */
 import { useState } from 'react';
-import { api, describeError, type MentorCard, type MentorToolName } from '../../lib/api.ts';
+import { api, describeError, type MentorCard, type MentorPlanItem, type MentorToolName } from '../../lib/api.ts';
 import { createEvent, skipDay } from '../../schedule/api.ts';
 import type { EventKind } from '../../schedule/types.ts';
 import { t, uiLanguage } from '../../i18n/index.ts';
@@ -21,6 +21,7 @@ import {
 } from '../../ui/icons.tsx';
 import { hhmm } from './format.ts';
 import styles from './Chat.module.css';
+import { CelebrateCard, ChoiceCard, DayCard, DayCheckCard, WordsCard } from './GenCards.tsx';
 
 export type Activity = Extract<MentorCard, { type: 'activity' }>;
 
@@ -35,6 +36,7 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   offer_replies: () => '',
   remember: () => t.mentorToolRemember,
   recall: () => t.mentorToolRecall,
+  show: () => t.mentorToolShow,
 };
 
 export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }) {
@@ -52,9 +54,13 @@ export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }
 interface CardProps {
   card: MentorCard;
   onStart: (activity: Activity) => Promise<void> | void;
+  /** Today's tasks, for the components that place or start them (ADR 0077). */
+  plan?: MentorPlanItem[];
+  /** Sends an answer as the learner's message (a choice card). */
+  onSend?: (text: string) => void;
 }
 
-export function ToolCard({ card, onStart }: CardProps) {
+export function ToolCard({ card, onStart, plan = [], onSend }: CardProps) {
   switch (card.type) {
     case 'activity':
       return <ActivityCard activity={card} onStart={onStart} />;
@@ -88,6 +94,16 @@ export function ToolCard({ card, onStart }: CardProps) {
       return null; // shown as chips under the answer
     case 'memory':
       return <MemoryChip fact={card} />;
+    case 'day':
+      return <DayCard card={card} plan={plan} />;
+    case 'words':
+      return <WordsCard card={card} plan={plan} onStart={onStart} />;
+    case 'day_check':
+      return <DayCheckCard card={card} />;
+    case 'choice':
+      return <ChoiceCard card={card} onSend={onSend} />;
+    case 'celebrate':
+      return <CelebrateCard card={card} />;
   }
 }
 

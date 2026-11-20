@@ -32,6 +32,7 @@ import { Dialog } from '../../ui/Dialog.tsx';
 import { MentorMarkdown } from '../MentorMarkdown.tsx';
 import { grouped, messageTime, titleOf, type ChatGroup } from './format.ts';
 import { ToolCard, ToolStep, type Activity } from './ToolCards.tsx';
+import { CardSkeleton, PlanPanel } from './GenCards.tsx';
 import styles from './Chat.module.css';
 
 const MAX_LENGTH = 500;
@@ -402,8 +403,20 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
                       .filter((step) => step.name !== 'offer_replies')
                       .map((step) => (
                         <div key={step.id} className={styles.stepBlock}>
-                          <ToolStep name={step.name} done={step.status === 'done'} />
-                          {step.card && <ToolCard card={step.card} onStart={onStart} />}
+                          {/* A component shows its shape while it is made (ADR 0077). */}
+                          {step.name === 'show' ? (
+                            step.status !== 'done' && <CardSkeleton />
+                          ) : (
+                            <ToolStep name={step.name} done={step.status === 'done'} />
+                          )}
+                          {step.card && (
+                            <ToolCard
+                              card={step.card}
+                              onStart={onStart}
+                              plan={plan}
+                              onSend={i === turns.length - 1 ? (text) => void send(text) : undefined}
+                            />
+                          )}
                         </div>
                       ))}
                     {turn.text ? (
@@ -508,6 +521,8 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
           </div>
         </form>
       </section>
+
+      <PlanPanel plan={plan} onStart={onStart} />
 
       <Dialog open={menuFor !== null} onClose={() => setMenuFor(null)} title={menuFor?.title ?? ''}>
         <form

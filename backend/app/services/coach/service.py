@@ -263,6 +263,29 @@ def blocks_on(db: Session, user: User, day: date) -> list[tuple[str, Block]]:
     return found
 
 
+def today_blocks(db: Session, user: User, day: date) -> list[tuple[str, str, int, int]]:
+    """A date's blocks as (title, kind, start, end), sorted: repeating ones not skipped that day,
+    and that day's one-offs (ADR 0074)."""
+    mask = 1 << day.weekday()
+    skipped = set(
+        db.scalars(
+            select(ScheduleSkip.event_id)
+            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
+            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == day)
+        )
+    )
+    rows = db.scalars(
+        select(ScheduleEvent)
+        .where(ScheduleEvent.user_id == user.id)
+        .order_by(ScheduleEvent.start_minute)
+    )
+    return [
+        (e.title, e.kind, e.start_minute, e.end_minute)
+        for e in rows
+        if e.on_date == day or (e.on_date is None and e.weekdays & mask and e.id not in skipped)
+    ]
+
+
 # --- the coach, put together ----------------------------------------------------------------
 
 
