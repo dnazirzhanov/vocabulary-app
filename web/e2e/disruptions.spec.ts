@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './learner.ts';
+import { openFromChatList, openMentorPlan } from './mentorNav.ts';
 
 /**
  * When a day is different (ADR 0074): today's plan bends instead of breaking, the calendar knows
@@ -19,8 +20,7 @@ const day = (d: Date) => d.toLocaleDateString('ru', { weekday: 'long', day: 'num
 async function openMentor(page: Page) {
   await page.clock.setFixedTime(afternoon());
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 2, name: 'Сейчас' })).toBeVisible();
+  await openMentorPlan(page);
 }
 
 test('when today doesn’t work, the plan bends to five minutes, and can be undone', async ({ page }) => {
@@ -49,7 +49,8 @@ test('a block on one date only, and a usual block off for one date', async ({ pa
     data: { title: 'Школа', kind: 'school', weekdays: 127, start_minute: 480, end_minute: 840 },
   });
   await openMentor(page);
-  await page.getByRole('button', { name: 'Моё расписание' }).click();
+  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openFromChatList(page, 'Моё расписание');
   const today = page.getByRole('region', { name: new RegExp(day(afternoon()), 'i') });
 
   // Off today only.

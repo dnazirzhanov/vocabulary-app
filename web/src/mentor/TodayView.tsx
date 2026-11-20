@@ -15,8 +15,8 @@ import type { Rescue } from './rescue.ts';
 import type { Coach } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import {
+  BackIcon,
   BookIcon,
-  CalendarIcon,
   CardsIcon,
   CheckIcon,
   ForwardIcon,
@@ -26,7 +26,7 @@ import {
   SparkleIcon,
 } from '../ui/icons.tsx';
 import { hhmm } from './chat/format.ts';
-import { skillName, statusText } from './chat/ToolCards.tsx';
+import { statusText } from './chat/ToolCards.tsx';
 import type { PlanItem } from './types.ts';
 import styles from './TodayView.module.css';
 import { DAY_TYPES, type DayType } from './dayPlan.ts';
@@ -55,6 +55,8 @@ interface TodayViewProps {
   onAsk: (question?: string) => void;
   onOpenCalendar: () => void;
   onOpenMemory: () => void;
+  /** Back to the chat, where the mentor section begins. */
+  onBack: () => void;
   onEditGoal: () => void;
   onDecide: (accept: boolean) => void;
   /** When today doesn't work (ADR 0074): the ways out, today's choice, and how to undo it. */
@@ -88,13 +90,6 @@ export function titleOf(item: PlanItem): string {
 
 const meta = (s: Slotted) =>
   [t.mentorMinutesShort(s.item.minutes), s.at === null ? null : hhmm(s.at)].filter(Boolean).join(' · ');
-
-const days = (list: number[]) =>
-  list.length === 7
-    ? t.mentorEveryDay
-    : list.length === 5 && list.every((d, i) => d === i)
-      ? `${t.weekdays[0]}–${t.weekdays[4]}`
-      : list.map((d) => t.weekdays[d]).join(', ');
 
 function adjustmentText(a: NonNullable<Coach['adjustment']>): string {
   const e = a.evidence;
@@ -131,12 +126,14 @@ export function TodayView(props: TodayViewProps) {
   const total = tasks.length + done.length;
   const left = tasks.reduce((sum, s) => sum + s.item.minutes, 0);
   const share = total ? done.length / total : 0;
-  const commitment = coach?.commitment;
   const date = new Date().toLocaleDateString(uiLanguage, { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className={styles.column}>
       <header className={styles.head}>
+        <button type="button" className={styles.back} onClick={props.onBack} aria-label={t.back}>
+          <BackIcon aria-hidden="true" />
+        </button>
         <p className={styles.date}>{date}</p>
         <h1 className={styles.greeting} tabIndex={-1} data-autofocus>
           {props.greeting}
@@ -371,73 +368,6 @@ export function TodayView(props: TodayViewProps) {
           </div>
         </section>
       )}
-
-      {/* This week: the goal's targets and the promised days. */}
-      {coach && coach.targets.length > 0 && (
-        <section aria-labelledby="mentor-week">
-          <h2 id="mentor-week" className={styles.sectionTitle}>
-            {t.mentorThisWeek}
-          </h2>
-          <ul className={styles.targets}>
-            {coach.targets.map((target) => (
-              <li key={target.skill}>
-                <span>{skillName(target.skill)}</span>
-                <span className={styles.bar} aria-hidden="true">
-                  <span style={{ width: `${Math.min(100, (target.done / Math.max(1, target.planned)) * 100)}%` }} />
-                </span>
-                <span className={styles.count}>
-                  {target.done}/{target.planned}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <ol
-            className={styles.days}
-            aria-label={t.mentorWeekDays(coach.studied.filter(Boolean).length, coach.promised.filter(Boolean).length)}
-          >
-            {coach.promised.map((promised, d) => (
-              <li key={d} data-state={coach.studied[d] ? 'done' : promised ? 'promised' : 'off'} aria-hidden="true">
-                <span>{t.weekdays[d]}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {/* The promise with its time. */}
-      <section className={styles.commitment} aria-labelledby="mentor-time">
-        <h2 id="mentor-time" className={styles.sectionTitle}>
-          {t.mentorStudyTime}
-        </h2>
-        {commitment && commitment.start_minute !== null && commitment.minutes !== null ? (
-          <button type="button" className={styles.timeRow} onClick={() => props.onAsk(t.mentorAskTime)}>
-            <strong>{hhmm(commitment.start_minute)}</strong>
-            <span>
-              {days(commitment.weekdays)} · {t.mentorMinutesShort(commitment.minutes)}
-            </span>
-            <span className={styles.change}>{t.mentorChange}</span>
-          </button>
-        ) : (
-          <button type="button" className={styles.timeRow} onClick={() => props.onAsk(t.mentorAskTime)}>
-            <span>{t.mentorPickTime}</span>
-            <ForwardIcon aria-hidden="true" />
-          </button>
-        )}
-        <button type="button" className={styles.calendarRow} onClick={props.onOpenCalendar}>
-          <CalendarIcon aria-hidden="true" />
-          <span>{t.scheduleHeading}</span>
-          <ForwardIcon aria-hidden="true" />
-        </button>
-        <button type="button" className={styles.calendarRow} onClick={props.onOpenMemory}>
-          <SparkleIcon aria-hidden="true" />
-          <span>{t.memoryTitle}</span>
-          <ForwardIcon aria-hidden="true" />
-        </button>
-      </section>
-
-      <p className={styles.tip}>
-        <SparkleIcon aria-hidden="true" /> {props.tip}
-      </p>
 
       <button type="button" className={styles.askBar} onClick={() => props.onAsk()}>
         {t.mentorAskBar}

@@ -1,4 +1,5 @@
 import { expect, test } from './learner.ts';
+import { openMentorPlan } from './mentorNav.ts';
 
 /**
  * Whether the mentor works (ADR 0078): «Начать» is counted, and counting is never in the way —
@@ -8,8 +9,7 @@ test.use({ mentor: true, viewport: { width: 390, height: 844 } });
 
 async function openMentor(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 2, name: 'Сейчас' })).toBeVisible();
+  await openMentorPlan(page);
 }
 
 test('«Начать» on the home is counted, with where it was tapped', async ({ page }) => {

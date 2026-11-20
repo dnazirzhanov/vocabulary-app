@@ -28,6 +28,8 @@ interface MentorScreenProps {
   onStartSession: (session: Session, from: string) => void;
   onOpenWriting: () => void;
   onOpenSpeaking: () => void;
+  /** Out of the mentor section (the chat list's «‹»). */
+  onLeave: () => void;
 }
 
 /** The coach's last answer, kept on the device so the home opens without a connection. */
@@ -52,13 +54,15 @@ export function MentorScreen({
   onStartSession,
   onOpenWriting,
   onOpenSpeaking,
+  onLeave,
 }: MentorScreenProps) {
   const [input, setInput] = useState<MentorInput | null>(null);
   const [coach, setCoach] = useState<Coach | null>(() => keptCoach(account));
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [chat, setChat] = useState<{ ask: string | null } | null>(null);
+  // The chat comes first; today's plan is a page of its own, one tap away.
+  const [chat, setChat] = useState<{ ask: string | null } | null>({ ask: null });
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
@@ -306,19 +310,15 @@ export function MentorScreen({
           plan={items.map(planPayload)}
           tipId={tip.id}
           ask={chat.ask}
-          onBack={() => {
+          account={account}
+          onBack={onLeave}
+          onOpenToday={() => {
             setChat(null);
             void load();
           }}
           onStart={startActivity}
-          onOpenCalendar={() => {
-            setChat(null);
-            setScheduleOpen(true);
-          }}
-          onOpenMemory={() => {
-            setChat(null);
-            setMemoryOpen(true);
-          }}
+          onOpenCalendar={() => setScheduleOpen(true)}
+          onOpenMemory={() => setMemoryOpen(true)}
         />
       </main>
     );
@@ -356,6 +356,7 @@ export function MentorScreen({
             void launch(item);
           }}
           onAsk={(question) => setChat({ ask: question ?? null })}
+          onBack={() => setChat({ ask: null })}
           onOpenCalendar={() => setScheduleOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}
           onEditGoal={() => setEditingGoal(true)}

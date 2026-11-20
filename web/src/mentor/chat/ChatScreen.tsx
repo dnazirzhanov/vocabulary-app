@@ -18,6 +18,7 @@ import { canDictate, dictate, type Dictation } from '../../reading/dictation.ts'
 import {
   BackIcon,
   CalendarIcon,
+  CheckIcon,
   CopyIcon,
   MicIcon,
   MoreIcon,
@@ -65,6 +66,10 @@ interface ChatScreenProps {
   onStart: (activity: Activity, where?: 'chat' | 'panel') => Promise<void> | void;
   onOpenCalendar: () => void;
   onOpenMemory: () => void;
+  /** Today's plan, the mentor's page of the day. */
+  onOpenToday: () => void;
+  /** Whose device memory keeps the last open chat. */
+  account: string;
 }
 
 const GROUP_LABEL: Record<ChatGroup, () => string> = {
@@ -74,7 +79,18 @@ const GROUP_LABEL: Record<ChatGroup, () => string> = {
   earlier: () => t.mentorChatEarlier,
 };
 
-export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCalendar, onOpenMemory }: ChatScreenProps) {
+export function ChatScreen({
+  name,
+  plan,
+  tipId,
+  ask,
+  onBack,
+  onStart,
+  onOpenCalendar,
+  onOpenMemory,
+  onOpenToday,
+  account,
+}: ChatScreenProps) {
   const [chats, setChats] = useState<MentorConversation[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -95,11 +111,6 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
   // Each answer being streamed owns a token; switching chats retires it, so a late word never
   // lands in another chat (the server still saves it in its own).
   const streamToken = useRef(0);
-
-  const loadChats = useCallback(() => api.mentorConversations().then(setChats, () => undefined), []);
-  useEffect(() => {
-    void loadChats();
-  }, [loadChats]);
 
   // A new question always brings its answer into view; then the answer is followed as it
   // streams, unless the learner scrolled up to read.
@@ -148,6 +159,24 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
       setError(t.mentorChatUnavailable);
     }
   };
+
+  // The chats, and coming back to the mentor opens the one it was left in (unless a question
+  // was brought along).
+  useEffect(() => {
+    void api.mentorConversations().then(
+      (list) => {
+        setChats(list);
+        const last = ask ? null : readLastChat(account);
+        if (last && list.some((c) => c.id === last)) void open(last);
+      },
+      () => undefined,
+    );
+    // Once, when the chat screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (active) writeLastChat(account, active);
+  }, [active, account]);
 
   const send = useCallback(
     async (text: string) => {
@@ -343,6 +372,9 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
             </section>
           ))}
         </nav>
+        <button type="button" className={styles.calendarLink} onClick={onOpenToday}>
+          <CheckIcon aria-hidden="true" /> {t.mentorPlanHeading}
+        </button>
         <button type="button" className={styles.calendarLink} onClick={onOpenMemory}>
           <SparkleIcon aria-hidden="true" /> {t.memoryTitle}
         </button>
@@ -579,4 +611,23 @@ function Replies({ steps, onPick }: { steps: MentorToolEvent[]; onPick: (reply: 
       ))}
     </div>
   );
+}
+
+const lastChatKey = (account: string) => `mentor-last-chat:${account}`;
+
+/** The chat last open on this device; nothing when storage is unavailable. */
+function readLastChat(account: string): string | null {
+  try {
+    return localStorage.getItem(lastChatKey(account));
+  } catch {
+    return null;
+  }
+}
+
+function writeLastChat(account: string, id: string): void {
+  try {
+    localStorage.setItem(lastChatKey(account), id);
+  } catch {
+    // private mode: the chat opens fresh next time
+  }
 }

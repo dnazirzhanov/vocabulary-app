@@ -1,12 +1,13 @@
 import { expect, test } from './learner.ts';
+import { openMentorChat, openMentorPlan } from './mentorNav.ts';
 
 test.use({ mentor: true });
 
-test("the Mentor tab shows a greeting, a tip, and today's plan", async ({ page }) => {
+test("today's plan shows a greeting, what to do now and the day's checklist, without noise", async ({ page }) => {
   await page.goto('/');
   // Home loads first — then click «Наставник» in the nav shell.
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  await openMentorPlan(page);
 
   // The greeting is the <h1>; its wording depends on the time of day, so match any of the four.
   const greeting = page.getByRole('heading', { level: 1 });
@@ -16,14 +17,15 @@ test("the Mentor tab shows a greeting, a tip, and today's plan", async ({ page }
   // «Сейчас» leads with one thing to do (or that the day is done), then the day's checklist.
   await expect(page.getByRole('heading', { level: 2, name: 'Сейчас' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'План на сегодня' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Время занятий' })).toBeVisible();
+  // The week's bars and the study-time card were noise here (the owner, 20 November): gone.
+  await expect(page.getByRole('heading', { level: 2, name: 'Время занятий' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 2, name: 'Эта неделя' })).toHaveCount(0);
 });
 
 async function openChat(page: import('@playwright/test').Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openMentorChat(page);
   await expect(page.getByRole('heading', { level: 2, name: /^Чем займёмся/ })).toBeVisible();
 }
 
@@ -115,7 +117,7 @@ test('on a phone the chats are a drawer, and nothing scrolls sideways', async ({
 test('the goal chip shows the current goal and «Изменить цель» opens goal setup', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  await openMentorPlan(page);
 
   // The fixture set goal='general' so the chip shows the goal label for «Общий».
   await expect(page.getByText('Общий', { exact: false })).toBeVisible();
@@ -147,10 +149,7 @@ test("today's tasks get times from the promised study time and the schedule", as
     data: { weekdays: [0, 1, 2, 3, 4, 5, 6], start_minute: 19 * 60 + 30, minutes: 20 },
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  const time = page.getByRole('region', { name: 'Время занятий' });
-  await expect(time).toContainText('19:30');
-  await expect(time).toContainText('Каждый день · 20 мин');
+  await openMentorPlan(page);
   const tasks = page.getByRole('region', { name: 'План на сегодня' }).getByRole('listitem');
   if ((await tasks.count()) > 0) await expect(tasks.first()).toContainText('19:30');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
