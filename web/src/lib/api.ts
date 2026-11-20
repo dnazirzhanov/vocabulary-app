@@ -564,6 +564,10 @@ export interface Coach {
     promised: boolean;
     missed_yesterday: boolean;
     day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    /** The learner's own date this is for, and today's study time (ADR 0080). */
+    day?: string;
+    study_start?: number | null;
+    study_minutes?: number | null;
   };
   adjustment: {
     id: string;
