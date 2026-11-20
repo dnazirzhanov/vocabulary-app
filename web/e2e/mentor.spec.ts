@@ -144,7 +144,11 @@ test('the goal chip shows the current goal and «Изменить цель» ope
 // ADR 0071: each task gets a time from the learner's own day: from the promised study time,
 // around the schedule. A school day from 08:00 to 22:00 leaves no room until tomorrow.
 test("today's tasks get times from the promised study time and the schedule", async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-19T15:00:00'));
+  // Today at 15:00 on the device: the same calendar day as the server's (ADR 0080 ignores a
+  // «today» from another day).
+  const afternoon = new Date();
+  afternoon.setHours(15, 0, 0, 0);
+  await page.clock.setFixedTime(afternoon);
   await page.request.put('/api/mentor/coach/commitment', {
     data: { weekdays: [0, 1, 2, 3, 4, 5, 6], start_minute: 19 * 60 + 30, minutes: 20 },
   });
