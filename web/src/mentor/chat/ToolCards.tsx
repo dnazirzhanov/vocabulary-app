@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { api, describeError, type MentorCard, type MentorToolName } from '../../lib/api.ts';
-import { createEvent } from '../../schedule/api.ts';
+import { createEvent, skipDay } from '../../schedule/api.ts';
 import type { EventKind } from '../../schedule/types.ts';
 import { t, uiLanguage } from '../../i18n/index.ts';
 import {
@@ -31,6 +31,8 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   propose_goal: () => t.mentorToolGoal,
   propose_schedule: () => t.mentorToolSchedule,
   propose_study_times: () => t.mentorToolTimes,
+  propose_exception: () => t.mentorToolException,
+  offer_replies: () => '',
 };
 
 export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }) {
@@ -78,6 +80,10 @@ export function ToolCard({ card, onStart }: CardProps) {
       return <GoalCard goal={card} />;
     case 'week':
       return <WeekCard week={card} />;
+    case 'exception':
+      return <ExceptionCard change={card} />;
+    case 'replies':
+      return null; // shown as chips under the answer
   }
 }
 
@@ -391,6 +397,75 @@ function WeekCard({ week }: { week: Extract<MentorCard, { type: 'week' }> }) {
       </ul>
       {week.study_time && week.minutes && (
         <p className={styles.cardMeta}>{t.mentorStudyTimeLine(week.study_time, week.minutes)}</p>
+      )}
+    </div>
+  );
+}
+
+const fullDay = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString(uiLanguage, { weekday: 'long', day: 'numeric', month: 'long' });
+
+/** A day that is different (ADR 0074): applied only on the tap. */
+function ExceptionCard({ change }: { change: Extract<MentorCard, { type: 'exception' }> }) {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [problem, setProblem] = useState<string | null>(null);
+  const apply = async () => {
+    setState('saving');
+    setProblem(null);
+    try {
+      if (change.kind === 'skip_day') {
+        for (const event of change.events ?? []) await skipDay(event.id, change.date);
+      } else if (change.kind === 'one_off') {
+        await createEvent({
+          title: change.title ?? '',
+          kind: 'other',
+          weekdays: 1 << ((new Date(`${change.date}T12:00:00`).getDay() + 6) % 7),
+          startMinute: change.start_minute ?? 0,
+          endMinute: change.end_minute ?? 0,
+          onDate: change.date,
+        });
+      } else {
+        await api.promisePause(change.until ?? change.date);
+      }
+      setState('saved');
+    } catch (caught) {
+      setProblem(describeError(caught));
+      setState('idle');
+    }
+  };
+  const text =
+    change.kind === 'skip_day'
+      ? t.mentorExceptionSkip((change.events ?? []).map((e) => e.title).join(', '), fullDay(change.date))
+      : change.kind === 'one_off'
+        ? t.mentorExceptionOneOff(
+            change.title ?? '',
+            fullDay(change.date),
+            `${hhmm(change.start_minute ?? 0)}–${hhmm(change.end_minute ?? 0)}`,
+          )
+        : t.mentorExceptionPause(fullDay(change.date), fullDay(change.until ?? change.date));
+  return (
+    <div className={styles.card} data-tone="proposal">
+      <p className={styles.cardHead}>
+        <CalendarIcon aria-hidden="true" /> {text}
+      </p>
+      {problem && (
+        <p className={styles.cardProblem} role="alert">
+          {problem}
+        </p>
+      )}
+      {state === 'saved' ? (
+        <p className={styles.saved} role="status">
+          <CheckIcon aria-hidden="true" /> {t.mentorExceptionApplied}
+        </p>
+      ) : (
+        <button
+          type="button"
+          className={styles.confirmButton}
+          disabled={state === 'saving'}
+          onClick={() => void apply()}
+        >
+          {t.mentorExceptionApply}
+        </button>
       )}
     </div>
   );

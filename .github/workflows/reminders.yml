@@ -1,0 +1,35 @@
+name: Reminders
+
+# Every 15 minutes: each learner's reminders by their own clock, the second one at their own
+# study time (ADR 0042, 0071, 0074). The server sends each at most once a day, so extra runs are
+# harmless. Calls production; needs the APP_URL and REMINDERS_TOKEN secrets (docs/deploy.md
+# step 3), the same as the cleanup. A sleeping server wakes for it in seconds.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ secrets.APP_URL }}
+      REMINDERS_TOKEN: ${{ secrets.REMINDERS_TOKEN }}
+    steps:
+      - name: Send reminders
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$REMINDERS_TOKEN" ]; then
+            echo "::warning::No reminders: add the APP_URL and REMINDERS_TOKEN secrets (docs/deploy.md step 3)."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 120 -X POST \
+            -H "X-Reminders-Token: $REMINDERS_TOKEN" "$APP_URL/api/internal/reminders"
+          echo

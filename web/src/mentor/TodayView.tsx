@@ -8,7 +8,10 @@
  * with times; the week's targets and promised days; the promised study time; the weekly
  * adjustment when there is one; and a bar to ask the mentor.
  */
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { Dialog } from '../ui/Dialog.tsx';
+import { PlanDiff } from './PlanDiff.tsx';
+import type { Rescue } from './rescue.ts';
 import type { Coach } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import {
@@ -52,6 +55,12 @@ interface TodayViewProps {
   onOpenCalendar: () => void;
   onEditGoal: () => void;
   onDecide: (accept: boolean) => void;
+  /** When today doesn't work (ADR 0074): the ways out, today's choice, and how to undo it. */
+  rescue: Rescue[];
+  onRescue: (option: Rescue) => void;
+  onUndoRescue: () => void;
+  /** Yesterday's promise was missed, or today's study time passed with nothing done. */
+  nudge: 'missed' | 'passed' | null;
 }
 
 const icon = (item: PlanItem) =>
@@ -103,6 +112,8 @@ function adjustmentText(a: NonNullable<Coach['adjustment']>): string {
 
 export function TodayView(props: TodayViewProps) {
   const { coach, tasks, done, busy } = props;
+  const [rescuing, setRescuing] = useState(false);
+  const override = coach?.today?.override_mode ?? null;
   const next = tasks.find((s) => s.item) ?? null;
   const total = tasks.length + done.length;
   const left = tasks.reduce((sum, s) => sum + s.item.minutes, 0);
@@ -175,12 +186,78 @@ export function TodayView(props: TodayViewProps) {
               <ForwardIcon aria-hidden="true" />
             </button>
           </div>
+        ) : override === 'skip' ? (
+          <p className={styles.nowDone}>{t.mentorTodaySkipped}</p>
         ) : (
           <p className={styles.nowDone}>
             <CheckIcon aria-hidden="true" /> {t.mentorAllDone}
           </p>
         )}
+        {override ? (
+          <p className={styles.override}>
+            <span>
+              {override === 'minimum'
+                ? t.mentorTodayMinimum
+                : override === 'moved'
+                  ? t.mentorTodayMoved(hhmm(coach?.today.override_start ?? 0))
+                  : t.mentorTodaySkippedShort}
+            </span>
+            <button type="button" className={styles.linkButton} onClick={props.onUndoRescue}>
+              {t.mentorUndo}
+            </button>
+          </p>
+        ) : (
+          (next || busy) &&
+          props.rescue.length > 0 && (
+            <button type="button" className={styles.linkButton} onClick={() => setRescuing(true)}>
+              {t.mentorCantToday}
+            </button>
+          )
+        )}
       </section>
+
+      {/* Never miss twice; a study time gone by: five minutes still count. */}
+      {props.nudge && !override && props.rescue[0]?.mode === 'minimum' && (
+        <section className={styles.nudge} role="status">
+          <p>{props.nudge === 'missed' ? t.mentorMissedYesterday : t.mentorStudyTimePassed}</p>
+          <button type="button" className={styles.primary} onClick={() => props.onRescue(props.rescue[0])}>
+            {t.mentorFiveNow}
+          </button>
+        </section>
+      )}
+
+      <Dialog open={rescuing} onClose={() => setRescuing(false)} title={t.mentorRescueTitle}>
+        <ul className={styles.rescue}>
+          {props.rescue.map((option) => (
+            <li key={option.mode}>
+              <button
+                type="button"
+                className={styles.rescueOption}
+                onClick={() => {
+                  setRescuing(false);
+                  props.onRescue(option);
+                }}
+              >
+                <span className={styles.rescueTitle}>
+                  {option.mode === 'minimum'
+                    ? t.mentorRescueMinimum
+                    : option.mode === 'moved'
+                      ? t.mentorRescueLater(hhmm(option.start ?? 0))
+                      : t.mentorRescueSkip}
+                </span>
+                <span className={styles.rescueLead}>
+                  {option.mode === 'minimum'
+                    ? t.mentorRescueMinimumLead
+                    : option.mode === 'moved'
+                      ? t.mentorRescueLaterLead
+                      : t.mentorRescueSkipLead}
+                </span>
+                <PlanDiff before={option.before} after={option.after} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
 
       {/* Today's checklist, with times from the learner's day. */}
       <section aria-labelledby="mentor-plan-heading">

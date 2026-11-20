@@ -468,3 +468,15 @@ def test_a_morning_study_time_takes_the_place_of_the_morning_note(
     assert [item["title"] for item in due(db, utc(5, 2))] == ["Сегодня ещё не занимались"]
     assert due(db, utc(5, 3)) == []
     assert due(db, utc(5, 11)) == []
+
+
+def test_after_a_missed_day_the_reminder_says_today_matters_most(
+    client: TestClient, db: Session, phone: Any
+) -> None:
+    """ADR 0074: never miss twice. Promised every day, nothing done on Wednesday: Thursday's
+    reminder says five minutes count."""
+    phone("anna", BISHKEK)
+    sent = due(db, utc(5, 11))  # Thursday 17:05
+    assert [item["body"] for item in sent] == [
+        "Вчера не получилось — сегодня важно. Даже 5 минут считаются."
+    ]

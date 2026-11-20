@@ -7,6 +7,18 @@ from typing import Any
 def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     """The tool a question plainly asks for, by its words, with fixed arguments."""
     said = message.lower()
+    if any(w in said for w in ("завтра нет", "не будет", "болею", "поездк")):
+        return [
+            (
+                "propose_exception",
+                {
+                    "kind": "skip_day",
+                    "date": "tomorrow",
+                    "title": "школы" if "школ" in said else "",
+                },
+            ),
+            ("offer_replies", {"replies": ["Да, отменить", "Нет, всё как обычно"]}),
+        ]
     if any(w in said for w in ("расписан", "schedule", "моя неделя", "my week", "учусь")):
         return [
             (
@@ -35,5 +47,8 @@ def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     if any(w in said for w in ("говорить", "речь", "speaking")):
         return [("suggest_activity", {"kind": "speaking"})]
     if any(w in said for w in ("сейчас", "делать", "what should", "now", "next")):
-        return [("what_now", {})]
+        return [
+            ("what_now", {}),
+            ("offer_replies", {"replies": ["Начинаю", "Позже", "Сегодня не могу"]}),
+        ]
     return []

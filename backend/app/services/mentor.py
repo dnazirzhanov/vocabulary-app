@@ -119,6 +119,11 @@ propose_study_times. Small and fixed beats big and vague: suggest 10–20 minute
 want more.
 - Anything proposed is saved only when the learner taps to confirm it: say so in a few words.
 - For their goal's progress this week, call get_week_plan.
+- When a day is different (a usual block isn't on, something extra, illness, a trip), call \
+propose_exception; for illness or a trip offer a pause, so no promised day counts as missed.
+- If they missed yesterday, say kindly that today matters most and that 5 minutes counts \
+(never miss twice); don't scold.
+- End most answers by calling offer_replies with 2–4 short replies they might tap.
 Formatting rules (follow these strictly):
 - Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
 - Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
@@ -1255,8 +1260,23 @@ def _run_tool(
     model is told."""
     yield {"tool": {"id": call_id, "name": name, "status": "running"}}
     outcome = mentor_tools.run(name, ctx, args)
-    parts.append({"type": "tool", "name": name, "card": outcome.card})
-    yield {"tool": {"id": call_id, "name": name, "status": "done", "card": outcome.card}}
+    card = outcome.card
+    # The same activity twice in one answer (what_now, then suggest_activity) shows once.
+    if card and card.get("type") == "activity":
+        same = (card.get("kind"), card.get("deck_id"), card.get("article_id"))
+        if any(
+            (p["card"] or {}).get("type") == "activity"
+            and (
+                (p["card"] or {}).get("kind"),
+                p["card"].get("deck_id"),
+                p["card"].get("article_id"),
+            )
+            == same
+            for p in parts
+        ):
+            card = None
+    parts.append({"type": "tool", "name": name, "card": card})
+    yield {"tool": {"id": call_id, "name": name, "status": "done", "card": card}}
     return outcome.result
 
 

@@ -36,7 +36,7 @@ from app.models.reading import (
     ReadingCategory,
     ReadingQuestion,
 )
-from app.models.schedule import ScheduleEvent
+from app.models.schedule import MentorDayOverride, ScheduleEvent, ScheduleSkip
 from app.models.shadowing import ShadowingAttempt, ShadowingExercise
 from app.models.speaking import (
     SpeakingAssessment,
@@ -78,6 +78,7 @@ __all__ = [
     "LearningSession",
     "MentorAdjustment",
     "MentorConversation",
+    "MentorDayOverride",
     "MentorGoal",
     "MentorMessage",
     "PaceDismissal",
@@ -92,6 +93,7 @@ __all__ = [
     "ReadingQuestion",
     "ReviewAttempt",
     "ScheduleEvent",
+    "ScheduleSkip",
     "ShadowingAttempt",
     "ShadowingExercise",
     "SpeakingAssessment",

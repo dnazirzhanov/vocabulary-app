@@ -14,6 +14,7 @@ import { ChatScreen } from './chat/ChatScreen.tsx';
 import type { Activity } from './chat/ToolCards.tsx';
 import { planToday, withWeek } from './plan.ts';
 import { busyNow, freeUntil, slotsFor } from './slots.ts';
+import { minimumOf, rescueOptions } from './rescue.ts';
 import { pickTip } from './tip.ts';
 import { titleOf, TodayView } from './TodayView.tsx';
 import type { MentorGoalType, MentorInput, PlanItem, Tip } from './types.ts';
@@ -152,19 +153,42 @@ export function MentorScreen({
   }
 
   const dailyMinutes = coach?.commitment.minutes ?? input.dailyMinutes;
-  const items = withWeek(planToday(input), coach?.behind ?? [], dailyMinutes, {
+  const planned = withWeek(planToday(input), coach?.behind ?? [], dailyMinutes, {
     writing: t.mentorActivityWriting,
     speaking: t.mentorActivitySpeaking,
   });
+  // Today's choice when it didn't work (ADR 0074): the minimum, a later start, or nothing today.
+  const override = coach?.today?.override_mode ?? null;
+  const items = override === 'minimum' ? minimumOf(planned) : override === 'skip' ? [] : planned;
   const tip = pickTip(input);
-  const doneItems = reconcileDone(account, new Set(items.map(keyOf)));
+  const doneItems = reconcileDone(account, new Set(planned.map(keyOf)));
 
   const minute = now.getHours() * 60 + now.getMinutes();
   const weekday = (now.getDay() + 6) % 7;
   const today = events
     .filter((e) => e.weekdays & (1 << weekday))
     .map((e) => ({ start: e.startMinute, end: e.endMinute, title: e.title }));
-  const slots = slotsFor(items, today, minute, coach?.commitment.start_minute ?? null);
+  const studyStart =
+    override === 'moved' ? (coach?.today.override_start ?? null) : (coach?.commitment.start_minute ?? null);
+  const slots = slotsFor(items, today, minute, studyStart);
+  const rescue = rescueOptions(
+    planned.map((item) => ({ title: titleOf(item), minutes: item.minutes })),
+    today,
+    minute,
+    coach?.commitment.start_minute ?? null,
+  );
+  const promisedEnd =
+    coach?.commitment.start_minute != null && coach.commitment.minutes != null
+      ? coach.commitment.start_minute + coach.commitment.minutes
+      : null;
+  const nudge =
+    coach && coach.today.promised && !coach.today.studied && planned.length > 0
+      ? coach.today.missed_yesterday
+        ? ('missed' as const)
+        : promisedEnd !== null && minute > promisedEnd
+          ? ('passed' as const)
+          : null
+      : null;
   const inBlock = busyNow(today, minute);
 
   const launch = async (item: PlanItem) => {
@@ -301,6 +325,12 @@ export function MentorScreen({
           onAsk={(question) => setChat({ ask: question ?? null })}
           onOpenCalendar={() => setScheduleOpen(true)}
           onEditGoal={() => setEditingGoal(true)}
+          rescue={rescue}
+          nudge={nudge}
+          onRescue={(option) =>
+            void api.coachToday(option.mode, option.start ?? undefined).then(keepCoach, () => undefined)
+          }
+          onUndoRescue={() => void api.coachToday(null).then(keepCoach, () => undefined)}
           onDecide={(accept) => {
             const adjustment = coach?.adjustment;
             if (adjustment) void api.coachDecide(adjustment.id, accept).then(keepCoach, () => undefined);

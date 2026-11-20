@@ -1,0 +1,68 @@
+/* Before → after: the old plan quiet and struck through, the new one in ink. */
+.diff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+}
+
+@media (max-width: 420px) {
+  .diff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .arrow {
+    transform: rotate(90deg);
+    justify-self: start;
+  }
+}
+
+.label {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.arrow {
+  align-self: center;
+  color: var(--color-primary-strong);
+  font-size: var(--text-option);
+}
+
+.lines {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines li {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  font-size: var(--text-meta);
+}
+
+.lines li[data-struck] {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.time,
+.minutes {
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nothing {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}

@@ -9,6 +9,10 @@ export interface ScheduleEvent {
   /** Minutes from midnight in local time; startMinute < endMinute, endMinute ≤ 1440. */
   startMinute: number;
   endMinute: number;
+  /** A block on this date only (YYYY-MM-DD), ADR 0074; null for a repeating one. */
+  onDate: string | null;
+  /** Dates a repeating block isn't happening. */
+  skipped: string[];
 }
 
 export interface ScheduleEventInput {
@@ -17,6 +21,19 @@ export interface ScheduleEventInput {
   weekdays: number;
   startMinute: number;
   endMinute: number;
+  onDate?: string | null;
+}
+
+/** A date as the server writes it: YYYY-MM-DD in the learner's own calendar. */
+export function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Whether a block is on a date: a one-off on its date; a repeating one on its weekdays, unless skipped. */
+export function happensOn(event: ScheduleEvent, d: Date): boolean {
+  const day = isoDay(d);
+  if (event.onDate) return event.onDate === day;
+  return Boolean(event.weekdays & (1 << ((d.getDay() + 6) % 7))) && !event.skipped.includes(day);
 }
 
 export const EVENT_KINDS: EventKind[] = ['school', 'work', 'sport', 'chore', 'personal', 'other'];
