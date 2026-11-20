@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +16,7 @@ class MentorMessage(Base):
     is sent as context on each new message so the conversation feels coherent."""
 
     __tablename__ = "mentor_messages"
+    __table_args__ = (Index("ix_mentor_messages_conversation", "conversation_id", "created_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -36,6 +37,7 @@ class MentorConversation(Base):
     """One chat with the mentor (ADR 0072), titled from its first question, renameable."""
 
     __tablename__ = "mentor_conversations"
+    __table_args__ = (Index("ix_mentor_conversations_user_updated", "user_id", "updated_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
@@ -49,6 +51,15 @@ class MentorGoal(Base):
     last, so the history of goals is kept."""
 
     __tablename__ = "mentor_goals"
+    # One active goal per learner (declared here so the models match the migration).
+    __table_args__ = (
+        Index(
+            "uq_mentor_goals_active",
+            "user_id",
+            unique=True,
+            postgresql_where=text("ended_at IS NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
