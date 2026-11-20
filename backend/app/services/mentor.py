@@ -37,6 +37,8 @@ from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
 from app.services.scheduling import local_date
 from app.services.study_days import HISTORY_DAYS, days_by_user, week_of
+from app.services.today_log import lines as today_lines
+from app.services.today_log import practice_today
 
 # How many recent turns are sent as context in each API call.
 _HISTORY_TURNS = 10
@@ -57,6 +59,9 @@ class LearnerContext:
 
     streak_weeks: int = 0
     sessions_today: str = "none"
+    # Today's practice, line by line, from the app's records (what was done, when, finished).
+    practice_log: str = ""
+    practiced_today: bool = False
     words_in_progress: int = 0
     words_learned: int = 0
     words_today: int = 0
@@ -132,6 +137,10 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- Whether they did something today: answer from «Practice today so far» below, exactly: what, \
+when, how long, finished or not. It is complete, so never say you have no data about today; \
+if something isn't listed, it wasn't done in the app today. An unfinished lesson can be \
+continued where it stopped.
 - Use show to put one interactive component on screen instead of describing it: day when \
 they ask how today looks or where something fits; words for a quick warm-up; day_check when \
 the plan seems too much (tired, sick, an exam); choice whenever you ask a question with a few \
@@ -634,19 +643,26 @@ def _system_prompt(
                 count = item.get("count") or 0
                 kind_name = "Vocabulary" if kind == "vocab" else "Spelling"
                 plan_lines.append(f'  - {kind_name}: "{title}" — {count} words (~{minutes} min)')
-            else:
+            elif kind == "reading":
                 level = item.get("level") or ""
                 level_part = f" ({level})" if level else ""
                 plan_lines.append(f'  - Reading: "{title}"{level_part} — {minutes} min')
-        plan_section = "Today's recommended plan:\n" + "\n".join(plan_lines) + "\n"
+            else:
+                plan_lines.append(f"  - {str(kind).capitalize()}: {minutes} min")
+        plan_section = (
+            "Today's recommended plan, still to do (tasks already done are no longer in it):\n"
+            + "\n".join(plan_lines)
+            + "\n"
+        )
     elif plan is not None:
-        plan_section = "Today's plan: nothing due (all caught up).\n"
+        plan_section = "Today's plan: nothing left to do (all done or nothing due).\n"
     else:
         plan_section = ""
+    plan_section = ctx.practice_log + plan_section
     tip_line = f"Tip shown to learner: {ctx.tip_id}\n" if ctx.tip_id else ""
     tone_hint = _TONE_HINTS[ctx.tip_id] + "\n" if ctx.tip_id in _TONE_HINTS else ""
     if ctx.today_promised:
-        studied = ctx.sessions_today != "none"
+        studied = ctx.practiced_today or ctx.sessions_today != "none"
         promise_line = (
             "- Today is a promised study day — sessions done ✓\n"
             if studied
@@ -702,7 +718,12 @@ def _system_prompt(
         )
     else:
         struggling_line = ""
-    if ctx.today_promised and ctx.sessions_today == "none" and time_label in ("evening", "night"):
+    if (
+        ctx.today_promised
+        and not ctx.practiced_today
+        and ctx.sessions_today == "none"
+        and time_label in ("evening", "night")
+    ):
         urgency_hint = (
             f"Note: it is already {time_label} and the learner has not studied today"
             " — this is a promised day.\n"
@@ -1155,6 +1176,9 @@ def _build_context(
         _reading_context(db, user, now, time_zone)
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
+    log = practice_today(db, user, now, time_zone)
+    ctx.practice_log = today_lines(log)
+    ctx.practiced_today = any(p.finished for p in log)
     ctx.words_mastered = _mature_words(db, user, now)
     ctx.words_nearly_mastered = _nearly_mastered_words(db, user, now)
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
