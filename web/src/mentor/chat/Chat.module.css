@@ -16,6 +16,13 @@
   }
 }
 
+/* Today's plan beside the chat (ADR 0077). */
+@media (min-width: 1280px) {
+  .layout {
+    grid-template-columns: 17rem minmax(0, 1fr) 18rem;
+  }
+}
+
 /* ── Sidebar ───────────────────────────────────────────── */
 .sidebar {
   display: flex;
@@ -176,6 +183,7 @@
   background: none;
   color: var(--color-text);
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -184,6 +192,7 @@
 }
 
 .calendarLink svg {
+  flex: none;
   width: 20px;
   height: 20px;
 }
