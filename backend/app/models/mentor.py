@@ -16,6 +16,7 @@ class MentorMessage(Base):
     is sent as context on each new message so the conversation feels coherent."""
 
     __tablename__ = "mentor_messages"
+    __table_args__ = (Index("ix_mentor_messages_conversation", "conversation_id", "created_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -36,6 +37,7 @@ class MentorConversation(Base):
     """One chat with the mentor (ADR 0072), titled from its first question, renameable."""
 
     __tablename__ = "mentor_conversations"
+    __table_args__ = (Index("ix_mentor_conversations_user_updated", "user_id", "updated_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
