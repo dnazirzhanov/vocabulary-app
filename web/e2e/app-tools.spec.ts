@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './learner.ts';
+import { openMentorChat } from './mentorNav.ts';
 
 /**
  * The app as tools (ADR 0079): the mentor looks things up (a step, no card) and proposes changes
@@ -9,8 +10,7 @@ test.use({ mentor: true, viewport: { width: 390, height: 844 } });
 
 async function ask(page: Page, message: string) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openMentorChat(page);
   const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
   await composer.fill(message);
   await composer.press('Enter');

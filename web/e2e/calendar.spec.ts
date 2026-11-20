@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './learner.ts';
+import { openFromChatList, openMentorChat } from './mentorNav.ts';
 
 /**
  * The week the mentor plans around (ADR 0073): filled from a template or by telling the mentor,
@@ -13,8 +14,8 @@ const THURSDAY = new Date('2026-11-19T15:00:00');
 async function openCalendar(page: Page) {
   await page.clock.setFixedTime(THURSDAY);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Моё расписание' }).click();
+  await openMentorChat(page);
+  await openFromChatList(page, 'Моё расписание');
   await expect(page.getByRole('heading', { level: 1, name: 'Моё расписание' })).toBeVisible();
 }
 
