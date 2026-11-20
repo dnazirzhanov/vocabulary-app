@@ -146,3 +146,11 @@ class TimelineOut(BaseModel):
 class MemoryOut(BaseModel):
     facts: list[FactOut]
     timeline: list[TimelineOut]
+
+
+class EventIn(_Input):
+    """A «Начать» tapped (ADR 0078); the only event the app sends, the rest are the server's."""
+
+    name: Literal["start_tapped"]
+    kind: Literal["vocab", "spelling", "reading", "writing", "speaking"]
+    where: Literal["home", "chat", "panel"]
