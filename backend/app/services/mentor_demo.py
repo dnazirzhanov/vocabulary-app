@@ -11,6 +11,8 @@ def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     if "напоминани" in said or "reminder" in said:
         on = not any(w in said for w in ("выключ", "отключ", "не нужн", "turn off"))
         return [("propose_reminders", {"afternoon": on, "morning": on})]
+    if any(w in said for w in ("статистик", "statistics", "сколько слов")):
+        return [("get_stats", {})]
     if "вчера" in said or "yesterday" in said:
         return [("get_practice", {"from": "yesterday", "to": "yesterday"})]
     if any(w in said for w in ("трудн", "сложн", "hard words", "struggl")):

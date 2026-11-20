@@ -37,6 +37,7 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   remember: () => t.mentorToolRemember,
   recall: () => t.mentorToolRecall,
   show: () => t.mentorToolShow,
+  get_stats: () => t.mentorToolStats,
   get_practice: () => t.mentorToolPractice,
   get_words: () => t.mentorToolWords,
   get_writing: () => t.mentorToolWriting,

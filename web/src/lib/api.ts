@@ -483,6 +483,7 @@ export type MentorToolName =
   | 'recall'
   | 'show'
   // Reading the app (ADR 0079): steps without cards.
+  | 'get_stats'
   | 'get_practice'
   | 'get_words'
   | 'get_writing'

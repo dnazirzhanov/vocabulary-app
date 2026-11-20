@@ -728,6 +728,7 @@ export const tg: Messages = {
   theTestHasChangedStartAgain: 'Санҷиш тағйир ёфт. Аз нав оғоз кунед.',
   exitTheTest: 'Баромадан аз санҷиш',
   testMusic: 'Мусиқа',
+  mentorToolStats: 'Оморро мебинам',
   mentorToolPractice: 'Мебинам, ки чӣ кардӣ',
   mentorToolWords: 'Калимаҳоятро мебинам',
   mentorToolWriting: 'Иншоҳоятро мебинам',

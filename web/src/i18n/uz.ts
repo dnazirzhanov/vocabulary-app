@@ -730,6 +730,7 @@ export const uz: Messages = {
   theTestHasChangedStartAgain: 'Test o‘zgardi. Qaytadan boshlang.',
   exitTheTest: 'Testdan chiqish',
   testMusic: 'Musiqa',
+  mentorToolStats: 'Statistikani ko‘ryapman',
   mentorToolPractice: 'Nima qilganingni ko‘ryapman',
   mentorToolWords: 'So‘zlaringni ko‘ryapman',
   mentorToolWriting: 'Insholaringni ko‘ryapman',
