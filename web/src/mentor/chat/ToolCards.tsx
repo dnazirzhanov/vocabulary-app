@@ -21,7 +21,7 @@ import {
 } from '../../ui/icons.tsx';
 import { hhmm } from './format.ts';
 import styles from './Chat.module.css';
-import { CelebrateCard, ChoiceCard, DayCard, DayCheckCard, WordsCard } from './GenCards.tsx';
+import { CelebrateCard, ChoiceCard, DayCard, DayCheckCard, RemindersCard, WordsCard } from './GenCards.tsx';
 
 export type Activity = Extract<MentorCard, { type: 'activity' }>;
 
@@ -37,6 +37,15 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   remember: () => t.mentorToolRemember,
   recall: () => t.mentorToolRecall,
   show: () => t.mentorToolShow,
+  get_practice: () => t.mentorToolPractice,
+  get_words: () => t.mentorToolWords,
+  get_writing: () => t.mentorToolWriting,
+  get_speaking: () => t.mentorToolSpeaking,
+  get_reading: () => t.mentorToolReading,
+  get_assignments: () => t.mentorToolAssignments,
+  get_calendar: () => t.mentorToolCalendar,
+  get_progress: () => t.mentorToolProgress,
+  propose_reminders: () => t.mentorToolReminders,
 };
 
 export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }) {
@@ -104,6 +113,8 @@ export function ToolCard({ card, onStart, plan = [], onSend }: CardProps) {
       return <ChoiceCard card={card} onSend={onSend} />;
     case 'celebrate':
       return <CelebrateCard card={card} />;
+    case 'reminders':
+      return <RemindersCard card={card} />;
   }
 }
 

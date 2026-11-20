@@ -69,3 +69,34 @@
   ui_language: en
   plan: [{kind: reading, title: "Volcanoes", minutes: 6, articleId: volcanoes, level: B1}]
   expect: {tools_any: [what_now], activity_cards_max: 1, language: en}
+
+# The app as tools (ADR 0079): look it up, don't say «не знаю».
+- id: yesterday
+  message: "Что я делал вчера?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_practice], language: ru}
+
+- id: hard-words
+  message: "Какие слова у меня хуже всего получаются?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_words], language: ru}
+
+- id: essay-feedback
+  message: "Что мне улучшить в эссе?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_writing], language: ru}
+
+- id: month-progress
+  message: "Как я позанимался за этот месяц?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_progress, get_practice], language: ru}
+
+- id: teacher-deadline
+  message: "Когда сдавать слова от учителя?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_assignments], language: ru}
+
+- id: reminders-off
+  message: "Не присылай мне напоминания днём"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [propose_reminders], language: ru}

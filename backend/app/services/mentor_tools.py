@@ -5,7 +5,7 @@ the card. Activities only ever point at things that exist: today's tasks as the 
 or the Writing and Speaking sections."""
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.models import User, UserWordProgress, Word
 from app.schemas import gen_ui
-from app.services import memory
+from app.services import memory, mentor_lookups
 from app.services import promise as promises
 from app.services.coach import service as coach
 from app.services.coach.goal import GOAL_KINDS, Goal, feasibility
@@ -271,6 +271,90 @@ TOOLS += [
                     },
                 },
                 "required": ["component"],
+            },
+        },
+    },
+]
+
+
+def _lookup(name: str, description: str, properties: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {"type": "object", "properties": properties},
+        },
+    }
+
+
+_DATE = {"type": "string", "description": "YYYY-MM-DD, or today / yesterday"}
+_RECENT = {"limit": {"type": "integer", "description": "how many, 1-5 (default 3)"}}
+NOTIFY_KINDS = ("morning", "afternoon", "deadline", "report")
+
+# Reading the app (ADR 0079): the learner's own data, facts only, nothing changes.
+TOOLS += [
+    _lookup(
+        "get_practice",
+        "Each day's practice (lessons, writing, speaking, reading: when, how long, finished or "
+        "not) between two dates, up to 31 days and 90 days back. Default: the last 7 days.",
+        {"from": _DATE, "to": _DATE},
+    ),
+    _lookup(
+        "get_words",
+        "The learner's words by state, with counts: struggling (forgotten after being learned), "
+        "due for review, recently learned, or new this week.",
+        {
+            "state": {"type": "string", "enum": ["struggling", "due", "learned", "new"]},
+            "limit": {"type": "integer", "description": "1-20 (default 10)"},
+        },
+    ),
+    _lookup(
+        "get_writing",
+        "Recent essays with their feedback: question, date, CEFR level, five scores (1-5), "
+        "summary, what to improve.",
+        _RECENT,
+    ),
+    _lookup(
+        "get_speaking",
+        "Recent speaking practice with scores (0-100) and the main corrections.",
+        _RECENT,
+    ),
+    _lookup(
+        "get_reading",
+        "Recent library articles answered: title, level, answers, how many choices were right.",
+        _RECENT,
+    ),
+    _lookup(
+        "get_assignments",
+        "Decks the learner's groups (teachers) gave them: group, deadline, words left, new "
+        "words for today.",
+        {},
+    ),
+    _lookup(
+        "get_calendar",
+        "A date's schedule blocks, its kind of day, any change made for it, and whether it is "
+        "a promised study day and at what time.",
+        {"date": _DATE},
+    ),
+    _lookup(
+        "get_progress",
+        "Progress over the last week or month: days practised, minutes, lessons, essays, "
+        "speaking, articles, words learned, reviews, promised days kept.",
+        {"period": {"type": "string", "enum": ["week", "month"]}},
+    ),
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_reminders",
+            "description": (
+                "Propose turning reminders on or off: morning (the day's plan), afternoon "
+                "(not studied yet), deadline (group decks due), report (the group's day). "
+                "Shows a card; saved only if the learner taps."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {kind: {"type": "boolean"} for kind in NOTIFY_KINDS},
             },
         },
     },
@@ -646,7 +730,32 @@ def show(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(shown, {"shown": True, **shown})
 
 
+def _reader(name: str) -> Callable[[ToolContext, Mapping[str, Any]], ToolResult]:
+    def run(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+        return ToolResult(
+            None, mentor_lookups.LOOKUPS[name](ctx.db, ctx.user, ctx.now, ctx.zone, args)
+        )
+
+    return run
+
+
+def propose_reminders(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """Only the reminders that would change; nothing to change means no card."""
+    current = {kind: bool(getattr(ctx.user, f"notify_{kind}")) for kind in NOTIFY_KINDS}
+    changes = {
+        kind: args[kind]
+        for kind in NOTIFY_KINDS
+        if isinstance(args.get(kind), bool) and args[kind] != current[kind]
+    }
+    if not changes:
+        return ToolResult(None, {"current": current, "changes": None, "why": "already so"})
+    card = {"type": "reminders", "changes": changes}
+    return ToolResult(card, {"current": current, "changes": changes, "saved": False})
+
+
 RUNNERS = {
+    **{name: _reader(name) for name in mentor_lookups.LOOKUPS},
+    "propose_reminders": propose_reminders,
     "show": show,
     "remember": remember,
     "recall": recall,
