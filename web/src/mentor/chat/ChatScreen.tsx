@@ -61,7 +61,8 @@ interface ChatScreenProps {
   /** A first question to send at once (from the home's «Спросить наставника» or a chip). */
   ask?: string | null;
   onBack: () => void;
-  onStart: (activity: Activity) => Promise<void> | void;
+  /** Starts an activity from a card in the chat, or from the plan beside it. */
+  onStart: (activity: Activity, where?: 'chat' | 'panel') => Promise<void> | void;
   onOpenCalendar: () => void;
   onOpenMemory: () => void;
 }
@@ -522,7 +523,7 @@ export function ChatScreen({ name, plan, tipId, ask, onBack, onStart, onOpenCale
         </form>
       </section>
 
-      <PlanPanel plan={plan} onStart={onStart} />
+      <PlanPanel plan={plan} onStart={(activity) => onStart(activity, 'panel')} />
 
       <Dialog open={menuFor !== null} onClose={() => setMenuFor(null)} title={menuFor?.title ?? ''}>
         <form

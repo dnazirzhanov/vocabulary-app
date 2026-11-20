@@ -364,6 +364,9 @@ export const api = {
   scheduleUpdate: (id: string, body: WireScheduleInput) =>
     request<WireScheduleEvent>('PUT', `/mentor/schedule/${id}`, body),
   /** «Только в этот день: не будет» (ADR 0074). */
+  /** A «Начать» tapped, for knowing whether the mentor works (ADR 0078). */
+  mentorStartTapped: (kind: MentorPlanItem['kind'], where: 'home' | 'chat' | 'panel') =>
+    request<null>('POST', '/mentor/events', { name: 'start_tapped', kind, where }),
   scheduleSkip: (id: string, date: string) => request<null>('POST', `/mentor/schedule/${id}/skips`, { date }),
   scheduleUnskip: (id: string, date: string) => request<null>('DELETE', `/mentor/schedule/${id}/skips/${date}`),
   /** When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow; null undoes it. */

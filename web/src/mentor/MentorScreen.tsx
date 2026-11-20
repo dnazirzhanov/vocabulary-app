@@ -76,6 +76,10 @@ export function MentorScreen({
     [account],
   );
 
+  // Measurement only (ADR 0078): never in the way, and nothing to retry when offline.
+  const track = (kind: MentorPlanItem['kind'], where: 'home' | 'chat' | 'panel') =>
+    void api.mentorStartTapped(kind, where).catch(() => undefined);
+
   const load = useCallback(() => {
     // The coach and the schedule need the server; without it, the kept coach and no times.
     void api.coach().then(keepCoach, () => undefined);
@@ -227,7 +231,8 @@ export function MentorScreen({
   };
 
   // «Начать сейчас» on a mentor's card: the same doors as the list's own.
-  const startActivity = async (activity: Activity) => {
+  const startActivity = async (activity: Activity, where: 'chat' | 'panel' = 'chat') => {
+    track(activity.kind, where);
     const matched = items.find(
       (i) =>
         (i.kind === 'reading' && i.articleId === activity.article_id) ||
@@ -346,7 +351,10 @@ export function MentorScreen({
           minute={minute}
           tip={tipText(tip)}
           busyStarting={busy}
-          onStart={(item) => void launch(item)}
+          onStart={(item) => {
+            track(item.kind, 'home');
+            void launch(item);
+          }}
           onAsk={(question) => setChat({ ask: question ?? null })}
           onOpenCalendar={() => setScheduleOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}

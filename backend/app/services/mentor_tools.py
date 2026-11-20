@@ -6,7 +6,7 @@ or the Writing and Speaking sections."""
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -285,6 +285,8 @@ class ToolContext:
     zone: ZoneInfo
     # Today's tasks as the app made them (the chat request's plan).
     plan: Sequence[Mapping[str, Any]]
+    # Token use across the answer's rounds, filled in by the model stream (ADR 0078).
+    stats: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

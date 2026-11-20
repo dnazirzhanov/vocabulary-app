@@ -20,6 +20,7 @@ from app.schemas.coach import (
     CommitmentOut,
     DayTypeIn,
     DecisionIn,
+    EventIn,
     FactIn,
     FactOut,
     FeasibilityOut,
@@ -44,7 +45,7 @@ from app.schemas.mentor import (
     MentorStatusOut,
     MessageOut,
 )
-from app.services import memory, mentor
+from app.services import memory, mentor, mentor_events
 from app.services.card_reports import listed
 from app.services.coach import service as coach
 from app.services.promise import mask_of, weekdays_of
@@ -374,3 +375,12 @@ def mentor_change_fact(
 def mentor_forget_fact(fact_id: uuid.UUID, user: CurrentUser, db: DbSession) -> MemoryOut:
     memory.forget_fact(db, user, fact_id)
     return _memory_out(db, user)
+
+
+# --- measurement (ADR 0078) -----------------------------------------------------------------
+
+
+@router.post("/mentor/events", status_code=204, dependencies=[Depends(_require_mentor)])
+def mentor_event(body: EventIn, user: CurrentUser, db: DbSession, now: Now) -> None:
+    """«Начать» tapped on the mentor's home, a chat card or the plan beside the chat."""
+    mentor_events.record(db, user, "start_tapped", {"kind": body.kind, "where": body.where}, now)

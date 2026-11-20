@@ -10,6 +10,7 @@ from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -29,7 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import memory, mentor_demo, mentor_tools
+from app.services import memory, mentor_demo, mentor_events, mentor_tools
 from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
@@ -1252,6 +1253,7 @@ def stream_chat(
     )
     ctx = mentor_tools.ToolContext(db, user, now, time_zone, plan or [])
     parts: list[dict[str, Any]] = []
+    clock = _Clock()
     if is_demo:
         for name, args in mentor_demo.tools_for(message):
             yield from _run_tool(ctx, name, args, f"demo-{len(parts)}", parts)
@@ -1260,15 +1262,58 @@ def stream_chat(
         for i, word in enumerate(words):
             if delay > 0:
                 time.sleep(delay)
+            clock.saw()
             yield {"delta": word if i == len(words) - 1 else word + " "}
         _persist(db, user, message, demo_reply, now, conversation, parts)
+        _measure(db, user, now, clock, ctx, parts, demo=True)
         return
     text: list[str] = []
     for event in _stream_with_tools(system, msgs, settings, ctx, parts):
         if "delta" in event:
             text.append(event["delta"])
+        clock.saw()
         yield event
     _persist(db, user, message, "".join(text) or " ", now, conversation, parts)
+    _measure(db, user, now, clock, ctx, parts, demo=False)
+
+
+class _Clock:
+    """Wall time of one answer: to its first visible piece, and to its end."""
+
+    def __init__(self) -> None:
+        self.start = time.monotonic()
+        self.first: float | None = None
+
+    def saw(self) -> None:
+        if self.first is None:
+            self.first = time.monotonic()
+
+
+def _measure(
+    db: Session,
+    user: User,
+    now: datetime,
+    clock: _Clock,
+    ctx: mentor_tools.ToolContext,
+    parts: list[dict[str, Any]],
+    *,
+    demo: bool,
+) -> None:
+    """One answer's timing and token use (ADR 0078), logged and kept for the weekly metrics."""
+    end = time.monotonic()
+    props: dict[str, Any] = {
+        "first_ms": round(((clock.first or end) - clock.start) * 1000),
+        "total_ms": round((end - clock.start) * 1000),
+        "tools": [p["name"] for p in parts],
+        "demo": demo,
+        **ctx.stats,
+    }
+    logger.info("mentor answer %s", json.dumps(props))
+    try:
+        mentor_events.record(db, user, "chat_message", props, now)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.warning("mentor answer not recorded")
 
 
 def _run_tool(
@@ -1300,6 +1345,20 @@ def _run_tool(
     parts.append({"type": "tool", "name": name, "card": card})
     yield {"tool": {"id": call_id, "name": name, "status": "done", "card": card}}
     return outcome.result
+
+
+def _count_usage(stats: dict[str, int], usage: Any) -> None:
+    """Adds one round's tokens: prompt, answer, and how much of the prompt the cache served
+    (DeepSeek: prompt_cache_hit_tokens; the OpenAI form: prompt_tokens_details.cached_tokens)."""
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(usage, "prompt_cache_hit_tokens", None) or getattr(details, "cached_tokens", 0)
+    for key, value in (
+        ("prompt_tokens", usage.prompt_tokens),
+        ("completion_tokens", usage.completion_tokens),
+        ("cached_tokens", cached or 0),
+    ):
+        stats[key] = stats.get(key, 0) + int(value or 0)
+    stats["rounds"] = stats.get("rounds", 0) + 1
 
 
 def _stream_with_tools(
@@ -1337,11 +1396,15 @@ def _stream_with_tools(
                 messages=convo,
                 extra_body={"thinking": {"type": "disabled"}},
                 stream=True,
+                stream_options={"include_usage": True},
                 tools=cast(Any, mentor_tools.TOOLS) if with_tools else openai.omit,
             )
             said: list[str] = []
             calls: dict[int, dict[str, str]] = {}
             for chunk in stream:
+                usage = getattr(chunk, "usage", None)  # only the last chunk carries it
+                if usage is not None:
+                    _count_usage(ctx.stats, usage)
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta

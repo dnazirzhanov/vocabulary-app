@@ -158,6 +158,16 @@ T="$(openssl rand -hex 32)" && printf 'REMINDERS_TOKEN=%s\n' "$T" | fly secrets 
 3. iPhones only receive them when the app is added to the home screen (Safari → Share → «На экран
    „Домой“»); the app says so where reminders are turned on.
 
+## 3c. Is the mentor working? (ADR 0078)
+Week by week: promised days kept, minutes per learner, «Начать» → finished, answer speed and the prompt cache's
+share, rescues, facts saved, and D7/D30 retention. Read-only; the same secret as the scheduler:
+
+```sh
+curl -s -H "X-Reminders-Token: $REMINDERS_TOKEN" "https://<app>/api/internal/mentor-metrics?weeks=6"
+# or on the machine:
+fly ssh console -a slovar-kg -C "python -m app.cli mentor-metrics --weeks 6"
+```
+
 ## 3b. Before a class
 Capacity was measured on a laptop with the CPU limited, not on a real host
 (`docs/research/capacity-2026-11.md`). Run a class-sized trial first, and keep an eye on Supabase's
