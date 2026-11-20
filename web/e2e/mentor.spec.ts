@@ -20,28 +20,97 @@ test("the Mentor tab shows a greeting, a tip, and today's plan", async ({ page }
   await expect(page.getByRole('heading', { level: 2, name: 'План на сегодня' })).toBeVisible();
 });
 
-test('the Mentor chat sends a message and shows a reply', async ({ page }) => {
+async function openChat(page: import('@playwright/test').Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-
-  // The dashboard shows; click the «Написать наставнику» button to open the chat view.
   await page.getByRole('button', { name: 'Написать наставнику' }).click();
-  await expect(page.getByRole('heading', { level: 2, name: 'Спросить наставника' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: /^Чем займёмся/ })).toBeVisible();
+}
 
-  // Suggestion chips appear once the chat history finishes loading; click the first one.
-  const firstChip = page.locator('[data-testid="mentor-suggestion"]').first();
-  await expect(firstChip).toBeVisible({ timeout: 10_000 });
-  const chipText = (await firstChip.textContent()) ?? '';
-  await firstChip.click();
+// ADR 0072: «what should I do now?» runs a tool that shows its step and a card with «Начать
+// сейчас», which opens the activity. The server runs in demo mode: the question's words pick the
+// tool, so the flow is the real one without a model.
+test('asking what to do now shows the mentor checking, then a card that starts it', async ({ page }) => {
+  await openChat(page);
+  await page.getByRole('button', { name: 'Что мне сейчас делать?' }).click();
+  const answer = page.getByRole('listitem').filter({ hasText: 'Смотрю твой план и расписание' });
+  await expect(answer.getByRole('status').first()).toHaveText(/Смотрю твой план и расписание$/);
+  await expect(answer).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
+  const start = answer.getByRole('button', { name: /Начать сейчас/ });
+  // A new learner's first task is a text from the library, or a deck's words.
+  await expect(start.or(answer.getByText('На сегодня всё сделано'))).toBeVisible();
+  if (await start.isVisible()) {
+    await start.click();
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(/Наставник|Чем займёмся/);
+  }
+});
 
-  // After the reply, the log region is visible with the sent message.
-  const log = page.getByRole('log');
-  await expect(log).toBeVisible();
-  await expect(log).toContainText(chipText);
-  // The demo reply contains text from locale.py mentor_demo_reply (ru default).
-  // The Playwright server forces demo mode (DEEPSEEK_API_KEY='') for deterministic tests.
-  await expect(log).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
+test('a schedule told to the mentor is shown to confirm, and saved only on the tap', async ({ page }) => {
+  await openChat(page);
+  const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
+  await composer.fill('Вот моё расписание: учусь пн–пт 8–14');
+  await composer.press('Enter');
+  const card = page.getByRole('listitem').filter({ hasText: 'Расписание — проверьте и добавьте' });
+  await expect(card.getByRole('checkbox', { name: /Школа/ })).toBeChecked();
+  await expect(card).toContainText('Пн, Вт, Ср, Чт, Пт · 08:00–14:00');
+  // Nothing in the calendar before the tap.
+  expect((await (await page.request.get('/api/mentor/schedule')).json()).events).toEqual([]);
+  await card.getByRole('button', { name: 'Добавить в календарь' }).click();
+  await expect(card.getByText('Добавлено в календарь')).toBeVisible();
+  const saved = (await (await page.request.get('/api/mentor/schedule')).json()).events;
+  expect(saved.map((e: { title: string }) => e.title)).toEqual(['Школа']);
+});
+
+test('each new chat is kept in the sidebar and opens with its own messages', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openChat(page);
+  const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
+  await composer.fill('Как учить фразовые глаголы?');
+  await composer.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Как учить фразовые глаголы?' })).toBeVisible();
+  await expect(page.getByText('Загляни в «Сегодня»')).toBeVisible({ timeout: 10_000 });
+
+  // A new chat even while the first answer is still coming in: the first is saved on its own.
+  await page.getByRole('button', { name: 'Новый чат' }).first().click();
+  await expect(page.getByRole('heading', { level: 2, name: /^Чем займёмся/ })).toBeVisible();
+  await composer.fill('А идиомы?');
+  await composer.press('Enter');
+  await expect(page.getByText('Загляни в «Сегодня»')).toBeVisible({ timeout: 10_000 });
+
+  const chats = page.getByRole('complementary', { name: 'Чаты' });
+  await expect(chats.getByRole('button', { name: 'А идиомы?', exact: true })).toBeVisible();
+  await chats.getByRole('button', { name: 'Как учить фразовые глаголы?', exact: true }).click();
+  await expect(page.locator('ol').getByText('Как учить фразовые глаголы?')).toBeVisible();
+  await expect(page.locator('ol').getByText('А идиомы?')).toHaveCount(0);
+
+  // Renamed, then deleted.
+  await chats.getByRole('button', { name: /Как учить фразовые глаголы\?.*действия/ }).click();
+  const menu = page.getByRole('dialog');
+  await menu.getByRole('textbox', { name: 'Название чата' }).fill('Глаголы');
+  await menu.getByRole('button', { name: 'Переименовать' }).click();
+  await expect(chats.getByRole('button', { name: 'Глаголы', exact: true })).toBeVisible();
+  await chats.getByRole('button', { name: /Глаголы.*действия/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Удалить чат' }).click();
+  await page.getByRole('dialog', { name: 'Удалить чат?' }).getByRole('button', { name: 'Удалить чат' }).click();
+  await expect(chats.getByRole('button', { name: 'Глаголы', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 2, name: /^Чем займёмся/ })).toBeVisible();
+});
+
+test('on a phone the chats are a drawer, and nothing scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await openChat(page);
+  const chats = page.getByRole('complementary', { name: 'Чаты' });
+  await expect(chats).not.toBeInViewport();
+  await page.getByRole('button', { name: 'Чаты', exact: true }).click();
+  await expect(chats).toBeInViewport();
+  // A tap beside the drawer closes it, and so does Escape.
+  await page.mouse.click(350, 400);
+  await expect(chats).not.toBeInViewport();
+  await page.getByRole('button', { name: 'Чаты', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(chats).not.toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('the goal chip shows the current goal and «Изменить цель» opens goal setup', async ({ page }) => {
@@ -66,44 +135,4 @@ test('the goal chip shows the current goal and «Изменить цель» ope
 
   // After saving, the dashboard returns.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Доброе утро|Добрый день|Добрый вечер|Доброй ночи/);
-});
-
-test('follow-up chips appear after the assistant replies', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-
-  // Open chat view.
-  await page.getByRole('button', { name: 'Написать наставнику' }).click();
-
-  // Send a message so the assistant replies.
-  const firstChip = page.locator('[data-testid="mentor-suggestion"]').first();
-  await expect(firstChip).toBeVisible({ timeout: 10_000 });
-  await firstChip.click();
-  await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
-
-  // After the reply, follow-up chips should appear.
-  await expect(page.locator('[data-testid="mentor-followup"]').first()).toBeVisible({ timeout: 5_000 });
-});
-
-test('clearing the chat removes all messages', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-
-  // Open chat view.
-  await page.getByRole('button', { name: 'Написать наставнику' }).click();
-
-  // Send a message so the log appears.
-  const firstChip = page.locator('[data-testid="mentor-suggestion"]').first();
-  await expect(firstChip).toBeVisible({ timeout: 10_000 });
-  await firstChip.click();
-  await expect(page.getByRole('log')).toContainText('Загляни в «Сегодня»', { timeout: 10_000 });
-
-  // Clear the chat.
-  await page.getByRole('button', { name: 'Очистить чат' }).click();
-
-  // The log disappears and suggestion chips are back.
-  await expect(page.getByRole('log')).toHaveCount(0);
-  await expect(page.locator('[data-testid="mentor-suggestion"]').first()).toBeVisible();
 });

@@ -333,6 +333,32 @@ export const api = {
       daily_minutes: dailyMinutes,
     }),
   mentorStatus: () => request<{ chats_remaining: number; chats_limit: number }>('GET', '/mentor/status'),
+  // Chats (ADR 0072).
+  mentorConversations: () => request<MentorConversation[]>('GET', '/mentor/conversations'),
+  mentorConversationMessages: (id: string) =>
+    request<MentorMessage[]>('GET', `/mentor/conversations/${encodeURIComponent(id)}/messages`),
+  mentorRenameConversation: (id: string, title: string) =>
+    request<MentorConversation>('PATCH', `/mentor/conversations/${encodeURIComponent(id)}`, { title }),
+  mentorDeleteConversation: (id: string) => request<null>('DELETE', `/mentor/conversations/${encodeURIComponent(id)}`),
+  // The coach (ADR 0071).
+  coach: () => request<Coach>('GET', '/mentor/coach'),
+  coachSetGoal: (goal: {
+    kind: CoachGoalKind;
+    target?: string | null;
+    deadline?: string | null;
+    why?: string | null;
+    start_level?: string | null;
+  }) => request<Coach>('PUT', '/mentor/coach/goal', goal),
+  coachStudyTimes: (minutes: number, weekdays: number[], preference?: 'morning' | 'day' | 'evening') => {
+    const query = new URLSearchParams({ minutes: String(minutes) });
+    for (const day of weekdays) query.append('weekdays', String(day));
+    if (preference) query.set('preference', preference);
+    return request<StudyTimeOption[]>('GET', `/mentor/coach/study-times?${query}`);
+  },
+  coachCommit: (weekdays: number[], startMinute: number, minutes: number) =>
+    request<Coach>('PUT', '/mentor/coach/commitment', { weekdays, start_minute: startMinute, minutes }),
+  coachDecide: (id: string, accept: boolean) =>
+    request<Coach>('POST', `/mentor/coach/adjustments/${encodeURIComponent(id)}`, { accept }),
   scheduleList: () =>
     request<{
       events: Array<{
@@ -374,15 +400,131 @@ export const api = {
   scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
 };
 
-export type MentorStreamEvent =
-  { delta: string; done?: never } | { done: true; delta?: never; created_at: string; chats_remaining: number };
+/** A card a mentor tool shows (ADR 0072). Nothing in one is saved until the learner taps it. */
+export type MentorCard =
+  | {
+      type: 'activity';
+      kind: 'vocab' | 'spelling' | 'reading' | 'writing' | 'speaking';
+      deck_id: string | null;
+      article_id: string | null;
+      title: string | null;
+      minutes: number | null;
+      count: number | null;
+      why: string | null;
+    }
+  | { type: 'busy'; busy_with: string | null; until: number | null }
+  | { type: 'done' }
+  | {
+      type: 'schedule';
+      events: { title: string; kind: string; weekdays: number[]; start_minute: number; end_minute: number }[];
+    }
+  | {
+      type: 'study_times';
+      options: { weekdays: number[]; start_minute: number; minutes: number; reasons: string[] }[];
+    }
+  | {
+      type: 'goal';
+      kind: CoachGoalKind;
+      target: string | null;
+      deadline: string | null;
+      why: string | null;
+      start_level: string | null;
+      status: CoachStatus;
+      hours_needed: number | null;
+      weekly_minutes: number;
+      minutes_a_day_needed: number | null;
+      reached_by: string | null;
+    }
+  | {
+      type: 'week';
+      goal: { kind: string; target: string | null; deadline: string } | null;
+      status: CoachStatus | null;
+      targets: { skill: CoachSkill; planned: number; done: number }[];
+      study_time: string | null;
+      minutes: number | null;
+      promised_days: number;
+      studied_days: number;
+    };
 
-interface MentorPlanItem {
-  kind: 'vocab' | 'spelling' | 'reading';
+export type MentorToolName =
+  'what_now' | 'suggest_activity' | 'get_week_plan' | 'propose_goal' | 'propose_schedule' | 'propose_study_times';
+
+export interface MentorToolEvent {
+  id: string;
+  name: MentorToolName;
+  status: 'running' | 'done';
+  card?: MentorCard | null;
+}
+
+export type MentorStreamEvent =
+  | { conversation: { id: string; title: string }; delta?: never; done?: never; tool?: never }
+  | { tool: MentorToolEvent; delta?: never; done?: never; conversation?: never }
+  | { delta: string; done?: never; tool?: never; conversation?: never }
+  | { done: true; delta?: never; tool?: never; conversation?: never; created_at: string; chats_remaining: number };
+
+export interface MentorPlanItem {
+  kind: 'vocab' | 'spelling' | 'reading' | 'writing' | 'speaking';
   title: string;
   count?: number;
   minutes: number;
   level?: string;
+  deckId?: string;
+  articleId?: string;
+}
+
+export interface MentorConversation {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+export interface MentorMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  parts: { type: 'tool'; name: MentorToolName; card: MentorCard | null }[];
+}
+
+export type CoachGoalKind = 'ielts' | 'conversation' | 'travel' | 'business' | 'academic' | 'general';
+export type CoachStatus = 'on_track' | 'tight' | 'not_possible' | 'open' | 'reached';
+export type CoachSkill = 'words' | 'reading' | 'writing' | 'speaking';
+
+export interface Coach {
+  goal: {
+    kind: CoachGoalKind;
+    target: string | null;
+    deadline: string | null;
+    why: string | null;
+    start_level: string | null;
+  } | null;
+  feasibility: {
+    status: CoachStatus;
+    hours_needed: number | null;
+    weeks_left: number | null;
+    weekly_minutes_needed: number | null;
+    weekly_minutes: number;
+    minutes_a_day_needed: number | null;
+    reached_by: string | null;
+  } | null;
+  week_start: string;
+  targets: { skill: CoachSkill; minutes: number; planned: number; done: number }[];
+  behind: CoachSkill[];
+  promised: boolean[];
+  studied: boolean[];
+  commitment: { weekdays: number[]; start_minute: number | null; minutes: number | null; pending_from: string | null };
+  adjustment: {
+    id: string;
+    kind: 'easier_minutes' | 'fewer_days' | 'move_time' | 'more_minutes' | 'behind';
+    evidence: Record<string, number | null>;
+    proposal: Record<string, number | null>;
+  } | null;
+}
+
+export interface StudyTimeOption {
+  weekdays: number[];
+  start_minute: number;
+  minutes: number;
+  reasons: ('free' | 'habit' | 'preferred' | 'after_block')[];
 }
 
 /** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
@@ -390,8 +532,20 @@ export async function* mentorChatStream(
   message: string,
   plan?: MentorPlanItem[],
   tip_id?: string,
+  chat?: { conversationId?: string | null; newConversation?: boolean },
 ): AsyncGenerator<MentorStreamEvent> {
-  const response = await send('POST', '/mentor/chat/stream', { message, plan, tip_id }, 180_000);
+  const response = await send(
+    'POST',
+    '/mentor/chat/stream',
+    {
+      message,
+      plan,
+      tip_id,
+      conversation_id: chat?.conversationId ?? undefined,
+      new_conversation: chat?.newConversation ?? undefined,
+    },
+    180_000,
+  );
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null);
     const error = (data as { error?: { code?: string; message?: string } } | null)?.error;

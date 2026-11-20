@@ -540,6 +540,8 @@ function Learning({ email, subject }: { email: string | null; subject: string })
             account={me.id}
             onOpenArticle={(articleId) => setScreen({ name: 'article', articleId })}
             onStartSession={startSession}
+            onOpenWriting={() => setScreen({ name: 'writing' })}
+            onOpenSpeaking={() => setScreen({ name: 'speaking' })}
           />
         </Suspense>
       );
