@@ -319,8 +319,8 @@ TOOLS += [
     ),
     _lookup(
         "get_writing",
-        "Recent essays with their feedback: question, date, CEFR level, five scores (1-5), "
-        "summary, what to improve.",
+        "Recent essays with their feedback: question, date, IELTS band with the four criteria "
+        "and the next step for each (older essays: CEFR level and five 1-5 scores), summary.",
         _RECENT,
     ),
     _lookup(
