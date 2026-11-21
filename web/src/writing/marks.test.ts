@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Mistake } from './api.ts';
-import { collectFixes, segments } from './marks.ts';
+import { collectFixes, collectIeltsFixes, segments } from './marks.ts';
 
 const mistake = (original: string, corrected: string, type: Mistake['type'] = 'grammar'): Mistake => ({
   original,
@@ -97,4 +97,18 @@ test('a very long sentence is cut to a readable piece around the fix', () => {
   const [fix] = collectFixes(long, { corrections: [mistake('mistake', 'fix')], vocabulary: [] });
   assert.ok(fix.before.startsWith('…') && fix.before.length <= 92);
   assert.ok(fix.after.endsWith('…') && fix.after.length <= 92);
+});
+
+test('IELTS fixes: grammar and punctuation under GRA, spelling, word choice and upgrades under LR', () => {
+  const fixes = collectIeltsFixes(ANSWER, {
+    corrections: [
+      { original: 'I no have', corrected: "I don't have", explanation: 'neg', type: 'grammar' },
+      { original: 'univercity', corrected: 'university', explanation: 'sp', type: 'spelling' },
+    ],
+    upgrades: [{ original: 'good', suggestion: 'excellent', note: 'stronger' }],
+  });
+  const homes = Object.fromEntries(fixes.map((f) => [f.original, f.home]));
+  assert.equal(homes['I no have'], 'grammatical_range_accuracy');
+  assert.equal(homes['univercity'], 'lexical_resource');
+  assert.equal(homes['good'], 'lexical_resource');
 });

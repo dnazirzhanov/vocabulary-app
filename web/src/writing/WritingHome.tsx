@@ -9,7 +9,7 @@ import {
   type Topic,
   type WritingQuestion,
 } from './api.ts';
-import { scoreLabel } from './scoreText.ts';
+import { bandText, markOf } from './scoreText.ts';
 import styles from './Writing.module.css';
 
 interface Props {
@@ -18,6 +18,9 @@ interface Props {
   onRetry: (question: WritingQuestion, text: string) => void;
   onOpenArchive: () => void;
 }
+
+/** The exam's own name, the same in every language. */
+const IELTS_TASK = 'IELTS Writing · Task 2';
 
 /** How many of the latest essays the home shows; the archive has them all. */
 const LATEST = 3;
@@ -51,44 +54,71 @@ export function WritingHome({ onPickTopic, onOpen, onRetry, onOpenArchive }: Pro
     }
   };
 
+  // The learner's IELTS record so far: the last band and the best, from essays marked on IELTS.
+  const bands = mine.filter((m) => m.status === 'done' && m.band != null).map((m) => m.band as number);
+
   return (
     <main className={styles.screen}>
-      <h1 className={styles.title}>{t.writing}</h1>
-      <p className={styles.lead}>{t.writingChooseTopic}</p>
+      <header className={styles.homeHead}>
+        <p className={styles.kicker}>{IELTS_TASK}</p>
+        <h1 className={styles.title}>{t.writing}</h1>
+        <p className={styles.lead}>{t.writingIeltsLead}</p>
+        {bands.length > 0 && (
+          <dl className={styles.record}>
+            <div>
+              <dt>{t.writingLastBand}</dt>
+              <dd>{bandText(bands[0])}</dd>
+            </div>
+            <div>
+              <dt>{t.writingBestBand}</dt>
+              <dd>{bandText(Math.max(...bands))}</dd>
+            </div>
+            <div>
+              <dt>{t.writingEssaysDone}</dt>
+              <dd>{bands.length}</dd>
+            </div>
+          </dl>
+        )}
+      </header>
       {error && (
         <p role="alert" className={styles.error}>
           {t.writingLoadError}
         </p>
       )}
       {topics === null && !error && <p className={styles.muted}>{t.loading}</p>}
-      <ul className={styles.list}>
-        {topics?.map((topic) => (
-          <li key={topic.topic}>
-            <button type="button" className={styles.row} onClick={() => onPickTopic(topic.topic)}>
-              <span className={styles.rowName}>{topic.topic}</span>
-              <span className={styles.rowMeta}>{t.writingQuestionsCount(topic.question_count)}</span>
-              <span aria-hidden="true">›</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <section aria-labelledby="writing-topics">
+        <h2 id="writing-topics" className={styles.sectionTitle}>
+          {t.writingChooseTopic}
+        </h2>
+        <ul className={styles.topicGrid}>
+          {topics?.map((topic) => (
+            <li key={topic.topic}>
+              <button type="button" className={styles.topicCard} onClick={() => onPickTopic(topic.topic)}>
+                <span className={styles.topicName}>{topic.topic}</span>
+                <span className={styles.topicMeta}>{t.writingQuestionsCount(topic.question_count)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
       {mine.length > 0 && (
         <section aria-labelledby="writing-mine">
           <h2 id="writing-mine" className={styles.sectionTitle}>
             {t.writingMyAnswers}
           </h2>
           <ul className={styles.list}>
-            {mine.slice(0, LATEST).map((item) => (
-              <li key={item.id}>
-                <button type="button" className={styles.row} onClick={() => void open(item)}>
-                  <span className={styles.rowName}>{item.question_title}</span>
-                  <span className={styles.rowMeta}>
-                    {item.status === 'done' && item.overall ? scoreLabel(item.overall) : t.writingNotChecked}
-                  </span>
-                  <span aria-hidden="true">›</span>
-                </button>
-              </li>
-            ))}
+            {mine.slice(0, LATEST).map((item) => {
+              const mark = markOf(item);
+              return (
+                <li key={item.id}>
+                  <button type="button" className={styles.row} onClick={() => void open(item)}>
+                    <span className={styles.rowName}>{item.question_title}</span>
+                    <span className={mark ? styles.bandTag : styles.rowMeta}>{mark ?? t.writingNotChecked}</span>
+                    <span aria-hidden="true">›</span>
+                  </button>
+                </li>
+              );
+            })}
             <li>
               <button type="button" className={`${styles.row} ${styles.allEssays}`} onClick={onOpenArchive}>
                 {t.writingArchiveAll(mine.length)}

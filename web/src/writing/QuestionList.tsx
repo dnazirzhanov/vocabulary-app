@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
-import { listQuestions, type WritingQuestion } from './api.ts';
+import { listQuestions, listSubmissions, type WritingQuestion } from './api.ts';
+import { markOf, taskTypeLabel } from './scoreText.ts';
 import styles from './Writing.module.css';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 
 export function QuestionList({ topic, onBack, onPick }: Props) {
   const [questions, setQuestions] = useState<WritingQuestion[] | null>(null);
+  const [done, setDone] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -18,10 +20,27 @@ export function QuestionList({ topic, onBack, onPick }: Props) {
     listQuestions(topic)
       .then((got) => live && setQuestions(got))
       .catch(() => live && setError(true));
+    // The learner's best mark on each question, if any: a bonus, so a failure is quiet.
+    listSubmissions()
+      .then((mine) => {
+        if (!live) return;
+        const best = new Map<string, { band: number; text: string }>();
+        for (const item of mine) {
+          const text = markOf(item);
+          if (!text) continue;
+          const band = item.band ?? item.overall ?? 0;
+          if ((best.get(item.question_id)?.band ?? -1) < band) best.set(item.question_id, { band, text });
+        }
+        setDone(new Map([...best].map(([id, b]) => [id, b.text])));
+      })
+      .catch(() => undefined);
     return () => {
       live = false;
     };
   }, [topic]);
+
+  // Every question shares the exam's instruction: said once, above them.
+  const instruction = questions?.find((q) => q.task_type)?.instruction;
 
   return (
     <main className={styles.screen}>
@@ -29,7 +48,7 @@ export function QuestionList({ topic, onBack, onPick }: Props) {
         ‹ {t.back}
       </button>
       <h1 className={styles.title}>{topic}</h1>
-      <p className={styles.lead}>{t.writingChooseQuestion}</p>
+      <p className={styles.lead}>{instruction ?? t.writingChooseQuestion}</p>
       {error && (
         <p role="alert" className={styles.error}>
           {t.writingLoadError}
@@ -39,13 +58,13 @@ export function QuestionList({ topic, onBack, onPick }: Props) {
       <ul className={styles.list}>
         {questions?.map((q) => (
           <li key={q.id}>
-            <button type="button" className={styles.card} onClick={() => onPick(q)}>
-              <span className={styles.cardTitle}>{q.title}</span>
-              <span className={styles.cardText}>{q.instruction}</span>
-              <span className={styles.chips}>
-                {q.level && <span className={styles.chip}>{q.level}</span>}
-                {q.suggested_minutes && <span className={styles.chip}>{t.writingMinutes(q.suggested_minutes)}</span>}
+            <button type="button" className={styles.questionCard} onClick={() => onPick(q)}>
+              <span className={styles.questionTop}>
+                {q.task_type && <span className={styles.typeChip}>{taskTypeLabel(q.task_type)}</span>}
+                {done.get(q.id) && <span className={styles.bandTag}>{done.get(q.id)}</span>}
               </span>
+              <span className={styles.cardTitle}>{q.title}</span>
+              {!q.task_type && <span className={styles.cardText}>{q.instruction}</span>}
             </button>
           </li>
         ))}

@@ -123,14 +123,14 @@ for (const width of [360, 1280]) {
     const box = async (l: import('@playwright/test').Locator) => (await l.boundingBox())!;
     const text = await box(page.getByRole('textbox'));
     const clock = await box(timer);
-    const count = await box(page.getByText(/^Слов: \d+$/));
+    const count = await box(page.getByText(/^\d+ из 250 слов$/));
     const send = await box(page.getByRole('button', { name: 'Отправить' }));
     // Each sits fully below the text and fully above Send.
     for (const b of [clock, count]) {
       expect(b.y).toBeGreaterThanOrEqual(text.y + text.height);
       expect(b.y + b.height).toBeLessThanOrEqual(send.y);
     }
-    // «Слов: 40» stays on one line, beside the timer, not squeezed under it.
+    // «10 из 250 слов» stays on one line, beside the timer, not squeezed under it.
     expect(count.height).toBeLessThan(28);
     expect(count.x + count.width).toBeLessThanOrEqual(clock.x);
   });
@@ -218,4 +218,74 @@ test('too little to assess is said plainly, with no score', async ({ page }) => 
   // Leaving from the feedback: a back button, as on every other Writing screen.
   await page.getByRole('button', { name: /Назад/ }).click();
   await expect(page.getByRole('button', { name: /cooking at home/ })).toBeVisible();
+});
+
+// IELTS Task 2 (ADR 0081/0082): the band first, the four criteria as chips, each criterion with
+// why and the step to the next band; the fixes marked in the essay; no list of generic advice.
+const IELTS_ANSWER = 'In my opinion, I am agree that cooking at home is important. It save money.';
+const ielts = {
+  id: '44444444-4444-4444-4444-444444444444',
+  question_id: 'ielts-life-1',
+  question: {
+    id: 'ielts-life-1',
+    topic: 'Everyday Life',
+    title: 'Some people believe that cooking at home is a waste of time. To what extent do you agree or disagree?',
+    instruction: 'Give reasons for your answer. Write at least 250 words.',
+    level: null,
+    suggested_minutes: 40,
+    task_type: 'opinion',
+  },
+  answer: IELTS_ANSWER,
+  time_spent_seconds: null,
+  status: 'done',
+  failure_code: null,
+  created_at: '2026-11-21T10:00:00Z',
+  evaluation: {
+    rubric: 'ielts',
+    enough_evidence: true,
+    band: 5.5,
+    words: 15,
+    criteria: {
+      task_response: { band: 6, why: 'A clear position.', next_band: 'Support it with an example.' },
+      coherence_cohesion: { band: 6, why: 'One paragraph only.', next_band: 'Use paragraphs.' },
+      lexical_resource: { band: 6, why: 'Simple but correct.', next_band: 'Use topic words.' },
+      grammatical_range_accuracy: { band: 4, why: '«I am agree», «It save».', next_band: 'Check verb forms.' },
+    },
+    summary: 'A clear view, held back by verb errors.',
+    corrections: [
+      { original: 'I am agree', corrected: 'I agree', explanation: 'agree is a verb.', type: 'grammar' },
+      { original: 'It save', corrected: 'It saves', explanation: 'he/she/it + s.', type: 'grammar' },
+    ],
+    upgrades: [],
+  },
+};
+
+test('IELTS feedback: the band, four criteria, why and the next step; no generic advice', async ({ page }) => {
+  await page.route('**/api/writing/submissions', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fulfill({ json: ielts });
+  });
+  await openQuestion(page);
+  // The question's type and the IELTS length as a guide, counted toward 250.
+  await expect(page.getByText('Мнение', { exact: true })).toBeVisible();
+  await page.getByRole('textbox').fill(IELTS_ANSWER);
+  await expect(page.getByText('15 из 250 слов')).toBeVisible();
+  await page.getByRole('button', { name: 'Отправить' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Общий балл IELTS' })).toBeVisible();
+  await expect(page.getByText('5.5', { exact: true })).toBeVisible();
+  const chips = page.getByRole('list', { name: 'Баллы по критериям' });
+  await expect(chips.getByRole('button')).toHaveText(['TR6', 'CC6', 'LR6', 'GRA4']);
+  await expect(page.getByText('на экзамене нужно от 250 слов', { exact: false })).toBeVisible();
+  // It opens on the lowest criterion, with why, the next band's step, and its fixes.
+  const panel = page.getByRole('tabpanel');
+  await expect(page.getByRole('tab', { name: 'GRA' })).toHaveAttribute('aria-selected', 'true');
+  await expect(panel).toContainText('Грамматика: разнообразие и точность');
+  await expect(panel).toContainText('Чтобы получить 5: Check verb forms.');
+  await expect(panel.locator('ins')).toHaveText(['I agree', 'It saves']);
+  // A chip opens its criterion.
+  await chips.getByRole('button', { name: /^Связность/ }).click();
+  await expect(panel).toContainText('Use paragraphs.');
+  // «Что делать дальше» is gone.
+  await expect(page.getByText('Что делать дальше')).toHaveCount(0);
 });
