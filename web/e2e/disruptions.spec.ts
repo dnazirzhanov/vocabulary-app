@@ -4,7 +4,7 @@ import { openFromChatList, openMentorPlan } from './mentorNav.ts';
 
 /**
  * When a day is different (ADR 0074): today's plan bends instead of breaking, the calendar knows
- * single dates, and the mentor turns «завтра нет школы» into a change applied on a tap.
+ * single dates, and the mentor turns «завтра нет школы» into a change made at once, with Undo.
  */
 test.use({ mentor: true, viewport: { width: 390, height: 844 } });
 
@@ -105,7 +105,9 @@ test('a block on one date only, and a usual block off for one date', async ({ pa
   await expect(today.getByRole('button', { name: /^Концерт/ })).toHaveCount(0);
 });
 
-test('«завтра нет школы» told to the mentor is applied on the tap, with quick replies', async ({ page }) => {
+test('«завтра нет школы» told to the mentor is applied at once, can be undone, with quick replies', async ({
+  page,
+}) => {
   await page.request.post('/api/mentor/schedule', {
     data: { title: 'Школа', kind: 'school', weekdays: 127, start_minute: 480, end_minute: 840 },
   });
@@ -116,20 +118,21 @@ test('«завтра нет школы» told to the mentor is applied on the ta
   await composer.press('Enter');
   const tomorrow = new Date(afternoon());
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const card = page.getByRole('listitem').filter({ hasText: 'не будет' });
-  await expect(card).toContainText(`Школа: не будет — ${day(tomorrow)}`);
-  // Nothing changed before the tap.
+  const card = page.getByRole('listitem').filter({ hasText: 'Календарь обновлён' });
+  await expect(card).toContainText('Школа');
+  await expect(card).toContainText(`${day(tomorrow)} · 08:00–14:00`);
+  // Already in the calendar: no tap needed.
   let events = (await (await page.request.get('/api/mentor/schedule')).json()).events;
-  expect(events[0].skipped).toEqual([]);
-  await expect(page.getByRole('group', { name: 'Быстрые ответы' }).getByRole('button')).toHaveText([
-    'Да, отменить',
-    'Нет, всё как обычно',
-  ]);
-  await card.getByRole('button', { name: 'Применить' }).click();
-  await expect(card.getByText('Готово, расписание изменено')).toBeVisible();
-  events = (await (await page.request.get('/api/mentor/schedule')).json()).events;
   expect(events[0].skipped).toHaveLength(1);
+  await expect(page.getByRole('group', { name: 'Быстрые ответы' }).getByRole('button')).toHaveText([
+    'Спасибо',
+    'Что мне делать завтра?',
+  ]);
+  await card.getByRole('button', { name: 'Отменить' }).click();
+  await expect(card).toContainText('Отменено: календарь как был');
+  events = (await (await page.request.get('/api/mentor/schedule')).json()).events;
+  expect(events[0].skipped).toEqual([]);
   // A tap on a quick reply sends it.
-  await page.getByRole('group', { name: 'Быстрые ответы' }).getByRole('button', { name: 'Да, отменить' }).click();
-  await expect(page.locator('ol').getByText('Да, отменить', { exact: true })).toBeVisible();
+  await page.getByRole('group', { name: 'Быстрые ответы' }).getByRole('button', { name: 'Спасибо' }).click();
+  await expect(page.locator('ol').getByText('Спасибо', { exact: true })).toBeVisible();
 });

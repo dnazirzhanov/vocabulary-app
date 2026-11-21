@@ -7,15 +7,18 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, ClassVar
+from zoneinfo import ZoneInfo
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_engine
+from app.models import User
 from app.services import mentor, mentor_tools
 from tests.support import at
 
@@ -261,11 +264,13 @@ def test_without_a_model_the_question_plainly_asked_gets_its_tool(client: TestCl
     assert card["kind"] == "writing" and card["minutes"] == 15
 
 
-def test_a_proposed_schedule_is_shown_but_never_saved(client: TestClient) -> None:
+def test_a_week_told_to_the_mentor_is_saved_at_once(client: TestClient) -> None:
+    # ADR 0083: no confirming tap; the card says what changed and can undo it.
     stream = events(client, message="Вот моё расписание: учусь пн–пт 8–14", new_conversation=True)
     card = next(e["tool"]["card"] for e in stream if "tool" in e and e["tool"]["status"] == "done")
-    assert card["type"] == "schedule" and card["events"][0]["start_minute"] == 480
-    assert client.get("/api/mentor/schedule", headers=as_()).json() == {"events": []}
+    assert card["type"] == "schedule_saved" and card["added"][0]["start_minute"] == 480
+    saved = client.get("/api/mentor/schedule", headers=as_()).json()["events"]
+    assert [(e["title"], e["weekdays"], e["start_minute"]) for e in saved] == [("Школа", 31, 480)]
 
 
 def test_a_proposed_goal_is_checked_but_never_saved(client: TestClient) -> None:
@@ -275,12 +280,14 @@ def test_a_proposed_goal_is_checked_but_never_saved(client: TestClient) -> None:
     assert client.get("/api/mentor/coach", headers=as_()).json()["goal"] is None
 
 
-def test_bad_proposals_are_dropped_not_invented(client: TestClient) -> None:
-    ctx = mentor_tools.ToolContext(None, None, THURSDAY, None, [])  # type: ignore[arg-type]
-    out = mentor_tools.propose_schedule(
+def test_bad_blocks_are_dropped_not_invented(client: TestClient, db: Session) -> None:
+    client.get("/api/mentor/schedule", headers=as_())  # makes the learner
+    ann = db.scalars(select(User).where(User.auth_subject == "dev|ann")).one()
+    ctx = mentor_tools.ToolContext(db, ann, THURSDAY, ZoneInfo("UTC"), [])
+    out = mentor_tools.set_schedule(
         ctx,
         {
-            "events": [
+            "add": [
                 {
                     "title": "Gym",
                     "kind": "sport",
@@ -297,29 +304,29 @@ def test_bad_proposals_are_dropped_not_invented(client: TestClient) -> None:
                     "end": "23:00",
                 },
                 {
-                    "title": "Back",
+                    "title": "Same",
                     "kind": "work",
                     "weekdays": [0],
                     "start": "19:00",
-                    "end": "18:00",
+                    "end": "19:00",
                 },
                 "nonsense",
             ]
         },
     )
-    assert out.card == {
-        "type": "schedule",
-        "events": [
-            {
-                "title": "Gym",
-                "kind": "sport",
-                "weekdays": [1, 3],
-                "start_minute": 1080,
-                "end_minute": 1140,
-            }
-        ],
-    }
-    assert out.result == {"proposed": 1, "dropped": 4, "saved": False}
+    assert out.card is not None and out.card["added"] == [
+        {
+            "title": "Gym",
+            "kind": "sport",
+            "weekdays": [1, 3],
+            "start_minute": 1080,
+            "end_minute": 1140,
+            "on_date": None,
+        }
+    ]
+    assert out.result["saved"] is True and out.result["dropped"] == 4
+    # Nothing valid: nothing saved, and the model is told so.
+    assert mentor_tools.set_schedule(ctx, {"add": ["nonsense"]}).result["saved"] is False
     # A kind of activity with nothing today is said, not made up.
     assert mentor_tools.suggest_activity(ctx, {"kind": "spelling"}).card is None
 
