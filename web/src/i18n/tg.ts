@@ -738,7 +738,6 @@ export const tg: Messages = {
   writingIeltsCc: 'Пайвастагӣ',
   writingIeltsLr: 'Захираи луғавӣ',
   writingIeltsGra: 'Гуногунӣ ва дурустии грамматика',
-  writingIeltsLead: 'Иншои 250-калимагӣ дар 40 дақиқа — бо баҳо аз рӯи чор меъёри IELTS.',
   writingIeltsTask: (a: number, b: number) =>
     `Мисли IELTS: ақаллан ${a} калима, тақрибан ${b} дақиқа. Сабабҳо ва мисолҳо оваред.`,
   writingShortForExam: (n: number) => `дар имтиҳон аз ${n} калима зиёд лозим аст`,
@@ -1274,7 +1273,9 @@ export const tg: Messages = {
   writingChooseQuestion: 'Саволро интихоб кунед',
   writingLoadError: 'Боргирӣ нашуд. Пайвастшавиро санҷед ва бори дигар кӯшиш кунед.',
   writingQuestionsCount: (n: number) => `Саволҳо: ${n}`,
-  writingMyAnswers: 'Ҷавобҳои ман',
+  writingEssaysCount: (n: number) => `Иншоҳо: ${n}`,
+  writingAttemptsCount: (n: number) => `Кӯшишҳо: ${n}`,
+  writingAttemptHistory: 'Таърихи кӯшишҳо',
   writingNotChecked: 'Санҷида нашудааст',
   writingArchive: 'Ҳамаи иншоҳои ман',
   writingArchiveEmpty:

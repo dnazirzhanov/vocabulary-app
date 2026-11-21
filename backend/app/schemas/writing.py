@@ -61,6 +61,8 @@ class SubmissionSummaryOut(BaseModel):
     id: uuid.UUID
     question_id: str
     question_title: str
+    # The question's topic, so the archive can group essays as the home groups questions.
+    question_topic: str = ""
     status: SubmissionStatus
     overall: int | None
     cefr_level: str | None = None

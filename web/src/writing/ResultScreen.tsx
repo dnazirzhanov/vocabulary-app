@@ -111,7 +111,6 @@ function IeltsFeedback({ submission, ev }: { submission: Submission; ev: IeltsEv
             </li>
           ))}
         </ul>
-        {ev.summary && <p className={styles.bandSummary}>{ev.summary}</p>}
         <p className={styles.bandMeta}>
           {t.writingWords(words)}
           {submission.time_spent_seconds !== null

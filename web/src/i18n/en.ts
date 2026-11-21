@@ -739,7 +739,6 @@ export const en: Messages = {
   writingIeltsCc: 'Coherence and Cohesion',
   writingIeltsLr: 'Lexical Resource',
   writingIeltsGra: 'Grammatical Range and Accuracy',
-  writingIeltsLead: 'A 250-word essay in 40 minutes, marked on the four IELTS criteria.',
   writingIeltsTask: (a: number, b: number) =>
     `As in IELTS: at least ${a} words, about ${b} minutes. Give reasons and examples.`,
   writingShortForExam: (n: number) => `the exam asks for ${n}+ words`,
@@ -1289,7 +1288,9 @@ export const en: Messages = {
   writingChooseQuestion: 'Choose a question',
   writingLoadError: "Couldn't load. Check your connection and try again.",
   writingQuestionsCount: (n: number) => `Questions: ${n}`,
-  writingMyAnswers: 'My answers',
+  writingEssaysCount: (n: number) => `Essays: ${n}`,
+  writingAttemptsCount: (n: number) => `Attempts: ${n}`,
+  writingAttemptHistory: 'Attempt history',
   writingNotChecked: 'Not checked',
   writingArchive: 'All my essays',
   writingArchiveEmpty: 'All your essays will be here with their marks, to read again and compare.',

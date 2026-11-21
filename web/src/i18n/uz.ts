@@ -740,7 +740,6 @@ export const uz: Messages = {
   writingIeltsCc: 'Bog‘liqlik',
   writingIeltsLr: 'So‘z boyligi',
   writingIeltsGra: 'Grammatik xilma-xillik va aniqlik',
-  writingIeltsLead: '40 daqiqada 250 so‘zli insho — IELTSning to‘rt mezoni bo‘yicha baho.',
   writingIeltsTask: (a: number, b: number) =>
     `IELTSdagidek: kamida ${a} so‘z, taxminan ${b} daqiqa. Sabablar va misollar keltiring.`,
   writingShortForExam: (n: number) => `imtihonda kamida ${n} so‘z kerak`,
@@ -1277,7 +1276,9 @@ export const uz: Messages = {
   writingChooseQuestion: 'Savolni tanlang',
   writingLoadError: 'Yuklab bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.',
   writingQuestionsCount: (n: number) => `Savollar: ${n}`,
-  writingMyAnswers: 'Mening javoblarim',
+  writingEssaysCount: (n: number) => `Insholar: ${n}`,
+  writingAttemptsCount: (n: number) => `Urinishlar: ${n}`,
+  writingAttemptHistory: 'Urinishlar tarixi',
   writingNotChecked: 'Tekshirilmagan',
   writingArchive: 'Barcha insholarim',
   writingArchiveEmpty:

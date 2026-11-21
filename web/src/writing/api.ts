@@ -98,6 +98,8 @@ export interface SubmissionSummary {
   id: string;
   question_id: string;
   question_title: string;
+  /** The question's topic, for grouping the archive; empty if the question is gone. */
+  question_topic?: string;
   status: SubmissionStatus;
   overall: number | null;
   cefr_level: string | null;

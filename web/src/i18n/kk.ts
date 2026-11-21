@@ -737,7 +737,6 @@ export const kk: Messages = {
   writingIeltsCc: 'Байланыстылық',
   writingIeltsLr: 'Сөздік қор',
   writingIeltsGra: 'Грамматиканың алуан түрлілігі мен дәлдігі',
-  writingIeltsLead: '40 минутта 250 сөзден тұратын эссе — IELTS-тің төрт критерийі бойынша баға.',
   writingIeltsTask: (a: number, b: number) =>
     `IELTS-тегідей: кемінде ${a} сөз, шамамен ${b} минут. Себептер мен мысалдар келтіріңіз.`,
   writingShortForExam: (n: number) => `емтиханда ${n} сөзден кем емес керек`,
@@ -1270,7 +1269,9 @@ export const kk: Messages = {
   writingChooseQuestion: 'Сұрақты таңдаңыз',
   writingLoadError: 'Жүктеу мүмкін болмады. Байланысты тексеріп, қайта көріңіз.',
   writingQuestionsCount: (n: number) => `Сұрақтар: ${n}`,
-  writingMyAnswers: 'Менің жауаптарым',
+  writingEssaysCount: (n: number) => `Эсселер: ${n}`,
+  writingAttemptsCount: (n: number) => `Әрекеттер: ${n}`,
+  writingAttemptHistory: 'Әрекеттер тарихы',
   writingNotChecked: 'Тексерілмеген',
   writingArchive: 'Барлық эсселерім',
   writingArchiveEmpty: 'Мұнда барлық эсселеріңіз бағаларымен болады: оларды қайта оқып, салыстыруға болады.',

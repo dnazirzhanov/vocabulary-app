@@ -732,7 +732,6 @@ export const ru = {
   writingIeltsCc: 'Связность',
   writingIeltsLr: 'Словарный запас',
   writingIeltsGra: 'Грамматика: разнообразие и точность',
-  writingIeltsLead: 'Эссе на 250 слов за 40 минут — с оценкой по четырём критериям IELTS.',
   writingIeltsTask: (a: number, b: number) =>
     `Как на IELTS: не меньше ${a} слов, около ${b} минут. Приведите причины и примеры.`,
   writingShortForExam: (n: number) => `на экзамене нужно от ${n} слов`,
@@ -1295,7 +1294,9 @@ export const ru = {
   writingChooseQuestion: 'Выберите вопрос',
   writingLoadError: 'Не удалось загрузить. Проверьте соединение и попробуйте ещё раз.',
   writingQuestionsCount: (n: number) => `Вопросов: ${n}`,
-  writingMyAnswers: 'Мои ответы',
+  writingEssaysCount: (n: number) => `Эссе: ${n}`,
+  writingAttemptsCount: (n: number) => `Попыток: ${n}`,
+  writingAttemptHistory: 'История попыток',
   writingNotChecked: 'Не проверено',
   writingArchive: 'Все мои эссе',
   writingArchiveEmpty: 'Здесь будут все ваши эссе с оценками: их можно перечитать и сравнить.',
