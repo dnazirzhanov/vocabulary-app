@@ -11,7 +11,7 @@ import {
   type SubmissionSummary,
   type WritingQuestion,
 } from './api.ts';
-import { scoreLabel } from './scoreText.ts';
+import { markOf } from './scoreText.ts';
 import styles from './Writing.module.css';
 
 interface Props {
@@ -64,12 +64,12 @@ export function WritingArchive({ onBack, onOpen, onRetry }: Props) {
       {essays && essays.length > 0 && (
         <ul className={styles.list} aria-label={t.writingArchive}>
           {essays.map((item) => {
-            const marked = item.status === 'done' && item.overall;
+            const marked = markOf(item);
             return (
               <li key={item.id}>
                 <button
                   type="button"
-                  className={styles.essay}
+                  className={styles.archiveItem}
                   onClick={() => void open(item)}
                   disabled={opening === item.id}
                 >
@@ -85,9 +85,7 @@ export function WritingArchive({ onBack, onOpen, onRetry }: Props) {
                     </span>
                   )}
                   <span className={marked ? styles.essayMark : styles.essayUnmarked}>
-                    {marked
-                      ? `${scoreLabel(item.overall!)} · ${t.writingScoreOutOf(item.overall!)}`
-                      : t.writingNotChecked}
+                    {marked ?? t.writingNotChecked}
                   </span>
                 </button>
               </li>
