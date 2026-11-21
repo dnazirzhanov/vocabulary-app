@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 
+from pydantic import TypeAdapter
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,7 +14,9 @@ from app.models import User, WritingSubmission
 from app.schemas.writing import QuestionOut, SubmissionOut, SubmissionSummaryOut, SubmitIn
 from app.services.writing import evaluator
 from app.services.writing import questions as bank
-from app.services.writing.schema import Evaluation
+from app.services.writing.schema import AnyEvaluation
+
+_EVALUATION: TypeAdapter[AnyEvaluation] = TypeAdapter(AnyEvaluation)
 
 # A `pending` row older than this was abandoned (the server restarted mid-call): it may be retried.
 STALE_AFTER = timedelta(minutes=3)
@@ -38,6 +41,7 @@ def _question_out(question_id: str) -> QuestionOut | None:
         instruction=q.instruction,
         level=q.level,
         suggested_minutes=q.suggested_minutes,
+        task_type=q.task_type,
     )
 
 
@@ -50,7 +54,7 @@ def _out(row: WritingSubmission) -> SubmissionOut:
         time_spent_seconds=row.time_spent_seconds,
         status=row.status,
         failure_code=row.failure_code,
-        evaluation=Evaluation.model_validate(row.evaluation) if row.evaluation else None,
+        evaluation=_EVALUATION.validate_python(row.evaluation) if row.evaluation else None,
         created_at=row.created_at,
     )
 
@@ -95,6 +99,7 @@ def list_for_user(
             status=r.status,
             overall=(r.evaluation or {}).get("overall"),
             cefr_level=(r.evaluation or {}).get("cefr_level"),
+            band=(r.evaluation or {}).get("band"),
             word_count=len(r.answer.split()),
             excerpt=excerpt(r.answer),
             created_at=r.created_at,

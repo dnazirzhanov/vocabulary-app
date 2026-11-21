@@ -42,7 +42,8 @@ async function openQuestion(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Письмо', exact: true }).click();
   await page.getByRole('button', { name: /Everyday Life/ }).click();
-  await page.getByRole('button', { name: /Describe a typical day/ }).click();
+  // IELTS Task 2 questions since ADR 0081: the first of Everyday Life.
+  await page.getByRole('button', { name: /cooking at home/ }).click();
 }
 
 test('topics, questions, then a written answer comes back as feedback', async ({ page }) => {
@@ -216,5 +217,5 @@ test('too little to assess is said plainly, with no score', async ({ page }) => 
   await expect(page.getByRole('tab')).toHaveCount(0);
   // Leaving from the feedback: a back button, as on every other Writing screen.
   await page.getByRole('button', { name: /Назад/ }).click();
-  await expect(page.getByRole('button', { name: /Describe a typical day/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /cooking at home/ })).toBeVisible();
 });
