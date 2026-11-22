@@ -1,242 +1,300 @@
+/* The feedback on a spoken answer: the score, then five categories in one sheet, each opening to its
+   facts. Colours are the app's tokens: on white, success 5.4:1, primary-strong 5.2:1, error 6.1:1. */
 .screen {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  background: var(--color-bg);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) var(--space-7);
+  color: var(--color-text);
 }
 
 .back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
   background: none;
-  border: none;
-  font-size: 15px;
-  color: var(--color-primary);
+  color: var(--color-primary-strong);
+  font: inherit;
   cursor: pointer;
-  padding: 4px 0;
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 700;
   margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
 }
 
-.body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.questionBox {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 16px 20px;
-}
-
-.questionText {
-  font-size: 16px;
-  line-height: 1.5;
+.question {
   margin: 0;
   color: var(--color-text);
-  font-style: italic;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 
-/* Overall card */
-.overallCard {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.overallTop {
+/* The overall score: the number, and the answer's length beside it. Nothing under it. */
+.overall {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
 }
 
 .overallScore {
-  font-size: 36px;
-  font-weight: 800;
+  font-size: 2.75rem;
+  font-weight: var(--weight-display);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.duration {
-  font-size: 14px;
-  color: var(--color-text-muted);
-}
-
-.summary {
-  font-size: 15px;
-  line-height: 1.5;
-  margin: 0;
+.length {
   color: var(--color-text);
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Section */
-.sectionLabel {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
-  margin: 0 0 10px;
-}
-
-.skillsSection {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Skill list */
-.skillList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.recording {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  overflow: hidden;
+  box-shadow: var(--shadow-sheet);
 }
 
-.skillCard {
-  border-bottom: 1px solid var(--color-border);
+.good {
+  color: var(--color-success);
 }
 
-.skillCard:last-child {
-  border-bottom: none;
+.mid {
+  color: var(--color-primary-strong);
+}
+
+.low {
+  color: var(--color-error);
+}
+
+.none {
+  color: var(--color-text-muted);
+}
+
+/* The categories: one sheet, a hairline between rows. */
+.skills {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  list-style: none;
+}
+
+.skill + .skill {
+  border-top: 1px solid var(--color-border);
 }
 
 .skillRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
+  gap: var(--space-3);
   width: 100%;
-  padding: 14px 16px;
+  min-height: 56px;
+  padding: 0 var(--space-5);
+  border: 0;
   background: none;
-  border: none;
-  cursor: pointer;
+  color: var(--color-text);
+  font: inherit;
   text-align: left;
-  gap: 10px;
-}
-
-.skillRow:active {
-  background: var(--color-primary-tint);
+  cursor: pointer;
 }
 
 .skillName {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--color-text);
+  font-size: var(--text-option);
+  font-weight: var(--weight-strong);
 }
 
 .skillScore {
-  font-size: 16px;
-  font-weight: 700;
-  min-width: 44px;
-  text-align: right;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
 }
 
 .chevron {
-  color: var(--color-text-muted);
-  font-size: 11px;
-  margin-left: 2px;
-}
-
-.skillDetail {
-  padding: 0 16px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.skillExplanation {
-  font-size: 14px;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Scores */
-.scoreGood {
-  color: #2a9d2a;
-}
-.scoreMid {
-  color: #c97700;
-}
-.scoreLow {
-  color: #d33;
-}
-.scoreNull {
+  width: 1em;
   color: var(--color-text-muted);
 }
 
-/* Grammar errors */
-.grammarErrors {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.detail {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
 }
 
-.grammarError {
-  background: var(--color-stage);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.grammarOriginal {
-  font-size: 14px;
-  color: #d33;
-  font-style: italic;
-}
-
-.grammarCorrected {
-  font-size: 14px;
-  color: #2a9d2a;
-  font-weight: 500;
-}
-
-.grammarExplanation {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Transcript */
-.section {
-  display: flex;
-  flex-direction: column;
-}
-
-.transcript {
-  font-size: 15px;
-  line-height: 1.65;
+.note,
+.text {
   margin: 0;
   color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 14px 16px;
+  line-height: 1.55;
+}
+
+.subhead {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-display);
+}
+
+/* Facts: a label and its number on one line each. */
+.facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fact dt {
+  color: var(--color-text);
+}
+
+.fact dd {
+  margin: 0;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The answer as spoken: pauses and «эм» where they happened. */
+.transcript {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 2;
+}
+
+.pause,
+.pauseInside,
+.filler {
+  display: inline-block;
+  margin: 0 0.3em 0 0;
+  padding: 0 0.4em;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Between ideas: natural, so quiet. */
+.pause {
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text);
+}
+
+/* Inside a phrase, and «эм»: the ones to work on. */
+.pauseInside,
+.filler {
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+/* Word levels: one bar, a key under it. */
+.levelBar {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--color-track);
+}
+
+.levelBar > span {
+  flex: var(--share) 0 0;
+}
+
+.levelKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: 0;
+  font-size: var(--text-meta);
+  list-style: none;
+}
+
+.levelKey li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.levelKey i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.bandA1A2 {
+  background: var(--color-option-edge);
+}
+
+.bandB1 {
+  background: var(--color-heat-2);
+}
+
+.bandB2 {
+  background: var(--color-heat-3);
+}
+
+.bandC1 {
+  background: var(--color-heat-4);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fixLine {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.fixLine del {
+  margin-right: 0.3em;
+  color: var(--color-error);
+}
+
+.fixLine ins {
+  color: var(--color-success);
+  font-weight: var(--weight-display);
+  text-decoration: none;
+}
+
+.why {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
 }

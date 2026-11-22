@@ -111,6 +111,82 @@
   font-size: var(--text-meta);
 }
 
+/* The archive: each essay is a row that shows enough of it to recognise it. (Not `.essay`: that
+   is the answer's text on the feedback page, and the two must never share rules.) */
+.archiveItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.archiveItem:hover {
+  background: var(--color-primary-tint);
+}
+
+.archiveItem:disabled {
+  cursor: progress;
+}
+
+.essayMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.essayTitle {
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+}
+
+.essayExcerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.essayMark,
+.essayUnmarked {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.essayMark {
+  color: var(--color-primary-strong);
+}
+
+.essayUnmarked {
+  color: var(--color-text-muted);
+}
+
+/* The one way from the home into the essays already written. */
+.archiveLink {
+  justify-self: start;
+  margin-top: var(--space-2);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.archiveLink:hover {
+  text-decoration: underline;
+}
+
 .sectionTitle {
   margin: var(--space-5) 0 var(--space-2);
   font-size: 1.125rem;
@@ -686,4 +762,333 @@
   .fixItem {
     transition: none;
   }
+}
+
+/* --- IELTS Task 2 (ADR 0081/0082) ------------------------------------------------------- */
+
+/* Home: what this is, the learner's record, then topics as a grid. */
+.homeHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.02em;
+}
+
+.record {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: 28rem;
+  margin: var(--space-2) 0 0;
+}
+
+.record div {
+  display: grid;
+  align-content: space-between;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.record dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.record dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.topicGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .topicGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.topicCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 5.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topicCard:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.topicName {
+  font-weight: var(--weight-strong);
+  line-height: 1.3;
+}
+
+.topicMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* An archive topic: its essay count, and the best band in it. */
+.topicFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* A long old-style mark («Достаточный · 3 из 5») wraps inside a narrow card instead of spilling. */
+.topicFoot .bandTag {
+  min-width: 0;
+  white-space: normal;
+}
+
+/* A mark in a row: «IELTS 6.5». */
+.bandTag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Questions: the task type above the question; the shared instruction is said once on top. */
+.questionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.questionCard:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.questionTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.questionTop:empty {
+  display: none;
+}
+
+.typeChip {
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* Writing: toward 250 words, a guide and never a limit. */
+.wordGoal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wordBar {
+  position: relative;
+  width: 5rem;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.wordBar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.wordBar span[data-reached] {
+  background: var(--color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordBar span {
+    transition: none;
+  }
+}
+
+/* Feedback: the band first, the four criteria as chips that open their tab. */
+.bandHero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.bandMain {
+  display: grid;
+  justify-items: center;
+}
+
+.bandCaption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.bandValue {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: 3.25rem;
+  font-weight: var(--weight-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bandChips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bandChip {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bandChip span {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.bandChip strong {
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bandChip[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.bandMeta {
+  grid-column: 1 / -1;
+  margin: 0;
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+@media (max-width: 560px) {
+  .bandHero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .bandMain {
+    justify-items: start;
+  }
+
+  .bandCaption {
+    text-align: left;
+  }
+}
+
+/* A criterion's tab: its band, why, and the one step to the next band. */
+.criterionHead {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.criterionBand {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.criterionBand strong {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nextBand {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-success);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--color-success-tint);
+  line-height: var(--leading-body);
+}
+
+.nextBand span {
+  font-weight: var(--weight-strong);
+}
+
+.criterionName {
+  margin: 0;
+  font-weight: var(--weight-display);
 }

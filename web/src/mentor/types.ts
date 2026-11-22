@@ -52,7 +52,10 @@ export interface MentorInput {
 export type PlanItem =
   | { kind: 'vocab'; deckId: string; title: string; count: number; minutes: number }
   | { kind: 'spelling'; deckId: string; title: string; count: number; minutes: number }
-  | { kind: 'reading'; articleId: string; title: string; level: Level; minutes: number };
+  | { kind: 'reading'; articleId: string; title: string; level: Level; minutes: number }
+  // The coach's week (ADR 0071) is behind on these: one essay, or one spoken answer.
+  | { kind: 'writing'; title: string; minutes: number }
+  | { kind: 'speaking'; title: string; minutes: number };
 
 /** Which canned tip is chosen; first match wins in `pickTip`. */
 export type TipId =
