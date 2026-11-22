@@ -14,7 +14,7 @@ from app.core.errors import ApiError
 from app.services.generation import DEEPSEEK_URL
 from app.services.writing import prompt
 from app.services.writing.questions import WritingQuestion
-from app.services.writing.schema import Evaluation, ModelEvaluation, clean
+from app.services.writing.schema import IeltsEvaluation, IeltsModelEvaluation, clean_ielts
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +65,22 @@ def _ask(system: str, user: str, settings: Settings) -> str:
 
 def evaluate(
     question: WritingQuestion, answer: str, feedback_language: str, settings: Settings
-) -> Evaluation:
+) -> IeltsEvaluation:
     system = prompt.system_prompt(feedback_language)
     user = prompt.user_message(question.title, question.instruction, answer)
+    evaluation = _evaluate_once(system, user, answer, settings)
+    words = prompt.word_count(answer)
+    if words >= prompt.ALWAYS_ASSESS_WORDS and evaluation.band is None:
+        # A long enough answer is always marked: ask once more, saying why.
+        reminder = prompt.REMINDER.format(words=words)
+        evaluation = _evaluate_once(system, f"{user}\n\n{reminder}", answer, settings)
+        if evaluation.band is None:
+            logger.warning("writing evaluation refused a long answer twice")
+            raise ApiError(502, "writing_bad_output", "The feedback could not be read")
+    return evaluation
+
+
+def _evaluate_once(system: str, user: str, answer: str, settings: Settings) -> IeltsEvaluation:
     # JSON mode can now and then answer with nothing (DeepSeek's docs): one more try.
     content = ""
     for _ in range(2):
@@ -75,7 +88,7 @@ def evaluate(
         if content.strip():
             break
     try:
-        return clean(ModelEvaluation.model_validate_json(content), answer)
+        return clean_ielts(IeltsModelEvaluation.model_validate_json(content), answer)
     except (ValidationError, ValueError) as error:
         # Never log the learner's text or the model's reply, only that the shape was wrong.
         logger.warning(

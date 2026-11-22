@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../lib/apiError.ts';
 import { t } from '../i18n/index.ts';
-import { submitAnswer, type Submission, type WritingQuestion } from './api.ts';
-import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from './stopwatch.ts';
+import { IELTS_WORDS, submitAnswer, type Submission, type WritingQuestion } from './api.ts';
+import { taskTypeLabel } from './scoreText.ts';
+import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from '../lib/stopwatch.ts';
 import styles from './Writing.module.css';
 
 interface Props {
@@ -102,34 +103,57 @@ export function WriteScreen({ question, initialText, onBack, onDone }: Props) {
       <button type="button" className={styles.back} onClick={onBack} disabled={busy}>
         ‹ {t.back}
       </button>
+      {question.task_type && <p className={styles.typeChip}>{taskTypeLabel(question.task_type)}</p>}
       <h1 className={styles.question}>{question.title}</h1>
-      <p className={styles.instruction}>{question.instruction}</p>
+      <p className={styles.instruction}>
+        {question.task_type ? t.writingIeltsTask(IELTS_WORDS, question.suggested_minutes ?? 40) : question.instruction}
+      </p>
 
       <label htmlFor="writing-answer" className={styles.visuallyHidden}>
         {t.writingYourAnswer}
       </label>
-      <textarea
-        id="writing-answer"
-        className={styles.textarea}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={t.writingPlaceholder}
-        readOnly={busy}
-        spellCheck
-        autoCapitalize="sentences"
-        lang="en"
-      />
-
-      <div className={styles.bar}>
-        <span className={styles.words}>{t.writingWords(wordCount(text))}</span>
-        <button type="button" className={styles.timer} onClick={toggleTimer} disabled={busy}>
-          {running ? t.writingTimerStop : watch.used ? t.writingTimerResume : t.writingTimerStart}
-          {watch.used && (
-            <span className={styles.time} aria-live="off">
-              {clock(elapsed(watch, now))}
+      {/* One writing surface: the count and the timer live in its footer, so they cannot collide with it. */}
+      <div className={styles.paper}>
+        <textarea
+          id="writing-answer"
+          className={styles.textarea}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t.writingPlaceholder}
+          readOnly={busy}
+          spellCheck
+          autoCapitalize="sentences"
+          lang="en"
+        />
+        <div className={styles.paperFoot} data-testid="writing-footer">
+          {question.task_type ? (
+            // Toward the exam's 250 words: a guide, never a limit (ADR 0081).
+            <span className={styles.wordGoal}>
+              <span className={styles.wordBar} aria-hidden="true">
+                <span
+                  style={{ width: `${Math.min(100, (wordCount(text) / IELTS_WORDS) * 100)}%` }}
+                  data-reached={wordCount(text) >= IELTS_WORDS || undefined}
+                />
+              </span>
+              <span className={styles.words}>{t.writingWordsOfGoal(wordCount(text), IELTS_WORDS)}</span>
             </span>
+          ) : (
+            <span className={styles.words}>{t.writingWords(wordCount(text))}</span>
           )}
-        </button>
+          <button
+            type="button"
+            className={running ? `${styles.timer} ${styles.timerOn}` : styles.timer}
+            onClick={toggleTimer}
+            disabled={busy}
+          >
+            {running ? t.writingTimerStop : watch.used ? t.writingTimerResume : t.writingTimerStart}
+            {watch.used && (
+              <span className={styles.time} aria-live="off">
+                {clock(elapsed(watch, now))}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (

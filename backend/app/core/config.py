@@ -53,6 +53,47 @@ class Settings(BaseSettings):
     content_editors: str = ""
     # Sign-ins (auth subjects or bare UIDs, comma-separated) who see Reading Mode (an experiment).
     reading_testers: str = ""
+    # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
+    mentor_testers: str = ""
+    # Sign-ins (same format) who see the Writing tab; empty: nobody.
+    writing_testers: str = ""
+    # Mentor chat messages per user per day: each costs a model call.
+    mentor_chats_per_day: int = 20
+    # Set to true in e2e tests (via MENTOR_CHAT_DEMO=true) to force demo replies without a key.
+    mentor_chat_demo: bool = False
+    # Milliseconds between words when streaming a demo reply; set to 0 in tests for instant output.
+    mentor_demo_stream_delay_ms: int = 50
+    # Sampling temperature for the mentor LLM (0–2); lower = more deterministic.
+    mentor_temperature: float = 0.7
+    # Hard token ceiling per mentor reply; keeps costs predictable.
+    mentor_max_tokens: int = 512
+    # Sign-ins (same format) who see the Speaking tab: pronunciation + assessment, pre-rollout.
+    speaking_testers: str = ""
+    # Speaking sessions per learner per day (Chunk 2: upload-only; limit guards storage cost).
+    speaking_sessions_per_day: int = 10
+    # Max audio bytes per recording accepted by the upload endpoint; 10 MB covers ~2 min opus.
+    speaking_max_audio_bytes: int = 10 * 1024 * 1024
+    # Audio storage: 'filesystem' (dev/tests, writes to speaking_audio_dir) or 'supabase'.
+    speaking_storage_mode: Literal["filesystem", "supabase"] = "filesystem"
+    # Where FileSystemStorage writes; absolute or relative to the backend's working directory.
+    speaking_audio_dir: str = "./.speaking-audio"
+    # Supabase project base URL (e.g. https://<project>.supabase.co); used by SupabaseStorage.
+    supabase_url: str | None = None
+    # Supabase private bucket for speaking audio. Must exist before the feature can upload.
+    speaking_audio_bucket: str = "speaking-audio"
+    # OpenAI API key for Whisper transcription (Chunk 3+). Separate from deepseek_api_key.
+    openai_api_key: str | None = None
+    # Azure AI Speech key for Pronunciation Assessment (Chunk 4+). EU endpoint only.
+    azure_speech_key: str | None = None
+    # Azure region for pronunciation assessment. Must be an EU region (GDPR requirement).
+    azure_speech_region: str = "westeurope"
+    # New words and examples one learner may have spoken per day (each one a paid call, ADR 0070).
+    pronunciations_per_day: int = 500
+    # Identifier for the speaking worker instance; used in claimed_by for observability.
+    speaking_worker_id: str = "default"
+    # LanguageTool REST API base URL (Chunk 5). Optional — grammar_score stays null if unset.
+    # Point to a self-hosted instance (e.g. http://languagetool:8010) in production.
+    language_tool_url: str | None = None
 
     # Writing: AI evaluations per learner per day (each one is a paid model call).
     writing_submissions_per_day: int = 30

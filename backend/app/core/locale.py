@@ -29,6 +29,13 @@ class Texts:
     report_title: str
     not_yet_title: str
     still_time: str
+    # After a missed promised day (ADR 0074): never miss twice, five minutes count.
+    never_twice: str
+    mentor_demo_reply: str
+    # Mentor system prompt helpers: streak text and anonymous learner name.
+    mentor_streak_none: str
+    mentor_streak_weeks: Callable[[int], str]
+    mentor_learner_name: str
 
 
 def _russian_words(n: int) -> str:
@@ -72,6 +79,14 @@ TEXTS: dict[str, Texts] = {
         report_title="Отчёт группы",
         not_yet_title="Сегодня ещё не занимались",
         still_time="Ещё есть время сдержать обещание.",
+        never_twice="Вчера не получилось — сегодня важно. Даже 5 минут считаются.",
+        mentor_demo_reply=(
+            "Отлично, что ты здесь! "
+            "Загляни в «Сегодня» — там твои карточки для повторения ждут тебя."
+        ),
+        mentor_streak_none="нет",
+        mentor_streak_weeks=lambda n: f"{n} нед.",
+        mentor_learner_name="учащийся",
     ),
     "en": Texts(
         words=lambda n: f"{n} {'word' if n == 1 else 'words'}",
@@ -92,6 +107,11 @@ TEXTS: dict[str, Texts] = {
         report_title="Group report",
         not_yet_title="You haven't studied today",
         still_time="There's still time to keep your promise.",
+        never_twice="Yesterday didn't work out, so today matters. Even 5 minutes count.",
+        mentor_demo_reply="Great to see you! Head to Today — your review cards are waiting.",
+        mentor_streak_none="none yet",
+        mentor_streak_weeks=lambda n: f"{n} week(s)",
+        mentor_learner_name="learner",
     ),
     "uz": Texts(
         words=lambda n: f"{n} ta so‘z",
@@ -110,8 +130,15 @@ TEXTS: dict[str, Texts] = {
         deadline_title="Muddat bugun",
         words_title="Dars uchun so‘zlar",
         report_title="Guruh hisoboti",
-        not_yet_title="Bugun hali shug‘ullanmadingiz",
+        not_yet_title="Bugun hali shug’ullanmadingiz",
         still_time="Va’dada turishga hali vaqt bor.",
+        never_twice="Kecha bo‘lmadi — bugun muhim. Hatto 5 daqiqa ham hisoblanadi.",
+        mentor_demo_reply=(
+            "Yaxshi kelding! Bugun bo’limiga o’ting — takrorlash kartochkalaring kutmoqda."
+        ),
+        mentor_streak_none="yo’q",
+        mentor_streak_weeks=lambda n: f"{n} hafta",
+        mentor_learner_name="o’quvchi",
     ),
     "kk": Texts(
         words=lambda n: f"{n} сөз",
@@ -132,6 +159,11 @@ TEXTS: dict[str, Texts] = {
         report_title="Топ есебі",
         not_yet_title="Бүгін әлі оқымадыңыз",
         still_time="Уәдеңізде тұруға әлі уақыт бар.",
+        never_twice="Кеше болмады — бүгін маңызды. 5 минут та есептеледі.",
+        mentor_demo_reply=("Бүгін бетіне өт — қайталауға арналған карточкаларың күтіп тұр."),
+        mentor_streak_none="жоқ",
+        mentor_streak_weeks=lambda n: f"{n} апта",
+        mentor_learner_name="оқушы",
     ),
     "ky": Texts(
         words=lambda n: f"{n} сөз",
@@ -152,6 +184,11 @@ TEXTS: dict[str, Texts] = {
         report_title="Топтун отчету",
         not_yet_title="Бүгүн али окуй элексиз",
         still_time="Убадаңызды аткарууга дагы убакыт бар.",
+        never_twice="Кечээ болгон жок — бүгүн маанилүү. 5 мүнөт да эсептелет.",
+        mentor_demo_reply=("Бүгүн бетине өт — кайталоо карточкаларың күтүп жатат."),
+        mentor_streak_none="жок",
+        mentor_streak_weeks=lambda n: f"{n} апта",
+        mentor_learner_name="окуучу",
     ),
     "tg": Texts(
         words=lambda n: f"{n} калима",
@@ -172,6 +209,11 @@ TEXTS: dict[str, Texts] = {
         report_title="Ҳисоботи гурӯҳ",
         not_yet_title="Имрӯз ҳанӯз машғул нашудед",
         still_time="Барои вафо ба ваъда ҳанӯз вақт ҳаст.",
+        never_twice="Дирӯз нашуд — имрӯз муҳим аст. Ҳатто 5 дақиқа ҳам ҳисоб мешавад.",
+        mentor_demo_reply=("Ба Имрӯз равед — корточкаҳои такрори шумо мунтазиранд."),
+        mentor_streak_none="нест",
+        mentor_streak_weeks=lambda n: f"{n} ҳафта",
+        mentor_learner_name="хонанда",
     ),
 }
 

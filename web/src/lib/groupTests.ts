@@ -12,7 +12,16 @@ export function clockText(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-export const scoreText = (score: Pick<TestScore, 'correct' | 'total'>): string => t.of(score.correct, score.total);
+/**
+ * The share right, in whole percent, rounded down: 39 of 49 is 79.6 %, shown as 79 %, so a score
+ * short of an 80 % pass mark never reads «80 %».
+ */
+export const percentOf = (correct: number, total: number): number =>
+  total > 0 ? Math.floor((correct * 100) / total) : 0;
+
+/** «5 из 30 · 16%»: the count, and what it means against a pass mark given in percent. */
+export const scoreText = (score: Pick<TestScore, 'correct' | 'total'>): string =>
+  `${t.of(score.correct, score.total)} · ${percentOf(score.correct, score.total)}%`;
 
 export const verdictText = (passed: boolean): string => (passed ? t.passed : t.notPassed);
 

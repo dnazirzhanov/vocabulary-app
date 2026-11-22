@@ -1,11 +1,12 @@
-import { isApp } from './platform.ts';
+import { apiBase, isApp } from './platform.ts';
 import { glossarySlug } from './tokens.ts';
 
 /**
- * Pronunciation (ADR 0013). Words, examples and glossary forms play recorded files generated with
- * a neural voice (content/tools/make_audio.py), so every learner hears the same clear voice. If a
- * file is missing (the learner's own cards), the browser's own English voice is used, or in the
- * Android app the phone's.
+ * Pronunciation (ADR 0013, 0070). Words, examples and glossary forms play recorded files generated
+ * with the app's neural voice (content/tools/make_audio.py), so every learner hears the same clear
+ * voice. A word or example with no file (a teacher's or learner's own card) is spoken by the same
+ * voice on the server, once, and kept: the whole class hears the same thing. Only offline, or if
+ * that fails, does the browser's own English voice speak, or in the Android app the phone's.
  */
 export type AudioKind = 'words' | 'examples' | 'glossary';
 
@@ -66,13 +67,68 @@ function speakFallback(text: string, rate: number) {
   speechSynthesis.speak(utterance);
 }
 
-/** Plays `key`'s recording; `text` is spoken by the browser if there is no file. */
+// Static files known to be missing, so the next tap goes straight to the server's voice.
+const missing = new Set<string>();
+// The server's recordings fetched this visit, by kind and text: an object URL, or null if it failed.
+const voiced = new Map<string, Promise<string | null>>();
+
+/** The server's recording of a card's word or example (signed in), as a playable URL. */
+function serverVoice(kind: 'word' | 'example', text: string): Promise<string | null> {
+  const id = `${kind}|${text}`;
+  let found = voiced.get(id);
+  if (!found) {
+    found = (async () => {
+      try {
+        // Loaded when first needed: sign-in reads the build's settings, which plain unit tests lack.
+        const { accessToken } = await import('./auth.ts');
+        const token = await accessToken();
+        const query = new URLSearchParams({ kind, text });
+        const response = await fetch(`${apiBase}/pronunciation?${query}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) return null;
+        return URL.createObjectURL(await response.blob());
+      } catch {
+        return null; // offline
+      }
+    })();
+    voiced.set(id, found);
+    // A failure is forgotten, so a later tap (back online) tries again.
+    void found.then((url) => url === null && voiced.delete(id));
+  }
+  return found;
+}
+
+/** Plays the server's recording; false if there is none to play. */
+async function playFromServer(kind: AudioKind, text: string, rate: number): Promise<boolean> {
+  if (kind === 'glossary' || !text.trim()) return false;
+  const url = await serverVoice(kind === 'words' ? 'word' : 'example', text);
+  if (!url) return false;
+  const audio = player(url);
+  playing?.pause();
+  playing = audio;
+  audio.currentTime = 0;
+  audio.playbackRate = rate;
+  try {
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Plays `key`'s recording; without a file, the app's voice says `text` from the server, or the device does. */
 export async function playAudio(kind: AudioKind, key: string, text: string): Promise<void> {
   if (typeof Audio === 'undefined') return;
   playing?.pause();
   const audio = player(urlFor(kind, key));
   // Examples at the learner's chosen speed; single words always as recorded.
   const rate = kind === 'examples' ? exampleRate() : 1;
+  const url = urlFor(kind, key);
+  if (missing.has(url)) {
+    if (!(await playFromServer(kind, text, rate))) speakFallback(text, rate);
+    return;
+  }
   playing = audio;
   audio.currentTime = 0;
   audio.playbackRate = rate;
@@ -81,7 +137,8 @@ export async function playAudio(kind: AudioKind, key: string, text: string): Pro
   } catch (error) {
     // Autoplay before any tap is blocked by browsers: stay quiet rather than fall back.
     if (error instanceof DOMException && error.name === 'NotAllowedError') return;
-    speakFallback(text, rate);
+    missing.add(url);
+    if (!(await playFromServer(kind, text, rate))) speakFallback(text, rate);
   }
 }
 

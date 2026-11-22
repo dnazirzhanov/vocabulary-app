@@ -4,12 +4,14 @@ import {
   backspace,
   differences,
   pick,
+  picksOf,
   removeAt,
   saveHeard,
   savePicks,
   savedHeard,
   slotWords,
   savedPicks,
+  letterOfKey,
   tileForKey,
   withSeparators,
 } from '../lib/spelling.ts';
@@ -17,7 +19,7 @@ import { describeError } from '../lib/api.ts';
 import { playAudio } from '../lib/audio.ts';
 import { playCorrect } from '../lib/sounds.ts';
 import type { AttemptResult, SpellingExercise as Exercise, Hint } from '../lib/types.ts';
-import { BackspaceIcon, BulbIcon, CheckIcon, CloseIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { BackIcon, BackspaceIcon, BulbIcon, CheckIcon, CloseIcon, ForwardIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './SpellingExercise.module.css';
 import { t } from '../i18n/index.ts';
@@ -43,6 +45,10 @@ interface SpellingExerciseProps {
   onSkip?: () => void;
   /** The word as built so far, once every slot is filled, for when the time runs out. */
   onDraft?: (answer: string | null) => void;
+  /** An answer saved earlier, built on the tiles when this device has none of its own (a test). */
+  savedAnswer?: string | null;
+  /** To the previous word (a test); null shows it disabled, on the first word. */
+  onBack?: (() => void) | null;
 }
 
 /**
@@ -63,9 +69,14 @@ export function SpellingExercise({
   submitLabel,
   onSkip,
   onDraft,
+  savedAnswer,
+  onBack,
 }: SpellingExerciseProps) {
   const { pronunciation } = exercise;
-  const [picked, setPicked] = useState(() => savedPicks(storageKey));
+  const [picked, setPicked] = useState(() => {
+    const kept = savedPicks(storageKey);
+    return kept.length ? kept : picksOf(exercise.tiles, savedAnswer);
+  });
   const [heard, setHeard] = useState(() => savedHeard(storageKey));
   // After a mistake: building the word again, checked on the device against the shown word.
   const [again, setAgain] = useState(false);
@@ -140,7 +151,7 @@ export function SpellingExercise({
         setPicked(backspace);
         return;
       }
-      const tile = tileForKey(exercise.tiles, picked, event.key);
+      const tile = tileForKey(exercise.tiles, picked, letterOfKey(event.key, event.code));
       if (tile !== null) setPicked((current) => pick(current, tile, exercise.slots));
     };
     window.addEventListener('keydown', onKeyDown);
@@ -307,7 +318,29 @@ export function SpellingExercise({
       )}
 
       <div className={styles.actions}>
-        {result === null ? (
+        {result === null && onBack !== undefined ? (
+          // A test walks back and forth: «Назад» beside the main button, never in its place.
+          <div className={styles.pair}>
+            <button
+              type="button"
+              className={styles.backButton}
+              disabled={busy || onBack === null}
+              onClick={() => onBack?.()}
+            >
+              <BackIcon aria-hidden="true" />
+              {t.back}
+            </button>
+            <PrimaryButton
+              type="button"
+              className={styles.primary}
+              disabled={!full || busy}
+              aria-busy={busy}
+              onClick={check}
+            >
+              {submitLabel ?? t.next}
+            </PrimaryButton>
+          </div>
+        ) : result === null ? (
           <PrimaryButton
             type="button"
             className={styles.primary}

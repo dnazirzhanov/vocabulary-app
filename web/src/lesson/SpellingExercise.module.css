@@ -377,6 +377,51 @@
   max-width: var(--width-prompt);
 }
 
+/* «Назад» and the main button on one line, the main one taking the room. */
+.pair {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: var(--width-prompt);
+}
+
+.pair .primary {
+  flex: 1;
+  min-width: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.backButton:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+}
+
+.backButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.backButton svg {
+  width: 18px;
+  height: 18px;
+}
+
 .showWord {
   min-height: 44px;
   padding: 0 var(--space-3);

@@ -344,3 +344,12 @@ def library_titles() -> dict[str, str]:
         f"library:{article.id}": article.title
         for article in (_parse(path) for path in sorted(reading_dir().glob("[!_]*.yaml")))
     }
+
+
+@cache
+def library_titles_with_level() -> dict[str, tuple[str, str]]:
+    """Each library article's (title, level) by its ref (`library:<id>`)."""
+    return {
+        f"library:{article.id}": (article.title, article.level)
+        for article in (_parse(path) for path in sorted(reading_dir().glob("[!_]*.yaml")))
+    }

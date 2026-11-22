@@ -42,7 +42,19 @@ export default defineConfig({
       command: 'uv run uvicorn app.main:app --port 8000',
       cwd: '../backend',
       // Reading Mode is for testers (READING_TESTERS); the reading tests sign in as these.
-      env: { ...process.env, READING_TESTERS: 'e2e-reader-*' } as Record<string, string>,
+      // The Mentor tab is likewise gated (MENTOR_TESTERS) so narrow-phone layouts stay sized for
+      // the default three tabs.
+      env: {
+        ...process.env,
+        READING_TESTERS: 'e2e-reader-*',
+        MENTOR_TESTERS: 'e2e-mentor-*',
+        // Speaking (and its Shadowing) is gated too; e2e/shadowing.spec.ts signs in as these.
+        SPEAKING_TESTERS: 'e2e-speaking-*',
+        // Writing is gated too (WRITING_TESTERS); e2e/writing.spec.ts signs in as these.
+        WRITING_TESTERS: 'e2e-writing-*',
+        // Force demo replies in mentor chat so e2e tests are deterministic and cost-free.
+        MENTOR_CHAT_DEMO: 'true',
+      } as Record<string, string>,
       url: 'http://localhost:8000/api/health/ready',
       reuseExistingServer: !ci,
     },

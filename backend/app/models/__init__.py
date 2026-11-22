@@ -23,6 +23,15 @@ from app.models.learning import (
     StudyDayTotal,
     UserWordProgress,
 )
+from app.models.mentor import (
+    LearnerFact,
+    MentorAdjustment,
+    MentorConversation,
+    MentorEvent,
+    MentorGoal,
+    MentorMessage,
+    MentorTimelineEvent,
+)
 from app.models.reading import (
     Reading,
     ReadingAnswer,
@@ -30,6 +39,16 @@ from app.models.reading import (
     ReadingCategory,
     ReadingQuestion,
 )
+from app.models.schedule import MentorDayOverride, MentorDayType, ScheduleEvent, ScheduleSkip
+from app.models.shadowing import ShadowingAttempt, ShadowingExercise
+from app.models.speaking import (
+    SpeakingAssessment,
+    SpeakingAudioAsset,
+    SpeakingFeedbackItem,
+    SpeakingJob,
+    SpeakingSession,
+)
+from app.models.speech import PronunciationAudio
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
 from app.models.user import (
     CardReport,
@@ -59,10 +78,20 @@ __all__ = [
     "GroupTest",
     "GroupTestAttempt",
     "GroupTestQuestion",
+    "LearnerFact",
     "LearningSession",
+    "MentorAdjustment",
+    "MentorConversation",
+    "MentorDayOverride",
+    "MentorDayType",
+    "MentorEvent",
+    "MentorGoal",
+    "MentorMessage",
+    "MentorTimelineEvent",
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
+    "PronunciationAudio",
     "PushSubscription",
     "Reading",
     "ReadingAnswer",
@@ -70,6 +99,15 @@ __all__ = [
     "ReadingCategory",
     "ReadingQuestion",
     "ReviewAttempt",
+    "ScheduleEvent",
+    "ScheduleSkip",
+    "ShadowingAttempt",
+    "ShadowingExercise",
+    "SpeakingAssessment",
+    "SpeakingAudioAsset",
+    "SpeakingFeedbackItem",
+    "SpeakingJob",
+    "SpeakingSession",
     "SpellingProgress",
     "StudyDayTotal",
     "SyncDevice",

@@ -42,18 +42,28 @@ if [[ "$db" == *"[YOUR-PASSWORD]"* ]]; then
 fi
 secret="$(trim "$(ask "Supabase secret key (Project Settings → API Keys → secret)")")"
 [[ "$secret" == sb_secret_* || "$secret" == eyJ* ]] || { echo "That doesn't look like a Supabase secret key." >&2; exit 1; }
-deepseek="$(trim "$(ask "DeepSeek API key, for teachers' AI drafts (Enter to skip)")")"
+deepseek="$(trim "$(ask "DeepSeek API key, for teachers' AI drafts and speaking feedback (Enter to skip)")")"
+openai="$(trim "$(ask "OpenAI API key, for Whisper transcription (Enter to skip — speaking won't grade)")")"
+azure="$(trim "$(ask "Azure Speech key, for pronunciation assessment (Enter to skip)")")"
+supabase_url="https://$(sed -n 's|.*VITE_SUPABASE_URL = "https://\([^"]*\)".*|\1|p' fly.toml)"
 token="$(openssl rand -hex 32)"
 
 {
   printf 'DATABASE_URL=%s\n' "$db"
   printf 'SUPABASE_SECRET_KEY=%s\n' "$secret"
+  printf 'SUPABASE_URL=%s\n' "$supabase_url"
   printf 'REMINDERS_TOKEN=%s\n' "$token"
   [[ -n "$deepseek" ]] && printf 'DEEPSEEK_API_KEY=%s\n' "$deepseek"
+  [[ -n "$openai" ]] && printf 'OPENAI_API_KEY=%s\n' "$openai"
+  [[ -n "$azure" ]] && printf 'AZURE_SPEECH_KEY=%s\n' "$azure"
 } | fly secrets import --app "$app" --stage
 
+set_names="DATABASE_URL, SUPABASE_SECRET_KEY, SUPABASE_URL, REMINDERS_TOKEN"
+[[ -n "$deepseek" ]] && set_names="$set_names, DEEPSEEK_API_KEY"
+[[ -n "$openai" ]] && set_names="$set_names, OPENAI_API_KEY"
+[[ -n "$azure" ]] && set_names="$set_names, AZURE_SPEECH_KEY"
 echo >&2
-echo "Set: DATABASE_URL, SUPABASE_SECRET_KEY, REMINDERS_TOKEN${deepseek:+, DEEPSEEK_API_KEY}." >&2
+echo "Set: $set_names." >&2
 echo "REMINDERS_TOKEN is needed once more, as a GitHub secret of the same name (docs/deploy.md)." >&2
 read -rp "Show REMINDERS_TOKEN now, on this screen only, to copy into GitHub? [y/N] " show </dev/tty
 [[ "$show" == [yY] ]] && echo "$token"

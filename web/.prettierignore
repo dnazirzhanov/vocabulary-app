@@ -1,5 +1,7 @@
 dist
 screenshots
+../.pytest_cache
+.pytest_cache
 package-lock.json
 dist-auth
 dist-offline

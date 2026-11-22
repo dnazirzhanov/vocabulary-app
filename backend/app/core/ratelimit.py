@@ -65,6 +65,35 @@ def limit_generations(
     )
 
 
+def limit_mentor_chats(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """Each mentor chat message costs a model call."""
+    _check(
+        "mentor_chats",
+        user.id,
+        settings.mentor_chats_per_day,
+        "Too many mentor chats today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="mentor_chat_limit",
+    )
+
+
+def limit_speaking_sessions(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """One speaking session = one upload + (later chunks) one assessment pipeline run.
+    Guards storage cost and provider cost (Chunks 3+)."""
+    _check(
+        "speaking_sessions",
+        user.id,
+        settings.speaking_sessions_per_day,
+        "Too many speaking sessions today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="speaking_session_limit",
+    )
+
+
 def limit_writing_submissions(
     user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
 ) -> None:
@@ -79,7 +108,30 @@ def limit_writing_submissions(
     )
 
 
+def mentor_chats_used(user_id: UUID) -> int:
+    """Current number of mentor chat calls within the last 24 hours."""
+    now = time.monotonic()
+    window = 24 * 60 * 60.0
+    with _lock:
+        stamps = _recent.get(("mentor_chats", user_id))
+        if not stamps:
+            return 0
+        return sum(1 for t in stamps if now - t <= window)
+
+
 def reset_limits() -> None:
     """For tests."""
     with _lock:
         _recent.clear()
+
+
+def limit_new_pronunciations(user_id: UUID, settings: Settings) -> None:
+    """Each new text is one paid call to the voice; texts already made are free and unlimited."""
+    _check(
+        "pronunciations",
+        user_id,
+        settings.pronunciations_per_day,
+        "Too many new words spoken today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="pronunciation_limit",
+    )

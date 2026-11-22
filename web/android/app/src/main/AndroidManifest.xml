@@ -40,4 +40,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Speaking feature: microphone access for in-app recording (Chunk 1). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

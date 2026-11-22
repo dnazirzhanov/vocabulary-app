@@ -1,0 +1,127 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.back {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.topicCard {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  text-align: left;
+  gap: 10px;
+  transition: background 0.15s;
+}
+
+.topicCard:hover {
+  background: var(--color-primary-tint);
+}
+
+.topicName {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.topicMeta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.arrow {
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-error);
+  padding: 16px 20px;
+  font-size: 14px;
+}
+
+.modeRow {
+  display: grid;
+  gap: var(--space-2);
+  padding: 12px 20px 0;
+}
+
+.modeBtn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: 12px;
+  padding: 16px 18px;
+  cursor: pointer;
+  text-align: left;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.modeBtn:hover {
+  opacity: 0.9;
+}
+
+/* The learner's own answers: a quieter row under the orange one. */
+.archiveBtn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sheet);
+}
+
+.modeBtnLabel {
+  flex: 1;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 20px 0;
+  margin: 0;
+}

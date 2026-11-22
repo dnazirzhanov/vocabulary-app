@@ -1,0 +1,371 @@
+/* Fills the shell's screen area (not the window), so the tab bar never covers the controls:
+   the text scrolls above, the controls stay in a bar at the bottom. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--color-text);
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5) var(--gutter) var(--space-5);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.back:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.meta {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* The text: one sheet, one sentence per line, the spoken one tinted. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.sentence {
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-option);
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--duration-state) var(--ease-out),
+    color var(--duration-state) var(--ease-out);
+}
+
+.sentence:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.sentence:disabled {
+  cursor: default;
+}
+
+/* The spoken sentence stays tinted under the pointer too (it is usually the one just tapped). */
+.sentence[aria-current='true'],
+.sentence[aria-current='true']:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+  font-weight: var(--weight-strong);
+}
+
+/* While shadowing, the rest of the text steps back so the eye stays on the spoken line. */
+.sheet[data-phase='recording'] .sentence:not([aria-current='true']) {
+  color: var(--color-text-muted);
+}
+
+.plain {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-option);
+  line-height: 1.6;
+}
+
+/* Saved attempts. */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.historyTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+}
+
+.attempts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attempt {
+  padding: var(--space-2) 0;
+}
+
+.attempt + .attempt {
+  border-top: 1px solid var(--color-border);
+}
+
+.attemptRow {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attemptPlay {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.attemptPlay svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--color-text);
+}
+
+.attemptName {
+  font-weight: var(--weight-strong);
+}
+
+.attemptMeta {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The controls bar. */
+.dock {
+  flex: none;
+  padding: var(--space-3) var(--gutter) max(var(--space-3), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.transport {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.playBig {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-text);
+  color: var(--color-surface);
+  cursor: pointer;
+}
+
+.playBig svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.playBig:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--color-track);
+}
+
+.trackFill {
+  width: var(--progress, 0%);
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 250ms linear;
+}
+
+.time {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.speed {
+  min-width: 52px;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-option-edge);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.speed:disabled {
+  opacity: 0.4;
+}
+
+/* Recording: a red dot and the time where the play button was. */
+.rec {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  color: var(--color-error);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.recDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-error);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.recTime {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.primary,
+.secondary,
+.stop {
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.secondary {
+  border: 1px solid var(--color-option-edge);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+.stop {
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.note,
+.saved {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-align: center;
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: var(--weight-strong);
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  font-size: var(--text-meta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentence,
+  .trackFill {
+    transition: none;
+  }
+
+  .recDot {
+    animation: none;
+  }
+}

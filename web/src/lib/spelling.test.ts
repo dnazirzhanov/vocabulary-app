@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { answerOf, backspace, differences, pick, removeAt, slotWords, tileForKey, withSeparators } from './spelling.ts';
+import {
+  answerOf,
+  backspace,
+  differences,
+  letterOfKey,
+  pick,
+  picksOf,
+  removeAt,
+  slotWords,
+  tileForKey,
+  withSeparators,
+} from './spelling.ts';
 
 // "apple" from a bank with two separate p tiles.
 const TILES = ['a', 'c', 'e', 'l', 'p', 'p', 'r', 't'];
@@ -54,4 +65,26 @@ test("a phrase's slots are grouped by word; hyphens stay inside a word", () => {
   ]);
   assert.deepEqual(slotWords(9, [{ after: 4, char: '-' }]), [[0, 1, 2, 3, 4, 5, 6, 7, 8]]);
   assert.deepEqual(slotWords(3, []), [[0, 1, 2]]);
+});
+
+test('a saved answer is rebuilt from the tiles, a repeated letter from its own tile', () => {
+  // «well-known»: the hyphen is built in, never a tile.
+  const tiles = ['n', 'l', 'w', 'o', 'k', 'e', 'l', 'n', 'w'];
+  const picked = picksOf(tiles, 'well-known');
+  assert.deepEqual(picked, [2, 5, 1, 6, 4, 0, 3, 8, 7]);
+  assert.equal(answerOf(tiles, picked), 'wellknown');
+  assert.deepEqual(picksOf(tiles, null), []);
+  // A letter with no tile left is passed over rather than invented.
+  assert.deepEqual(picksOf(['a', 'b'], 'abb'), [0, 1]);
+});
+
+test('a Russian layout still types English letters, by the key pressed', () => {
+  const tiles = ['c', 'a', 't'];
+  // Before: «ф» matched no tile, so the keyboard seemed dead.
+  assert.equal(tileForKey(tiles, [], 'ф'), null);
+  assert.equal(tileForKey(tiles, [], letterOfKey('ф', 'KeyA')), 1);
+  assert.equal(letterOfKey('с', 'KeyC'), 'c');
+  assert.equal(letterOfKey('T', 'KeyT'), 'T'); // Caps Lock: tileForKey lowers it
+  assert.equal(letterOfKey('Backspace', 'Backspace'), 'Backspace');
+  assert.equal(letterOfKey('1', 'Digit1'), '1');
 });

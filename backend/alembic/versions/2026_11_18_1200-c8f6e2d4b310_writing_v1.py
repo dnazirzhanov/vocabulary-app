@@ -1,7 +1,7 @@
 """writing: submissions table
 
 Revision ID: c8f6e2d4b310
-Revises: a5c9e2f7b318
+Revises: b7e5d1c3a209
 Create Date: 2026-11-18 12:00:00.000000
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "c8f6e2d4b310"
-down_revision: str | Sequence[str] | None = "a5c9e2f7b318"
+down_revision: str | Sequence[str] | None = "b7e5d1c3a209"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

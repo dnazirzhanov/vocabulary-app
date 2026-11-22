@@ -2,6 +2,7 @@ import { api } from '../lib/api.ts';
 import type { OwnReading, OwnReadings, ReadingQuestion } from '../lib/types.ts';
 import { withSnapshot } from '../local/session.ts';
 import { t } from '../i18n/index.ts';
+import { LEVELS, type Level } from './levels.ts';
 
 /**
  * Reading Mode's data (docs/product/reading-mode-architecture.md): articles are static files built
@@ -9,10 +10,8 @@ import { t } from '../i18n/index.ts';
  * (round 2), kept on this device once opened; reading progress stays on this device.
  */
 
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
+export { LEVELS, type Level };
 export type Topic = 'science' | 'technology' | 'nature' | 'society' | 'psychology' | 'history' | 'culture';
-
-export const LEVELS: readonly Level[] = ['A1', 'A2', 'B1', 'B2', 'C1'];
 export const TOPICS: readonly Topic[] = [
   'science',
   'nature',

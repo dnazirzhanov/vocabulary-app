@@ -1,0 +1,20 @@
+- slug: anna-hello
+  title: "Anna's First Day"
+  description: Anna arrives in Washington, D.C. and meets her neighbours and boss.
+  difficulty: beginner
+  duration_ms: 43730
+  language: en
+  speaker: Anna (VOA Learning English)
+  audio_filename: anna-hello.mp3
+  transcript: "Hello, everyone. Hi there. I'm Anna, and I live in Washington, D.C. Every day I learn more about this great city. I live with Marsha. We're roommates. I'm Jonathan. I'm in apartment B4. I am in apartment C2. Here I am at my new job. I am your boss, Caty Weaver, but please call me Caty. Thank you, Ms. Weaver. Just Caty. Sure thing, Ms. Weaver. Okay, then. Every day I do my morning show. I have to go now. Goodbye. Goodbye, Anna."
+  sentences:
+    - { start_ms: 0, end_ms: 4000, text: "Hello, everyone. Hi there." }
+    - { start_ms: 4000, end_ms: 9000, text: "I'm Anna, and I live in Washington, D.C." }
+    - { start_ms: 9000, end_ms: 14500, text: "Every day I learn more about this great city." }
+    - { start_ms: 14500, end_ms: 18000, text: "I live with Marsha. We're roommates." }
+    - { start_ms: 18000, end_ms: 24000, text: "I'm Jonathan. I'm in apartment B4. I am in apartment C2." }
+    - { start_ms: 24000, end_ms: 29500, text: "Here I am at my new job." }
+    - { start_ms: 29500, end_ms: 35000, text: "I am your boss, Caty Weaver, but please call me Caty." }
+    - { start_ms: 35000, end_ms: 39000, text: "Thank you, Ms. Weaver. Just Caty. Sure thing, Ms. Weaver." }
+    - { start_ms: 39000, end_ms: 43730, text: "Okay, then. Every day I do my morning show. I have to go now. Goodbye. Goodbye, Anna." }
+

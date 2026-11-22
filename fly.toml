@@ -1,7 +1,7 @@
-# Production on Fly.io (docs/deploy.md): the repository's Dockerfile, one machine in Stockholm, next to
-# the database (Supabase eu-north-1: a query takes ~6 ms; from Frankfurt it took ~26 ms, and a screen
-# makes up to 20). Always on (the owner's choice, ~$3 a month): asked to suspend when idle, Fly
-# stopped it instead, and a stopped machine took 6-7 s to answer the first tap.
+# Production on Fly.io (docs/deploy.md): two machines in Stockholm (arn), next to the database
+# (Supabase eu-north-1). "app": the web server, always on (~$3/mo). "worker": the speaking
+# assessment pipeline (Whisper + Azure PA + DeepSeek), always on when Speaking testers exist
+# (~$5/mo for 1 GB). Both stopped machines took 6-7 s to answer; kept on to avoid that.
 app = "slovar-kg"
 primary_region = "arn"
 
@@ -14,21 +14,27 @@ primary_region = "arn"
   VITE_SUPABASE_URL = "https://xlhiwcabkwgojbfhurmp.supabase.co"
   VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2xSwjU-AOTdCIJjY3C0yyw_McPDxa2i"
 
-# Not secret. The secrets (DATABASE_URL, SUPABASE_SECRET_KEY, REMINDERS_TOKEN, optionally
-# DEEPSEEK_API_KEY) are set with scripts/fly-secrets.sh and live only in Fly.
+# Not secret. Secrets (DATABASE_URL, SUPABASE_SECRET_KEY, REMINDERS_TOKEN, OPENAI_API_KEY,
+# AZURE_SPEECH_KEY, optionally DEEPSEEK_API_KEY and LANGUAGE_TOOL_URL) are set with
+# scripts/fly-secrets.sh and live only in Fly.
 [env]
   AUTH_ISSUER = "https://xlhiwcabkwgojbfhurmp.supabase.co/auth/v1"
   # The Android app's pages come from https://localhost inside it (ADR 0063).
   ALLOWED_ORIGINS = "https://localhost"
+  # Speaking worker: use Supabase Storage in production; the worker's machine id comes from Fly.
+  SPEAKING_STORAGE_MODE = "supabase"
+  AZURE_SPEECH_REGION = "westeurope"
 
 # Migrations and the course are brought up to date once per deployment, before the new version
 # starts, in a machine of their own. The app then only starts the web server, so waking after idle
 # takes seconds, not the ~22 s that repeating them on every start took (measured).
 [deploy]
-  release_command = "sh -c 'alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1'"
+  release_command = "sh -c 'alembic upgrade head && python -m app.cli load-content /app/content/a1-a2 /app/content/b1-b2 /app/content/c1 && python -m app.cli load-shadowing /app/content/shadowing'"
 
 [processes]
   app = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  # Speaking assessment pipeline: Whisper transcription, Azure PA, grammar, coherence, feedback.
+  worker = "python -m app.workers.speaking_worker"
 
 [http_service]
   processes = ["app"]
@@ -45,7 +51,14 @@ primary_region = "arn"
     interval = "30s"
     timeout = "10s"
 
-# One machine: rate limits and the busy guard are kept in the process (ADR 0044).
+# Web server: rate limits and the busy guard are kept in the process (ADR 0044).
 [[vm]]
+  processes = ["app"]
   size = "shared-cpu-1x"
   memory = "512mb"
+
+# Speaking worker: needs more memory for spaCy (~150 MB) + concurrent Whisper/Azure calls.
+[[vm]]
+  processes = ["worker"]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
