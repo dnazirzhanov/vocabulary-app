@@ -480,3 +480,21 @@ def test_after_a_missed_day_the_reminder_says_today_matters_most(
     assert [item["body"] for item in sent] == [
         "Вчера не получилось — сегодня важно. Даже 5 минут считаются."
     ]
+
+
+def test_a_sick_day_asks_nothing_and_isnt_a_missed_day(
+    client: TestClient, db: Session, phone: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0076: no afternoon nudge on a sick day, and the next day isn't told it missed one."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "mentor_testers", "*")
+    phone("anna", BISHKEK)
+    sick = client.put(
+        "/api/mentor/coach/day-type", json={"type": "sick"}, headers=as_("anna", utc(4, 6))
+    )
+    assert sick.status_code == 200, sick.text
+    assert due(db, utc(4, 11)) == []  # Wednesday 17:05, sick
+    assert [item["body"] for item in due(db, utc(5, 11))] != [
+        "Вчера не получилось — сегодня важно. Даже 5 минут считаются."
+    ]

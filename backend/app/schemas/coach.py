@@ -1,8 +1,8 @@
 """The mentor's coach (ADR 0071): what the app sends and gets back."""
 
 import uuid
-from datetime import date
-from typing import Annotated, Literal
+from datetime import date, datetime
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -68,11 +68,22 @@ class TodayOut(BaseModel):
     studied: bool
     promised: bool
     missed_yesterday: bool
+    day_type: Literal["study", "light", "weekend", "sick", "exam"] | None = None
+    # The learner's local date this is for, and today's own study time (ADR 0080).
+    day: date | None = None
+    study_start: int | None = None
+    study_minutes: int | None = None
 
 
 class TodayIn(_Input):
     mode: Literal["minimum", "moved", "skip"]
     start_minute: Annotated[int, Field(ge=0, le=1439)] | None = None
+
+
+class DayTypeIn(_Input):
+    """What kind of day today is (ADR 0076); null clears it."""
+
+    type: Literal["study", "light", "weekend", "sick", "exam"] | None
 
 
 class CoachOut(BaseModel):
@@ -94,7 +105,10 @@ class StudyTimeOut(BaseModel):
     weekdays: list[int]
     start_minute: int
     minutes: int
-    reasons: list[Literal["free", "habit", "preferred", "after_block"]]
+    reasons: list[Literal["free", "habit", "preferred", "after_block", "works"]]
+    # How often a study time near here was kept when promised (ADR 0076).
+    kept: int = 0
+    tried: int = 0
 
 
 class CommitmentIn(_Input):
@@ -105,3 +119,42 @@ class CommitmentIn(_Input):
 
 class DecisionIn(_Input):
     accept: bool
+
+
+# --- what the mentor knows (ADR 0075) -------------------------------------------------------
+
+FactKindIn = Literal["why", "likes", "dislikes", "constraint", "energy", "word", "other"]
+
+
+class FactIn(_Input):
+    kind: FactKindIn
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    # "chat" when it came from the mentor's «Запомнить?», "user" when written on the page.
+    source: Literal["chat", "user"] = "user"
+
+
+class FactOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    text: str
+    source: str
+    created_at: datetime
+
+
+class TimelineOut(BaseModel):
+    at: datetime
+    kind: str
+    note: dict[str, Any]
+
+
+class MemoryOut(BaseModel):
+    facts: list[FactOut]
+    timeline: list[TimelineOut]
+
+
+class EventIn(_Input):
+    """A «Начать» tapped (ADR 0078); the only event the app sends, the rest are the server's."""
+
+    name: Literal["start_tapped"]
+    kind: Literal["vocab", "spelling", "reading", "writing", "speaking"]
+    where: Literal["home", "chat", "panel"]
