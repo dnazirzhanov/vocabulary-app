@@ -14,7 +14,14 @@ from app.core.clock import Now, TimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.models import ScheduleEvent, ScheduleSkip, User
-from app.schemas.schedule import ScheduleEventIn, ScheduleEventOut, ScheduleEventsOut, SkipIn
+from app.schemas.schedule import (
+    ScheduleEventIn,
+    ScheduleEventOut,
+    ScheduleEventsOut,
+    ScheduleUndoIn,
+    SkipIn,
+)
+from app.services import schedule_edit
 from app.services.card_reports import listed
 
 router = APIRouter(tags=["schedule"])
@@ -147,4 +154,12 @@ def delete_event(event_id: uuid.UUID, user: CurrentUser, db: DbSession) -> Respo
     event = _mine(db, user, event_id)
     db.delete(event)
     db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/mentor/schedule/undo", status_code=204, dependencies=[Depends(_require_mentor)])
+def undo_change(body: ScheduleUndoIn, user: CurrentUser, db: DbSession, now: Now) -> Response:
+    """«Отменить» on a mentor card (ADR 0083): the calendar as it was before that change. Only
+    the learner's own blocks are touched; undoing twice changes nothing more."""
+    schedule_edit.undo(db, user, now, body.model_dump(mode="json"))
     return Response(status_code=204)

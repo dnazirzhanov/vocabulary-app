@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { api, type MentorCard, type MentorPlanItem } from '../../lib/api.ts';
 import type { NotificationChoice } from '../../lib/types.ts';
-import { t } from '../../i18n/index.ts';
+import { t, uiLanguage } from '../../i18n/index.ts';
 import { CheckIcon, ForwardIcon, SparkleIcon } from '../../ui/icons.tsx';
 import { isoDay } from '../../schedule/types.ts';
 import { DAY_TYPES, loadFor, type DayType } from '../dayPlan.ts';
@@ -96,6 +96,16 @@ export function DayCard({ card, plan }: { card: Card<'day'>; plan: MentorPlanIte
     <div className={styles.card}>
       <p className={styles.head}>
         {t.mentorGenDay}
+        {!isToday && (
+          <span className={styles.muted}>
+            {' · '}
+            {new Date(`${card.date}T12:00:00`).toLocaleDateString(uiLanguage, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </span>
+        )}
         {card.day_type && <span className={styles.muted}> · {dayTypeName(card.day_type)}</span>}
       </p>
       <div className={styles.strip} aria-hidden="true">

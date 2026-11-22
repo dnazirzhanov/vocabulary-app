@@ -163,7 +163,8 @@ def _limit(args: Mapping[str, Any]) -> int:
 def writing(
     db: Session, user: User, now: datetime, zone: ZoneInfo, args: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """Recent essays with their feedback: level, the five scores (1–5), summary, what to improve."""
+    """Recent essays with their feedback: an IELTS band with the four criteria (ADR 0081), or for
+    older essays the level and the five 1–5 scores, summary, what to improve."""
     rows = db.scalars(
         select(WritingSubmission)
         .where(WritingSubmission.user_id == user.id)
@@ -175,20 +176,32 @@ def writing(
         question = writing_questions.get(row.question_id)
         found = row.evaluation or {}
         criteria = found.get("criteria") or {}
-        essays.append(
-            {
-                "date": row.created_at.astimezone(zone).date().isoformat(),
-                "question": question.title if question else row.question_id,
-                "status": row.status,
-                "words": len(row.answer.split()),
+        essay: dict[str, Any] = {
+            "date": row.created_at.astimezone(zone).date().isoformat(),
+            "question": question.title if question else row.question_id,
+            "status": row.status,
+            "words": len(row.answer.split()),
+            "summary": found.get("summary"),
+            "mistakes": len(found.get("corrections") or []),
+        }
+        if found.get("rubric") == "ielts":
+            # IELTS Task 2 (ADR 0081): the overall band, each criterion's band and next step.
+            essay |= {
+                "ielts_band": found.get("band"),
+                "criteria": {
+                    k: {"band": (v or {}).get("band"), "next_band": (v or {}).get("next_band")}
+                    for k, v in criteria.items()
+                }
+                or None,
+            }
+        else:
+            essay |= {
                 "level": found.get("cefr_level"),
                 "overall": found.get("overall"),
                 "scores": {k: (v or {}).get("score") for k, v in criteria.items()} or None,
-                "summary": found.get("summary"),
                 "improve": (found.get("improvements") or [])[:3],
-                "mistakes": len(found.get("corrections") or []),
             }
-        )
+        essays.append(essay)
     return {"essays": essays, "total": _count(db, WritingSubmission, user)}
 
 

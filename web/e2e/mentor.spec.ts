@@ -47,20 +47,99 @@ test('asking what to do now shows the mentor checking, then a card that starts i
   }
 });
 
-test('a schedule told to the mentor is shown to confirm, and saved only on the tap', async ({ page }) => {
+test('a schedule told to the mentor is saved at once, and the card can undo it', async ({ page }) => {
   await openChat(page);
   const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
   await composer.fill('Вот моё расписание: учусь пн–пт 8–14');
   await composer.press('Enter');
-  const card = page.getByRole('listitem').filter({ hasText: 'Расписание — проверьте и добавьте' });
-  await expect(card.getByRole('checkbox', { name: /Школа/ })).toBeChecked();
+  const card = page.getByRole('listitem').filter({ hasText: 'Календарь обновлён' });
+  await expect(card).toContainText('Школа');
   await expect(card).toContainText('Пн, Вт, Ср, Чт, Пт · 08:00–14:00');
-  // Nothing in the calendar before the tap.
-  expect((await (await page.request.get('/api/mentor/schedule')).json()).events).toEqual([]);
-  await card.getByRole('button', { name: 'Добавить в календарь' }).click();
-  await expect(card.getByText('Добавлено в календарь')).toBeVisible();
-  const saved = (await (await page.request.get('/api/mentor/schedule')).json()).events;
+  // Saved without a tap, and today is shown with it.
+  let saved = (await (await page.request.get('/api/mentor/schedule')).json()).events;
   expect(saved.map((e: { title: string }) => e.title)).toEqual(['Школа']);
+  await expect(page.getByText('Твой день').last()).toBeVisible();
+  // «Отменить» puts the calendar back.
+  await card.getByRole('button', { name: 'Отменить' }).click();
+  await expect(card).toContainText('Отменено: календарь как был');
+  saved = (await (await page.request.get('/api/mentor/schedule')).json()).events;
+  expect(saved).toEqual([]);
+});
+
+test('sleep past midnight goes in as one night, and asking for the schedule shows the day', async ({ page }) => {
+  await page.request.post('/api/mentor/schedule', {
+    data: { title: 'Школа', kind: 'school', weekdays: 127, start_minute: 510, end_minute: 810 },
+  });
+  await openChat(page);
+  const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
+  await composer.fill('И я сплю с 23:00 до 7:00, поставь в календарь');
+  await composer.press('Enter');
+  const card = page.getByRole('listitem').filter({ hasText: 'Календарь обновлён' });
+  await expect(card).toContainText('Сон');
+  await expect(card).toContainText('Каждый день · 23:00–07:00');
+  const saved = (await (await page.request.get('/api/mentor/schedule')).json()).events;
+  expect(saved.filter((e: { title: string }) => e.title === 'Сон')).toHaveLength(2);
+  await composer.fill('Какое у меня расписание?');
+  // Sent once the first answer has finished (Send is off while it streams).
+  await expect(page.getByRole('button', { name: 'Отправить' })).toBeEnabled({ timeout: 10_000 });
+  await composer.press('Enter');
+  const day = page.getByRole('listitem').filter({ hasText: 'Твой день' }).last();
+  await expect(day).toContainText('08:30–13:30');
+  await expect(day).toContainText('Школа');
+});
+
+test('a question sent before the chat list arrives keeps its answer on screen', async ({ page }) => {
+  // The chat list answers late: the learner has already asked by then. It must not "reopen the
+  // last chat" (the one just begun) over the answer that is coming in.
+  let reopened = 0;
+  page.on('request', (r) => {
+    if (/\/api\/mentor\/conversations\/[^/]+\/messages/.test(r.url())) reopened += 1;
+  });
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(
+    (url) => url.pathname.endsWith('/api/mentor/conversations'),
+    async (route) => {
+      await held;
+      await route.fulfill({ response: await route.fetch() });
+    },
+  );
+  await openChat(page);
+  const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
+  await composer.fill('Как учить фразовые глаголы?');
+  await composer.press('Enter');
+  await expect(page.getByRole('button', { name: 'Как учить фразовые глаголы?', exact: true }).first()).toBeAttached();
+  release();
+  await expect(page.getByText('Загляни в «Сегодня»').last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('ol').getByText('Как учить фразовые глаголы?')).toBeVisible();
+  expect(reopened).toBe(0);
+});
+
+test('a question sent while the last chat is still loading is not overwritten by it', async ({ page }) => {
+  await openChat(page);
+  const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
+  await composer.fill('Как учить фразовые глаголы?');
+  await composer.press('Enter');
+  await expect(page.getByText('Загляни в «Сегодня»').last()).toBeVisible({ timeout: 10_000 });
+
+  // Coming back reopens that chat; its messages answer late, after the next question is sent.
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let asked = false;
+  await page.route(/\/api\/mentor\/conversations\/[^/]+\/messages/, async (route) => {
+    asked = true;
+    await held;
+    await route.fulfill({ response: await route.fetch() });
+  });
+  await page.goto('/');
+  await openMentorChat(page);
+  await expect.poll(() => asked).toBe(true);
+  await composer.fill('А идиомы?');
+  await composer.press('Enter');
+  await expect(page.locator('ol').getByText('А идиомы?')).toBeVisible();
+  release();
+  await expect(page.getByText('Загляни в «Сегодня»').last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('ol').getByText('А идиомы?')).toBeVisible();
 });
 
 test('each new chat is kept in the sidebar and opens with its own messages', async ({ page }) => {
@@ -144,7 +223,11 @@ test('the goal chip shows the current goal and «Изменить цель» ope
 // ADR 0071: each task gets a time from the learner's own day: from the promised study time,
 // around the schedule. A school day from 08:00 to 22:00 leaves no room until tomorrow.
 test("today's tasks get times from the promised study time and the schedule", async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-19T15:00:00'));
+  // Today at 15:00 on the device: the same calendar day as the server's (ADR 0080 ignores a
+  // «today» from another day).
+  const afternoon = new Date();
+  afternoon.setHours(15, 0, 0, 0);
+  await page.clock.setFixedTime(afternoon);
   await page.request.put('/api/mentor/coach/commitment', {
     data: { weekdays: [0, 1, 2, 3, 4, 5, 6], start_minute: 19 * 60 + 30, minutes: 20 },
   });
