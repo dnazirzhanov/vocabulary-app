@@ -47,6 +47,13 @@ class SkipIn(_Input):
     again: bool = False
 
 
+class SaveAnswerIn(_Input):
+    """A word's answer, changeable until the attempt is handed in; null leaves the word empty
+    (skipped)."""
+
+    answer: Annotated[str, StringConstraints(min_length=1, max_length=80)] | None
+
+
 class ScoreOut(BaseModel):
     correct: int
     total: int
@@ -96,6 +103,18 @@ class MyTestOut(BaseModel):
     can_start: bool
     # An unfinished practice to go back to.
     practice_attempt_id: UUID | None
+    # Every attempt I finished at this test, tests and practices, newest first.
+    history: list["AttemptSummaryOut"] = []
+
+
+class AttemptSummaryOut(BaseModel):
+    id: UUID
+    kind: AttemptKind
+    finished_at: datetime
+    correct: int
+    total: int
+    # Practice has no pass mark.
+    passed: bool | None
 
 
 class TestDetailOut(BaseModel):
@@ -158,6 +177,25 @@ class TestAttemptOut(BaseModel):
     deadline_at: datetime | None
     # The word has been skipped once and has come back.
     returning: bool
-    # Exactly one of these: the next word, or how it went.
+    # Exactly one of these: the word shown, or how it went.
     question: SpellingExercise | None
     result: AttemptResultOut | None
+    # While it runs: where the word shown stands, what was saved for it, and every word's state,
+    # so the learner can go back and forth and check before handing in.
+    position: int | None = None
+    answer: str | None = None
+    words: list["WordStateOut"] = []
+
+
+class WordStateOut(BaseModel):
+    translation: str
+    state: Literal["answered", "skipped", "empty"]
+    # The whole word's card and its saved answer, so the device moves between words at once and
+    # saves in the background. The card is the meaning and tiles only, as any question shows.
+    exercise: SpellingExercise
+    answer: str | None
+
+
+# Defined after the models that name them.
+MyTestOut.model_rebuild()
+TestAttemptOut.model_rebuild()

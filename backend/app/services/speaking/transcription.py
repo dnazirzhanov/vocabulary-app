@@ -37,6 +37,9 @@ class TranscriptionError(Exception):
         self.code = code
 
 
+FILLER_PROMPT = "Umm, let me think like, hmm... Okay, here's what I'm, like, thinking."
+
+
 def transcribe(audio_bytes: bytes, mime_type: str, api_key: str) -> TranscriptResult:
     """Submit `audio_bytes` to OpenAI Whisper and return a TranscriptResult.
 
@@ -54,6 +57,11 @@ def transcribe(audio_bytes: bytes, mime_type: str, api_key: str) -> TranscriptRe
             file=(filename, audio_bytes, mime_type),
             response_format="verbose_json",
             timestamp_granularities=["word"],
+            language="en",
+            # Whisper tends to drop hesitations ("um", "uh"), which hides exactly what fluency is
+            # about. OpenAI's speech-to-text guide lists "preserving ... filler words" as a use of
+            # the prompt; a prompt that itself contains fillers nudges the transcript to keep them.
+            prompt=FILLER_PROMPT,
         )
     except openai.AuthenticationError as exc:
         raise TranscriptionError("auth_failed", "Whisper authentication failed.") from exc

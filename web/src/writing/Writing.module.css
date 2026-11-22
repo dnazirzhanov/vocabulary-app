@@ -1,0 +1,1094 @@
+/* Calm and plain: text first, few boxes. Reads on a phone (single column, 16px+ text). */
+.screen,
+.writeScreen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-7);
+  color: var(--color-text);
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear sits in this corner */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.lead,
+.instruction {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row,
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover,
+.card:hover {
+  background: var(--color-primary-tint);
+}
+
+.card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.rowName {
+  flex: 1;
+  font-weight: var(--weight-strong);
+}
+
+.rowMeta,
+.cardText {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.cardTitle {
+  font-weight: var(--weight-strong);
+  font-size: var(--text-option);
+  line-height: var(--leading-body);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* The archive: each essay is a row that shows enough of it to recognise it. (Not `.essay`: that
+   is the answer's text on the feedback page, and the two must never share rules.) */
+.archiveItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.archiveItem:hover {
+  background: var(--color-primary-tint);
+}
+
+.archiveItem:disabled {
+  cursor: progress;
+}
+
+.essayMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.essayTitle {
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+}
+
+.essayExcerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.essayMark,
+.essayUnmarked {
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.essayMark {
+  color: var(--color-primary-strong);
+}
+
+.essayUnmarked {
+  color: var(--color-text-muted);
+}
+
+/* The one way from the home into the essays already written. */
+.archiveLink {
+  justify-self: start;
+  margin-top: var(--space-2);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.archiveLink:hover {
+  text-decoration: underline;
+}
+
+.sectionTitle {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 1.125rem;
+  font-weight: var(--weight-display);
+}
+
+/* The writing screen: one raised sheet of paper takes the room; Send sits under it. */
+.question {
+  margin: 0;
+  padding-right: 56px; /* the settings gear sits in this corner */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-body);
+}
+
+.paper {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+  transition: box-shadow var(--duration-state) var(--ease-out);
+}
+
+/* The sheet shows focus the way every text field does (global.css: an orange edge and a soft halo). */
+.paper:focus-within {
+  box-shadow:
+    var(--shadow-sheet),
+    0 0 0 1px var(--color-primary-strong),
+    0 0 0 4px rgb(250 93 25 / 0.22);
+}
+
+.textarea {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: max(42dvh, 14rem);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.125rem; /* 18px: no zoom-on-focus on phones, easy on the eyes */
+  line-height: 1.7;
+  resize: none;
+}
+
+.textarea:focus,
+.textarea:focus-visible {
+  outline: none; /* .paper draws the ring around the whole sheet */
+  box-shadow: none;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.paperFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: 0 var(--space-3) 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.words {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A quiet text button: the timer is optional, so it never competes with Send. */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.timer:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.timerOn {
+  color: var(--color-primary-strong);
+}
+
+.time {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-strong);
+}
+
+.submit {
+  min-height: 52px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: var(--weight-display);
+  cursor: pointer;
+}
+
+.secondary {
+  min-height: 52px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.submit:disabled,
+.timer:disabled,
+.back:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The feedback: a score line, then the answer with its fixes marked beside the categories as tabs. */
+.resultWide {
+  max-width: 72rem;
+}
+
+.context {
+  margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-body);
+}
+
+.scoreLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.scoreLine strong {
+  color: var(--color-text);
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.verdictHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* No score: the heading itself is the verdict. */
+.verdictHeading {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.verdictSummary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+/* The answer on a sheet of its own, as in the full feedback. */
+.verdictAnswer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.6;
+}
+
+.essay {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Phone: two sheets, one under the other. Wide: one sheet split by a hairline, as a paper with notes. */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.answerPane,
+.fixesPane {
+  min-width: 0;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+@media (min-width: 960px) {
+  .review {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sheet);
+  }
+
+  .answerPane,
+  .fixesPane {
+    padding: var(--space-6);
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .fixesPane {
+    border-left: 1px solid var(--color-border);
+  }
+}
+
+.paneHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.paneTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--weight-display);
+}
+
+/* Original | With fixes. */
+.toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.toggle button {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  transition:
+    background var(--duration-state) var(--ease-out),
+    color var(--duration-state) var(--ease-out);
+}
+
+.toggle button[aria-pressed='true'] {
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+/* A marked fix inside the answer: tinted and numbered; it breaks across lines like the text around it. */
+.mark,
+.markTip {
+  padding: 1px 2px;
+  border-radius: 4px;
+  background: var(--color-error-tint);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: pointer;
+}
+
+.markTip {
+  background: var(--color-primary-tint);
+}
+
+.mark:hover {
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-surface));
+}
+
+.markTip:hover {
+  background: var(--color-highlight);
+}
+
+.mark sup,
+.markTip sup {
+  margin-left: 2px;
+  color: var(--color-error);
+  font-size: 0.7em;
+  font-weight: var(--weight-display);
+  line-height: 0;
+}
+
+.markTip sup {
+  color: var(--color-primary-strong);
+}
+
+/* The categories: tabs that scroll sideways on a phone and wrap when there is room. */
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-5)) var(--space-4);
+  padding: 2px var(--space-5);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .tabs {
+    flex-wrap: wrap;
+    margin: 0 0 var(--space-4);
+    padding: 2px 0;
+    overflow: visible;
+  }
+}
+
+.tab {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  border-color: var(--color-option-edge-hover);
+}
+
+.tab[aria-selected='true'] {
+  border-color: var(--color-primary-strong);
+  box-shadow: inset 0 0 0 1px var(--color-primary-strong);
+  color: var(--color-primary-strong);
+  font-weight: var(--weight-display);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.panelScore {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.pips {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+
+.pip,
+.pipOn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-track);
+}
+
+.pipOn {
+  background: var(--color-primary);
+}
+
+.comment {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.6;
+}
+
+/* One numbered fix: its sentence with the change made in place, then why. */
+.fixList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fixItem {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-3));
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-progress) var(--ease-out);
+}
+
+.fixItem + .fixItem {
+  border-top: 1px solid var(--color-border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.fixFocus {
+  background: var(--color-primary-tint);
+}
+
+.num,
+.numTip {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-display);
+}
+
+.numTip {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.fixBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 3px;
+}
+
+.fixLine {
+  margin: 0;
+  font-size: var(--text-option);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.fixLine del {
+  margin-right: 0.3em;
+  color: var(--color-error);
+  text-decoration-thickness: 1.5px;
+}
+
+.fixLine ins {
+  color: var(--color-success);
+  font-weight: var(--weight-display);
+  text-decoration: none;
+}
+
+.fixWhy {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: var(--leading-body);
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.nextTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--weight-display);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+
+.steps li + li {
+  margin-top: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.actions > button {
+  flex: 1 1 12rem;
+  margin-top: 0;
+}
+
+@media (min-width: 960px) {
+  .actions {
+    justify-content: flex-end;
+  }
+
+  .actions > button {
+    flex: 0 0 auto;
+    min-width: 14rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle button,
+  .fixItem {
+    transition: none;
+  }
+}
+
+/* --- IELTS Task 2 (ADR 0081/0082) ------------------------------------------------------- */
+
+/* Home: what this is, the learner's record, then topics as a grid. */
+.homeHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.02em;
+}
+
+.record {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: 28rem;
+  margin: var(--space-2) 0 0;
+}
+
+.record div {
+  display: grid;
+  align-content: space-between;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.record dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.record dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.topicGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .topicGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.topicCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 5.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topicCard:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.topicName {
+  font-weight: var(--weight-strong);
+  line-height: 1.3;
+}
+
+.topicMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* An archive topic: its essay count, and the best band in it. */
+.topicFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* A long old-style mark («Достаточный · 3 из 5») wraps inside a narrow card instead of spilling. */
+.topicFoot .bandTag {
+  min-width: 0;
+  white-space: normal;
+}
+
+/* A mark in a row: «IELTS 6.5». */
+.bandTag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Questions: the task type above the question; the shared instruction is said once on top. */
+.questionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.questionCard:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.questionTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.questionTop:empty {
+  display: none;
+}
+
+.typeChip {
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* Writing: toward 250 words, a guide and never a limit. */
+.wordGoal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wordBar {
+  position: relative;
+  width: 5rem;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.wordBar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.wordBar span[data-reached] {
+  background: var(--color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordBar span {
+    transition: none;
+  }
+}
+
+/* Feedback: the band first, the four criteria as chips that open their tab. */
+.bandHero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.bandMain {
+  display: grid;
+  justify-items: center;
+}
+
+.bandCaption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.bandValue {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: 3.25rem;
+  font-weight: var(--weight-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bandChips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bandChip {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bandChip span {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.bandChip strong {
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bandChip[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.bandMeta {
+  grid-column: 1 / -1;
+  margin: 0;
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+@media (max-width: 560px) {
+  .bandHero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .bandMain {
+    justify-items: start;
+  }
+
+  .bandCaption {
+    text-align: left;
+  }
+}
+
+/* A criterion's tab: its band, why, and the one step to the next band. */
+.criterionHead {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.criterionBand {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.criterionBand strong {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nextBand {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-success);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--color-success-tint);
+  line-height: var(--leading-body);
+}
+
+.nextBand span {
+  font-weight: var(--weight-strong);
+}
+
+.criterionName {
+  margin: 0;
+  font-weight: var(--weight-display);
+}

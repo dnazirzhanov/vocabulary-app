@@ -196,6 +196,7 @@ export interface Me {
   mentor?: boolean;
   /** Sees the Speaking tab (SPEAKING_TESTERS): pronunciation + assessment, pre-rollout. */
   speaking?: boolean;
+  writing?: boolean;
   /** Null until the learner has chosen a pace. */
   daily_target_words: number | null;
   study_days_per_week: number;
@@ -601,7 +602,29 @@ export interface TestDetail {
     can_start: boolean;
     /** An unfinished practice to go back to. */
     practice_attempt_id: string | null;
+    /** Every attempt I finished at this test, tests and practices, newest first. */
+    history: TestAttemptSummary[];
   };
+}
+
+export interface TestAttemptSummary {
+  id: string;
+  kind: TestAttemptKind;
+  finished_at: string;
+  correct: number;
+  total: number;
+  /** Practice has no pass mark. */
+  passed: boolean | null;
+}
+
+/** A word of a running attempt, for checking before handing in: its meaning and whether it is done. */
+export interface TestWordState {
+  translation: string;
+  state: 'answered' | 'skipped' | 'empty';
+  /** The word's card (meaning and tiles, never the word), so the device moves between words at once. */
+  exercise: SpellingExercise;
+  /** What was saved for it. */
+  answer: string | null;
 }
 
 export interface TestSetupInfo {
@@ -636,6 +659,10 @@ export interface TestAttempt {
   /** The word has been skipped once and has come back. */
   returning: boolean;
   question: SpellingExercise | null;
+  /** While it runs: where the word shown stands, its saved answer, and every word's state. */
+  position: number | null;
+  answer: string | null;
+  words: TestWordState[];
   result: {
     correct: number;
     total: number;

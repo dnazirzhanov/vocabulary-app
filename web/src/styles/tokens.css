@@ -104,6 +104,7 @@
   /* Elevation — used sparingly; most separation comes from space */
   --shadow-press: 0 3px 0 var(--color-primary-strong);
   --shadow-press-active: 0 1px 0 var(--color-primary-strong);
+  --shadow-sheet: 0 8px 28px rgb(38 38 38 / 0.07); /* one raised sheet per screen, no more */
 
   /* Layout */
   --gutter: clamp(16px, 4vw, 32px);

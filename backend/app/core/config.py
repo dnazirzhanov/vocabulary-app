@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     reading_testers: str = ""
     # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
     mentor_testers: str = ""
+    # Sign-ins (same format) who see the Writing tab; empty: nobody.
+    writing_testers: str = ""
     # Mentor chat messages per user per day: each costs a model call.
     mentor_chats_per_day: int = 20
     # Set to true in e2e tests (via MENTOR_CHAT_DEMO=true) to force demo replies without a key.
@@ -85,11 +87,18 @@ class Settings(BaseSettings):
     azure_speech_key: str | None = None
     # Azure region for pronunciation assessment. Must be an EU region (GDPR requirement).
     azure_speech_region: str = "westeurope"
+    # New words and examples one learner may have spoken per day (each one a paid call, ADR 0070).
+    pronunciations_per_day: int = 500
     # Identifier for the speaking worker instance; used in claimed_by for observability.
     speaking_worker_id: str = "default"
     # LanguageTool REST API base URL (Chunk 5). Optional — grammar_score stays null if unset.
     # Point to a self-hosted instance (e.g. http://languagetool:8010) in production.
     language_tool_url: str | None = None
+
+    # Writing: AI evaluations per learner per day (each one is a paid model call).
+    writing_submissions_per_day: int = 30
+    # The longest answer accepted, in characters (about 1,000 words): bounds the cost of one call.
+    writing_max_answer_chars: int = 6000
 
     @field_validator("database_url")
     @classmethod

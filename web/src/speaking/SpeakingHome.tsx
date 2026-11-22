@@ -5,6 +5,8 @@ import styles from './SpeakingHome.module.css';
 
 interface SpeakingHomeProps {
   onSelectTopic: (topic: string, questions: SpeakingQuestion[]) => void;
+  onSelectShadowing: () => void;
+  onOpenArchive: () => void;
   onBack: () => void;
 }
 
@@ -13,7 +15,7 @@ interface TopicEntry {
   questions: SpeakingQuestion[];
 }
 
-export function SpeakingHome({ onSelectTopic, onBack }: SpeakingHomeProps) {
+export function SpeakingHome({ onSelectTopic, onSelectShadowing, onOpenArchive, onBack }: SpeakingHomeProps) {
   const [topics, setTopics] = useState<TopicEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,11 +49,24 @@ export function SpeakingHome({ onSelectTopic, onBack }: SpeakingHomeProps) {
         <h1 className={styles.title}>{t.speakingTopicsHeading}</h1>
       </header>
 
+      <div className={styles.modeRow}>
+        <button type="button" className={styles.modeBtn} onClick={onSelectShadowing}>
+          <span className={styles.modeBtnLabel}>{t.speakingModeShadowing}</span>
+          <span className={styles.arrow}>›</span>
+        </button>
+        <button type="button" className={`${styles.modeBtn} ${styles.archiveBtn}`} onClick={onOpenArchive}>
+          <span className={styles.modeBtnLabel}>{t.speakingArchive}</span>
+          <span className={styles.arrow}>›</span>
+        </button>
+      </div>
+
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
+
+      <p className={styles.sectionLabel}>{t.speakingModeFree}</p>
 
       <ul className={styles.list}>
         {topics.map(({ topic, questions }) => (

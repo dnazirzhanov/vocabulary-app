@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.models import WordingReport
-from app.services import reading
+from app.services import mentor_metrics, reading
 from app.services.cleanup import clean_up
 from app.services.content import (
     ContentError,
@@ -46,10 +46,19 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("send-reminders", help="send this hour's notifications (ADR 0042)")
     commands.add_parser("clean-up", help="remove old answers, keeping what screens need (ADR 0044)")
     commands.add_parser("wording-reports", help="the latest reports of bad wording (ADR 0055)")
+    metrics = commands.add_parser(
+        "mentor-metrics", help="whether the mentor works, by week (ADR 0078)"
+    )
+    metrics.add_argument("--weeks", type=int, default=4)
     commands.add_parser(
         "build-reading",
         help="build content/reading/*.yaml into web/public/reading/*.json (Reading Mode)",
     )
+    load_shadowing = commands.add_parser(
+        "load-shadowing",
+        help="upsert shadowing exercises from a YAML directory and upload audio",
+    )
+    load_shadowing.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
 
     if args.command == "vapid-keys":
@@ -79,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"{report.created_at:%Y-%m-%d}\t{report.ui_language}\t{report.text}")
         return 0
 
+    if args.command == "mentor-metrics":
+        with get_sessionmaker()() as db:
+            print(mentor_metrics.table(mentor_metrics.weekly(db, datetime.now(UTC), args.weeks)))
+        return 0
+
     if args.command == "send-reminders":
         settings = get_settings()
         if not settings.vapid_private_key:
@@ -92,6 +106,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "clean-up":
         with get_sessionmaker()() as db:
             print(clean_up(db, datetime.now(UTC), max_seconds=float("inf")))
+        return 0
+
+    if args.command == "load-shadowing":
+        from app.services.shadowing import exercises as shadowing_exercises_svc
+        from app.services.speaking.storage import get_storage
+
+        settings = get_settings()
+        storage = get_storage(settings)
+        with get_sessionmaker()() as db:
+            count = shadowing_exercises_svc.load_from_yaml(db, storage, args.directory)
+        print(f"Loaded {count} shadowing exercise(s).")
         return 0
 
     if args.command == "seed-classmates":

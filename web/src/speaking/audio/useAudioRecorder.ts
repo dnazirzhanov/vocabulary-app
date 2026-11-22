@@ -23,6 +23,8 @@ export interface UseAudioRecorderResult {
   play: () => Promise<void>;
   pausePlayback: () => void;
   reset: () => void;
+  /** The recorder's state right now: after an `await`, `state` above may not have caught up. */
+  current: () => RecorderState;
 }
 
 export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRecorderResult {
@@ -58,6 +60,19 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRe
   const play = useCallback(() => recorder.play(), [recorder]);
   const pausePlayback = useCallback(() => recorder.pausePlayback(), [recorder]);
   const reset = useCallback(() => recorder.reset(), [recorder]);
+  const current = useCallback(() => recorder.state, [recorder]);
 
-  return { state, durationMs, recording, error, requestPermission, start, stop, play, pausePlayback, reset };
+  return {
+    state,
+    durationMs,
+    recording,
+    error,
+    requestPermission,
+    start,
+    stop,
+    play,
+    pausePlayback,
+    reset,
+    current,
+  };
 }

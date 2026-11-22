@@ -2,14 +2,16 @@ import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
+import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PencilIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
 import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
-export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'friends' | 'progress';
+export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'writing' | 'friends' | 'progress';
 
 interface NavShellProps {
+  /** A section with its own sidebar (the mentor): no app sidebar beside it on a wide screen. */
+  focused?: boolean;
   tab: NavTab;
   onNavigate: (tab: NavTab) => void;
   account: AccountProps;
@@ -21,6 +23,8 @@ interface NavShellProps {
   mentor?: boolean;
   /** The Speaking tab, for the speaking-feature testers (Chunk 1 uses a localStorage dev flag). */
   speaking?: boolean;
+  /** The Writing tab: switched off for everyone for now. */
+  writing?: boolean;
   children: ReactNode;
 }
 
@@ -36,6 +40,8 @@ export function NavShell({
   reading = false,
   mentor = false,
   speaking = false,
+  writing = false,
+  focused = false,
   children,
 }: NavShellProps) {
   const [settings, setSettings] = useState(false);
@@ -47,10 +53,11 @@ export function NavShell({
     ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
     { tab: 'friends', label: t.friends, Icon: PeopleIcon },
     { tab: 'progress', label: t.progress, Icon: ChartIcon },
+    ...(writing ? [{ tab: 'writing', label: t.writing, Icon: PencilIcon } as const] : []),
   ] as const;
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-focused={focused || undefined}>
       <div className={styles.content}>
         {children}
         <div className={styles.corner}>

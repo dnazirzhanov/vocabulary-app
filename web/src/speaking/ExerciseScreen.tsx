@@ -47,7 +47,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { state, durationMs, recording, error, requestPermission, start, stop, play, reset } = useAudioRecorder({
-    maxDurationMs: 120_000,
+    maxDurationMs: 180_000, // 3 minutes
   });
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
     } catch (caught) {
       setSubmit({ kind: 'failed', message: describeError(caught) });
     }
-  }, [recording, question]);
+  }, [recording, question, onDone]);
 
   const onTryAgain = useCallback(() => {
     if (pollTimer.current) clearInterval(pollTimer.current);
