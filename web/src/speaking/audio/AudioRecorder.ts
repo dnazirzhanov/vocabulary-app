@@ -73,7 +73,7 @@ export interface RecorderGlobals {
 }
 
 export interface AudioRecorderOptions {
-  /** Hard-stop recording after this many ms. Default 120 000 (2 min). */
+  /** Hard-stop recording after this many ms. Default 120 000 (2 min); Speaking answers pass 180 000. */
   maxDurationMs?: number;
   /** Audio constraints for getUserMedia. Default: 16 kHz mono, EC/NS/AGC on. */
   audioConstraints?: MediaTrackConstraints;

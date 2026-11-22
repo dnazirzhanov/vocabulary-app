@@ -1,16 +1,7 @@
-import { api } from '../lib/api.ts';
+import { api, type WireScheduleEvent } from '../lib/api.ts';
 import type { EventKind, ScheduleEvent, ScheduleEventInput } from './types.ts';
 
-type WireEvent = {
-  id: string;
-  title: string;
-  kind: string;
-  weekdays: number;
-  start_minute: number;
-  end_minute: number;
-};
-
-function fromWire(e: WireEvent): ScheduleEvent {
+function fromWire(e: WireScheduleEvent): ScheduleEvent {
   return {
     id: e.id,
     title: e.title,
@@ -18,6 +9,8 @@ function fromWire(e: WireEvent): ScheduleEvent {
     weekdays: e.weekdays,
     startMinute: e.start_minute,
     endMinute: e.end_minute,
+    onDate: e.on_date ?? null,
+    skipped: e.skipped ?? [],
   };
 }
 
@@ -28,6 +21,7 @@ function toWire(input: ScheduleEventInput) {
     weekdays: input.weekdays,
     start_minute: input.startMinute,
     end_minute: input.endMinute,
+    on_date: input.onDate ?? null,
   };
 }
 
@@ -46,4 +40,10 @@ export async function updateEvent(id: string, input: ScheduleEventInput): Promis
 
 export async function deleteEvent(id: string): Promise<void> {
   await api.scheduleDelete(id);
+}
+
+/** A repeating block off on one date (ADR 0074), or back on. */
+export async function skipDay(id: string, date: string, skip = true): Promise<void> {
+  if (skip) await api.scheduleSkip(id, date);
+  else await api.scheduleUnskip(id, date);
 }

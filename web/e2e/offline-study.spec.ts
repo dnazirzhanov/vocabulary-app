@@ -180,7 +180,7 @@ test('recordings of the words ahead are kept, and play without a connection', as
     .poll(() =>
       page.evaluate(() =>
         caches
-          .open('audio-1')
+          .open('audio-2')
           .then((cache) => cache.match('/audio/words/money.mp3'))
           .then(Boolean),
       ),
@@ -191,4 +191,28 @@ test('recordings of the words ahead are kept, and play without a connection', as
     Promise.all(['/audio/words/money.mp3', '/audio/examples/money.mp3'].map((url) => fetch(url).then((r) => r.status))),
   );
   expect(status).toEqual([200, 200]);
+});
+
+test('recordings in the old voice are dropped when the app updates, so everyone hears the new one', async ({
+  page,
+}) => {
+  // A phone that kept a word in the old voice, before this version's service worker takes over.
+  await page.addInitScript(() => {
+    void caches.open('audio-1').then((cache) => cache.put('/audio/words/house.mp3', new Response('old voice')));
+  });
+  await visitOnline(page);
+  await expect.poll(() => page.evaluate(() => caches.has('audio-1'))).toBe(false);
+  // The word now comes in the new voice, and is kept under the new name.
+  const body = await page.evaluate(() => fetch('/audio/words/house.mp3').then((r) => r.text()));
+  expect(body).not.toBe('old voice');
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        caches
+          .open('audio-2')
+          .then((c) => c.match('/audio/words/house.mp3'))
+          .then(Boolean),
+      ),
+    )
+    .toBe(true);
 });

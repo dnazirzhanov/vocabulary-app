@@ -177,6 +177,95 @@ def test_upload_audio_end_to_end(client: TestClient, monkeypatch: pytest.MonkeyP
     assert files[0].read_bytes() == _webm()
 
 
+@pytest.mark.parametrize(
+    ("duration_ms", "status"), [(180_000, 200), (186_000, 200), (200_000, 422)]
+)
+def test_a_three_minute_recording_is_accepted(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, duration_ms: int, status: int
+) -> None:
+    # The recorder stops at 3:00: its upload must not be refused as too long (it was, above 2:10).
+    _enable_speaking(monkeypatch)
+    session_id = client.post(
+        "/api/speaking/sessions",
+        json={"exercise_type": "spontaneous", "question_id": "spon-films"},
+        headers=as_("eve"),
+    ).json()["id"]
+    upload = client.post(
+        f"/api/speaking/sessions/{session_id}/audio",
+        files={"file": ("rec.webm", io.BytesIO(_webm()), "audio/webm;codecs=opus")},
+        data={"duration_ms": str(duration_ms)},
+        headers=as_("eve"),
+    )
+    assert upload.status_code == status, upload.text
+
+
+# ─── Archive: past attempts and their recordings ────────────────────────────────
+
+
+def _recorded(client: TestClient, who: str, question_id: str = "spon-films") -> str:
+    session_id: str = client.post(
+        "/api/speaking/sessions",
+        json={"exercise_type": "spontaneous", "question_id": question_id},
+        headers=as_(who),
+    ).json()["id"]
+    upload = client.post(
+        f"/api/speaking/sessions/{session_id}/audio",
+        files={"file": ("rec.webm", io.BytesIO(_webm()), "audio/webm;codecs=opus")},
+        data={"duration_ms": "95000"},
+        headers=as_(who),
+    )
+    assert upload.status_code == 200, upload.text
+    return session_id
+
+
+def test_the_archive_lists_every_attempt_with_its_recording(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_speaking(monkeypatch)
+    first = _recorded(client, "arch-ann", "spon-films")
+    second = _recorded(client, "arch-ann", "spon-hometown")
+    rows = client.get("/api/speaking/sessions", headers=as_("arch-ann")).json()
+    assert {r["id"] for r in rows} == {first, second}  # every question, not one
+    row = next(r for r in rows if r["id"] == first)
+    assert row["has_audio"] is True and row["duration_ms"] == 95000
+    assert row["exercise_type"] == "spontaneous"
+    # Someone else's archive is their own.
+    assert client.get("/api/speaking/sessions", headers=as_("arch-bob")).json() == []
+
+
+def test_a_deleted_attempt_leaves_the_archive(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_speaking(monkeypatch)
+    kept = _recorded(client, "arch-cat")
+    gone = _recorded(client, "arch-cat")
+    assert (
+        client.delete(f"/api/speaking/sessions/{gone}", headers=as_("arch-cat")).status_code == 204
+    )
+    rows = client.get("/api/speaking/sessions", headers=as_("arch-cat")).json()
+    assert [r["id"] for r in rows] == [kept]
+    assert (
+        client.get(f"/api/speaking/sessions/{gone}/audio", headers=as_("arch-cat")).status_code
+        == 404
+    )
+
+
+def test_a_recording_plays_back_and_seeks_for_its_owner_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_speaking(monkeypatch)
+    session_id = _recorded(client, "arch-dan")
+    url = f"/api/speaking/sessions/{session_id}/audio"
+    full = client.get(url, headers=as_("arch-dan"))
+    assert full.status_code == 200
+    assert full.content == _webm()
+    assert full.headers["content-type"] == "audio/webm"
+    assert full.headers["accept-ranges"] == "bytes"
+    part = client.get(url, headers=as_("arch-dan") | {"Range": "bytes=0-99"})
+    assert part.status_code == 206 and part.content == _webm()[:100]
+    assert client.get(url, headers=as_("arch-eve")).status_code == 404
+
+
 def test_upload_rejects_unsupported_mime(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
