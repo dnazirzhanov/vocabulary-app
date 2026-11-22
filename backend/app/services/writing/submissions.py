@@ -30,6 +30,11 @@ def _title(question_id: str) -> str:
     return question.title if question else question_id
 
 
+def _topic(question_id: str) -> str:
+    question = bank.get(question_id)
+    return question.topic if question else ""
+
+
 def _question_out(question_id: str) -> QuestionOut | None:
     q = bank.get(question_id)
     if q is None:
@@ -96,6 +101,7 @@ def list_for_user(
             id=r.id,
             question_id=r.question_id,
             question_title=_title(r.question_id),
+            question_topic=_topic(r.question_id),
             status=r.status,
             overall=(r.evaluation or {}).get("overall"),
             cefr_level=(r.evaluation or {}).get("cefr_level"),

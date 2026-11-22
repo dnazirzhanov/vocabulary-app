@@ -359,7 +359,10 @@ def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
     assert newest["word_count"] == len(ANSWER.split())
     assert newest["excerpt"] == ANSWER
     assert newest["band"] == 6.0
+    assert newest["question_topic"] == "Everyday Life"
     oldest = everything[-1]
+    # A retired question still has its topic, so its essays group with the rest.
+    assert oldest["question_topic"] == "Education"
     assert oldest["excerpt"].startswith("Essay number 1. word") and len(oldest["excerpt"]) <= 141
     assert oldest["excerpt"].endswith("…") and oldest["band"] is None
 

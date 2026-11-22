@@ -108,6 +108,9 @@ export function ChatScreen({
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const asked = useRef(false);
+  // Set by the first message sent here: from then on, the chat list arriving late must not
+  // reopen the last chat over the answer being streamed.
+  const sentHere = useRef(false);
   // Each answer being streamed owns a token; switching chats retires it, so a late word never
   // lands in another chat (the server still saves it in its own).
   const streamToken = useRef(0);
@@ -138,7 +141,7 @@ export function ChatScreen({
   }, [draft]);
 
   const open = async (id: string | null) => {
-    streamToken.current += 1;
+    const token = ++streamToken.current;
     setSending(false);
     setDrawer(false);
     setError(null);
@@ -147,6 +150,8 @@ export function ChatScreen({
     if (!id) return;
     try {
       const messages = await api.mentorConversationMessages(id);
+      // A question sent, or another chat opened, while these loaded: they are out of date.
+      if (streamToken.current !== token) return;
       setTurns(
         messages.map((m) => ({
           role: m.role,
@@ -156,7 +161,7 @@ export function ChatScreen({
         })),
       );
     } catch {
-      setError(t.mentorChatUnavailable);
+      if (streamToken.current === token) setError(t.mentorChatUnavailable);
     }
   };
 
@@ -165,8 +170,9 @@ export function ChatScreen({
   useEffect(() => {
     void api.mentorConversations().then(
       (list) => {
-        setChats(list);
-        const last = ask ? null : readLastChat(account);
+        // A chat begun before the list arrived stays on top of it.
+        setChats((was) => [...was.filter((c) => !list.some((l) => l.id === c.id)), ...list]);
+        const last = ask || sentHere.current ? null : readLastChat(account);
         if (last && list.some((c) => c.id === last)) void open(last);
       },
       () => undefined,
@@ -189,6 +195,7 @@ export function ChatScreen({
       setDraft('');
       setError(null);
       setSending(true);
+      sentHere.current = true;
       const token = ++streamToken.current;
       const now = new Date();
       setTurns((was) => [

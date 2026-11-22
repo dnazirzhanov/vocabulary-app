@@ -30,7 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import memory, mentor_demo, mentor_events, mentor_tools
+from app.services import dsml, memory, mentor_demo, mentor_events, mentor_tools
 from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
@@ -122,13 +122,21 @@ suggest_activity.
 - For their goal, help make it concrete (what for, target level or IELTS band, by when, why), \
 then call propose_goal. If it is out of reach in their time, say so kindly and offer the two \
 choices it gives: more minutes a day, or a later date.
-- When they describe their week, call propose_schedule; then offer to find a study time with \
-propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless they \
-want more.
-- Anything proposed is saved only when the learner taps to confirm it: say so in a few words.
+- The calendar is yours to change. Whenever they say what their week is or how it changed \
+(school, work, sport, sleep...), call set_schedule at once: it saves, and they can undo it. Never \
+ask them to confirm first, never say the app adds a block by itself, and never say you can't add \
+something. To change or remove a block, use its existing title. Then offer to find a study time \
+with propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless \
+they want more.
+- When one date is different (no school tomorrow, a concert on Saturday), call change_day at \
+once; for illness or a trip offer a pause with propose_exception, so no promised day counts as \
+missed.
+- After a calendar change, say in one sentence what changed. A goal, a study time, a pause, a \
+reminder or a fact is saved only when they tap it: say so in a few words.
+- When they ask what their schedule or calendar is, or how today (or another day) looks, call \
+show with component day (and date for another day): never list it in text or call what_now \
+for it.
 - For their goal's progress this week, call get_week_plan.
-- When a day is different (a usual block isn't on, something extra, illness, a trip), call \
-propose_exception; for illness or a trip offer a pause, so no promised day counts as missed.
 - If they missed yesterday, say kindly that today matters most and that 5 minutes counts \
 (never miss twice); don't scold.
 - End most answers by calling offer_replies with 2–4 short replies they might tap.
@@ -151,7 +159,7 @@ when, how long, finished or not. It is complete, so never say you have no data a
 if something isn't listed, it wasn't done in the app today. An unfinished lesson can be \
 continued where it stopped.
 - Use show to put one interactive component on screen instead of describing it: day when \
-they ask how today looks or where something fits; words for a quick warm-up; day_check when \
+they ask about their schedule or where something fits; words for a quick warm-up; day_check when \
 the plan seems too much (tired, sick, an exam); choice whenever you ask a question with a few \
 likely answers; celebrate when they did well. At most one show per answer; say in one \
 sentence what it shows, never repeat its contents.
@@ -1463,6 +1471,8 @@ def _stream_with_tools(
             )
             said: list[str] = []
             calls: dict[int, dict[str, str]] = {}
+            # Tool calls the model wrote as text are kept off the screen (app.services.dsml).
+            guard = dsml.Guard()
             for chunk in stream:
                 usage = getattr(chunk, "usage", None)  # only the last chunk carries it
                 if usage is not None:
@@ -1470,9 +1480,10 @@ def _stream_with_tools(
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
-                if delta.content:
-                    said.append(delta.content)
-                    yield {"delta": delta.content}
+                shown = guard.feed(delta.content) if delta.content else ""
+                if shown:
+                    said.append(shown)
+                    yield {"delta": shown}
                 for call in delta.tool_calls or []:
                     slot = calls.setdefault(call.index, {"id": "", "name": "", "args": ""})
                     if call.id:
@@ -1481,6 +1492,26 @@ def _stream_with_tools(
                         slot["name"] += call.function.name
                     if call.function and call.function.arguments:
                         slot["args"] += call.function.arguments
+            tail = guard.end()
+            if tail:
+                said.append(tail)
+                yield {"delta": tail}
+            if guard.markup:
+                written = dsml.calls(guard.markup)
+                logger.warning(
+                    "mentor tool call written as text",
+                    extra={"tools": [name for name, _ in written], "run": with_tools},
+                )
+                # Run them as the calls they are, where tools are offered; past the last round,
+                # they are dropped like any call that comes too late.
+                if with_tools:
+                    after = max(calls, default=-1) + 1
+                    for n, (name, args) in enumerate(written):
+                        calls[after + n] = {
+                            "id": f"text-call-{round_}-{n}",
+                            "name": name,
+                            "args": json.dumps(args, ensure_ascii=False),
+                        }
             if not calls:
                 return
             ordered = [calls[i] for i in sorted(calls)]
