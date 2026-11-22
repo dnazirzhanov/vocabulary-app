@@ -20,6 +20,10 @@ export interface UseAudioRecorderResult {
   requestPermission: () => Promise<void>;
   start: () => Promise<void>;
   stop: () => void;
+  /** Pause and go on recording the same answer; `canPause` says whether this browser can. */
+  pause: () => void;
+  resume: () => void;
+  canPause: boolean;
   play: () => Promise<void>;
   pausePlayback: () => void;
   reset: () => void;
@@ -57,6 +61,8 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRe
   const requestPermission = useCallback(() => recorder.requestPermission(), [recorder]);
   const start = useCallback(() => recorder.start(), [recorder]);
   const stop = useCallback(() => recorder.stop(), [recorder]);
+  const pause = useCallback(() => recorder.pause(), [recorder]);
+  const resume = useCallback(() => recorder.resume(), [recorder]);
   const play = useCallback(() => recorder.play(), [recorder]);
   const pausePlayback = useCallback(() => recorder.pausePlayback(), [recorder]);
   const reset = useCallback(() => recorder.reset(), [recorder]);
@@ -70,6 +76,9 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRe
     requestPermission,
     start,
     stop,
+    pause,
+    resume,
+    canPause: recorder.canPause,
     play,
     pausePlayback,
     reset,

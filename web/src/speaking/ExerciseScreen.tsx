@@ -46,9 +46,10 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { state, durationMs, recording, error, requestPermission, start, stop, play, reset } = useAudioRecorder({
-    maxDurationMs: 180_000, // 3 minutes
-  });
+  const { state, durationMs, recording, error, requestPermission, start, stop, pause, resume, canPause, play, reset } =
+    useAudioRecorder({
+      maxDurationMs: 180_000, // 3 minutes
+    });
 
   useEffect(() => {
     if (questionProp) return; // question provided by caller — no need to fetch
@@ -169,8 +170,24 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
                   </button>
                 )}
 
-              {state === 'recording' && (
-                <button type="button" className={`${styles.primary} ${styles.recording}`} onClick={stop}>
+              {state === 'recording' && canPause && (
+                <button type="button" className={styles.secondary} onClick={pause}>
+                  {t.speakingPause}
+                </button>
+              )}
+
+              {state === 'paused' && (
+                <button type="button" className={styles.primary} onClick={resume}>
+                  {t.speakingResume}
+                </button>
+              )}
+
+              {(state === 'recording' || state === 'paused') && (
+                <button
+                  type="button"
+                  className={state === 'recording' ? `${styles.primary} ${styles.recording}` : styles.secondary}
+                  onClick={stop}
+                >
                   {t.speakingStopRecording}
                 </button>
               )}
@@ -217,6 +234,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
             </div>
 
             {state === 'recording_interrupted' && <p className={styles.notice}>{t.speakingInterruptedNotice}</p>}
+            {state === 'paused' && <p className={styles.notice}>{t.speakingPausedNotice}</p>}
 
             {(submit.kind === 'polling' || submit.kind === 'done') && (
               <div className={styles.submittedBox}>
@@ -284,6 +302,8 @@ function stateLabel(state: string, submitKind: SubmitState['kind']): string {
       return t.speakingStateReady;
     case 'recording':
       return t.speakingStateRecording;
+    case 'paused':
+      return t.speakingStatePaused;
     case 'recording_interrupted':
       return t.speakingStateInterrupted;
     case 'stopped':
