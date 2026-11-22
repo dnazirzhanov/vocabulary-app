@@ -83,9 +83,13 @@ class SessionSummaryOut(BaseModel):
 
     id: uuid.UUID
     question_id: str
+    exercise_type: ExerciseType
     status: SessionStatus
     started_at: datetime
     completed_at: datetime | None
+    # The recording, for the archive: its length and whether it can still be played.
+    duration_ms: int | None = None
+    has_audio: bool = False
     overall_score: float | None = None
     pronunciation_score: float | None = None
     fluency_score: float | None = None

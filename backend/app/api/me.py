@@ -18,7 +18,7 @@ from app.schemas.me import (
     PromiseOut,
     WordingReportIn,
 )
-from app.services import decks, pace
+from app.services import decks, memory, pace
 from app.services.me import me_out, remember_time_zone, report_wording, update_me
 from app.services.promise import end_pause, promise_out, set_pause, set_weekdays
 from app.services.scheduling import local_date
@@ -64,6 +64,8 @@ def put_pause(
     """Pause the promise from tomorrow until a date, at most 31 days."""
     today = local_date(now, time_zone)
     set_pause(db, user, body.until, today)
+    memory.note(db, user, "paused", {"until": str(body.until)}, now)
+    db.commit()
     return promise_out(db, user, today)
 
 

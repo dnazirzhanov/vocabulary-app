@@ -1,51 +1,35 @@
-"""Pronunciation audio for every word, example sentence and glossary word (ADR 0013).
+"""Pronunciation audio for every word, example sentence and glossary word (ADR 0013, 0070).
 
-Generated once with Kokoro, an open-weight neural text-to-speech model (Apache-2.0), so every
-learner hears the same natural voice instead of whatever their device's speech engine offers.
-Files go to web/public/audio/ and are served with the app; existing files are kept, so only new
-content is generated. Run from the repository root:
+Spoken by Azure's neural voice en-US-AvaNeural: the same voice the server uses for words the app
+has no file for (a teacher's own cards, backend/app/services/speech/tts.py), so the whole app
+sounds like one voice. Files go to web/public/audio/ and are served with the app.
 
-    uv run --python 3.12 --with "kokoro>=0.9" --with soundfile --with pyyaml \\
-        python content/tools/make_audio.py
+The voice needs the Azure Speech key, which lives only on the server, so the work is split:
 
-Needs ffmpeg (MP3 encoding). The model (~330 MB) is downloaded on first use.
+    # 1. here: list what to say (needs pyyaml)
+    uv run --with pyyaml python content/tools/make_audio.py --list > jobs.json
+    # 2. on a machine that has AZURE_SPEECH_KEY (the Fly worker): say it, standard library only
+    python make_audio.py --say jobs.json OUT_DIR
+    # 3. here: copy OUT_DIR over web/public/audio and write the manifest
+    uv run python content/tools/make_audio.py --manifest
+
+Existing files in OUT_DIR are kept, so an interrupted run picks up where it stopped.
 """
 
 import json
+import os
 import re
-import subprocess
 import sys
-import tempfile
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
-
-import soundfile
-import yaml
-from kokoro import KPipeline
+from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "web" / "public" / "audio"
-VOICE = "af_heart"  # American English, the model's clearest voice
-SAMPLE_RATE = 24_000
-
-
-# Exact pronunciations where the model's own reading was misheard in the Whisper check
-# (content/tools/check_audio.py): Kokoro accepts inline phonemes as [word](/phonemes/).
-PRONUNCIATIONS = {
-    "have": "[Have](/hæv/).",
-    "she": "[She](/ʃˈi/).",
-    "our": "[Our](/ˈaʊɚ/).",
-    "tea": "[Tea](/tˈiː/).",
-    "bank": "Bank!",
-    "street": "Street!",
-}
-
-
-def spoken(text: str) -> str:
-    """What the model reads. A lone word gets a capital and a full stop, so it is said with a
-    natural falling tone and a clean ending (bare words sometimes trailed into another sound)."""
-    if " " in text:
-        return text
-    return PRONUNCIATIONS.get(text.lower(), f"{text[:1].upper()}{text[1:]}.")
+VOICE = "en-US-AvaNeural"  # American English (the owner's choice); the server's voice too
+OUTPUT = "audio-24khz-48kbitrate-mono-mp3"  # clear speech, about 10 KB a word
 
 
 def slug(text: str) -> str:
@@ -53,41 +37,78 @@ def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9à-ÿ]+", "", text.lower())
 
 
-def jobs() -> list[tuple[Path, str]]:
-    work: list[tuple[Path, str]] = []
+def jobs() -> list[tuple[str, str]]:
+    """(file under web/public/audio, text) for every word, example and glossary form."""
+    import yaml
+
+    work: list[tuple[str, str]] = []
     for words_file in sorted((ROOT / "content").glob("*/words.yaml")):
         for word in yaml.safe_load(words_file.read_text(encoding="utf-8")):
-            work.append((OUT / "words" / f"{word['id']}.mp3", word["headword"]))
-            work.append((OUT / "examples" / f"{word['id']}.mp3", word["example"]))
+            work.append((f"words/{word['id']}.mp3", word["headword"]))
+            work.append((f"examples/{word['id']}.mp3", word["example"]))
     glossary = yaml.safe_load((ROOT / "content" / "glossary.yaml").read_text(encoding="utf-8"))
     for form in glossary:
-        work.append((OUT / "glossary" / f"{slug(str(form))}.mp3", str(form)))
+        work.append((f"glossary/{slug(str(form))}.mp3", str(form)))
     return work
 
 
-def main() -> int:
-    todo = [(path, text) for path, text in jobs() if not path.exists()]
-    print(f"{len(todo)} audio files to generate")
-    if not todo:
+def say(text: str, key: str, region: str) -> bytes:
+    """One call to Azure text-to-speech, waiting and retrying when it is busy (429)."""
+    ssml = (
+        "<speak version='1.0' xml:lang='en-US'>"
+        f"<voice name='{VOICE}'>{escape(text)}</voice></speak>"
+    )
+    request = urllib.request.Request(
+        f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1",
+        data=ssml.encode(),
+        headers={
+            "Ocp-Apim-Subscription-Key": key,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": OUTPUT,
+            "User-Agent": "slovar-make-audio",
+        },
+        method="POST",
+    )
+    for attempt in range(8):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return bytes(response.read())
+        except urllib.error.HTTPError as error:
+            if error.code not in (429, 500, 502, 503) or attempt == 7:
+                raise
+        time.sleep(min(60, 3 * 2**attempt))
+    raise RuntimeError("unreachable")
+
+
+def main(argv: list[str]) -> int:
+    if argv[:1] == ["--list"]:
+        json.dump(jobs(), sys.stdout, ensure_ascii=False)
         return 0
-    pipeline = KPipeline(lang_code="a")
-    for path, text in todo:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        chunks = [audio for _, _, audio in pipeline(spoken(text), voice=VOICE, speed=1.0)]
-        with tempfile.NamedTemporaryFile(suffix=".wav") as wav:
-            soundfile.write(wav.name, [s for chunk in chunks for s in chunk], SAMPLE_RATE)
-            # Mono MP3 at 48 kbit/s: clear speech, about 10 KB for a word.
-            subprocess.run(
-                ["ffmpeg", "-loglevel", "error", "-y", "-i", wav.name, "-ac", "1", "-b:a", "48k",
-                 str(path)],
-                check=True,
-            )
-        print(f"  {path.relative_to(OUT)}  ←  {text}")
-    manifest = {"voice": f"Kokoro {VOICE}", "files": sorted(
-        str(p.relative_to(OUT)) for p in OUT.rglob("*.mp3"))}
-    (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
-    return 0
+    if argv[:1] == ["--say"] and len(argv) == 3:
+        work = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
+        out = Path(argv[2])
+        key = os.environ["AZURE_SPEECH_KEY"]
+        region = os.environ.get("AZURE_SPEECH_REGION", "westeurope")
+        todo = [(path, text) for path, text in work if not (out / path).exists()]
+        print(f"{len(todo)} of {len(work)} files to say", flush=True)
+        for done, (path, text) in enumerate(todo, 1):
+            target = out / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(say(text, key, region))
+            if done % 50 == 0:
+                print(f"  {done}/{len(todo)}", flush=True)
+        print("done", flush=True)
+        return 0
+    if argv[:1] == ["--manifest"]:
+        manifest = {
+            "voice": f"Azure {VOICE}",
+            "files": sorted(str(p.relative_to(OUT)) for p in OUT.rglob("*.mp3")),
+        }
+        (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
+        return 0
+    print(__doc__)
+    return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

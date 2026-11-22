@@ -66,6 +66,11 @@
   font-weight: var(--weight-strong);
 }
 
+.score .percent {
+  margin-top: calc(var(--badge-size) * 0.02);
+  color: var(--color-text);
+}
+
 .written {
   margin-top: 2px;
   color: var(--color-text-muted);

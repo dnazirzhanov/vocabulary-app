@@ -54,6 +54,9 @@ const SpeakingTopicScreen = lazy(() => import('./speaking/TopicScreen.tsx').then
 const SpeakingQuestionScreen = lazy(() =>
   import('./speaking/QuestionScreen.tsx').then((m) => ({ default: m.QuestionScreen })),
 );
+const SpeakingArchiveScreen = lazy(() =>
+  import('./speaking/ArchiveScreen.tsx').then((m) => ({ default: m.ArchiveScreen })),
+);
 const SpeakingEvaluationScreen = lazy(() =>
   import('./speaking/EvaluationScreen.tsx').then((m) => ({ default: m.EvaluationScreen })),
 );
@@ -75,6 +78,7 @@ type Screen =
   | { name: 'speaking' }
   | { name: 'writing' }
   | { name: 'shadowing' }
+  | { name: 'speaking-archive' }
   | { name: 'shadowing-player'; exercise: ShadowingExercise }
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
@@ -84,6 +88,8 @@ type Screen =
       session: SpeakingSessionDetail;
       question: SpeakingQuestion;
       topicQuestions: SpeakingQuestion[];
+      /** Opened from the archive: back returns there. */
+      fromArchive?: boolean;
     }
   | { name: 'session'; session: Session }
   | { name: 'summary'; summary: Summary }
@@ -446,6 +452,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       mentor={me.mentor === true}
       speaking={speakingEnabled}
       writing={me.writing === true}
+      focused={screen.name === 'mentor'}
     >
       {tabScreen()}
     </NavShell>
@@ -534,6 +541,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
             account={me.id}
             onOpenArticle={(articleId) => setScreen({ name: 'article', articleId })}
             onStartSession={startSession}
+            onOpenWriting={() => setScreen({ name: 'writing' })}
+            onOpenSpeaking={() => setScreen({ name: 'speaking' })}
+            onLeave={() => navigate('today')}
           />
         </Suspense>
       );
@@ -551,7 +561,26 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           <SpeakingHomeScreen
             onSelectTopic={(topic, questions) => setScreen({ name: 'speaking-topic', topic, questions })}
             onSelectShadowing={() => setScreen({ name: 'shadowing' })}
+            onOpenArchive={() => setScreen({ name: 'speaking-archive' })}
             onBack={goHome}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'speaking-archive') {
+      return (
+        <Suspense fallback={null}>
+          <SpeakingArchiveScreen
+            onOpen={(session, question, all) =>
+              setScreen({
+                name: 'speaking-eval',
+                session,
+                question,
+                topicQuestions: all.filter((q) => q.topic === question.topic),
+                fromArchive: true,
+              })
+            }
+            onBack={() => setScreen({ name: 'speaking' })}
           />
         </Suspense>
       );
@@ -637,7 +666,11 @@ function Learning({ email, subject }: { email: string | null; subject: string })
             session={screen.session}
             question={screen.question}
             onBack={() =>
-              setScreen({ name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions })
+              setScreen(
+                screen.fromArchive
+                  ? { name: 'speaking-archive' }
+                  : { name: 'speaking-question', question: screen.question, topicQuestions: screen.topicQuestions },
+              )
             }
           />
         </Suspense>
@@ -716,6 +749,7 @@ function tabOf(screen: Screen): NavTab {
       'speaking',
       'shadowing',
       'shadowing-player',
+      'speaking-archive',
       'speaking-topic',
       'speaking-question',
       'speaking-exercise',

@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 
+from pydantic import TypeAdapter
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,15 +14,25 @@ from app.models import User, WritingSubmission
 from app.schemas.writing import QuestionOut, SubmissionOut, SubmissionSummaryOut, SubmitIn
 from app.services.writing import evaluator
 from app.services.writing import questions as bank
-from app.services.writing.schema import Evaluation
+from app.services.writing.schema import AnyEvaluation
+
+_EVALUATION: TypeAdapter[AnyEvaluation] = TypeAdapter(AnyEvaluation)
 
 # A `pending` row older than this was abandoned (the server restarted mid-call): it may be retried.
 STALE_AFTER = timedelta(minutes=3)
+# The archive: every essay a learner wrote, with enough of each to recognise it.
+ARCHIVE_LIMIT = 500
+EXCERPT_CHARS = 140
 
 
 def _title(question_id: str) -> str:
     question = bank.get(question_id)
     return question.title if question else question_id
+
+
+def _topic(question_id: str) -> str:
+    question = bank.get(question_id)
+    return question.topic if question else ""
 
 
 def _question_out(question_id: str) -> QuestionOut | None:
@@ -35,6 +46,7 @@ def _question_out(question_id: str) -> QuestionOut | None:
         instruction=q.instruction,
         level=q.level,
         suggested_minutes=q.suggested_minutes,
+        task_type=q.task_type,
     )
 
 
@@ -47,7 +59,7 @@ def _out(row: WritingSubmission) -> SubmissionOut:
         time_spent_seconds=row.time_spent_seconds,
         status=row.status,
         failure_code=row.failure_code,
-        evaluation=Evaluation.model_validate(row.evaluation) if row.evaluation else None,
+        evaluation=_EVALUATION.validate_python(row.evaluation) if row.evaluation else None,
         created_at=row.created_at,
     )
 
@@ -68,8 +80,17 @@ def read(db: Session, user: User, submission_id: uuid.UUID) -> SubmissionOut:
     return _out(_mine(db, user, submission_id))
 
 
+def excerpt(answer: str) -> str:
+    """The essay's opening on one line, cut at a word and marked when cut."""
+    flat = " ".join(answer.split())
+    if len(flat) <= EXCERPT_CHARS:
+        return flat
+    cut = flat[:EXCERPT_CHARS].rsplit(" ", 1)[0] or flat[:EXCERPT_CHARS]
+    return cut.rstrip(" ,;:.") + "…"
+
+
 def list_for_user(
-    db: Session, user: User, question_id: str | None = None, limit: int = 20
+    db: Session, user: User, question_id: str | None = None, limit: int = ARCHIVE_LIMIT
 ) -> list[SubmissionSummaryOut]:
     query = select(WritingSubmission).where(WritingSubmission.user_id == user.id)
     if question_id is not None:
@@ -80,8 +101,13 @@ def list_for_user(
             id=r.id,
             question_id=r.question_id,
             question_title=_title(r.question_id),
+            question_topic=_topic(r.question_id),
             status=r.status,
             overall=(r.evaluation or {}).get("overall"),
+            cefr_level=(r.evaluation or {}).get("cefr_level"),
+            band=(r.evaluation or {}).get("band"),
+            word_count=len(r.answer.split()),
+            excerpt=excerpt(r.answer),
             created_at=r.created_at,
         )
         for r in rows
