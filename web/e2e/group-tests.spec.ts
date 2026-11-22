@@ -482,6 +482,52 @@ test('back, skip and next walk through the words; the check shows what is empty;
   await expect(page.getByRole('region', { name: 'Пропущено' })).toContainText(WORDS[second]);
 });
 
+test('«К пропущенным» goes through only the skipped words, then back to the check', async ({ page, context }) => {
+  const group = await ownerGroup(context, 4);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+  await openDeckTest(page);
+  await startTest(page);
+  const card = page.locator('[data-spelling]');
+
+  // Skip the first and third, answer the second and fourth.
+  const shown: string[] = [];
+  for (let n = 0; n < 4; n += 1) {
+    await expect(card.getByText(`Тест · слово ${n + 1} из 4`)).toBeVisible();
+    const word = (await meaning(page).textContent())!;
+    shown.push(word);
+    if (n % 2 === 0) await button(page, 'Пропустить').click();
+    else {
+      await build(page, WORDS[word]);
+      await forward(page).click();
+    }
+  }
+  await expect(checkHeading(page)).toBeVisible();
+
+  // Through the two skipped, in turn: the answered ones in between are passed by.
+  await button(page, 'К пропущенным · 2').click();
+  await expect(card.getByText('Тест · пропущенное 1 из 2')).toBeVisible();
+  await expect(meaning(page)).toHaveText(shown[0]);
+  await expect(button(page, 'Назад')).toBeDisabled();
+  await build(page, WORDS[shown[0]]);
+  await button(page, 'Дальше').click();
+  await expect(card.getByText('Тест · пропущенное 2 из 2')).toBeVisible();
+  await expect(meaning(page)).toHaveText(shown[2]);
+  // «Назад» goes to the previous skipped one, its answer in place.
+  await button(page, 'Назад').click();
+  await expect(meaning(page)).toHaveText(shown[0]);
+  await button(page, 'Дальше').click();
+  await expect(meaning(page)).toHaveText(shown[2]);
+  await build(page, WORDS[shown[2]]);
+  await button(page, 'К проверке').click();
+
+  // Back on the check, nothing missing: no way to the skipped, and it hands in at once.
+  await expect(checkHeading(page)).toBeVisible();
+  await expect(page.getByRole('button', { name: /^К пропущенным/ })).toHaveCount(0);
+  await button(page, 'Сдать').click();
+  await expect(page.getByRole('img', { name: '4 из 4 · 100%' })).toBeVisible();
+});
+
 test('the owner opens the test again: a student who passed takes it again, and the list follows', async ({
   page,
   context,

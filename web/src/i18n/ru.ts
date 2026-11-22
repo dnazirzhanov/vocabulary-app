@@ -958,6 +958,8 @@ export const ru = {
   readingTime: 'Время чтения',
   testWordOf: (n: number, total: number) => `слово ${n} из ${total}`,
   testToCheck: 'К проверке',
+  testGoToSkipped: (n: number) => `К пропущенным · ${n}`,
+  testSkippedOf: (n: number, total: number) => `пропущенное ${n} из ${total}`,
   testCheckTitle: 'Проверьте перед сдачей',
   testCheckEmpty: (n: number) => `Без ответа: ${n}. Нажмите на слово, чтобы вернуться к нему.`,
   testCheckAllDone: 'У всех слов есть ответ. Нажмите на слово, чтобы изменить его.',

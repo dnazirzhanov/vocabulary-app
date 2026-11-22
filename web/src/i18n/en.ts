@@ -964,6 +964,8 @@ export const en: Messages = {
   readingTime: 'Reading time',
   testWordOf: (n: number, total: number) => `word ${n} of ${total}`,
   testToCheck: 'Review',
+  testGoToSkipped: (n: number) => `Go to the skipped · ${n}`,
+  testSkippedOf: (n: number, total: number) => `skipped ${n} of ${total}`,
   testCheckTitle: 'Check before handing in',
   testCheckEmpty: (n: number) => `Without an answer: ${n}. Tap a word to go back to it.`,
   testCheckAllDone: 'Every word has an answer. Tap a word to change it.',

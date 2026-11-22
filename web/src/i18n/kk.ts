@@ -962,6 +962,8 @@ export const kk: Messages = {
   readingTime: 'Оқу уақыты',
   testWordOf: (n: number, total: number) => `${total} сөздің ${n}-сөзі`,
   testToCheck: 'Тексеруге',
+  testGoToSkipped: (n: number) => `Өткізілгендерге · ${n}`,
+  testSkippedOf: (n: number, total: number) => `өткізілген ${total} сөздің ${n}-сөзі`,
   testCheckTitle: 'Тапсырмас бұрын тексеріңіз',
   testCheckEmpty: (n: number) => `Жауапсыз: ${n}. Сөзге оралу үшін оны басыңыз.`,
   testCheckAllDone: 'Барлық сөздің жауабы бар. Өзгерту үшін сөзді басыңыз.',

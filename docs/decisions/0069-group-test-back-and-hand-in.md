@@ -21,6 +21,11 @@ then skipped is empty again.
 if some are empty («Они засчитаются как ошибки»). Nothing finishes before that, except the clock: at zero a word fully
 built is saved and the server hands in what it has.
 
+**«К пропущенным · N»** (the owner, 22 November 2026: «at the end, there has to be a return to the skipped
+ones»). On the check, when some words have no answer, one button goes through just those, in order: the card says
+«Тест · пропущенное 1 из 2», «Дальше» and «Пропустить» go to the next of them, «Назад» to the one before, and after
+the last of them the check comes back. A word opened from the check's list still goes on in the usual order.
+
 **Scoring is unchanged.** A word left empty when handing in counts as skipped; when the time ran out, a word never
 reached counts as «Не успели». Misspelled and skipped words still go to «Трудные» (ADR 0048).
 

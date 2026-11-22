@@ -47,6 +47,8 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   const [position, setPosition] = useState(initial?.position ?? 0);
   // After the last word: every word's state, and the way to hand in.
   const [checking, setChecking] = useState(false);
+  // «К пропущенным»: the words without an answer, gone through in turn; null when going in order.
+  const [review, setReview] = useState<number[] | null>(null);
   // What this device has given each word (key → answer; null: skipped), ahead of the server.
   const [given, setGiven] = useState<Map<string, string | null>>(() => new Map());
   const draft = useRef<string | null>(null);
@@ -227,11 +229,21 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
       queue.push({ key, answer: answer ?? null });
     }
     draft.current = null;
-    if (to > last) setChecking(true);
-    else setPosition(Math.max(0, to));
+    if (to > last) {
+      setChecking(true);
+      setReview(null);
+    } else setPosition(Math.max(0, to));
+  };
+  // Where «Дальше» and «Назад» go: the next word, or, going through the skipped, the next of those
+  // (past the last of them, the check).
+  const inReview = review ? review.indexOf(position) : -1;
+  const step = (by: 1 | -1) => {
+    if (!review || inReview === -1) return position + by;
+    const to = review[inReview + by];
+    return to === undefined ? (by > 0 ? last + 1 : position) : to;
   };
   // Going back keeps a word fully built; one half-built stays on the device as it was.
-  const back = () => move(draft.current ?? undefined, position - 1);
+  const back = () => move(draft.current ?? undefined, step(-1));
   const timed = attempt.kind === 'test';
   const answered = words.filter((word) => word.state !== 'empty').length;
 
@@ -271,7 +283,15 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
             busy={busy || timeUp}
             onOpen={(index) => {
               setChecking(false);
+              setReview(null);
               setPosition(index);
+            }}
+            onReview={() => {
+              const missing = words.flatMap((word, index) => (word.state === 'answered' ? [] : [index]));
+              if (missing.length === 0) return;
+              setReview(missing);
+              setChecking(false);
+              setPosition(missing[0]);
             }}
             onBack={() => setChecking(false)}
             onHandIn={() => void finish(() => api.submitTest(attempt.id))}
@@ -285,12 +305,20 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
                 savedAnswer={current.answer}
                 busy={timeUp}
                 result={null}
-                eyebrow={`${timed ? t.test : t.practice} · ${t.testWordOf(position + 1, attempt.total)}`}
-                submitLabel={position === last ? t.testToCheck : t.next}
+                eyebrow={`${timed ? t.test : t.practice} · ${
+                  review && inReview !== -1
+                    ? t.testSkippedOf(inReview + 1, review.length)
+                    : t.testWordOf(position + 1, attempt.total)
+                }`}
+                submitLabel={
+                  (review && inReview !== -1 ? inReview === review.length - 1 : position === last)
+                    ? t.testToCheck
+                    : t.next
+                }
                 onDraft={setDraft}
-                onSubmit={(answer) => move(answer, position + 1)}
-                onSkip={() => move(null, position + 1)}
-                onBack={position > 0 ? back : null}
+                onSubmit={(answer) => move(answer, step(1))}
+                onSkip={() => move(null, step(1))}
+                onBack={(review && inReview !== -1 ? inReview > 0 : position > 0) ? back : null}
                 onContinue={() => undefined}
               />
             </div>

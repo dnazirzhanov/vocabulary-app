@@ -963,6 +963,8 @@ export const tg: Messages = {
   readingTime: 'Вақти хондан',
   testWordOf: (n: number, total: number) => `калимаи ${n} аз ${total}`,
   testToCheck: 'Ба санҷиш',
+  testGoToSkipped: (n: number) => `Ба гузаронидашудаҳо · ${n}`,
+  testSkippedOf: (n: number, total: number) => `гузаронидашудаи ${n} аз ${total}`,
   testCheckTitle: 'Пеш аз супоридан санҷед',
   testCheckEmpty: (n: number) => `Бе ҷавоб: ${n}. Барои баргаштан ба калима онро пахш кунед.`,
   testCheckAllDone: 'Ҳамаи калимаҳо ҷавоб доранд. Барои тағйир додан калимаро пахш кунед.',
