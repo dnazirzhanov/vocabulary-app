@@ -1414,3 +1414,72 @@
 .questionsHead .questionsTitle {
   margin: 0;
 }
+
+/* «Вопросы к тексту», one card at a time: numbered dots, the card, then back and next. */
+.questionDots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.questionDot {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.questionDot[data-done] {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+  color: var(--color-success);
+}
+
+.questionDot[data-done='wrong'] {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+}
+
+.questionDot[aria-current='step'] {
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 0 0 2px var(--color-primary-strong);
+  color: var(--ink);
+}
+
+.questionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper, var(--color-surface));
+}
+
+.questionCount {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.questionNav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.questionNav > :only-child {
+  margin-left: 0;
+}

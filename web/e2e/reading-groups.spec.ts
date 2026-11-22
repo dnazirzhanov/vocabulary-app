@@ -59,13 +59,15 @@ test('a reading given with its words and questions reaches the group in one step
 
   // Its questions are Olga's: three with options, then her changed one; the fifth dropped.
   const questions = mashaPage.getByRole('region', { name: 'Вопросы к тексту' });
-  await expect(questions.getByRole('listitem')).toHaveCount(4);
-  await expect(questions.getByRole('listitem').nth(3)).toContainText('Why do you drink tea, or why not?');
+  await expect(questions.getByRole('group').getByRole('button')).toHaveCount(4);
+  await questions.getByRole('button', { name: 'Вопрос 4', exact: true }).click();
+  const fourth = mashaPage.getByRole('article', { name: 'Вопрос 4 из 4' });
+  await expect(fourth).toContainText('Why do you drink tea, or why not?');
   await questions.getByRole('textbox').fill('I drink green tea every morning with my family.');
   await expect(questions.getByText('9 / 10–150 слов')).toBeVisible();
   await questions.getByRole('textbox').fill('I drink green tea every morning with my whole family.');
   await questions.getByRole('button', { name: 'Отправить' }).click();
-  await expect(questions.getByRole('listitem').nth(3)).toContainText('every morning with my whole family');
+  await expect(fourth).toContainText('every morning with my whole family');
 
   // Its word is a deck under «Из чтения» on Masha's home.
   await mashaPage.getByRole('button', { name: 'Назад' }).click();

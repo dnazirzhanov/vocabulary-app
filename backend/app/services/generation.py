@@ -83,7 +83,7 @@ class DraftQuestion(BaseModel):
     question: str
     options: list[str] | None = None
     answer: int | None = None
-    min_words: int = 20
+    min_words: int = 15
     max_words: int = 100
 
 
@@ -352,8 +352,9 @@ Also write questions about the whole text, in simple English for a learner at it
   ("answer": the right option's place, from 0; put it in a different place each time);
 - two open ones that make the reader think: infer what the text implies, connect it with their own
   life or the wider world, or say what they learned and why it matters. Never ask for a detail the
-  text states. With how many words a good answer takes, between 20 and 300:
-  {"question": "...", "min_words": 30, "max_words": 150}."""
+  text states. Each is one short question, at most 12 words, with no sentence before it. With how
+  many words a good answer takes: at least 10 to 20 (10 for A1-A2, 15 for B1, 20 for B2 and up),
+  at most 100 to 180: {"question": "...", "min_words": 15, "max_words": 150}."""
 
 
 def prompt_for(template: str, kind: str, language: str) -> str:

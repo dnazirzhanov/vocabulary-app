@@ -56,9 +56,9 @@ questions:
       - "To teach them to children"
       - "So that old knowledge could not help him"
     answer: "So that old knowledge could not help him"
-  - q: "Trying to remember a word works better than reading it again. Why do you think the effort of remembering makes memory stronger?"
-    min: 30
+  - q: "Why does trying to remember make memory stronger?"
+    min: 15
     max: 150
-  - q: "After reading this text, how will you change the way you learn new English words? Make a small plan for next week."
-    min: 30
+  - q: "How will you learn new English words next week?"
+    min: 15
     max: 150

@@ -84,7 +84,7 @@ def test_an_open_answer_within_its_limits_is_kept_with_the_question_it_answered(
         "/api/reading-answers", params={"reading": "library:tea"}, headers=as_("anna")
     ).json()
     assert got["question_ref"] == WHY_DRUNK and got["text"] == LONG_ENOUGH and got["words"] == 31
-    assert got["question_text"].startswith("After water, tea is the most popular drink")
+    assert got["question_text"] == "Why do people in so many countries drink tea?"
     assert got["choice"] is None and got["correct"] is None
     assert client.get("/api/reading-answers/counts", headers=as_("anna")).json() == {
         "library:tea": 1
@@ -99,11 +99,13 @@ def test_an_open_answer_within_its_limits_is_kept_with_the_question_it_answered(
 
 
 def test_limits_hold_and_no_answer_is_over_500_words(client: TestClient) -> None:
-    short = send(client, WHY_DRUNK, words(29))
+    # B1: at least 15 words (it was 30, too much for learners).
+    short = send(client, WHY_DRUNK, words(14))
     long = send(client, WHY_DRUNK, words(151))
     assert (short["status"], short["code"]) == ("rejected", "answer_too_short")
     assert (long["status"], long["code"]) == ("rejected", "answer_too_long")
     assert send(client, WHY_DRUNK, words(150))["status"] == "applied"
+    assert send(client, WHY_DRUNK, words(15))["status"] == "applied"
     unknown = send(client, "library:tea:9", words(40))
     assert (unknown["status"], unknown["code"]) == ("rejected", "question_not_found")
 
@@ -249,3 +251,16 @@ def test_my_texts_questions_are_mine_to_change_add_and_drop(client: TestClient) 
     one_option = [{"kind": "choice", "q": "Which?", "options": ["Only"], "answer": 0}]
     bad = client.put(f"{url}/questions", json={"questions": one_option}, headers=as_("anna"))
     assert bad.status_code == 422
+
+
+def test_drafted_open_questions_never_ask_for_more_than_20_words_at_least() -> None:
+    from app.services import readings
+    from app.services.generation import DraftQuestion
+
+    sound = readings._sound(
+        [
+            DraftQuestion(question="Why do people drink tea?", min_words=40, max_words=180),
+            DraftQuestion(question="What would you change?", min_words=10, max_words=100),
+        ]
+    )
+    assert [(q["min_words"], q["max_words"]) for q in sound] == [(20, 180), (10, 100)]

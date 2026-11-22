@@ -34,6 +34,10 @@ from app.services.content import TOKEN
 from app.services.generation import DraftQuestion, Gloss, Provider
 from app.services.reading import MAX_ANSWER_WORDS, READING_SPEED
 
+# A drafted open question never asks for more than this many words at the least: answers that
+# had to reach 30-40 words were too much for learners (the owner, 22 November 2026).
+DRAFT_MIN_WORDS = 20
+
 MAX_WORDS = 2000
 MAX_READINGS = 200
 MAX_CATEGORIES = 50
@@ -338,7 +342,7 @@ def _sound(drafted: list[DraftQuestion]) -> list[dict[str, object]]:
             {
                 "kind": "open",
                 "text": text,
-                "min_words": min(max(one.min_words, 1), high),
+                "min_words": min(max(one.min_words, 1), high, DRAFT_MIN_WORDS),
                 "max_words": high,
             }
         )
