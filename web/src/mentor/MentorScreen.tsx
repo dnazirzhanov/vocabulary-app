@@ -5,17 +5,20 @@ import { study } from '../study/device.ts';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { listEvents } from '../schedule/api.ts';
-import type { ScheduleEvent } from '../schedule/types.ts';
+import { happensOn, isoDay, type ScheduleEvent } from '../schedule/types.ts';
 import { ScheduleView } from '../schedule/ScheduleView.tsx';
 import { collectMentorInput } from './inputs.ts';
 import { markLaunched, reconcileDone } from './done.ts';
 import { GoalSetup } from './GoalSetup.tsx';
+import { MemoryScreen } from './MemoryScreen.tsx';
 import { ChatScreen } from './chat/ChatScreen.tsx';
 import type { Activity } from './chat/ToolCards.tsx';
 import { planToday, withWeek } from './plan.ts';
-import { busyNow, freeUntil, slotsFor } from './slots.ts';
+import { busyNow, dayEndFor, freeUntil, slotsFor } from './slots.ts';
+import { minimumOf, rescueChoices } from './rescue.ts';
+import { loadFor, type DayType } from './dayPlan.ts';
 import { pickTip } from './tip.ts';
-import { TodayView } from './TodayView.tsx';
+import { titleOf, TodayView } from './TodayView.tsx';
 import type { MentorGoalType, MentorInput, PlanItem, Tip } from './types.ts';
 import styles from './MentorScreen.module.css';
 
@@ -25,6 +28,8 @@ interface MentorScreenProps {
   onStartSession: (session: Session, from: string) => void;
   onOpenWriting: () => void;
   onOpenSpeaking: () => void;
+  /** Out of the mentor section (the chat list's «‹»). */
+  onLeave: () => void;
 }
 
 /** The coach's last answer, kept on the device so the home opens without a connection. */
@@ -49,14 +54,17 @@ export function MentorScreen({
   onStartSession,
   onOpenWriting,
   onOpenSpeaking,
+  onLeave,
 }: MentorScreenProps) {
   const [input, setInput] = useState<MentorInput | null>(null);
   const [coach, setCoach] = useState<Coach | null>(() => keptCoach(account));
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [chat, setChat] = useState<{ ask: string | null } | null>(null);
+  // The chat comes first; today's plan is a page of its own, one tap away.
+  const [chat, setChat] = useState<{ ask: string | null } | null>({ ask: null });
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
@@ -71,6 +79,10 @@ export function MentorScreen({
     },
     [account],
   );
+
+  // Measurement only (ADR 0078): never in the way, and nothing to retry when offline.
+  const track = (kind: MentorPlanItem['kind'], where: 'home' | 'chat' | 'panel') =>
+    void api.mentorStartTapped(kind, where).catch(() => undefined);
 
   const load = useCallback(() => {
     // The coach and the schedule need the server; without it, the kept coach and no times.
@@ -88,6 +100,20 @@ export function MentorScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Something applied from the chat (the kind of day, ADR 0077): the plan follows.
+  useEffect(() => {
+    const reload = () => void load();
+    window.addEventListener('mentor:changed', reload);
+    return () => window.removeEventListener('mentor:changed', reload);
+  }, [load]);
+
+  // A new day on the device while the server's «today» is still yesterday's: ask again.
+  const deviceDay = isoDay(now);
+  const serverDay = coach?.today?.day;
+  useEffect(() => {
+    if (serverDay && serverDay !== deviceDay) void load();
+  }, [serverDay, deviceDay, load]);
 
   // The times move on: «free until», «now» and slots stay true while the tab is open.
   useEffect(() => {
@@ -152,19 +178,57 @@ export function MentorScreen({
   }
 
   const dailyMinutes = coach?.commitment.minutes ?? input.dailyMinutes;
-  const items = withWeek(planToday(input), coach?.behind ?? [], dailyMinutes, {
+  const planned = withWeek(planToday(input), coach?.behind ?? [], dailyMinutes, {
     writing: t.mentorActivityWriting,
     speaking: t.mentorActivitySpeaking,
   });
+  // «Today» from the server is the learner's own date (ADR 0080): a choice made yesterday (a
+  // page left open past midnight, or the copy kept for offline) is not today's.
+  const todayIso = isoDay(now);
+  const fresh = coach?.today?.day === todayIso;
+  // Today's choice when it didn't work (ADR 0074): the minimum, another time, or rest.
+  const override = fresh ? (coach?.today.override_mode ?? null) : null;
+  // What kind of day it is sets the load first (ADR 0076); today's choice then bends that.
+  const dayType = fresh ? (coach?.today.day_type ?? null) : null;
+  const loaded = loadFor(dayType, planned);
+  // The coach as the home shows it: yesterday's choices never on today's page.
+  const shownCoach =
+    coach && !fresh
+      ? { ...coach, today: { ...coach.today, override_mode: null, override_start: null, day_type: null } }
+      : coach;
+  const items = override === 'minimum' ? minimumOf(loaded) : override === 'skip' ? [] : loaded;
   const tip = pickTip(input);
-  const doneItems = reconcileDone(account, new Set(items.map(keyOf)));
+  const doneItems = reconcileDone(account, new Set(planned.map(keyOf)));
 
   const minute = now.getHours() * 60 + now.getMinutes();
-  const weekday = (now.getDay() + 6) % 7;
+  // Today's blocks: one-offs on their date, repeating ones unless skipped today (ADR 0074).
   const today = events
-    .filter((e) => e.weekdays & (1 << weekday))
-    .map((e) => ({ start: e.startMinute, end: e.endMinute, title: e.title }));
-  const slots = slotsFor(items, today, minute, coach?.commitment.start_minute ?? null);
+    .filter((e) => happensOn(e, now))
+    .map((e) => ({ start: e.startMinute, end: e.endMinute, title: e.title, kind: e.kind }));
+  // The study day ends at bedtime (the sleep block), not at a fixed hour (ADR 0080).
+  const dayEnd = dayEndFor(today);
+  // Today's own study time (one changed today starts tomorrow), or the time chosen instead.
+  const plannedStart = fresh ? (coach?.today.study_start ?? null) : null;
+  const studyStart =
+    override === 'moved' || override === 'minimum' ? (coach?.today.override_start ?? plannedStart) : plannedStart;
+  const slots = slotsFor(items, today, minute, studyStart, dayEnd);
+  const rescue = rescueChoices(
+    loaded.map((item) => ({ title: titleOf(item), minutes: item.minutes })),
+    today,
+    minute,
+    plannedStart,
+    dayEnd,
+  );
+  const promisedEnd =
+    plannedStart !== null && coach?.today.study_minutes != null ? plannedStart + coach.today.study_minutes : null;
+  const nudge =
+    coach && coach.today.promised && !coach.today.studied && loaded.length > 0
+      ? coach.today.missed_yesterday
+        ? ('missed' as const)
+        : promisedEnd !== null && minute > promisedEnd
+          ? ('passed' as const)
+          : null
+      : null;
   const inBlock = busyNow(today, minute);
 
   const launch = async (item: PlanItem) => {
@@ -190,7 +254,8 @@ export function MentorScreen({
   };
 
   // «Начать сейчас» on a mentor's card: the same doors as the list's own.
-  const startActivity = async (activity: Activity) => {
+  const startActivity = async (activity: Activity, where: 'chat' | 'panel' = 'chat') => {
+    track(activity.kind, where);
     const matched = items.find(
       (i) =>
         (i.kind === 'reading' && i.articleId === activity.article_id) ||
@@ -215,6 +280,14 @@ export function MentorScreen({
     }
   };
 
+  if (memoryOpen) {
+    return (
+      <main className={styles.chatScreen}>
+        <MemoryScreen onBack={() => setMemoryOpen(false)} />
+      </main>
+    );
+  }
+
   if (scheduleOpen) {
     return (
       <main className={styles.chatScreen}>
@@ -222,6 +295,26 @@ export function MentorScreen({
           onBack={() => {
             setScheduleOpen(false);
             void load();
+          }}
+          study={items.map((item, i) => ({
+            key: keyOf(item),
+            title: titleOf(item),
+            minutes: item.minutes,
+            at: slots[i],
+            onStart: () => void launch(item),
+          }))}
+          commitment={
+            coach
+              ? {
+                  weekdays: coach.commitment.weekdays,
+                  start: coach.commitment.start_minute,
+                  minutes: coach.commitment.minutes,
+                }
+              : null
+          }
+          onAsk={(question) => {
+            setScheduleOpen(false);
+            setChat({ ask: question });
           }}
         />
       </main>
@@ -236,15 +329,15 @@ export function MentorScreen({
           plan={items.map(planPayload)}
           tipId={tip.id}
           ask={chat.ask}
-          onBack={() => {
+          account={account}
+          onBack={onLeave}
+          onOpenToday={() => {
             setChat(null);
             void load();
           }}
           onStart={startActivity}
-          onOpenCalendar={() => {
-            setChat(null);
-            setScheduleOpen(true);
-          }}
+          onOpenCalendar={() => setScheduleOpen(true)}
+          onOpenMemory={() => setMemoryOpen(true)}
         />
       </main>
     );
@@ -268,19 +361,31 @@ export function MentorScreen({
       <div className={styles.main}>
         <TodayView
           greeting={greetingFor(input.phase, input.name)}
-          coach={coach}
+          coach={shownCoach}
           goalLabel={goalLabel}
           tasks={items.map((item, i) => ({ item, key: keyOf(item), at: slots[i] }))}
           done={doneItems}
           busy={inBlock ? { title: inBlock.title, end: inBlock.end } : null}
-          freeUntil={freeUntil(today, minute)}
+          freeUntil={freeUntil(today, minute, dayEnd)}
           minute={minute}
           tip={tipText(tip)}
           busyStarting={busy}
-          onStart={(item) => void launch(item)}
+          onStart={(item) => {
+            track(item.kind, 'home');
+            void launch(item);
+          }}
           onAsk={(question) => setChat({ ask: question ?? null })}
+          onBack={() => setChat({ ask: null })}
           onOpenCalendar={() => setScheduleOpen(true)}
+          onOpenMemory={() => setMemoryOpen(true)}
           onEditGoal={() => setEditingGoal(true)}
+          rescue={rescue}
+          nudge={nudge}
+          onRescue={(option) =>
+            void api.coachToday(option.mode, option.start ?? undefined).then(keepCoach, () => undefined)
+          }
+          onUndoRescue={() => void api.coachToday(null).then(keepCoach, () => undefined)}
+          onDayType={(type: DayType | null) => void api.coachDayType(type).then(keepCoach, () => undefined)}
           onDecide={(accept) => {
             const adjustment = coach?.adjustment;
             if (adjustment) void api.coachDecide(adjustment.id, accept).then(keepCoach, () => undefined);

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 Preference = Literal["morning", "day", "evening"]
-Reason = Literal["free", "habit", "preferred", "after_block"]
+Reason = Literal["free", "habit", "preferred", "after_block", "works"]
 
 EARLIEST = 6 * 60
 LATEST_END = 22 * 60 + 30
@@ -17,6 +17,10 @@ AIR = 10
 HABIT_NEAR = 45
 # Options are at least this far apart, so they are real choices.
 APART = 120
+# A promised time this close to a candidate counts as a try of it (ADR 0076).
+SAME_SLOT = 30
+# Tries before the success rate is said out loud.
+TRIES_TO_SAY = 3
 _BANDS: dict[Preference, tuple[int, int]] = {
     "morning": (6 * 60, 12 * 60),
     "day": (12 * 60, 17 * 60),
@@ -40,6 +44,9 @@ class StudyTime:
     minutes: int
     score: float
     reasons: tuple[Reason, ...] = field(default=())
+    # How often a study time here was kept, when one was promised near it (ADR 0076).
+    kept: int = 0
+    tried: int = 0
 
 
 def _days(mask: int) -> list[int]:
@@ -59,9 +66,11 @@ def propose(
     habit: Sequence[int] = (),
     preference: Preference | None = None,
     count: int = 3,
+    record: Sequence[tuple[int, bool]] = (),
 ) -> list[StudyTime]:
     """Up to `count` study times, best first, each free on every chosen day. `habit`: start
-    minutes of the learner's recent sessions."""
+    minutes of the learner's recent sessions. `record`: each recent day's promised start and
+    whether it was kept (ADR 0076), so times that work rise and times that don't sink."""
     days = _days(weekdays) or list(range(7))
     candidates: list[StudyTime] = []
     for start in range(EARLIEST, LATEST_END - minutes + 1, STEP):
@@ -86,12 +95,23 @@ def propose(
         if after * 2 >= len(days):
             reasons.append("after_block")
             score += 1
+        # What happened when a study time near here was promised: the smoothed success rate
+        # (kept + 1) / (tried + 2), trusted more the more it was tried.
+        tries = [kept for promised, kept in record if abs(promised - start) <= SAME_SLOT]
+        tried, kept_count = len(tries), sum(tries)
+        if tried:
+            rate = (kept_count + 1) / (tried + 2)
+            score += 6 * (rate - 0.5) * min(tried, 6) / 6
+            if tried >= TRIES_TO_SAY and kept_count * 2 > tried:
+                reasons.append("works")
         # Late evenings and very early mornings are harder to keep.
         if start >= 21 * 60 + 30 or start < 6 * 60 + 30:
             score -= 1
         # A gentle lean to the usual study hours, so ties go to early evening.
         score -= abs(start - 18 * 60) / 1440
-        candidates.append(StudyTime(weekdays, start, minutes, round(score, 3), tuple(reasons)))
+        candidates.append(
+            StudyTime(weekdays, start, minutes, round(score, 3), tuple(reasons), kept_count, tried)
+        )
     chosen: list[StudyTime] = []
     for option in sorted(candidates, key=lambda c: -c.score):
         if all(abs(option.start - other.start) >= APART for other in chosen):

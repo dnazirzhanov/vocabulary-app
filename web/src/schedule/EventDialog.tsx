@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Dialog } from '../ui/Dialog.tsx';
-import { t } from '../i18n/index.ts';
+import { t, uiLanguage } from '../i18n/index.ts';
 import type { EventKind, ScheduleEvent, ScheduleEventInput } from './types.ts';
-import { EVENT_KINDS, daysToMask, maskToDays } from './types.ts';
+import { EVENT_KINDS, daysToMask, isoDay, maskToDays } from './types.ts';
 import styles from './EventDialog.module.css';
 
 interface EventDialogProps {
@@ -12,6 +12,11 @@ interface EventDialogProps {
   onClose: () => void;
   onSave: (input: ScheduleEventInput) => Promise<void>;
   onDelete?: () => Promise<void>;
+  /** The date the form was opened on (ADR 0074): a new block may be on it only, a repeating one
+   * may be off on it only. */
+  date?: Date;
+  /** Takes a repeating block off on `date` only. */
+  onSkipDay?: () => Promise<void>;
 }
 
 /** Format minutes-from-midnight as "HH:MM" for <input type="time">. */
@@ -30,7 +35,7 @@ function parse(s: string): number {
 
 // Form state is computed once per mount from props. The parent passes a `key` so a fresh dialog
 // (new event, or editing a different event) remounts with fresh initial values.
-export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete }: EventDialogProps) {
+export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete, date, onSkipDay }: EventDialogProps) {
   const startDefault = initial?.startMinute ?? defaults?.startMinute ?? 480;
   const endDefault = initial?.endMinute ?? (defaults?.startMinute != null ? defaults.startMinute + 60 : 540);
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -40,13 +45,16 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
   const [endTime, setEndTime] = useState(fmt(endDefault));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A new block on the form's date only, or a one-off being edited.
+  const [onlyThatDay, setOnlyThatDay] = useState(Boolean(initial?.onDate));
+  const oneDay = initial?.onDate ? new Date(`${initial.onDate}T12:00:00`) : date;
 
   const startMinute = parse(startTime);
   const endMinute = parse(endTime);
 
   const validate = (): string | null => {
     if (title.trim().length === 0) return t.eventDialogErrorEmptyTitle;
-    if (days.length === 0) return t.eventDialogErrorNoDays;
+    if (days.length === 0 && !onlyThatDay) return t.eventDialogErrorNoDays;
     if (endMinute <= startMinute) return t.eventDialogErrorEndBeforeStart;
     return null;
   };
@@ -65,9 +73,10 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
         weekdays: daysToMask(days),
         startMinute,
         endMinute,
+        onDate: onlyThatDay && oneDay ? isoDay(oneDay) : null,
       });
     } catch {
-      setError('Could not save. Try again.');
+      setError(t.scheduleSaveFailed);
       setBusy(false);
     }
   };
@@ -78,7 +87,7 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
     try {
       await onDelete();
     } catch {
-      setError('Could not delete. Try again.');
+      setError(t.scheduleDeleteFailed);
       setBusy(false);
     }
   };
@@ -122,29 +131,38 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
           </div>
         </div>
 
-        <div className={styles.row}>
-          <span className={styles.rowLabel}>{t.eventDialogDaysLabel}</span>
-          <div className={styles.dayCircles} role="group" aria-label={t.eventDialogDaysLabel}>
-            {t.weekdays.map((name, idx) => {
-              const on = days.includes(idx);
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`${styles.dayCircle}${on ? ` ${styles.dayCircleOn}` : ''}`}
-                  aria-pressed={on}
-                  aria-label={name}
-                  onClick={() => {
-                    if (on && days.length === 1) return; // at least one day stays on
-                    setDays(on ? days.filter((d) => d !== idx) : [...days, idx].sort((a, b) => a - b));
-                  }}
-                >
-                  {name.charAt(0)}
-                </button>
-              );
-            })}
+        {oneDay && (initial === null || initial.onDate) && (
+          <label className={styles.onlyDay}>
+            <input type="checkbox" checked={onlyThatDay} onChange={(e) => setOnlyThatDay(e.target.checked)} />
+            {t.scheduleOnlyThatDay(dayLabel(oneDay))}
+          </label>
+        )}
+
+        {!onlyThatDay && (
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>{t.eventDialogDaysLabel}</span>
+            <div className={styles.dayCircles} role="group" aria-label={t.eventDialogDaysLabel}>
+              {t.weekdays.map((name, idx) => {
+                const on = days.includes(idx);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`${styles.dayCircle}${on ? ` ${styles.dayCircleOn}` : ''}`}
+                    aria-pressed={on}
+                    aria-label={name}
+                    onClick={() => {
+                      if (on && days.length === 1) return; // at least one day stays on
+                      setDays(on ? days.filter((d) => d !== idx) : [...days, idx].sort((a, b) => a - b));
+                    }}
+                  >
+                    {name.charAt(0)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className={styles.row}>
           <span className={styles.rowLabel}>{t.eventDialogStartLabel}</span>
@@ -175,6 +193,23 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
           </p>
         )}
 
+        {onSkipDay && date && initial && !initial.onDate && (
+          <button
+            type="button"
+            className={styles.skipDay}
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void onSkipDay().catch(() => {
+                setError(t.scheduleSaveFailed);
+                setBusy(false);
+              });
+            }}
+          >
+            {t.scheduleSkipThatDay(dayLabel(date))}
+          </button>
+        )}
+
         <div className={styles.actions}>
           {onDelete && (
             <button type="button" className={styles.deleteBtn} disabled={busy} onClick={() => void handleDelete()}>
@@ -195,6 +230,8 @@ export function EventDialog({ open, initial, defaults, onClose, onSave, onDelete
   );
 }
 
+const dayLabel = (d: Date) => d.toLocaleDateString(uiLanguage, { weekday: 'long', day: 'numeric', month: 'long' });
+
 function kindLabel(k: EventKind): string {
   switch (k) {
     case 'school':
@@ -207,6 +244,12 @@ function kindLabel(k: EventKind): string {
       return t.scheduleKindChore;
     case 'personal':
       return t.scheduleKindPersonal;
+    case 'rest':
+      return t.scheduleKindRest;
+    case 'play':
+      return t.scheduleKindPlay;
+    case 'sleep':
+      return t.scheduleKindSleep;
     case 'other':
       return t.scheduleKindOther;
   }

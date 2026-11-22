@@ -1,9 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { t } from '../i18n/index.ts';
-import { CRITERIA, type CriterionName, type Submission } from './api.ts';
+import {
+  CRITERIA,
+  IELTS_CRITERIA,
+  IELTS_WORDS,
+  isIelts,
+  type CriterionName,
+  type GeneralEvaluation,
+  type IeltsCriterionName,
+  type IeltsEvaluation,
+  type Submission,
+} from './api.ts';
 import { clock } from '../lib/stopwatch.ts';
-import { criterionLabel, scoreLabel } from './scoreText.ts';
-import { collectFixes, segments, type Fix } from './marks.ts';
+import { bandText, criterionLabel, ieltsLabel, ieltsShort, scoreLabel, taskTypeLabel } from './scoreText.ts';
+import { collectFixes, collectIeltsFixes, segments, type Fix } from './marks.ts';
 import styles from './Writing.module.css';
 
 interface Props {
@@ -15,41 +25,26 @@ interface Props {
 }
 
 /**
- * The feedback: the answer with its fixes marked and numbered on one side, the five categories as
- * tabs on the other. A category with fixes shows only the fixes; one without shows its comment.
+ * The feedback. IELTS (ADR 0081): the overall band and the four criteria first, then the essay with
+ * its fixes marked and numbered beside the criteria, each with why and what lifts it a band.
+ * Answers marked on the earlier 1–5 scale open as they were. No list of generic advice.
  */
 export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Props) {
   const ev = submission.evaluation;
-  const enough = ev !== null && ev.enough_evidence && ev.criteria !== null && ev.overall !== null;
-  const fixes = useMemo(() => (ev ? collectFixes(submission.answer, ev) : []), [ev, submission.answer]);
-
   return (
-    <main className={`${styles.screen} ${enough ? styles.resultWide : ''}`}>
+    <main className={`${styles.screen} ${styles.resultWide}`}>
       <button type="button" className={styles.back} onClick={onBack}>
         ‹ {t.back}
       </button>
+      {submission.question?.task_type && (
+        <p className={styles.typeChip}>{taskTypeLabel(submission.question.task_type)}</p>
+      )}
       <h1 className={styles.context}>{submission.question?.title ?? t.writing}</h1>
 
-      {ev && enough && ev.overall !== null && (
-        <section aria-labelledby="w-overall">
-          <h2 id="w-overall" className={styles.visuallyHidden}>
-            {t.writingScoreHeading}
-          </h2>
-          <p className={styles.scoreLine}>
-            <strong>{scoreLabel(ev.overall)}</strong>
-            <span>
-              {t.writingScoreOutOf(ev.overall)}
-              {ev.cefr_level ? ` · ${t.writingLevel(ev.cefr_level)}` : ''}
-              {submission.time_spent_seconds !== null
-                ? ` · ${t.writingTimeSpent(clock(submission.time_spent_seconds))}`
-                : ''}
-            </span>
-          </p>
-        </section>
-      )}
-
-      {ev && enough ? (
-        <Review answer={submission.answer} fixes={fixes} criteria={ev.criteria!} />
+      {ev && isIelts(ev) && ev.enough_evidence && ev.criteria && ev.band !== null ? (
+        <IeltsFeedback submission={submission} ev={ev} />
+      ) : ev && !isIelts(ev) && ev.enough_evidence && ev.criteria && ev.overall !== null ? (
+        <GeneralFeedback submission={submission} ev={ev} />
       ) : (
         <section aria-labelledby="w-overall" className={styles.verdict}>
           {ev && (
@@ -69,19 +64,6 @@ export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Pr
         </section>
       )}
 
-      {ev && enough && ev.improvements.length > 0 && (
-        <section className={styles.next} aria-labelledby="w-next">
-          <h2 id="w-next" className={styles.nextTitle}>
-            {t.writingNextStep}
-          </h2>
-          <ol className={styles.steps}>
-            {ev.improvements.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ol>
-        </section>
-      )}
-
       <div className={styles.actions}>
         {onWriteAgain && (
           <button type="button" className={styles.secondary} onClick={onWriteAgain}>
@@ -96,21 +78,141 @@ export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Pr
   );
 }
 
-interface ReviewProps {
-  answer: string;
-  fixes: Fix[];
-  criteria: Record<CriterionName, { score: number; comment: string }>;
+function IeltsFeedback({ submission, ev }: { submission: Submission; ev: IeltsEvaluation }) {
+  const criteria = ev.criteria!;
+  const fixes = useMemo(() => collectIeltsFixes(submission.answer, ev), [ev, submission.answer]);
+  // Open on the criterion with the lowest band: what most holds the essay back.
+  const lowest = IELTS_CRITERIA.reduce((a, b) => (criteria[b].band < criteria[a].band ? b : a));
+  const [tab, setTab] = useState<IeltsCriterionName>(lowest);
+  const words = ev.words || submission.answer.trim().split(/\s+/).length;
+
+  return (
+    <>
+      <section className={styles.bandHero} aria-labelledby="w-overall">
+        <div className={styles.bandMain}>
+          <h2 id="w-overall" className={styles.bandCaption}>
+            {t.writingBandOverall}
+          </h2>
+          <p className={styles.bandValue}>{bandText(ev.band!)}</p>
+        </div>
+        <ul className={styles.bandChips} aria-label={t.writingBandCriteria}>
+          {IELTS_CRITERIA.map((name) => (
+            <li key={name}>
+              <button
+                type="button"
+                className={styles.bandChip}
+                aria-pressed={tab === name}
+                aria-label={`${ieltsLabel(name)}: ${criteria[name].band}`}
+                onClick={() => setTab(name)}
+              >
+                <span>{ieltsShort(name)}</span>
+                <strong>{criteria[name].band}</strong>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className={styles.bandMeta}>
+          {t.writingWords(words)}
+          {submission.time_spent_seconds !== null
+            ? ` · ${t.writingTimeSpent(clock(submission.time_spent_seconds))}`
+            : ''}
+          {words < IELTS_WORDS ? ` · ${t.writingShortForExam(IELTS_WORDS)}` : ''}
+        </p>
+      </section>
+
+      <Review
+        answer={submission.answer}
+        fixes={fixes}
+        tabs={IELTS_CRITERIA}
+        tab={tab}
+        onTab={setTab}
+        label={ieltsShort}
+        head={(name) => (
+          <div className={styles.criterionHead}>
+            <h3 className={styles.criterionName}>{ieltsLabel(name)}</h3>
+            <p className={styles.criterionBand}>
+              <strong>{criteria[name].band}</strong> {t.writingBandWord}
+            </p>
+            <p className={styles.comment}>{criteria[name].why}</p>
+            {criteria[name].next_band && criteria[name].band < 9 && (
+              <p className={styles.nextBand}>
+                <span>{t.writingToNextBand(criteria[name].band + 1)}</span> {criteria[name].next_band}
+              </p>
+            )}
+          </div>
+        )}
+        empty={() => null}
+      />
+    </>
+  );
 }
 
-function Review({ answer, fixes, criteria }: ReviewProps) {
+function GeneralFeedback({ submission, ev }: { submission: Submission; ev: GeneralEvaluation }) {
+  const criteria = ev.criteria!;
+  const fixes = useMemo(() => collectFixes(submission.answer, ev), [ev, submission.answer]);
   // Open on the category of the first fix in the answer; with no fixes, on the first category.
   const [tab, setTab] = useState<CriterionName>(() => fixes[0]?.home ?? CRITERIA[0]);
+  return (
+    <>
+      <section aria-labelledby="w-overall">
+        <h2 id="w-overall" className={styles.visuallyHidden}>
+          {t.writingScoreHeading}
+        </h2>
+        <p className={styles.scoreLine}>
+          <strong>{scoreLabel(ev.overall!)}</strong>
+          <span>
+            {t.writingScoreOutOf(ev.overall!)}
+            {ev.cefr_level ? ` · ${t.writingLevel(ev.cefr_level)}` : ''}
+            {submission.time_spent_seconds !== null
+              ? ` · ${t.writingTimeSpent(clock(submission.time_spent_seconds))}`
+              : ''}
+          </span>
+        </p>
+      </section>
+      <Review
+        answer={submission.answer}
+        fixes={fixes}
+        tabs={CRITERIA}
+        tab={tab}
+        onTab={setTab}
+        label={criterionLabel}
+        head={(name) => (
+          <p className={styles.panelScore}>
+            <span className={styles.pips} aria-hidden="true">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <i key={n} className={n <= criteria[name].score ? styles.pipOn : styles.pip} />
+              ))}
+            </span>
+            {scoreLabel(criteria[name].score)} · {t.writingScoreOutOf(criteria[name].score)}
+          </p>
+        )}
+        empty={(name) => <p className={styles.comment}>{criteria[name].comment}</p>}
+      />
+    </>
+  );
+}
+
+interface ReviewProps<H extends string> {
+  answer: string;
+  fixes: Fix<H>[];
+  tabs: H[];
+  tab: H;
+  onTab: (tab: H) => void;
+  label: (tab: H) => string;
+  /** What the open tab says about itself, above its fixes. */
+  head: (tab: H) => ReactNode;
+  /** What a tab without fixes shows instead. */
+  empty: (tab: H) => ReactNode;
+}
+
+/** The answer with its fixes marked and numbered on one side, the criteria as tabs on the other. */
+function Review<H extends string>({ answer, fixes, tabs, tab, onTab, label, head, empty }: ReviewProps<H>) {
   const [marked, setMarked] = useState(true);
   const [focus, setFocus] = useState<number | null>(null);
-  const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const items = useRef<Record<number, HTMLLIElement | null>>({});
 
-  // A tap on a mark in the answer opens its category and brings its fix into view.
+  // A tap on a mark in the answer opens its criterion and brings its fix into view.
   useEffect(() => {
     if (focus === null) return;
     items.current[focus]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -120,7 +222,7 @@ function Review({ answer, fixes, criteria }: ReviewProps) {
 
   // On a phone the tabs scroll sideways: keep the open one in sight, moving only the tab row.
   useEffect(() => {
-    const el = tabs.current[tab];
+    const el = tabRefs.current[tab];
     const row = el?.parentElement;
     if (!el || !row || row.scrollWidth <= row.clientWidth) return;
     const left = el.offsetLeft - row.offsetLeft;
@@ -129,8 +231,8 @@ function Review({ answer, fixes, criteria }: ReviewProps) {
     }
   }, [tab]);
 
-  const openFix = (fix: Fix) => {
-    setTab(fix.home);
+  const openFix = (fix: Fix<H>) => {
+    onTab(fix.home);
     setFocus(fix.n);
   };
 
@@ -138,13 +240,12 @@ function Review({ answer, fixes, criteria }: ReviewProps) {
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
-    const next = CRITERIA[(CRITERIA.indexOf(tab) + step + CRITERIA.length) % CRITERIA.length];
-    setTab(next);
-    tabs.current[next]?.focus();
+    const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+    onTab(next);
+    tabRefs.current[next]?.focus();
   };
 
   const shown = fixes.filter((f) => f.home === tab);
-  const criterion = criteria[tab];
 
   return (
     <div className={styles.review}>
@@ -192,11 +293,11 @@ function Review({ answer, fixes, criteria }: ReviewProps) {
 
       <section className={styles.fixesPane}>
         <div className={styles.tabs} role="tablist">
-          {CRITERIA.map((name) => (
+          {tabs.map((name) => (
             <button
               key={name}
               ref={(el) => {
-                tabs.current[name] = el;
+                tabRefs.current[name] = el;
               }}
               type="button"
               role="tab"
@@ -205,25 +306,18 @@ function Review({ answer, fixes, criteria }: ReviewProps) {
               aria-controls="w-panel"
               tabIndex={tab === name ? 0 : -1}
               className={styles.tab}
-              onClick={() => setTab(name)}
+              onClick={() => onTab(name)}
               onKeyDown={onTabKey}
             >
-              {criterionLabel(name)}
+              {label(name)}
             </button>
           ))}
         </div>
 
         <div id="w-panel" role="tabpanel" aria-labelledby={`w-tab-${tab}`} className={styles.panel}>
-          <p className={styles.panelScore}>
-            <span className={styles.pips} aria-hidden="true">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <i key={n} className={n <= criterion.score ? styles.pipOn : styles.pip} />
-              ))}
-            </span>
-            {scoreLabel(criterion.score)} · {t.writingScoreOutOf(criterion.score)}
-          </p>
+          {head(tab)}
           {shown.length === 0 ? (
-            <p className={styles.comment}>{criterion.comment}</p>
+            empty(tab)
           ) : (
             <ol className={styles.fixList}>
               {shown.map((f) => (

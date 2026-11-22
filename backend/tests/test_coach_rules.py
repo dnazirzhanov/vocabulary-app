@@ -184,3 +184,25 @@ def test_a_plan_kept_with_room_to_spare_grows_a_little() -> None:
 
 def test_a_kept_plan_short_of_the_deadline_says_so() -> None:
     assert review(week(goal="not_possible")) == Proposal("behind")
+
+
+# --- learning which times work (ADR 0076) ---------------------------------------------------
+
+
+def test_a_time_kept_again_and_again_rises_and_says_so() -> None:
+    record = [(19 * 60, True)] * 4 + [(19 * 60, False)]  # 4 of 5 kept at 19:00
+    best = propose([SCHOOL, GYM], WEEKDAYS, 20, record=record)[0]
+    assert abs(best.start - 19 * 60) <= 30 and "works" in best.reasons
+    assert (best.kept, best.tried) == (4, 5)
+
+
+def test_a_time_missed_again_and_again_sinks() -> None:
+    plain = propose([SCHOOL], WEEKDAYS, 20)[0]
+    record = [(plain.start, False)] * 5
+    after = propose([SCHOOL], WEEKDAYS, 20, record=record)[0]
+    assert abs(after.start - plain.start) > 30
+
+
+def test_one_lucky_day_proves_little() -> None:
+    once = propose([SCHOOL], WEEKDAYS, 20, record=[(21 * 60, True)])
+    assert all("works" not in o.reasons for o in once)

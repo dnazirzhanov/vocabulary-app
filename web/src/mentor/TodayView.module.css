@@ -557,3 +557,224 @@ button.task:hover {
   text-align: left;
   cursor: text;
 }
+
+/* When today doesn't work (ADR 0074) */
+.linkButton {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.override {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.override span {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+.nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-tint);
+}
+
+.nudge p {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+}
+
+.rescue {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rescueOption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rescueOption:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.rescueTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+}
+
+section.rescueOption {
+  cursor: default;
+}
+
+section.rescueOption:hover {
+  border-color: var(--color-border);
+}
+
+.rescueOption[data-recommended] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+/* Other times: real free starts as chips, and the learner's own. */
+.rescueTimes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rescueTime {
+  min-width: 4.5rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.rescueTime:hover:not(:disabled) {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.rescueTime:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rescueOwn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.rescueOwn label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.rescueOwn input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.rescueLead {
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+/* What kind of day it is (ADR 0076): one quiet question, answered with a tap. */
+.dayType {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.dayCheck {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.dayCheckTitle {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+
+.dayChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dayChip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--border-control) solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.dayChip:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+/* Back to the chat. */
+.back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 var(--space-1) calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--color-primary-tint);
+}
+
+.back svg {
+  width: 22px;
+  height: 22px;
+}
