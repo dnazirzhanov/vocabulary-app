@@ -558,12 +558,12 @@ export const study = {
 
 const AHEAD_DAYS = 7;
 const NEW_AHEAD = 20;
-const AUDIO_CACHE = 'audio-1';
+const AUDIO_CACHE = 'audio-2'; // public/sw.js keeps the same name
 
 /**
  * The words this device will likely play this week: course words due in the next 7 days, and the
- * next new words of each course level (only course words have recordings; others use the phone's
- * voice).
+ * next new words of each course level (only course words have files kept here; other words are
+ * spoken by the server's voice when online).
  */
 export function wordsAhead(learner: Learner, moment: number): string[] {
   const course = [...learner.decks.values()].filter((deck) => deck.kind === 'course');

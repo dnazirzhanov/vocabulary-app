@@ -29,9 +29,13 @@ export interface SpeakingQuestion {
 export interface SessionSummary {
   id: string;
   question_id: string;
+  exercise_type: ExerciseType;
   status: SessionStatus;
   started_at: string;
   completed_at: string | null;
+  /** The recording's length, and whether it can still be played. */
+  duration_ms: number | null;
+  has_audio: boolean;
   overall_score: number | null;
   pronunciation_score: number | null;
   fluency_score: number | null;
@@ -162,6 +166,13 @@ export function createSession(exerciseType: ExerciseType, questionId: string): P
 
 export function getSession(id: string): Promise<SpeakingSessionDetail> {
   return request<SpeakingSessionDetail>('GET', `/speaking/sessions/${id}`);
+}
+
+/** The learner's own recording of one attempt, as a URL the player can use (revoke it when done). */
+export async function recordingUrl(sessionId: string): Promise<string> {
+  const response = await fetch(`${apiBase}/speaking/sessions/${sessionId}/audio`, { headers: await authHeaders() });
+  if (!response.ok) throw await toApiError(response);
+  return URL.createObjectURL(await response.blob());
 }
 
 export function deleteSession(id: string): Promise<void> {

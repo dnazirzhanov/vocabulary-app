@@ -1,7 +1,9 @@
 """The Writing question bank: plain data, so adding a question never touches application logic.
 
-English prompts only: Writing trains English, like the rest of the course. Ids are stable (a saved
-submission points at one); never reuse or renumber an id."""
+IELTS Writing Task 2 questions (ADR 0081): original, in the exam's five task types, on the tab's
+eight topics. English prompts only. Ids are stable (a saved submission points at one); never reuse
+or renumber an id. The earlier general questions are kept in RETIRED so old answers keep their
+titles, but are no longer offered."""
 
 from dataclasses import dataclass
 
@@ -14,6 +16,8 @@ class WritingQuestion:
     instruction: str
     level: str | None = None  # CEFR, a rough guide only
     suggested_minutes: int | None = None
+    # IELTS Task 2 type: opinion, discussion, problem_solution, advantages, two_part (ADR 0081).
+    task_type: str | None = None
 
 
 def _q(
@@ -22,7 +26,7 @@ def _q(
     return WritingQuestion(id, topic, title, instruction, level, minutes)
 
 
-QUESTIONS: tuple[WritingQuestion, ...] = (
+RETIRED: tuple[WritingQuestion, ...] = (
     # Everyday Life
     _q(
         "life-morning",
@@ -225,8 +229,283 @@ QUESTIONS: tuple[WritingQuestion, ...] = (
     ),
 )
 
-_BY_ID = {q.id: q for q in QUESTIONS}
-assert len(_BY_ID) == len(QUESTIONS), "duplicate writing question id"
+TASK2_INSTRUCTION = (
+    "Give reasons for your answer and include any relevant examples from your own knowledge or "
+    "experience. Write at least 250 words."
+)
+TASK_TYPES = ("opinion", "discussion", "problem_solution", "advantages", "two_part")
+
+
+def _t2(id: str, topic: str, task_type: str, title: str) -> WritingQuestion:
+    assert task_type in TASK_TYPES, task_type
+    return WritingQuestion(id, topic, title, TASK2_INSTRUCTION, None, 40, task_type)
+
+
+_IELTS: dict[str, tuple[str, list[tuple[str, str]]]] = {
+    "life": (
+        "Everyday Life",
+        [
+            (
+                "opinion",
+                "Some people believe that cooking at home is a waste of time when ready-made "
+                "food is cheap and easy to buy. To what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think it is better to live in a big city, while others "
+                "prefer life in a small town. Discuss both views and give your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "Many people today feel they have too little free time. What are "
+                "the causes of this, and what can be done to solve the problem?",
+            ),
+            (
+                "advantages",
+                "More and more people now live alone. Do the advantages of this outweigh "
+                "the disadvantages?",
+            ),
+            (
+                "two_part",
+                "Many people spend a lot of money on celebrations such as weddings and "
+                "birthdays. Why do people do this? Is it a positive or negative development?",
+            ),
+        ],
+    ),
+    "edu": (
+        "Education",
+        [
+            (
+                "opinion",
+                "Some people believe that university education should be free for all "
+                "students. To what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think children should start learning a foreign language at "
+                "primary school, while others believe they should wait until secondary school. "
+                "Discuss "
+                "both views and give your own opinion.",
+            ),
+            (
+                "two_part",
+                "In many countries, more students now study online than in classrooms. Why "
+                "is this happening? Is it a positive or negative development?",
+            ),
+            (
+                "advantages",
+                "Some students take a year off between finishing school and starting "
+                "university, to work or to travel. Do the advantages of this outweigh the "
+                "disadvantages?",
+            ),
+            (
+                "opinion",
+                "Schools should teach practical skills, such as managing money and cooking, "
+                "instead of academic subjects like history. To what extent do you agree or "
+                "disagree?",
+            ),
+        ],
+    ),
+    "tech": (
+        "Technology",
+        [
+            (
+                "opinion",
+                "Smartphones have done more harm than good to the way people communicate. "
+                "To what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think that artificial intelligence will create more jobs "
+                "than it destroys, while others believe the opposite. Discuss both views and "
+                "give your "
+                "own opinion.",
+            ),
+            (
+                "problem_solution",
+                "Many children now spend several hours a day in front of screens. "
+                "What problems does this cause, and what can parents and schools do about it?",
+            ),
+            (
+                "advantages",
+                "Many people now work from home using the internet. Do the advantages of "
+                "this outweigh the disadvantages?",
+            ),
+            (
+                "two_part",
+                "People today share a great deal of personal information online. Why do "
+                "they do this? What risks does it bring?",
+            ),
+        ],
+    ),
+    "env": (
+        "Environment",
+        [
+            (
+                "opinion",
+                "The best way to reduce pollution is to make fuel and plastic much more "
+                "expensive. To what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people believe that protecting the environment is the "
+                "responsibility of governments, while others think individuals should take the "
+                "main "
+                "responsibility. Discuss both views and give your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "In many cities, the amount of household waste is growing fast. "
+                "What are the causes, and what solutions can you suggest?",
+            ),
+            (
+                "advantages",
+                "Some countries are building more nuclear power stations to reduce the "
+                "use of coal and gas. Do the advantages of this outweigh the disadvantages?",
+            ),
+            (
+                "two_part",
+                "Many wild animals are in danger of disappearing. Why is this happening? "
+                "What can be done to protect them?",
+            ),
+        ],
+    ),
+    "health": (
+        "Health",
+        [
+            (
+                "opinion",
+                "Governments should put a high tax on sugary drinks and fast food to improve "
+                "public health. To what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think that the main cause of health problems is an "
+                "unhealthy lifestyle, while others believe it is mostly genetics and the "
+                "environment. "
+                "Discuss both views and give your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "Many young people today experience stress and anxiety. What are "
+                "the causes, and how can this problem be reduced?",
+            ),
+            (
+                "advantages",
+                "More people now use apps and smartwatches to track their health. Do the "
+                "advantages of this outweigh the disadvantages?",
+            ),
+            (
+                "two_part",
+                "In many countries people are living longer than before. What problems "
+                "does this create? How can society deal with them?",
+            ),
+        ],
+    ),
+    "travel": (
+        "Travel",
+        [
+            (
+                "opinion",
+                "International tourism does more harm than good to local communities. To "
+                "what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people prefer to travel on organised tours, while others prefer to "
+                "plan their trips themselves. Discuss both views and give your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "Many popular tourist cities are now overcrowded. What problems "
+                "does this cause, and what can be done about it?",
+            ),
+            (
+                "advantages",
+                "More young people now travel abroad alone before they start work. Do "
+                "the advantages of this outweigh the disadvantages?",
+            ),
+            (
+                "two_part",
+                "Cheap flights have made air travel possible for many more people. Why has "
+                "flying become so popular? Is this a positive or negative development?",
+            ),
+        ],
+    ),
+    "society": (
+        "Society",
+        [
+            (
+                "opinion",
+                "Older people have more to teach young people than the internet does. To "
+                "what extent do you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think that famous people should have a private life like "
+                "everyone else, while others think the public has a right to know about them. "
+                "Discuss "
+                "both views and give your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "In many cities people do not know their neighbours. Why is this, "
+                "and what can be done to build stronger communities?",
+            ),
+            (
+                "advantages",
+                "In some countries young adults continue to live with their parents "
+                "until they marry. Do the advantages of this outweigh the disadvantages?",
+            ),
+            (
+                "opinion",
+                "Community service, such as helping in hospitals or cleaning parks, should "
+                "be compulsory for all teenagers. To what extent do you agree or disagree?",
+            ),
+        ],
+    ),
+    "work": (
+        "Work and Careers",
+        [
+            (
+                "opinion",
+                "Job satisfaction is more important than a high salary. To what extent do "
+                "you agree or disagree?",
+            ),
+            (
+                "discussion",
+                "Some people think it is better to stay with one company for a long "
+                "time, while others believe changing jobs often is better. Discuss both views "
+                "and give "
+                "your own opinion.",
+            ),
+            (
+                "problem_solution",
+                "Many young graduates cannot find jobs that match their "
+                "qualifications. What are the causes, and what can be done?",
+            ),
+            (
+                "advantages",
+                "A four-day working week is becoming popular in some companies. Do the "
+                "advantages of this outweigh the disadvantages?",
+            ),
+            (
+                "two_part",
+                "More people now choose to work for themselves rather than for an "
+                "employer. Why is this? Is it a positive or negative trend?",
+            ),
+        ],
+    ),
+}
+
+QUESTIONS: tuple[WritingQuestion, ...] = tuple(
+    _t2(f"ielts-{key}-{n}", topic, task_type, title)
+    for key, (topic, items) in _IELTS.items()
+    for n, (task_type, title) in enumerate(items, start=1)
+)
+
+_BY_ID = {q.id: q for q in (*QUESTIONS, *RETIRED)}
+assert len(_BY_ID) == len(QUESTIONS) + len(RETIRED), "duplicate writing question id"
 
 
 def get(question_id: str) -> WritingQuestion | None:

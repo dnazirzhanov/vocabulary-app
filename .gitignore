@@ -17,3 +17,6 @@ node_modules/
 dist-auth
 dist-offline
 dist-app
+
+# Local speaking and shadowing recordings (development storage); never committed.
+backend/.speaking-audio/

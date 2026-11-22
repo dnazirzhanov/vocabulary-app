@@ -23,6 +23,8 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
     'n1Min',
     'account',
     'test',
+    'testMusic', // «Музыка» is the Kazakh word too
+    'scheduleTemplateStudent', // «Студент» is the Kazakh word too
     'code',
     'topicPsychology',
     'readingTheme',
@@ -38,6 +40,8 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
     'slovar',
     'account',
     'test',
+    'testMusic', // «Музыка» is the Kyrgyz word too
+    'scheduleTemplateStudent', // «Студент» is the Kyrgyz word too
     'topic',
     'text',
     'topicPsychology',
