@@ -43,12 +43,21 @@ def set_goal(client: TestClient, who: str = "ann", **body: Any) -> dict[str, Any
     return result
 
 
-def commit(client: TestClient, start: int, minutes: int, days: list[int] = WEEKDAYS) -> Any:
+def commit(
+    client: TestClient,
+    start: int,
+    minutes: int,
+    days: list[int] = WEEKDAYS,
+    moment: datetime = THURSDAY,
+) -> Any:
     return client.put(
         "/api/mentor/coach/commitment",
         json={"weekdays": days, "start_minute": start, "minutes": minutes},
-        headers=as_(),
+        headers=as_(moment=moment),
     )
+
+
+LAST_WEEK = datetime(2026, 11, 12, 15, 0, tzinfo=UTC)
 
 
 def user_of(db: Session, name: str = "ann") -> User:
@@ -201,7 +210,7 @@ def _evenings(db: Session, days: list[int], hour: int) -> None:
 def test_studying_later_than_promised_brings_a_proposal_to_move_the_time(
     client: TestClient, db: Session
 ) -> None:
-    commit(client, 19 * 60, 20)
+    commit(client, 19 * 60, 20, moment=LAST_WEEK)
     _evenings(db, [16, 17, 18, 19], hour=21)
     adjustment = coach(client, moment=NEXT_MONDAY)["adjustment"]
     assert adjustment["kind"] == "move_time"
@@ -220,7 +229,7 @@ def test_studying_later_than_promised_brings_a_proposal_to_move_the_time(
 
 
 def test_a_dismissed_proposal_changes_nothing(client: TestClient, db: Session) -> None:
-    commit(client, 19 * 60, 20)
+    commit(client, 19 * 60, 20, moment=LAST_WEEK)
     _evenings(db, [16, 17, 18, 19], hour=21)
     adjustment = coach(client, moment=NEXT_MONDAY)["adjustment"]
     after = client.post(
@@ -232,14 +241,14 @@ def test_a_dismissed_proposal_changes_nothing(client: TestClient, db: Session) -
 
 
 def test_a_mostly_missed_week_makes_the_plan_easier(client: TestClient, db: Session) -> None:
-    commit(client, 19 * 60, 20)
+    commit(client, 19 * 60, 20, moment=LAST_WEEK)
     _evenings(db, [16], hour=19)
     adjustment = coach(client, moment=NEXT_MONDAY)["adjustment"]
     assert adjustment["kind"] == "easier_minutes" and adjustment["proposal"]["minutes"] == 15
 
 
 def test_someone_elses_adjustment_cannot_be_decided(client: TestClient, db: Session) -> None:
-    commit(client, 19 * 60, 20)
+    commit(client, 19 * 60, 20, moment=LAST_WEEK)
     _evenings(db, [16, 17, 18, 19], hour=21)
     adjustment = coach(client, moment=NEXT_MONDAY)["adjustment"]
     response = client.post(
@@ -248,3 +257,11 @@ def test_someone_elses_adjustment_cannot_be_decided(client: TestClient, db: Sess
         headers=as_("bob", NEXT_MONDAY),
     )
     assert response.status_code == 404
+
+
+def test_a_week_before_the_study_time_was_promised_is_never_looked_back_on(
+    client: TestClient, db: Session
+) -> None:
+    """A new learner promising on Thursday hears nothing about Monday to Wednesday."""
+    commit(client, 19 * 60, 20)
+    assert coach(client, moment=NEXT_MONDAY)["adjustment"] is None

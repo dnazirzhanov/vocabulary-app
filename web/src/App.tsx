@@ -452,6 +452,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       mentor={me.mentor === true}
       speaking={speakingEnabled}
       writing={me.writing === true}
+      focused={screen.name === 'mentor'}
     >
       {tabScreen()}
     </NavShell>
@@ -542,6 +543,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
             onStartSession={startSession}
             onOpenWriting={() => setScreen({ name: 'writing' })}
             onOpenSpeaking={() => setScreen({ name: 'speaking' })}
+            onLeave={() => navigate('today')}
           />
         </Suspense>
       );

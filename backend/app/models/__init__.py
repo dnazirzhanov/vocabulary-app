@@ -24,10 +24,13 @@ from app.models.learning import (
     UserWordProgress,
 )
 from app.models.mentor import (
+    LearnerFact,
     MentorAdjustment,
     MentorConversation,
+    MentorEvent,
     MentorGoal,
     MentorMessage,
+    MentorTimelineEvent,
 )
 from app.models.reading import (
     Reading,
@@ -36,7 +39,7 @@ from app.models.reading import (
     ReadingCategory,
     ReadingQuestion,
 )
-from app.models.schedule import ScheduleEvent
+from app.models.schedule import MentorDayOverride, MentorDayType, ScheduleEvent, ScheduleSkip
 from app.models.shadowing import ShadowingAttempt, ShadowingExercise
 from app.models.speaking import (
     SpeakingAssessment,
@@ -75,11 +78,16 @@ __all__ = [
     "GroupTest",
     "GroupTestAttempt",
     "GroupTestQuestion",
+    "LearnerFact",
     "LearningSession",
     "MentorAdjustment",
     "MentorConversation",
+    "MentorDayOverride",
+    "MentorDayType",
+    "MentorEvent",
     "MentorGoal",
     "MentorMessage",
+    "MentorTimelineEvent",
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
@@ -92,6 +100,7 @@ __all__ = [
     "ReadingQuestion",
     "ReviewAttempt",
     "ScheduleEvent",
+    "ScheduleSkip",
     "ShadowingAttempt",
     "ShadowingExercise",
     "SpeakingAssessment",

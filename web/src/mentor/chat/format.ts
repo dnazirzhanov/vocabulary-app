@@ -6,6 +6,45 @@ export function hhmm(minute: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
+interface Timed {
+  title: string;
+  weekdays: number[];
+  start_minute: number;
+  end_minute: number;
+  on_date: string | null;
+}
+
+/**
+ * The two halves the server saves a night as (23:00–24:00, then 00:00–07:00 the day after) shown
+ * again as the one block the learner said: «Сон 23:00–07:00».
+ */
+export function joinOvernight<T extends Timed>(blocks: T[]): T[] {
+  const used = new Set<number>();
+  const shown: T[] = [];
+  blocks.forEach((evening, i) => {
+    if (used.has(i)) return;
+    const next = evening.weekdays.map((d) => (d + 1) % 7).sort();
+    const j = blocks.findIndex(
+      (morning, k) =>
+        k !== i &&
+        !used.has(k) &&
+        evening.end_minute === 1440 &&
+        morning.start_minute === 0 &&
+        evening.on_date === null &&
+        morning.on_date === null &&
+        morning.title === evening.title &&
+        [...morning.weekdays].sort().join() === next.join(),
+    );
+    if (j === -1) {
+      shown.push(evening);
+      return;
+    }
+    used.add(j);
+    shown.push({ ...evening, end_minute: blocks[j].end_minute });
+  });
+  return shown;
+}
+
 /** A message's time by the learner's own clock: today «19:05», another day «18 нояб., 19:05». */
 export function messageTime(sent: Date, now: Date, locale: string): string {
   const time = sent.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });

@@ -359,44 +359,35 @@ export const api = {
     request<Coach>('PUT', '/mentor/coach/commitment', { weekdays, start_minute: startMinute, minutes }),
   coachDecide: (id: string, accept: boolean) =>
     request<Coach>('POST', `/mentor/coach/adjustments/${encodeURIComponent(id)}`, { accept }),
-  scheduleList: () =>
-    request<{
-      events: Array<{
-        id: string;
-        title: string;
-        kind: string;
-        weekdays: number;
-        start_minute: number;
-        end_minute: number;
-      }>;
-    }>('GET', '/mentor/schedule'),
-  scheduleCreate: (body: { title: string; kind: string; weekdays: number; start_minute: number; end_minute: number }) =>
-    request<{
-      id: string;
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    }>('POST', '/mentor/schedule', body),
-  scheduleUpdate: (
-    id: string,
-    body: {
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    },
-  ) =>
-    request<{
-      id: string;
-      title: string;
-      kind: string;
-      weekdays: number;
-      start_minute: number;
-      end_minute: number;
-    }>('PUT', `/mentor/schedule/${id}`, body),
+  scheduleList: () => request<{ events: WireScheduleEvent[] }>('GET', '/mentor/schedule'),
+  scheduleCreate: (body: WireScheduleInput) => request<WireScheduleEvent>('POST', '/mentor/schedule', body),
+  scheduleUpdate: (id: string, body: WireScheduleInput) =>
+    request<WireScheduleEvent>('PUT', `/mentor/schedule/${id}`, body),
+  /** «Только в этот день: не будет» (ADR 0074). */
+  /** A «Начать» tapped, for knowing whether the mentor works (ADR 0078). */
+  mentorStartTapped: (kind: MentorPlanItem['kind'], where: 'home' | 'chat' | 'panel') =>
+    request<null>('POST', '/mentor/events', { name: 'start_tapped', kind, where }),
+  scheduleSkip: (id: string, date: string) => request<null>('POST', `/mentor/schedule/${id}/skips`, { date }),
+  scheduleUnskip: (id: string, date: string) => request<null>('DELETE', `/mentor/schedule/${id}/skips/${date}`),
+  /** «Отменить» on the mentor's calendar card (ADR 0083): the calendar as it was before it. */
+  scheduleUndo: (undo: CalendarUndo) => request<null>('POST', '/mentor/schedule/undo', undo),
+  /** When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow; null undoes it. */
+  coachToday: (mode: 'minimum' | 'moved' | 'skip' | null, startMinute?: number) =>
+    mode === null
+      ? request<Coach>('DELETE', '/mentor/coach/today')
+      : request<Coach>('PUT', '/mentor/coach/today', { mode, start_minute: startMinute }),
+  /** What kind of day today is (ADR 0076); null clears it. */
+  coachDayType: (type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null) =>
+    request<Coach>('PUT', '/mentor/coach/day-type', { type }),
+  // What the mentor knows (ADR 0075).
+  mentorMemory: () => request<MentorMemory>('GET', '/mentor/memory'),
+  mentorAddFact: (kind: FactKind, text: string, source: 'chat' | 'user' = 'user') =>
+    request<MentorMemory>('POST', '/mentor/memory/facts', { kind, text, source }),
+  mentorChangeFact: (id: string, kind: FactKind, text: string) =>
+    request<MentorMemory>('PUT', `/mentor/memory/facts/${encodeURIComponent(id)}`, { kind, text }),
+  mentorForgetFact: (id: string) => request<MentorMemory>('DELETE', `/mentor/memory/facts/${encodeURIComponent(id)}`),
+  /** Days off the promise (illness, a trip), from tomorrow until a date. */
+  promisePause: (until: string) => request<unknown>('PUT', '/me/promise/pause', { until }),
   scheduleDelete: (id: string) => request<null>('DELETE', `/mentor/schedule/${id}`),
 };
 
@@ -413,14 +404,51 @@ export type MentorCard =
       why: string | null;
     }
   | { type: 'busy'; busy_with: string | null; until: number | null }
+  | {
+      type: 'exception';
+      kind: 'skip_day' | 'one_off' | 'pause';
+      date: string;
+      until?: string;
+      title?: string;
+      start_minute?: number;
+      end_minute?: number;
+      events?: { id: string; title: string }[];
+    }
+  | { type: 'replies'; replies: string[] }
+  | { type: 'memory'; kind: FactKind; text: string }
+  // The mentor's components (ADR 0077): the server fills in every fact.
+  | {
+      type: 'day';
+      date: string;
+      blocks: { title: string; kind: string; start_minute: number; end_minute: number }[];
+      study_start: number | null;
+      day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    }
+  | { type: 'words'; words: { en: string; l1: string }[]; due: number }
+  | { type: 'day_check'; current: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null }
+  | { type: 'choice'; question: string; options: string[] }
+  | {
+      type: 'reminders';
+      changes: Partial<Record<'morning' | 'afternoon' | 'deadline' | 'report', boolean>>;
+    }
+  | { type: 'celebrate'; milestones: { kind: 'streak_weeks' | 'days_this_week' | 'words_known'; value: number }[] }
   | { type: 'done' }
+  // A calendar change the mentor made at once (ADR 0083), with what undoing it needs.
+  | { type: 'schedule_saved'; added: CalendarBlock[]; removed: CalendarBlock[]; undo: CalendarUndo }
   | {
       type: 'schedule';
       events: { title: string; kind: string; weekdays: number[]; start_minute: number; end_minute: number }[];
     }
   | {
       type: 'study_times';
-      options: { weekdays: number[]; start_minute: number; minutes: number; reasons: string[] }[];
+      options: {
+        weekdays: number[];
+        start_minute: number;
+        minutes: number;
+        reasons: string[];
+        kept?: number;
+        tried?: number;
+      }[];
     }
   | {
       type: 'goal';
@@ -446,8 +474,55 @@ export type MentorCard =
       studied_days: number;
     };
 
+/** A block the mentor added or took off: repeating on weekdays (0 = Monday), or on one date. */
+export interface CalendarBlock {
+  title: string;
+  kind: string;
+  weekdays: number[];
+  start_minute: number;
+  end_minute: number;
+  on_date: string | null;
+}
+
+export interface CalendarUndo {
+  created: string[];
+  before: {
+    id: string;
+    title: string;
+    kind: string;
+    weekdays: number;
+    start_minute: number;
+    end_minute: number;
+    on_date: string | null;
+  }[];
+  skips: { event_id: string; date: string }[];
+}
+
 export type MentorToolName =
-  'what_now' | 'suggest_activity' | 'get_week_plan' | 'propose_goal' | 'propose_schedule' | 'propose_study_times';
+  | 'what_now'
+  | 'suggest_activity'
+  | 'get_week_plan'
+  | 'propose_goal'
+  | 'propose_schedule' // chats from before ADR 0083
+  | 'set_schedule'
+  | 'change_day'
+  | 'propose_study_times'
+  | 'propose_exception'
+  | 'offer_replies'
+  | 'remember'
+  | 'recall'
+  | 'show'
+  // Reading the app (ADR 0079): steps without cards.
+  | 'get_stats'
+  | 'get_practice'
+  | 'get_words'
+  | 'get_writing'
+  | 'get_speaking'
+  | 'get_reading'
+  | 'get_assignments'
+  | 'get_calendar'
+  | 'get_progress'
+  | 'propose_reminders';
 
 export interface MentorToolEvent {
   id: string;
@@ -512,6 +587,18 @@ export interface Coach {
   promised: boolean[];
   studied: boolean[];
   commitment: { weekdays: number[]; start_minute: number | null; minutes: number | null; pending_from: string | null };
+  today: {
+    override_mode: 'minimum' | 'moved' | 'skip' | null;
+    override_start: number | null;
+    studied: boolean;
+    promised: boolean;
+    missed_yesterday: boolean;
+    day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    /** The learner's own date this is for, and today's study time (ADR 0080). */
+    day?: string;
+    study_start?: number | null;
+    study_minutes?: number | null;
+  };
   adjustment: {
     id: string;
     kind: 'easier_minutes' | 'fewer_days' | 'move_time' | 'more_minutes' | 'behind';
@@ -520,11 +607,36 @@ export interface Coach {
   } | null;
 }
 
+export type FactKind = 'why' | 'likes' | 'dislikes' | 'constraint' | 'energy' | 'word' | 'other';
+export const FACT_KINDS: FactKind[] = ['why', 'likes', 'dislikes', 'constraint', 'energy', 'word', 'other'];
+
+export interface MentorMemory {
+  facts: { id: string; kind: FactKind; text: string; source: 'chat' | 'user' | 'coach'; created_at: string }[];
+  timeline: { at: string; kind: string; note: Record<string, string | number | null> }[];
+}
+
+export interface WireScheduleInput {
+  title: string;
+  kind: string;
+  weekdays: number;
+  start_minute: number;
+  end_minute: number;
+  on_date?: string | null;
+}
+
+export interface WireScheduleEvent extends WireScheduleInput {
+  id: string;
+  on_date: string | null;
+  skipped: string[];
+}
+
 export interface StudyTimeOption {
   weekdays: number[];
   start_minute: number;
   minutes: number;
-  reasons: ('free' | 'habit' | 'preferred' | 'after_block')[];
+  reasons: ('free' | 'habit' | 'preferred' | 'after_block' | 'works')[];
+  kept?: number;
+  tried?: number;
 }
 
 /** Streams mentor chat reply as SSE events. Caller should handle ApiError for 403/429. */
