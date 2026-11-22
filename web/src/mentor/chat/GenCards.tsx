@@ -5,7 +5,8 @@
  */
 import { useState } from 'react';
 import { api, type MentorCard, type MentorPlanItem } from '../../lib/api.ts';
-import { t } from '../../i18n/index.ts';
+import type { NotificationChoice } from '../../lib/types.ts';
+import { t, uiLanguage } from '../../i18n/index.ts';
 import { CheckIcon, ForwardIcon, SparkleIcon } from '../../ui/icons.tsx';
 import { isoDay } from '../../schedule/types.ts';
 import { DAY_TYPES, loadFor, type DayType } from '../dayPlan.ts';
@@ -95,6 +96,16 @@ export function DayCard({ card, plan }: { card: Card<'day'>; plan: MentorPlanIte
     <div className={styles.card}>
       <p className={styles.head}>
         {t.mentorGenDay}
+        {!isToday && (
+          <span className={styles.muted}>
+            {' · '}
+            {new Date(`${card.date}T12:00:00`).toLocaleDateString(uiLanguage, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </span>
+        )}
         {card.day_type && <span className={styles.muted}> · {dayTypeName(card.day_type)}</span>}
       </p>
       <div className={styles.strip} aria-hidden="true">
@@ -264,6 +275,56 @@ export function CardSkeleton() {
       <span />
       <span />
       <span />
+    </div>
+  );
+}
+
+const REMINDER_NAME: Record<'morning' | 'afternoon' | 'deadline' | 'report', () => string> = {
+  morning: () => t.inTheMorningTodaySPromise,
+  afternoon: () => t.at1700IfYouHaven,
+  deadline: () => t.deckDeadline,
+  report: () => t.theGroupSReportForYesterday,
+};
+
+/** Reminders turned on or off (ADR 0079): only what changes, saved on the tap like in Settings. */
+export function RemindersCard({ card }: { card: Card<'reminders'> }) {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const changes = Object.entries(card.changes) as ['morning' | 'afternoon' | 'deadline' | 'report', boolean][];
+  const save = () => {
+    setState('saving');
+    const update = Object.fromEntries(changes.map(([kind, on]) => [`notify_${kind}`, on])) as Partial<
+      Record<NotificationChoice, boolean>
+    >;
+    api.updateMe(update).then(
+      () => setState('saved'),
+      () => setState('failed'),
+    );
+  };
+  return (
+    <div className={styles.card}>
+      <p className={styles.head}>{t.mentorRemindersTitle}</p>
+      <ul className={styles.rows}>
+        {changes.map(([kind, on]) => (
+          <li key={kind} data-kind={on ? 'study' : 'other'}>
+            <span>{on ? t.mentorReminderOn : t.mentorReminderOff}</span>
+            <span>{REMINDER_NAME[kind]()}</span>
+          </li>
+        ))}
+      </ul>
+      {state === 'saved' ? (
+        <p className={styles.muted} role="status">
+          <CheckIcon aria-hidden="true" /> {t.mentorRemindersSaved}
+        </p>
+      ) : (
+        <button type="button" className={styles.primary} disabled={state === 'saving'} onClick={save}>
+          {t.mentorRemindersApply}
+        </button>
+      )}
+      {state === 'failed' && (
+        <p className={styles.muted} role="alert">
+          {t.scheduleSaveFailed}
+        </p>
+      )}
     </div>
   );
 }

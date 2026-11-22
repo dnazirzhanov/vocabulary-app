@@ -24,7 +24,7 @@
   message: "Завтра нет школы"
   local: "2026-11-19 20:00"
   schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:00", end: "14:00"}]
-  expect: {tools_any: [propose_exception], language: ru}
+  expect: {tools_any: [change_day], language: ru}
 
 - id: sick
   message: "Я заболела, неделю не смогу заниматься"
@@ -39,7 +39,26 @@
 - id: week-schedule
   message: "Я учусь пн–пт с 8 до 14, тренировки во вторник и четверг 18–19"
   local: "2026-11-20 12:00"
-  expect: {tools_any: [propose_schedule], language: ru}
+  expect: {tools_any: [set_schedule], language: ru}
+
+# ADR 0083: the calendar is changed at once; sleep past midnight is never refused.
+- id: sleep-in-calendar
+  message: "И я сплю с 23:00 до 7:00, поставь это в календарь"
+  local: "2026-11-21 13:19"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:30", end: "13:30"}]
+  expect: {tools_any: [set_schedule], language: ru}
+
+- id: school-changed
+  message: "В пятницу школа теперь до 12"
+  local: "2026-11-21 13:00"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:30", end: "13:30"}]
+  expect: {tools_any: [set_schedule], language: ru}
+
+- id: whats-my-schedule
+  message: "What is my schedule?"
+  local: "2026-11-20 07:06"
+  schedule: [{title: "Школа", kind: school, weekdays: 31, start: "08:30", end: "13:30"}]
+  expect: {tools_any: [show]}
 
 - id: study-time
   message: "Когда мне лучше заниматься? Минут 20 в день"
@@ -69,3 +88,34 @@
   ui_language: en
   plan: [{kind: reading, title: "Volcanoes", minutes: 6, articleId: volcanoes, level: B1}]
   expect: {tools_any: [what_now], activity_cards_max: 1, language: en}
+
+# The app as tools (ADR 0079): look it up, don't say «не знаю».
+- id: yesterday
+  message: "Что я делал вчера?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_practice], language: ru}
+
+- id: hard-words
+  message: "Какие слова у меня хуже всего получаются?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_words], language: ru}
+
+- id: essay-feedback
+  message: "Что мне улучшить в эссе?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_writing], language: ru}
+
+- id: month-progress
+  message: "Как я позанимался за этот месяц?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_progress, get_practice], language: ru}
+
+- id: teacher-deadline
+  message: "Когда сдавать слова от учителя?"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [get_assignments], language: ru}
+
+- id: reminders-off
+  message: "Не присылай мне напоминания днём"
+  local: "2026-11-20 12:00"
+  expect: {tools_any: [propose_reminders], language: ru}

@@ -3,7 +3,7 @@ what was done, when, and what was started but not finished. Lessons (words, spel
 speaking and reading, each at the learner's local time."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -39,7 +39,12 @@ class Practice:
 def practice_today(db: Session, user: User, now: datetime, zone: ZoneInfo) -> list[Practice]:
     """Today's practice in the order it happened; an open lesson started today is listed as not
     finished."""
-    start, end = local_day_bounds(now.astimezone(zone).date(), zone)
+    return practice_on(db, user, now.astimezone(zone).date(), zone)
+
+
+def practice_on(db: Session, user: User, day: date, zone: ZoneInfo) -> list[Practice]:
+    """One local day's practice in the order it happened."""
+    start, end = local_day_bounds(day, zone)
     found: list[Practice] = []
 
     lessons = db.execute(
