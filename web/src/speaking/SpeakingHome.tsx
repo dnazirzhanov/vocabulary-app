@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { listQuestions, type SpeakingQuestion } from './api.ts';
+import { ChartIcon, MicIcon, RepeatIcon } from '../ui/icons.tsx';
 import styles from './SpeakingHome.module.css';
 
 interface SpeakingHomeProps {
+  /** The three cards, or the topics inside «Говорение». */
+  view?: 'home' | 'topics';
+  onOpenTopics: () => void;
   onSelectTopic: (topic: string, questions: SpeakingQuestion[]) => void;
   onSelectShadowing: () => void;
   onOpenArchive: () => void;
@@ -15,7 +19,18 @@ interface TopicEntry {
   questions: SpeakingQuestion[];
 }
 
-export function SpeakingHome({ onSelectTopic, onSelectShadowing, onOpenArchive, onBack }: SpeakingHomeProps) {
+/**
+ * Speaking's home: three cards, «Шэдоуинг», «Говорение» and «Мои ответы» (the owner, 22 November 2026).
+ * «Говорение» opens its topics here, as a second view.
+ */
+export function SpeakingHome({
+  view = 'home',
+  onOpenTopics,
+  onSelectTopic,
+  onSelectShadowing,
+  onOpenArchive,
+  onBack,
+}: SpeakingHomeProps) {
   const [topics, setTopics] = useState<TopicEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +55,60 @@ export function SpeakingHome({ onSelectTopic, onSelectShadowing, onOpenArchive, 
     };
   }, []);
 
+  if (view === 'home') {
+    const cards = [
+      {
+        key: 'shadowing',
+        icon: <RepeatIcon />,
+        title: t.speakingModeShadowing,
+        text: t.speakingCardShadowingText,
+        open: onSelectShadowing,
+      },
+      {
+        key: 'speaking',
+        icon: <MicIcon />,
+        title: t.speakingExerciseHeading,
+        text: t.speakingCardSpeakingText(topics.length),
+        open: onOpenTopics,
+      },
+      {
+        key: 'archive',
+        icon: <ChartIcon />,
+        title: t.speakingArchive,
+        text: t.speakingCardArchiveText,
+        open: onOpenArchive,
+      },
+    ];
+    return (
+      <main className={styles.screen}>
+        <header className={styles.header}>
+          <button type="button" className={styles.back} onClick={onBack}>
+            {t.speakingBack}
+          </button>
+          <h1 className={styles.title}>{t.speaking}</h1>
+        </header>
+        <ul className={styles.cards}>
+          {cards.map((card) => (
+            <li key={card.key}>
+              <button type="button" className={styles.card} data-card={card.key} onClick={card.open}>
+                <span className={styles.cardIcon} aria-hidden="true">
+                  {card.icon}
+                </span>
+                <span className={styles.cardBody}>
+                  <span className={styles.cardTitle}>{card.title}</span>
+                  <span className={styles.cardText}>{card.text}</span>
+                </span>
+                <span className={styles.arrow} aria-hidden="true">
+                  ›
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
@@ -49,24 +118,11 @@ export function SpeakingHome({ onSelectTopic, onSelectShadowing, onOpenArchive, 
         <h1 className={styles.title}>{t.speakingTopicsHeading}</h1>
       </header>
 
-      <div className={styles.modeRow}>
-        <button type="button" className={styles.modeBtn} onClick={onSelectShadowing}>
-          <span className={styles.modeBtnLabel}>{t.speakingModeShadowing}</span>
-          <span className={styles.arrow}>›</span>
-        </button>
-        <button type="button" className={`${styles.modeBtn} ${styles.archiveBtn}`} onClick={onOpenArchive}>
-          <span className={styles.modeBtnLabel}>{t.speakingArchive}</span>
-          <span className={styles.arrow}>›</span>
-        </button>
-      </div>
-
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
-
-      <p className={styles.sectionLabel}>{t.speakingModeFree}</p>
 
       <ul className={styles.list}>
         {topics.map(({ topic, questions }) => (

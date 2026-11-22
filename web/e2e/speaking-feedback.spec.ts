@@ -112,6 +112,7 @@ async function openFeedback(page: Page) {
   );
   await page.goto('/');
   await page.getByRole('navigation').getByRole('button', { name: 'Речь' }).click();
+  await page.getByRole('button', { name: /^Говорение/ }).click();
   await page.getByRole('button', { name: /Daily Life/ }).click();
   await page.getByRole('button', { name: /Describe your home city/ }).click();
   await page.getByRole('button', { name: /#1/ }).click();
