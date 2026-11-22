@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clockText, scoreText, secondsLeft, verdictText } from './groupTests.ts';
+import { clockText, percentOf, scoreText, secondsLeft, verdictText } from './groupTests.ts';
 
 const deadline = '2026-11-05T09:10:00.000Z';
 
@@ -21,7 +21,16 @@ test('the clock reads as minutes and seconds', () => {
 });
 
 test('a result says how many of how many, and whether it passed', () => {
-  assert.equal(scoreText({ correct: 8, total: 10 }), '8 из 10');
+  assert.equal(scoreText({ correct: 8, total: 10 }), '8 из 10 · 80%');
+  assert.equal(scoreText({ correct: 5, total: 30 }), '5 из 30 · 16%');
   assert.equal(verdictText(true), 'Сдано');
   assert.equal(verdictText(false), 'Не сдано');
+});
+
+test('the percent is rounded down, so a score short of the pass mark never shows it', () => {
+  assert.equal(percentOf(39, 49), 79); // 79.6 %: still short of 80 %
+  assert.equal(percentOf(40, 50), 80);
+  assert.equal(percentOf(1, 3), 33);
+  assert.equal(percentOf(3, 3), 100);
+  assert.equal(percentOf(0, 0), 0);
 });

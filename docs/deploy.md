@@ -150,28 +150,23 @@ T="$(openssl rand -hex 32)" && printf 'REMINDERS_TOKEN=%s\n' "$T" | fly secrets 
    host's secrets, plus `VAPID_SUBJECT=mailto:<your address>` and `REMINDERS_TOKEN=<a long random
    string>` (the same one as the cleanup). Changing the keys later cuts off every phone that
    turned reminders on (they must turn them on again).
-2. Something must call the app once an hour; the free host sleeps, so an outside scheduler does it.
-   A free GitHub Actions schedule works, with the same repository secrets as the cleanup, and the file `.github/workflows/reminders.yml`:
-   ```yaml
-   name: reminders
-   on:
-     schedule: [{ cron: "5 * * * *" }]   # every hour; each learner's own 08:00 and 17:00 (ADR 0042)
-     workflow_dispatch:
-   jobs:
-     send:
-       runs-on: ubuntu-latest
-       steps:
-         - run: >
-             curl --fail --silent --show-error --max-time 120 -X POST
-             -H "X-Reminders-Token: ${{ secrets.REMINDERS_TOKEN }}"
-             "${{ secrets.APP_URL }}/api/internal/reminders"
-   ```
-   **Every zone is served by the hourly run,** but at 0.1 CPU a run reaches an estimated 80–100 phones
-   (`docs/decisions/0042-…`). If the answer says `"finished": false` often in a class's morning, add
-   runs inside those hours: `*/15 2-3,11-13 * * *` is 08–10 and 17–20 in Bishkek. GitHub's free minutes
+2. Something must call the app regularly; the free host sleeps, so an outside scheduler does it:
+   `.github/workflows/reminders.yml` runs every 15 minutes with the same repository secrets as the
+   cleanup (each learner's 08:00 note and the second reminder at their own study time, ADR 0074).
+   It warns and does nothing until `APP_URL` and `REMINDERS_TOKEN` are set. GitHub's free minutes
    on a private repo are shared with CI.
 3. iPhones only receive them when the app is added to the home screen (Safari → Share → «На экран
    „Домой“»); the app says so where reminders are turned on.
+
+## 3c. Is the mentor working? (ADR 0078)
+Week by week: promised days kept, minutes per learner, «Начать» → finished, answer speed and the prompt cache's
+share, rescues, facts saved, and D7/D30 retention. Read-only; the same secret as the scheduler:
+
+```sh
+curl -s -H "X-Reminders-Token: $REMINDERS_TOKEN" "https://<app>/api/internal/mentor-metrics?weeks=6"
+# or on the machine:
+fly ssh console -a slovar-kg -C "python -m app.cli mentor-metrics --weeks 6"
+```
 
 ## 3b. Before a class
 Capacity was measured on a laptop with the CPU limited, not on a real host
