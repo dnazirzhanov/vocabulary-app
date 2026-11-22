@@ -2,7 +2,7 @@
 
 import secrets
 from dataclasses import asdict
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +11,7 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, SentTimeZone
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
+from app.services import mentor_metrics as mentor_metrics_service
 from app.services import reminders
 from app.services.cleanup import clean_up
 from app.services.me import remember_time_zone
@@ -119,3 +120,11 @@ def send_reminders(
     """Called every hour by a scheduler with the shared secret; each learner's own clock decides
     who gets what (ADR 0042)."""
     return SentOut(**asdict(reminders.send_reminders(db, now, sender)))
+
+
+@router.get("/internal/mentor-metrics", dependencies=[Depends(require_reminders_token)])
+def mentor_metrics(db: DbSession, now: Now, weeks: int = 4) -> list[dict[str, Any]]:
+    """Whether the mentor works, week by week (ADR 0078); the same secret as the scheduler's."""
+    return [
+        week.as_dict() for week in mentor_metrics_service.weekly(db, now, max(1, min(weeks, 26)))
+    ]

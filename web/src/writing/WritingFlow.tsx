@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { QuestionList } from './QuestionList.tsx';
 import { ResultScreen } from './ResultScreen.tsx';
-import { WritingArchive } from './WritingArchive.tsx';
+import { WritingArchive, type ArchivePlace } from './WritingArchive.tsx';
 import { WriteScreen } from './WriteScreen.tsx';
 import { WritingHome } from './WritingHome.tsx';
 import type { Submission, WritingQuestion } from './api.ts';
 
 type View =
   | { name: 'home' }
-  | { name: 'archive' }
+  | { name: 'archive'; place: ArchivePlace }
   | { name: 'topic'; topic: string }
   | { name: 'write'; question: WritingQuestion; text?: string; back: View }
   | { name: 'result'; submission: Submission; back: View };
@@ -22,12 +22,18 @@ export default function WritingFlow() {
   const home: View = { name: 'home' };
 
   if (view.name === 'archive') {
-    const archive: View = { name: 'archive' };
+    const { place } = view;
+    const here: View = view;
+    // Back climbs one level: attempts → the topic's questions → all topics → home.
+    const up = place.questionId ? { topic: place.topic } : place.topic ? {} : null;
     return (
       <WritingArchive
-        onBack={() => setView(home)}
-        onOpen={(submission) => setView({ name: 'result', submission, back: archive })}
-        onRetry={(question, text) => setView({ name: 'write', question, text, back: archive })}
+        key={`${place.topic ?? ''}/${place.questionId ?? ''}`}
+        place={place}
+        onGo={(next) => setView({ name: 'archive', place: next })}
+        onBack={() => setView(up ? { name: 'archive', place: up } : home)}
+        onOpen={(submission) => setView({ name: 'result', submission, back: here })}
+        onRetry={(question, text) => setView({ name: 'write', question, text, back: here })}
       />
     );
   }
@@ -66,9 +72,7 @@ export default function WritingFlow() {
   return (
     <WritingHome
       onPickTopic={(topic) => setView({ name: 'topic', topic })}
-      onOpen={(submission) => setView({ name: 'result', submission, back: home })}
-      onRetry={(question, text) => setView({ name: 'write', question, text, back: home })}
-      onOpenArchive={() => setView({ name: 'archive' })}
+      onOpenArchive={() => setView({ name: 'archive', place: {} })}
     />
   );
 }

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './learner.ts';
+import { openFromChatList, openMentorChat } from './mentorNav.ts';
 
 /**
  * The week the mentor plans around (ADR 0073): filled from a template or by telling the mentor,
@@ -13,8 +14,8 @@ const THURSDAY = new Date('2026-11-19T15:00:00');
 async function openCalendar(page: Page) {
   await page.clock.setFixedTime(THURSDAY);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Моё расписание' }).click();
+  await openMentorChat(page);
+  await openFromChatList(page, 'Моё расписание');
   await expect(page.getByRole('heading', { level: 1, name: 'Моё расписание' })).toBeVisible();
 }
 
@@ -57,13 +58,12 @@ test('blocks at the same time sit side by side, never on top of each other', asy
   expect(school!.height / club!.height).toBeCloseTo(3, 1);
 });
 
-test('telling the mentor about the week turns into blocks after the tap', async ({ page }) => {
+test('telling the mentor about the week puts it in the calendar at once', async ({ page }) => {
   await openCalendar(page);
   await page.getByRole('textbox', { name: 'Расскажите о своей неделе' }).fill('учусь пн–пт 8–14');
   await page.getByRole('button', { name: 'Отправить наставнику' }).click();
-  const card = page.getByRole('listitem').filter({ hasText: 'Расписание — проверьте и добавьте' });
-  await card.getByRole('button', { name: 'Добавить в календарь' }).click();
-  await expect(card.getByText('Добавлено в календарь')).toBeVisible();
+  const card = page.getByRole('listitem').filter({ hasText: 'Календарь обновлён' });
+  await expect(card).toContainText('Школа');
   await page.getByRole('button', { name: 'Чаты', exact: true }).click();
   await page
     .getByRole('complementary', { name: 'Чаты' })

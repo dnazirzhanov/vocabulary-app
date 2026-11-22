@@ -1,6 +1,6 @@
-import type { CriterionName, Evaluation, Mistake } from './api.ts';
+import type { CriterionName, GeneralEvaluation, IeltsCriterionName, IeltsEvaluation, Mistake } from './api.ts';
 
-/** Which category a mistake belongs under. */
+/** Which category a mistake belongs under, on the general rubric. */
 export const MISTAKE_HOME: Record<Mistake['type'], CriterionName> = {
   grammar: 'grammar',
   spelling: 'mechanics',
@@ -8,12 +8,28 @@ export const MISTAKE_HOME: Record<Mistake['type'], CriterionName> = {
   word_choice: 'vocabulary',
 };
 
+/** And on IELTS (ADR 0081): sentence-level errors are grammar, word-level ones vocabulary. */
+export const IELTS_MISTAKE_HOME: Record<Mistake['type'], IeltsCriterionName> = {
+  grammar: 'grammatical_range_accuracy',
+  punctuation: 'grammatical_range_accuracy',
+  spelling: 'lexical_resource',
+  word_choice: 'lexical_resource',
+};
+
+/** What a fix is made from: mistakes, and better words. */
+export interface FixSource<H extends string> {
+  mistakes: readonly Mistake[];
+  tips: readonly { original: string; suggestion: string; note: string }[];
+  mistakeHome: Record<Mistake['type'], H>;
+  tipHome: H;
+}
+
 /** One numbered fix: a mistake to correct, or a word that could be better. */
-export interface Fix {
+export interface Fix<H extends string = string> {
   /** 1, 2, 3… in the order they appear in the answer; fixes not found in it come last. */
   n: number;
   kind: 'mistake' | 'tip';
-  home: CriterionName;
+  home: H;
   original: string;
   replacement: string;
   why: string;
@@ -26,7 +42,7 @@ export interface Fix {
 }
 
 /** A run of the answer: plain text, or a highlighted fix. */
-export type Segment = { text: string; fix?: Fix };
+export type Segment<H extends string = string> = { text: string; fix?: Fix<H> };
 
 const CONTEXT = 90; // characters of context on each side, at most
 
@@ -57,18 +73,43 @@ function sentence(answer: string, start: number, end: number): { before: string;
 }
 
 /** Every fix the evaluation gives, numbered in reading order and placed in the answer. */
-export function collectFixes(answer: string, ev: Pick<Evaluation, 'corrections' | 'vocabulary'>): Fix[] {
+export function collectFixes(
+  answer: string,
+  ev: Pick<GeneralEvaluation, 'corrections' | 'vocabulary'>,
+): Fix<CriterionName>[] {
+  return place(answer, {
+    mistakes: ev.corrections,
+    tips: ev.vocabulary,
+    mistakeHome: MISTAKE_HOME,
+    tipHome: 'vocabulary',
+  });
+}
+
+/** The same for IELTS feedback (ADR 0081): vocabulary upgrades belong to Lexical Resource. */
+export function collectIeltsFixes(
+  answer: string,
+  ev: Pick<IeltsEvaluation, 'corrections' | 'upgrades'>,
+): Fix<IeltsCriterionName>[] {
+  return place(answer, {
+    mistakes: ev.corrections,
+    tips: ev.upgrades,
+    mistakeHome: IELTS_MISTAKE_HOME,
+    tipHome: 'lexical_resource',
+  });
+}
+
+function place<H extends string>(answer: string, source: FixSource<H>): Fix<H>[] {
   const raw = [
-    ...ev.corrections.map((c) => ({
+    ...source.mistakes.map((c) => ({
       kind: 'mistake' as const,
-      home: MISTAKE_HOME[c.type],
+      home: source.mistakeHome[c.type],
       original: c.original.trim(),
       replacement: c.corrected.trim(),
       why: c.explanation,
     })),
-    ...ev.vocabulary.map((v) => ({
+    ...source.tips.map((v) => ({
       kind: 'tip' as const,
-      home: 'vocabulary' as CriterionName,
+      home: source.tipHome,
       original: v.original.trim(),
       replacement: v.suggestion.trim(),
       why: v.note,
@@ -98,8 +139,8 @@ export function collectFixes(answer: string, ev: Pick<Evaluation, 'corrections' 
 }
 
 /** The answer cut into plain runs and highlighted fixes, in order. */
-export function segments(answer: string, fixes: Fix[]): Segment[] {
-  const out: Segment[] = [];
+export function segments<H extends string>(answer: string, fixes: Fix<H>[]): Segment<H>[] {
+  const out: Segment<H>[] = [];
   let at = 0;
   for (const fix of fixes) {
     if (fix.start === null || fix.end === null) continue;

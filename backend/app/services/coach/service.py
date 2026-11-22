@@ -263,6 +263,29 @@ def blocks_on(db: Session, user: User, day: date) -> list[tuple[str, Block]]:
     return found
 
 
+def today_blocks(db: Session, user: User, day: date) -> list[tuple[str, str, int, int]]:
+    """A date's blocks as (title, kind, start, end), sorted: repeating ones not skipped that day,
+    and that day's one-offs (ADR 0074)."""
+    mask = 1 << day.weekday()
+    skipped = set(
+        db.scalars(
+            select(ScheduleSkip.event_id)
+            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
+            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == day)
+        )
+    )
+    rows = db.scalars(
+        select(ScheduleEvent)
+        .where(ScheduleEvent.user_id == user.id)
+        .order_by(ScheduleEvent.start_minute)
+    )
+    return [
+        (e.title, e.kind, e.start_minute, e.end_minute)
+        for e in rows
+        if e.on_date == day or (e.on_date is None and e.weekdays & mask and e.id not in skipped)
+    ]
+
+
 # --- the coach, put together ----------------------------------------------------------------
 
 
@@ -301,6 +324,11 @@ class Today:
     missed_yesterday: bool
     # study, light, weekend, sick, exam; None until the learner says (ADR 0076).
     day_type: str | None = None
+    # Whose «today» this is: the learner's local date, so a device never applies yesterday's
+    # choice (ADR 0080); and today's own study time, not the one that starts tomorrow.
+    day: date | None = None
+    study_start: int | None = None
+    study_minutes: int | None = None
 
 
 def _commitment(promise: promises.Promise, today: date) -> Commitment:
@@ -345,6 +373,7 @@ def coach_state(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Coach
         db, user, datetime.combine(yesterday, datetime.min.time(), zone), zone
     ).minutes
     override = db.get(MentorDayOverride, (user.id, today))
+    today_time = promise.time_on(today) if promise.promised_on(today) else None
     today_state = Today(
         override_mode=override.mode if override else None,
         override_start=override.start_minute if override else None,
@@ -352,6 +381,9 @@ def coach_state(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Coach
         promised=promise.promised_on(today),
         # Only once a study time was promised for that day: a new learner has missed nothing.
         day_type=day_type_on(db, user, today),
+        day=today,
+        study_start=today_time[0] if today_time else None,
+        study_minutes=today_time[1] if today_time else None,
         missed_yesterday=promise.promised_on(yesterday)
         and promise.time_on(yesterday) is not None
         and day_type_on(db, user, yesterday) != "sick"

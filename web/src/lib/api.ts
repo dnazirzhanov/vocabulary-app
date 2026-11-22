@@ -364,8 +364,13 @@ export const api = {
   scheduleUpdate: (id: string, body: WireScheduleInput) =>
     request<WireScheduleEvent>('PUT', `/mentor/schedule/${id}`, body),
   /** «Только в этот день: не будет» (ADR 0074). */
+  /** A «Начать» tapped, for knowing whether the mentor works (ADR 0078). */
+  mentorStartTapped: (kind: MentorPlanItem['kind'], where: 'home' | 'chat' | 'panel') =>
+    request<null>('POST', '/mentor/events', { name: 'start_tapped', kind, where }),
   scheduleSkip: (id: string, date: string) => request<null>('POST', `/mentor/schedule/${id}/skips`, { date }),
   scheduleUnskip: (id: string, date: string) => request<null>('DELETE', `/mentor/schedule/${id}/skips/${date}`),
+  /** «Отменить» on the mentor's calendar card (ADR 0083): the calendar as it was before it. */
+  scheduleUndo: (undo: CalendarUndo) => request<null>('POST', '/mentor/schedule/undo', undo),
   /** When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow; null undoes it. */
   coachToday: (mode: 'minimum' | 'moved' | 'skip' | null, startMinute?: number) =>
     mode === null
@@ -411,7 +416,25 @@ export type MentorCard =
     }
   | { type: 'replies'; replies: string[] }
   | { type: 'memory'; kind: FactKind; text: string }
+  // The mentor's components (ADR 0077): the server fills in every fact.
+  | {
+      type: 'day';
+      date: string;
+      blocks: { title: string; kind: string; start_minute: number; end_minute: number }[];
+      study_start: number | null;
+      day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    }
+  | { type: 'words'; words: { en: string; l1: string }[]; due: number }
+  | { type: 'day_check'; current: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null }
+  | { type: 'choice'; question: string; options: string[] }
+  | {
+      type: 'reminders';
+      changes: Partial<Record<'morning' | 'afternoon' | 'deadline' | 'report', boolean>>;
+    }
+  | { type: 'celebrate'; milestones: { kind: 'streak_weeks' | 'days_this_week' | 'words_known'; value: number }[] }
   | { type: 'done' }
+  // A calendar change the mentor made at once (ADR 0083), with what undoing it needs.
+  | { type: 'schedule_saved'; added: CalendarBlock[]; removed: CalendarBlock[]; undo: CalendarUndo }
   | {
       type: 'schedule';
       events: { title: string; kind: string; weekdays: number[]; start_minute: number; end_minute: number }[];
@@ -451,17 +474,55 @@ export type MentorCard =
       studied_days: number;
     };
 
+/** A block the mentor added or took off: repeating on weekdays (0 = Monday), or on one date. */
+export interface CalendarBlock {
+  title: string;
+  kind: string;
+  weekdays: number[];
+  start_minute: number;
+  end_minute: number;
+  on_date: string | null;
+}
+
+export interface CalendarUndo {
+  created: string[];
+  before: {
+    id: string;
+    title: string;
+    kind: string;
+    weekdays: number;
+    start_minute: number;
+    end_minute: number;
+    on_date: string | null;
+  }[];
+  skips: { event_id: string; date: string }[];
+}
+
 export type MentorToolName =
   | 'what_now'
   | 'suggest_activity'
   | 'get_week_plan'
   | 'propose_goal'
-  | 'propose_schedule'
+  | 'propose_schedule' // chats from before ADR 0083
+  | 'set_schedule'
+  | 'change_day'
   | 'propose_study_times'
   | 'propose_exception'
   | 'offer_replies'
   | 'remember'
-  | 'recall';
+  | 'recall'
+  | 'show'
+  // Reading the app (ADR 0079): steps without cards.
+  | 'get_stats'
+  | 'get_practice'
+  | 'get_words'
+  | 'get_writing'
+  | 'get_speaking'
+  | 'get_reading'
+  | 'get_assignments'
+  | 'get_calendar'
+  | 'get_progress'
+  | 'propose_reminders';
 
 export interface MentorToolEvent {
   id: string;
@@ -533,6 +594,10 @@ export interface Coach {
     promised: boolean;
     missed_yesterday: boolean;
     day_type: 'study' | 'light' | 'weekend' | 'sick' | 'exam' | null;
+    /** The learner's own date this is for, and today's study time (ADR 0080). */
+    day?: string;
+    study_start?: number | null;
+    study_minutes?: number | null;
   };
   adjustment: {
     id: string;
