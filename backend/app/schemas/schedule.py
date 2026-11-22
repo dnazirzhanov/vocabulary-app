@@ -47,3 +47,22 @@ class SkipIn(BaseModel):
 
 class ScheduleEventsOut(BaseModel):
     events: list[ScheduleEventOut]
+
+
+class UndoSnapshot(ScheduleEventIn):
+    """A block as it was before the mentor changed it (ADR 0083)."""
+
+    id: uuid.UUID
+
+
+class UndoSkip(BaseModel):
+    event_id: uuid.UUID
+    date: date
+
+
+class ScheduleUndoIn(BaseModel):
+    """What a mentor card needs to put the calendar back: its blocks, its old blocks, its skips."""
+
+    created: Annotated[list[uuid.UUID], Field(max_length=40)] = []
+    before: Annotated[list[UndoSnapshot], Field(max_length=40)] = []
+    skips: Annotated[list[UndoSkip], Field(max_length=40)] = []

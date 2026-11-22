@@ -286,6 +286,7 @@ test('IELTS feedback: the band, four criteria, why and the next step; no generic
   // A chip opens its criterion.
   await chips.getByRole('button', { name: /^Связность/ }).click();
   await expect(panel).toContainText('Use paragraphs.');
-  // «Что делать дальше» is gone.
+  // «Что делать дальше» is gone, and so is the summary under the band.
   await expect(page.getByText('Что делать дальше')).toHaveCount(0);
+  await expect(page.getByText(ielts.evaluation.summary)).toHaveCount(0);
 });

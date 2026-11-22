@@ -170,10 +170,21 @@
   color: var(--color-text-muted);
 }
 
-.allEssays {
-  justify-content: center;
+/* The one way from the home into the essays already written. */
+.archiveLink {
+  justify-self: start;
+  margin-top: var(--space-2);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
   color: var(--color-primary-strong);
+  font: inherit;
   font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.archiveLink:hover {
+  text-decoration: underline;
 }
 
 .sectionTitle {
@@ -845,6 +856,21 @@
   font-size: var(--text-meta);
 }
 
+/* An archive topic: its essay count, and the best band in it. */
+.topicFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* A long old-style mark («Достаточный · 3 из 5») wraps inside a narrow card instead of spilling. */
+.topicFoot .bandTag {
+  min-width: 0;
+  white-space: normal;
+}
+
 /* A mark in a row: «IELTS 6.5». */
 .bandTag {
   padding: 2px 10px;
@@ -1008,14 +1034,10 @@
   background: var(--color-primary-tint);
 }
 
-.bandSummary,
 .bandMeta {
   grid-column: 1 / -1;
   margin: 0;
   line-height: var(--leading-body);
-}
-
-.bandMeta {
   color: var(--color-text-muted);
   font-size: var(--text-meta);
 }
