@@ -11,6 +11,8 @@ ALLOWED = {
     "core/locale.py",
     # Development only: a demo group of made-up classmates.
     "services/demo.py",
+    # Development only: the words a question is matched by when the mentor has no model.
+    "services/mentor_demo.py",
     # Matches a typed topic: «ё» and «е» are the same letter when comparing.
     "services/decks.py",
     # Prompts and example cards for the model, not for people.

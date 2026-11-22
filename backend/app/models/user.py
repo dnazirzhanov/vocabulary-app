@@ -178,6 +178,10 @@ class PromiseChange(Base):
     )
     effective_from: Mapped[date] = mapped_column(Date, primary_key=True)
     weekdays: Mapped[int] = mapped_column(SmallInteger)
+    # The study time promised on those days (ADR 0071): local minutes from midnight and how long.
+    # Null for a promise of days alone.
+    start_minute: Mapped[int | None] = mapped_column(SmallInteger)
+    minutes: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class PromisePause(Base):
