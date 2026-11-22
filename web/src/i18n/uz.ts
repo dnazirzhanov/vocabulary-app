@@ -966,6 +966,8 @@ export const uz: Messages = {
   readingTime: 'O‘qish vaqti',
   testWordOf: (n: number, total: number) => `${total} ta so‘zdan ${n}-so‘z`,
   testToCheck: 'Tekshirishga',
+  testGoToSkipped: (n: number) => `O‘tkazib yuborilganlarga · ${n}`,
+  testSkippedOf: (n: number, total: number) => `o‘tkazilgan ${total} ta so‘zdan ${n}-so‘z`,
   testCheckTitle: 'Topshirishdan oldin tekshiring',
   testCheckEmpty: (n: number) => `Javobsiz: ${n}. So‘zga qaytish uchun uni bosing.`,
   testCheckAllDone: 'Barcha so‘zlarning javobi bor. O‘zgartirish uchun so‘zni bosing.',

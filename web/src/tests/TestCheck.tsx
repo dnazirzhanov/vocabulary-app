@@ -13,6 +13,8 @@ interface TestCheckProps {
   busy: boolean;
   /** Back to one word, to answer or change it. */
   onOpen: (index: number) => void;
+  /** Through the words without an answer, one after another, then back here. */
+  onReview: () => void;
   /** Back to the last word. */
   onBack: () => void;
   onHandIn: () => void;
@@ -20,9 +22,9 @@ interface TestCheckProps {
 
 /**
  * Before handing in (ADR 0069): every word by its meaning, done or still empty, each a way back to
- * it. «Сдать» hands in at once when everything has an answer, and asks first when something is empty.
+ * it, and «К пропущенным» to go through every word without an answer in turn. «Сдать» hands in at once when everything has an answer, and asks first when something is empty.
  */
-export function TestCheck({ words, busy, onOpen, onBack, onHandIn }: TestCheckProps) {
+export function TestCheck({ words, busy, onOpen, onReview, onBack, onHandIn }: TestCheckProps) {
   const [asking, setAsking] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -35,6 +37,12 @@ export function TestCheck({ words, busy, onOpen, onBack, onHandIn }: TestCheckPr
         {t.testCheckTitle}
       </h1>
       <p className={shared.note}>{empty ? t.testCheckEmpty(empty) : t.testCheckAllDone}</p>
+      {empty > 0 && (
+        <button type="button" className={styles.checkReview} disabled={busy} onClick={onReview}>
+          {t.testGoToSkipped(empty)}
+          <span aria-hidden="true">›</span>
+        </button>
+      )}
       <ol className={styles.checkList} aria-label={t.testCheckTitle}>
         {words.map((word, index) => (
           <li key={index}>
