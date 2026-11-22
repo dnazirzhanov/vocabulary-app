@@ -10,13 +10,12 @@
  */
 import { useState, type CSSProperties } from 'react';
 import { Dialog } from '../ui/Dialog.tsx';
-import { PlanDiff } from './PlanDiff.tsx';
-import type { Rescue } from './rescue.ts';
+import type { Rescue, RescueChoices } from './rescue.ts';
 import type { Coach } from '../lib/api.ts';
 import { t, uiLanguage } from '../i18n/index.ts';
 import {
+  BackIcon,
   BookIcon,
-  CalendarIcon,
   CardsIcon,
   CheckIcon,
   ForwardIcon,
@@ -26,7 +25,7 @@ import {
   SparkleIcon,
 } from '../ui/icons.tsx';
 import { hhmm } from './chat/format.ts';
-import { skillName, statusText } from './chat/ToolCards.tsx';
+import { statusText } from './chat/ToolCards.tsx';
 import type { PlanItem } from './types.ts';
 import styles from './TodayView.module.css';
 import { DAY_TYPES, type DayType } from './dayPlan.ts';
@@ -55,10 +54,12 @@ interface TodayViewProps {
   onAsk: (question?: string) => void;
   onOpenCalendar: () => void;
   onOpenMemory: () => void;
+  /** Back to the chat, where the mentor section begins. */
+  onBack: () => void;
   onEditGoal: () => void;
   onDecide: (accept: boolean) => void;
   /** When today doesn't work (ADR 0074): the ways out, today's choice, and how to undo it. */
-  rescue: Rescue[];
+  rescue: RescueChoices;
   onRescue: (option: Rescue) => void;
   onUndoRescue: () => void;
   onDayType: (type: DayType | null) => void;
@@ -88,13 +89,6 @@ export function titleOf(item: PlanItem): string {
 
 const meta = (s: Slotted) =>
   [t.mentorMinutesShort(s.item.minutes), s.at === null ? null : hhmm(s.at)].filter(Boolean).join(' · ');
-
-const days = (list: number[]) =>
-  list.length === 7
-    ? t.mentorEveryDay
-    : list.length === 5 && list.every((d, i) => d === i)
-      ? `${t.weekdays[0]}–${t.weekdays[4]}`
-      : list.map((d) => t.weekdays[d]).join(', ');
 
 function adjustmentText(a: NonNullable<Coach['adjustment']>): string {
   const e = a.evidence;
@@ -131,12 +125,14 @@ export function TodayView(props: TodayViewProps) {
   const total = tasks.length + done.length;
   const left = tasks.reduce((sum, s) => sum + s.item.minutes, 0);
   const share = total ? done.length / total : 0;
-  const commitment = coach?.commitment;
   const date = new Date().toLocaleDateString(uiLanguage, { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className={styles.column}>
       <header className={styles.head}>
+        <button type="button" className={styles.back} onClick={props.onBack} aria-label={t.back}>
+          <BackIcon aria-hidden="true" />
+        </button>
         <p className={styles.date}>{date}</p>
         <h1 className={styles.greeting} tabIndex={-1} data-autofocus>
           {props.greeting}
@@ -247,7 +243,7 @@ export function TodayView(props: TodayViewProps) {
           </p>
         ) : (
           (next || busy) &&
-          props.rescue.length > 0 && (
+          (props.rescue.minimum !== null || props.rescue.times.length > 0) && (
             <button type="button" className={styles.linkButton} onClick={() => setRescuing(true)}>
               {t.mentorCantToday}
             </button>
@@ -256,46 +252,30 @@ export function TodayView(props: TodayViewProps) {
       </section>
 
       {/* Never miss twice; a study time gone by: five minutes still count. */}
-      {props.nudge && !override && props.rescue[0]?.mode === 'minimum' && (
+      {props.nudge && !override && props.rescue.minimum && (
         <section className={styles.nudge} role="status">
           <p>{props.nudge === 'missed' ? t.mentorMissedYesterday : t.mentorStudyTimePassed}</p>
-          <button type="button" className={styles.primary} onClick={() => props.onRescue(props.rescue[0])}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() =>
+              props.rescue.minimum && props.onRescue({ mode: 'minimum', start: props.rescue.minimum.start })
+            }
+          >
             {t.mentorFiveNow}
           </button>
         </section>
       )}
 
       <Dialog open={rescuing} onClose={() => setRescuing(false)} title={t.mentorRescueTitle}>
-        <ul className={styles.rescue}>
-          {props.rescue.map((option) => (
-            <li key={option.mode}>
-              <button
-                type="button"
-                className={styles.rescueOption}
-                onClick={() => {
-                  setRescuing(false);
-                  props.onRescue(option);
-                }}
-              >
-                <span className={styles.rescueTitle}>
-                  {option.mode === 'minimum'
-                    ? t.mentorRescueMinimum
-                    : option.mode === 'moved'
-                      ? t.mentorRescueLater(hhmm(option.start ?? 0))
-                      : t.mentorRescueSkip}
-                </span>
-                <span className={styles.rescueLead}>
-                  {option.mode === 'minimum'
-                    ? t.mentorRescueMinimumLead
-                    : option.mode === 'moved'
-                      ? t.mentorRescueLaterLead
-                      : t.mentorRescueSkipLead}
-                </span>
-                <PlanDiff before={option.before} after={option.after} />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <RescueSheet
+          choices={props.rescue}
+          recommendMinimum={props.nudge === 'missed'}
+          onPick={(option) => {
+            setRescuing(false);
+            props.onRescue(option);
+          }}
+        />
       </Dialog>
 
       {/* Today's checklist, with times from the learner's day. */}
@@ -372,75 +352,87 @@ export function TodayView(props: TodayViewProps) {
         </section>
       )}
 
-      {/* This week: the goal's targets and the promised days. */}
-      {coach && coach.targets.length > 0 && (
-        <section aria-labelledby="mentor-week">
-          <h2 id="mentor-week" className={styles.sectionTitle}>
-            {t.mentorThisWeek}
-          </h2>
-          <ul className={styles.targets}>
-            {coach.targets.map((target) => (
-              <li key={target.skill}>
-                <span>{skillName(target.skill)}</span>
-                <span className={styles.bar} aria-hidden="true">
-                  <span style={{ width: `${Math.min(100, (target.done / Math.max(1, target.planned)) * 100)}%` }} />
-                </span>
-                <span className={styles.count}>
-                  {target.done}/{target.planned}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <ol
-            className={styles.days}
-            aria-label={t.mentorWeekDays(coach.studied.filter(Boolean).length, coach.promised.filter(Boolean).length)}
-          >
-            {coach.promised.map((promised, d) => (
-              <li key={d} data-state={coach.studied[d] ? 'done' : promised ? 'promised' : 'off'} aria-hidden="true">
-                <span>{t.weekdays[d]}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {/* The promise with its time. */}
-      <section className={styles.commitment} aria-labelledby="mentor-time">
-        <h2 id="mentor-time" className={styles.sectionTitle}>
-          {t.mentorStudyTime}
-        </h2>
-        {commitment && commitment.start_minute !== null && commitment.minutes !== null ? (
-          <button type="button" className={styles.timeRow} onClick={() => props.onAsk(t.mentorAskTime)}>
-            <strong>{hhmm(commitment.start_minute)}</strong>
-            <span>
-              {days(commitment.weekdays)} · {t.mentorMinutesShort(commitment.minutes)}
-            </span>
-            <span className={styles.change}>{t.mentorChange}</span>
-          </button>
-        ) : (
-          <button type="button" className={styles.timeRow} onClick={() => props.onAsk(t.mentorAskTime)}>
-            <span>{t.mentorPickTime}</span>
-            <ForwardIcon aria-hidden="true" />
-          </button>
-        )}
-        <button type="button" className={styles.calendarRow} onClick={props.onOpenCalendar}>
-          <CalendarIcon aria-hidden="true" />
-          <span>{t.scheduleHeading}</span>
-          <ForwardIcon aria-hidden="true" />
-        </button>
-        <button type="button" className={styles.calendarRow} onClick={props.onOpenMemory}>
-          <SparkleIcon aria-hidden="true" />
-          <span>{t.memoryTitle}</span>
-          <ForwardIcon aria-hidden="true" />
-        </button>
-      </section>
-
-      <p className={styles.tip}>
-        <SparkleIcon aria-hidden="true" /> {props.tip}
-      </p>
-
       <button type="button" className={styles.askBar} onClick={() => props.onAsk()}>
         {t.mentorAskBar}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * «Сегодня не получается» (ADR 0080): three honest choices, each saying in one line what happens.
+ * After a missed day, the minimum comes first and says why.
+ */
+function RescueSheet({
+  choices,
+  recommendMinimum,
+  onPick,
+}: {
+  choices: RescueChoices;
+  recommendMinimum: boolean;
+  onPick: (option: Rescue) => void;
+}) {
+  const [own, setOwn] = useState('');
+  const ownMinute = /^\d{2}:\d{2}$/.test(own) ? Number(own.slice(0, 2)) * 60 + Number(own.slice(3)) : null;
+  const { minimum } = choices;
+  return (
+    <div className={styles.rescue}>
+      {minimum && (
+        <button
+          type="button"
+          className={styles.rescueOption}
+          data-recommended={recommendMinimum || undefined}
+          onClick={() => onPick({ mode: 'minimum', start: minimum.start })}
+        >
+          <span className={styles.rescueTitle}>{t.mentorRescueMinimum}</span>
+          <span className={styles.rescueLead}>
+            {recommendMinimum ? `${t.mentorRescueNeverTwice} ` : ''}
+            {t.mentorRescueMinimumAt(minimum.task.title, hhmm(minimum.start))}
+          </span>
+        </button>
+      )}
+
+      <section className={styles.rescueOption} aria-labelledby="rescue-other">
+        <h3 id="rescue-other" className={styles.rescueTitle}>
+          {t.mentorRescueOtherTime}
+        </h3>
+        <span className={styles.rescueLead}>{t.mentorRescueOtherTimeLead(choices.total)}</span>
+        {choices.times.length > 0 ? (
+          <div className={styles.rescueTimes}>
+            {choices.times.map((start) => (
+              <button
+                key={start}
+                type="button"
+                className={styles.rescueTime}
+                onClick={() => onPick({ mode: 'moved', start })}
+              >
+                {hhmm(start)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className={styles.rescueLead}>{t.mentorRescueNoTime}</span>
+        )}
+        <form
+          className={styles.rescueOwn}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (ownMinute !== null) onPick({ mode: 'moved', start: ownMinute });
+          }}
+        >
+          <label>
+            {t.mentorRescueOwnTime}
+            <input type="time" value={own} step={300} onChange={(event) => setOwn(event.target.value)} />
+          </label>
+          <button type="submit" className={styles.rescueTime} disabled={ownMinute === null}>
+            {t.mentorRescueOwnTimeSave}
+          </button>
+        </form>
+      </section>
+
+      <button type="button" className={styles.rescueOption} onClick={() => onPick({ mode: 'skip', start: null })}>
+        <span className={styles.rescueTitle}>{t.mentorRescueRest}</span>
+        <span className={styles.rescueLead}>{t.mentorRescueRestLead}</span>
       </button>
     </div>
   );

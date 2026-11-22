@@ -1,4 +1,5 @@
 import { expect, test } from './learner.ts';
+import { openFromChatList, openMentorPlan } from './mentorNav.ts';
 
 /**
  * Study, rest, play and priorities (ADR 0076): one tap says what kind of day it is and the plan
@@ -17,7 +18,7 @@ const day = (d: Date) => d.toLocaleDateString('ru', { weekday: 'long', day: 'num
 test('a light day asks less, a sick day nothing, and it can be changed', async ({ page }) => {
   await page.clock.setFixedTime(afternoon());
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  await openMentorPlan(page);
   const check = page.getByRole('region', { name: 'Какой сегодня день?' });
   await expect(check).toBeVisible();
   const tasks = page.getByRole('region', { name: 'План на сегодня' }).getByRole('listitem');
@@ -45,14 +46,15 @@ test('a rest block can be added to the calendar, and study is never placed in it
     data: { title: 'Отдых', kind: 'rest', weekdays: 127, start_minute: 15 * 60, end_minute: 18 * 60 },
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+  await openMentorPlan(page);
   // The study time (16:00) falls inside the rest block, so the plan starts after it.
   await expect(page.getByRole('heading', { level: 2, name: 'Сейчас' })).toBeVisible();
   const first = page.getByRole('region', { name: 'План на сегодня' }).getByRole('listitem').first();
   await expect(first).toBeVisible();
   await expect(first).toContainText(/18:[1-5]\d/);
 
-  await page.getByRole('button', { name: 'Моё расписание' }).click();
+  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openFromChatList(page, 'Моё расписание');
   const today = page.getByRole('region', { name: new RegExp(day(afternoon()), 'i') });
   await today.getByRole('button', { name: /^Отдых/ }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Отдых', pressed: true })).toBeVisible();
