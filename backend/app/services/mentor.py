@@ -2,13 +2,15 @@
 plans, and vocabulary, using DeepSeek when a key is configured and a canned reply otherwise."""
 
 import dataclasses
+import json
 import time
 from collections.abc import Generator
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -19,20 +21,24 @@ from app.models import (
     Deck,
     DeckWord,
     LearningSession,
+    MentorConversation,
     MentorMessage,
     ReadingAnswer,
     ReviewAttempt,
-    ScheduleEvent,
     SpellingProgress,
     User,
     UserWordProgress,
     Word,
 )
+from app.services import dsml, memory, mentor_demo, mentor_events, mentor_tools
+from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
 from app.services.reading import library_titles_with_level
 from app.services.scheduling import local_date
 from app.services.study_days import HISTORY_DAYS, days_by_user, week_of
+from app.services.today_log import lines as today_lines
+from app.services.today_log import practice_today
 
 # How many recent turns are sent as context in each API call.
 _HISTORY_TURNS = 10
@@ -53,6 +59,9 @@ class LearnerContext:
 
     streak_weeks: int = 0
     sessions_today: str = "none"
+    # Today's practice, line by line, from the app's records (what was done, when, finished).
+    practice_log: str = ""
+    practiced_today: bool = False
     words_in_progress: int = 0
     words_learned: int = 0
     words_today: int = 0
@@ -92,11 +101,72 @@ class LearnerContext:
     reading_level_counts: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     # Today's recurring events in local-clock order: (title, kind, start_minute, end_minute).
     schedule_today: list[tuple[str, str, int, int]] = dataclasses.field(default_factory=list)
+    # What kind of day the learner said today is (ADR 0076).
+    day_type: str | None = None
 
 
 _SYSTEM = """\
-You are a warm, encouraging personal study mentor for a learner studying English vocabulary.
-Reply in {LANGUAGE}.
+It is now {DAY_OF_WEEK}, {LOCAL_DATE}, {LOCAL_TIME} ({TIME_OF_DAY}) in the learner's own time \
+zone ({TIME_ZONE}). The learner's earlier messages are marked with when they were sent, like \
+[Mon 08:15]; any time or part of the day mentioned in earlier messages is out of date. Always \
+use this time, and never write such [marks] yourself.
+
+You are a warm, honest personal English mentor. You help the learner set a concrete goal, break \
+it into small daily activities, find the best time and amount of time to study, keep that \
+promise, and adjust it when it doesn't work. Reply in {LANGUAGE}.
+Tools (use them; never invent tasks, times or numbers a tool did not give you):
+- When the learner asks what to do (now, next, today) or seems unsure, call what_now and give \
+one clear recommendation. The app shows a «Start now» button under it: don't explain how to start.
+- To offer a particular kind of practice (words, spelling, reading, writing, speaking), call \
+suggest_activity.
+- For their goal, help make it concrete (what for, target level or IELTS band, by when, why), \
+then call propose_goal. If it is out of reach in their time, say so kindly and offer the two \
+choices it gives: more minutes a day, or a later date.
+- The calendar is yours to change. Whenever they say what their week is or how it changed \
+(school, work, sport, sleep...), call set_schedule at once: it saves, and they can undo it. Never \
+ask them to confirm first, never say the app adds a block by itself, and never say you can't add \
+something. To change or remove a block, use its existing title. Then offer to find a study time \
+with propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless \
+they want more.
+- When one date is different (no school tomorrow, a concert on Saturday), call change_day at \
+once; for illness or a trip offer a pause with propose_exception, so no promised day counts as \
+missed.
+- After a calendar change, say in one sentence what changed. A goal, a study time, a pause, a \
+reminder or a fact is saved only when they tap it: say so in a few words.
+- When they ask what their schedule or calendar is, or how today (or another day) looks, call \
+show with component day (and date for another day): never list it in text or call what_now \
+for it.
+- For their goal's progress this week, call get_week_plan.
+- If they missed yesterday, say kindly that today matters most and that 5 minutes counts \
+(never miss twice); don't scold.
+- End most answers by calling offer_replies with 2–4 short replies they might tap.
+- When the learner tells you something lasting about themselves (why they learn, what they \
+like or dislike, what limits their time, when they have energy, their own words for things), \
+call remember with one short fact in their language; it is saved only if they tap. Don't \
+remember passing moods or anything private that a family or teacher should not see.
+- Before answering about something they told you before, call recall.
+- For statistics (words in progress, learned or mastered, this and last week's numbers, \
+retention and accuracy, decks, reading, how long and how regularly they study), call get_stats; \
+never guess them.
+- Everything in the app can be looked up (ADR 0079): other days' practice (get_practice), \
+their words (get_words), essays and feedback (get_writing), speaking results (get_speaking), \
+reading (get_reading), group decks and deadlines (get_assignments), a date's plan \
+(get_calendar), a week's or month's progress (get_progress). Look it up before you answer, \
+and never say you don't know or can't see something before you have. Reminders: \
+propose_reminders.
+- Whether they did something today: answer from «Practice today so far» below, exactly: what, \
+when, how long, finished or not. It is complete, so never say you have no data about today; \
+if something isn't listed, it wasn't done in the app today. An unfinished lesson can be \
+continued where it stopped.
+- Use show to put one interactive component on screen instead of describing it: day when \
+they ask about their schedule or where something fits; words for a quick warm-up; day_check when \
+the plan seems too much (tired, sick, an exam); choice whenever you ask a question with a few \
+likely answers; celebrate when they did well. At most one show per answer; say in one \
+sentence what it shows, never repeat its contents.
+- Blocks of kind rest, play and sleep are protected: never put study there, and if the learner \
+wants to give them up to study more, gently defend them (rest helps memory; sleep most of all).
+- Follow today's kind of day (below, if said): a light day asks about half, an exam day only 5 \
+minutes, a sick day nothing (wish them well; don't suggest studying).
 Formatting rules (follow these strictly):
 - Keep replies short: 1–3 sentences for simple questions, or a compact bullet list (3–5 items max).
 - Use markdown: **bold** for key terms, bullet lists (- ) when listing steps or options, \
@@ -114,34 +184,40 @@ Current learner state (use this to give personal, relevant advice):
 - Local date and time: {LOCAL_DATE} {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
-- Studying since: {STUDYING_SINCE}
-- Last study session: {LAST_STUDY}
-- Vocabulary in progress: {WORDS_IN_PROGRESS} words
-- Vocabulary recalled at least once: {WORDS_LEARNED} words
-- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
-- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
-- New words learned today: {WORDS_TODAY}
-- New words learned this week: {WORDS_THIS_WEEK}
-- New words learned last week: {WORDS_LAST_WEEK}
-- Study sessions completed this week: {SESSIONS_THIS_WEEK}
-- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words{OVERDUE_VOCAB_PART}
-- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
 - Spelling due today: {DUE_SPELLING} words
-{SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
+- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
-- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
-- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
-{PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
-- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
-- Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
+{PROMISE_LINE}{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{LAST_STUDIED_DECK_LINE}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
 {URGENCY_HINT}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
+
+
+# The rest of what used to be in every prompt (ADR 0079): fetched with get_stats when needed.
+_STATS = """\
+The learner's statistics (from get_stats):
+- Studying since: {STUDYING_SINCE}
+- Last study session: {LAST_STUDY}
+- Vocabulary in progress: {WORDS_IN_PROGRESS} words
+- Vocabulary recalled at least once: {WORDS_LEARNED} words
+- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
+- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
+- New words learned this week: {WORDS_THIS_WEEK}
+- New words learned last week: {WORDS_LAST_WEEK}
+- Study sessions completed this week: {SESSIONS_THIS_WEEK}
+- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
+- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
+- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
+- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
+- Vocabulary retention rate (last 7 days): {RETENTION}
+- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
+- Reading comprehension accuracy (all time): {READING_ACCURACY}
+- New words learned today: {WORDS_TODAY}
+{SAMPLE_DUE_LINE}{STRUGGLING_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}"""
 
 
 def _time_of_day(hour: int) -> str:
@@ -473,21 +549,20 @@ def _struggling_words(db: Session, user: User, now: datetime, n: int = 3) -> lis
     return [f"{row.headword} ({row.translation})" for row in rows]
 
 
+DAY_TYPE_LINES = {
+    "study": "ordinary study day: the usual plan.",
+    "light": "light day: about half the usual plan, the most important first.",
+    "weekend": "day off: the usual plan, at any free time.",
+    "sick": "sick day: nothing is asked and nothing counts as missed.",
+    "exam": "exam day: only the 5-minute minimum.",
+}
+
+
 def _schedule_today(
     db: Session, user: User, now: datetime, time_zone: ZoneInfo
 ) -> list[tuple[str, str, int, int]]:
-    """Events whose weekdays bitmask includes today's local weekday, sorted by start_minute."""
-    today_weekday = local_date(now, time_zone).weekday()  # 0=Mon .. 6=Sun
-    bit = 1 << today_weekday
-    rows = db.scalars(
-        select(ScheduleEvent)
-        .where(
-            ScheduleEvent.user_id == user.id,
-            ScheduleEvent.weekdays.op("&")(bit) != 0,
-        )
-        .order_by(ScheduleEvent.start_minute)
-    ).all()
-    return [(e.title, e.kind, e.start_minute, e.end_minute) for e in rows]
+    """Today's blocks, sorted by start (ADR 0074): skips taken off, one-offs on their date."""
+    return today_blocks(db, user, local_date(now, time_zone))
 
 
 def _course_level(db: Session, user: User) -> str | None:
@@ -514,6 +589,7 @@ def _system_prompt(
     time_zone: ZoneInfo,
     ctx: LearnerContext,
     plan: list[dict[str, Any]] | None = None,
+    template: str | None = None,
 ) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
@@ -561,6 +637,8 @@ def _system_prompt(
         schedule_section = "Today's schedule (local time):\n" + "\n".join(schedule_lines) + "\n"
     else:
         schedule_section = ""
+    if ctx.day_type in DAY_TYPE_LINES:
+        schedule_section += f"Today: {DAY_TYPE_LINES[ctx.day_type]}\n"
     if ctx.deck_rows:
         deck_lines: list[str] = []
         for title, n_due, n_started in ctx.deck_rows:
@@ -589,19 +667,26 @@ def _system_prompt(
                 count = item.get("count") or 0
                 kind_name = "Vocabulary" if kind == "vocab" else "Spelling"
                 plan_lines.append(f'  - {kind_name}: "{title}" — {count} words (~{minutes} min)')
-            else:
+            elif kind == "reading":
                 level = item.get("level") or ""
                 level_part = f" ({level})" if level else ""
                 plan_lines.append(f'  - Reading: "{title}"{level_part} — {minutes} min')
-        plan_section = "Today's recommended plan:\n" + "\n".join(plan_lines) + "\n"
+            else:
+                plan_lines.append(f"  - {str(kind).capitalize()}: {minutes} min")
+        plan_section = (
+            "Today's recommended plan, still to do (tasks already done are no longer in it):\n"
+            + "\n".join(plan_lines)
+            + "\n"
+        )
     elif plan is not None:
-        plan_section = "Today's plan: nothing due (all caught up).\n"
+        plan_section = "Today's plan: nothing left to do (all done or nothing due).\n"
     else:
         plan_section = ""
+    plan_section = ctx.practice_log + plan_section
     tip_line = f"Tip shown to learner: {ctx.tip_id}\n" if ctx.tip_id else ""
     tone_hint = _TONE_HINTS[ctx.tip_id] + "\n" if ctx.tip_id in _TONE_HINTS else ""
     if ctx.today_promised:
-        studied = ctx.sessions_today != "none"
+        studied = ctx.practiced_today or ctx.sessions_today != "none"
         promise_line = (
             "- Today is a promised study day — sessions done ✓\n"
             if studied
@@ -657,7 +742,12 @@ def _system_prompt(
         )
     else:
         struggling_line = ""
-    if ctx.today_promised and ctx.sessions_today == "none" and time_label in ("evening", "night"):
+    if (
+        ctx.today_promised
+        and not ctx.practiced_today
+        and ctx.sessions_today == "none"
+        and time_label in ("evening", "night")
+    ):
         urgency_hint = (
             f"Note: it is already {time_label} and the learner has not studied today"
             " — this is a promised day.\n"
@@ -665,12 +755,14 @@ def _system_prompt(
     else:
         urgency_hint = ""
     return (
-        _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
+        (template or _SYSTEM)
+        .replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
         .replace("{LOCAL_DATE}", local_date_str)
         .replace("{LOCAL_TIME}", local_time)
         .replace("{TIME_OF_DAY}", time_label)
         .replace("{DAY_OF_WEEK}", day_of_week)
+        .replace("{TIME_ZONE}", time_zone.key)
         .replace("{STREAK}", streak_text)
         .replace("{SESSIONS_TODAY}", ctx.sessions_today)
         .replace("{WORDS_IN_PROGRESS}", str(ctx.words_in_progress))
@@ -718,6 +810,22 @@ def _system_prompt(
         .replace("{TONE_HINT}", tone_hint)
         .replace("{URGENCY_HINT}", urgency_hint)
     )
+
+
+def _stats_text(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext) -> str:
+    """The statistics no longer in every prompt, worded as they were (ADR 0079)."""
+    return _system_prompt(user, now, time_zone, ctx, template=_STATS)
+
+
+def learner_context(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LearnerContext:
+    """Everything the mentor is told about a learner, from the database."""
+    ctx = _learner_state(db, user, now, time_zone)
+    _fill_context(db, user, now, time_zone, ctx)
+    return ctx
+
+
+def stats_for(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> str:
+    return _stats_text(user, now, time_zone, learner_context(db, user, now, time_zone))
 
 
 _DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -929,44 +1037,144 @@ def _learner_state(db: Session, user: User, now: datetime, time_zone: ZoneInfo) 
     )
 
 
-def _recent_history(db: Session, user: User) -> list[MentorMessage]:
+# --- conversations (ADR 0072) ----------------------------------------------------------------
+
+TITLE_CHARS = 60
+CONVERSATIONS_LISTED = 100
+
+
+def title_of(message: str) -> str:
+    """A chat's name from its first question: one line, cut at a word."""
+    flat = " ".join(message.split())
+    if len(flat) <= TITLE_CHARS:
+        return flat or "…"
+    return (flat[:TITLE_CHARS].rsplit(" ", 1)[0] or flat[:TITLE_CHARS]) + "…"
+
+
+def conversations(db: Session, user: User) -> list[MentorConversation]:
+    return list(
+        db.scalars(
+            select(MentorConversation)
+            .where(MentorConversation.user_id == user.id)
+            .order_by(MentorConversation.updated_at.desc(), MentorConversation.created_at.desc())
+            .limit(CONVERSATIONS_LISTED)
+        )
+    )
+
+
+def conversation_of(db: Session, user: User, conversation_id: Any) -> MentorConversation:
+    found = db.scalar(
+        select(MentorConversation).where(
+            MentorConversation.id == conversation_id, MentorConversation.user_id == user.id
+        )
+    )
+    if found is None:
+        raise ApiError(404, "conversation_not_found", "No such conversation")
+    return found
+
+
+def new_conversation(db: Session, user: User, title: str, now: datetime) -> MentorConversation:
+    conversation = MentorConversation(
+        user_id=user.id, title=title_of(title), created_at=now, updated_at=now
+    )
+    db.add(conversation)
+    db.commit()
+    return conversation
+
+
+def resolve_conversation(
+    db: Session, user: User, conversation_id: Any, new: bool, message: str, now: datetime
+) -> MentorConversation:
+    """The chat a message goes to: the one named (the learner's own), a new one, or (the app
+    before chats) the latest."""
+    if conversation_id is not None:
+        return conversation_of(db, user, conversation_id)
+    if new:
+        return new_conversation(db, user, message, now)
+    return latest_conversation(db, user) or new_conversation(db, user, message, now)
+
+
+def latest_conversation(db: Session, user: User) -> MentorConversation | None:
+    return db.scalar(
+        select(MentorConversation)
+        .where(MentorConversation.user_id == user.id)
+        .order_by(MentorConversation.updated_at.desc())
+        .limit(1)
+    )
+
+
+def messages_of(db: Session, conversation: MentorConversation) -> list[MentorMessage]:
+    """A chat's messages in order, without a question whose answer never came (a stream that
+    failed before it was saved)."""
+    msgs = list(
+        db.scalars(
+            select(MentorMessage)
+            .where(MentorMessage.conversation_id == conversation.id)
+            .order_by(MentorMessage.created_at)
+        )
+    )
+    if msgs and msgs[-1].role == "user":
+        msgs = msgs[:-1]
+    return msgs
+
+
+def _recent_history(db: Session, conversation: MentorConversation | None) -> list[MentorMessage]:
+    if conversation is None:
+        return []
     return list(
         db.scalars(
             select(MentorMessage)
-            .where(MentorMessage.user_id == user.id)
+            .where(MentorMessage.conversation_id == conversation.id)
             .order_by(MentorMessage.created_at.desc())
             .limit(_HISTORY_TURNS * 2)
         )
     )[::-1]
 
 
+def _dated(message: MentorMessage, zone: ZoneInfo) -> str:
+    """A past question as the model sees it: marked with when it was asked, so that a time it
+    mentions reads as then, not now."""
+    if message.role != "user":
+        return message.content
+    local = message.created_at.astimezone(zone)
+    return f"[{local:%a %H:%M}] {message.content}"
+
+
 def history(db: Session, user: User) -> list[MentorMessage]:
-    """The last 20 messages for display in the chat UI."""
-    msgs = list(
-        db.scalars(
-            select(MentorMessage)
-            .where(MentorMessage.user_id == user.id)
-            .order_by(MentorMessage.created_at.desc())
-            .limit(20)
-        )
-    )[::-1]
-    # Drop a trailing orphaned user message: a stream that started but failed before
-    # _persist ran leaves the user message without a following assistant reply.
-    if msgs and msgs[-1].role == "user":
-        msgs = msgs[:-1]
-    return msgs
+    """The latest chat's last 20 messages (the app before chats shows one conversation)."""
+    conversation = latest_conversation(db, user)
+    return messages_of(db, conversation)[-20:] if conversation else []
 
 
 def clear_history(db: Session, user: User) -> None:
-    """Delete all stored messages for this user."""
+    """Delete every chat and message of this user."""
     from sqlalchemy import delete
 
     db.execute(delete(MentorMessage).where(MentorMessage.user_id == user.id))
+    db.execute(delete(MentorConversation).where(MentorConversation.user_id == user.id))
     db.commit()
 
 
-def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: datetime) -> None:
-    db.add(MentorMessage(user_id=user.id, role="user", content=user_text, created_at=now))
+def _persist(
+    db: Session,
+    user: User,
+    user_text: str,
+    assistant_text: str,
+    now: datetime,
+    conversation: MentorConversation | None = None,
+    parts: list[dict[str, Any]] | None = None,
+) -> None:
+    if conversation is None:
+        conversation = latest_conversation(db, user) or new_conversation(db, user, user_text, now)
+    db.add(
+        MentorMessage(
+            user_id=user.id,
+            role="user",
+            content=user_text,
+            created_at=now,
+            conversation_id=conversation.id,
+        )
+    )
     # +1 µs so the assistant message always sorts after the user message even when both are saved
     # with the same clock reading (which happens in tests and can happen in fast demo mode).
     db.add(
@@ -975,23 +1183,17 @@ def _persist(db: Session, user: User, user_text: str, assistant_text: str, now: 
             role="assistant",
             content=assistant_text,
             created_at=now + timedelta(microseconds=1),
+            conversation_id=conversation.id,
+            parts=parts or None,
         )
     )
+    conversation.updated_at = now
     db.commit()
 
 
-def _build_context(
-    db: Session,
-    user: User,
-    message: str,
-    settings: Settings,
-    now: datetime,
-    time_zone: ZoneInfo,
-    plan: list[dict[str, Any]] | None = None,
-    tip_id: str | None = None,
-) -> tuple[str, list[dict[str, str]], str, bool]:
-    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    ctx = _learner_state(db, user, now, time_zone)
+def _fill_context(
+    db: Session, user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext
+) -> None:
     words_in_progress, words_learned = _vocab_summary(db, user)
     ctx.words_in_progress = words_in_progress
     ctx.words_learned = words_learned
@@ -1005,6 +1207,9 @@ def _build_context(
         _reading_context(db, user, now, time_zone)
     )
     ctx.sessions_today = _sessions_today(db, user, now, time_zone)
+    log = practice_today(db, user, now, time_zone)
+    ctx.practice_log = today_lines(log)
+    ctx.practiced_today = any(p.finished for p in log)
     ctx.words_mastered = _mature_words(db, user, now)
     ctx.words_nearly_mastered = _nearly_mastered_words(db, user, now)
     ctx.active_weeks = _active_weeks(db, user, now, time_zone)
@@ -1013,9 +1218,29 @@ def _build_context(
     ctx.reading_accuracy = _reading_accuracy(db, user)
     ctx.reading_level_counts = _reading_level_breakdown(db, user)
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
+    ctx.day_type = day_type_on(db, user, local_date(now, time_zone))
+
+
+def _build_context(
+    db: Session,
+    user: User,
+    message: str,
+    settings: Settings,
+    now: datetime,
+    time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
+    conversation: MentorConversation | None = None,
+) -> tuple[str, list[dict[str, str]], str, bool]:
+    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
+    ctx = learner_context(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
-    history = _recent_history(db, user)
+    # What the mentor remembers (ADR 0075): facts, the plan's story, earlier chats.
+    known = memory.block(db, user, time_zone, conversation)
+    if known:
+        system = f"{system}\n\n{known}"
+    history = _recent_history(db, conversation)
     demo = settings.mentor_chat_demo or (
         not settings.deepseek_api_key and settings.environment != "production"
     )
@@ -1023,7 +1248,9 @@ def _build_context(
         return system, [], texts_for(user.ui_language).mentor_demo_reply, True
     if not settings.deepseek_api_key:
         raise ApiError(503, "mentor_unavailable", "The mentor service is not configured")
-    msgs: list[dict[str, str]] = [{"role": m.role, "content": m.content} for m in history]
+    msgs: list[dict[str, str]] = [
+        {"role": m.role, "content": _dated(m, time_zone)} for m in history
+    ]
     msgs.append({"role": "user", "content": message})
     return system, msgs, "", False
 
@@ -1038,16 +1265,30 @@ def chat(
     plan: list[dict[str, Any]] | None = None,
     tip_id: str | None = None,
 ) -> str:
-    """Send a message to the mentor and return the assistant's reply."""
+    """Send a message to the mentor and return the reply: the app before chats, continuing its
+    latest conversation, without tools."""
+    conversation = latest_conversation(db, user)
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
+        db,
+        user,
+        message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=tip_id,
+        conversation=conversation,
     )
     if is_demo:
-        _persist(db, user, message, demo_reply, now)
+        _persist(db, user, message, demo_reply, now, conversation)
         return demo_reply
     reply = _call_deepseek(system, msgs, settings)
-    _persist(db, user, message, reply, now)
+    _persist(db, user, message, reply, now, conversation)
     return reply
+
+
+# At most this many rounds of tool calls before the mentor must answer.
+MAX_TOOL_ROUNDS = 4  # a lookup, then often a component, then the answer (ADR 0079)
 
 
 def stream_chat(
@@ -1059,36 +1300,147 @@ def stream_chat(
     time_zone: ZoneInfo,
     plan: list[dict[str, Any]] | None = None,
     tip_id: str | None = None,
-) -> Generator[str]:
-    """Yield text chunks from DeepSeek (or a word-by-word demo reply), then persist."""
+    conversation: MentorConversation | None = None,
+) -> Generator[dict[str, Any]]:
+    """The mentor's answer as events (ADR 0072): the chat it went to, then tool steps and text as
+    they happen; then everything is saved with the chat. `conversation` comes from
+    `resolve_conversation`, before the stream starts, so a wrong id is a 404 and not a broken
+    stream."""
+    if conversation is None:
+        conversation = resolve_conversation(db, user, None, False, message, now)
+    yield {"conversation": {"id": str(conversation.id), "title": conversation.title}}
 
     system, msgs, demo_reply, is_demo = _build_context(
-        db, user, message, settings, now, time_zone, plan=plan, tip_id=tip_id
+        db,
+        user,
+        message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=tip_id,
+        conversation=conversation,
     )
+    ctx = mentor_tools.ToolContext(db, user, now, time_zone, plan or [])
+    parts: list[dict[str, Any]] = []
+    clock = _Clock()
     if is_demo:
-        _persist(db, user, message, demo_reply, now)
+        for name, args in mentor_demo.tools_for(message):
+            yield from _run_tool(ctx, name, args, f"demo-{len(parts)}", parts)
         delay = settings.mentor_demo_stream_delay_ms / 1000
         words = demo_reply.split(" ")
         for i, word in enumerate(words):
-            chunk = word if i == len(words) - 1 else word + " "
             if delay > 0:
                 time.sleep(delay)
-            yield chunk
+            clock.saw()
+            yield {"delta": word if i == len(words) - 1 else word + " "}
+        _persist(db, user, message, demo_reply, now, conversation, parts)
+        _measure(db, user, now, clock, ctx, parts, demo=True)
         return
-    accumulated: list[str] = []
-    for chunk in _stream_deepseek(system, msgs, settings):
-        accumulated.append(chunk)
-        yield chunk
-    full_reply = "".join(accumulated) or " "
-    _persist(db, user, message, full_reply, now)
+    text: list[str] = []
+    for event in _stream_with_tools(system, msgs, settings, ctx, parts):
+        if "delta" in event:
+            text.append(event["delta"])
+        clock.saw()
+        yield event
+    _persist(db, user, message, "".join(text) or " ", now, conversation, parts)
+    _measure(db, user, now, clock, ctx, parts, demo=False)
 
 
-def _stream_deepseek(
-    system: str, messages: list[dict[str, str]], settings: Settings
-) -> Generator[str]:
-    """Yield text chunks from DeepSeek using the streaming API."""
+class _Clock:
+    """Wall time of one answer: to its first visible piece, and to its end."""
+
+    def __init__(self) -> None:
+        self.start = time.monotonic()
+        self.first: float | None = None
+
+    def saw(self) -> None:
+        if self.first is None:
+            self.first = time.monotonic()
+
+
+def _measure(
+    db: Session,
+    user: User,
+    now: datetime,
+    clock: _Clock,
+    ctx: mentor_tools.ToolContext,
+    parts: list[dict[str, Any]],
+    *,
+    demo: bool,
+) -> None:
+    """One answer's timing and token use (ADR 0078), logged and kept for the weekly metrics."""
+    end = time.monotonic()
+    props: dict[str, Any] = {
+        "first_ms": round(((clock.first or end) - clock.start) * 1000),
+        "total_ms": round((end - clock.start) * 1000),
+        "tools": [p["name"] for p in parts],
+        "demo": demo,
+        **ctx.stats,
+    }
+    logger.info("mentor answer %s", json.dumps(props))
+    try:
+        mentor_events.record(db, user, "chat_message", props, now)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.warning("mentor answer not recorded")
+
+
+def _run_tool(
+    ctx: mentor_tools.ToolContext,
+    name: str,
+    args: dict[str, Any],
+    call_id: str,
+    parts: list[dict[str, Any]],
+) -> Generator[dict[str, Any], None, dict[str, Any]]:
+    """One tool step: shown as running, run, then shown done with its card. Returns what the
+    model is told."""
+    yield {"tool": {"id": call_id, "name": name, "status": "running"}}
+    outcome = mentor_tools.run(name, ctx, args)
+    card = outcome.card
+    # The same activity twice in one answer (what_now, then suggest_activity) shows once.
+    if card and card.get("type") == "activity":
+        same = (card.get("kind"), card.get("deck_id"), card.get("article_id"))
+        if any(
+            (p["card"] or {}).get("type") == "activity"
+            and (
+                (p["card"] or {}).get("kind"),
+                p["card"].get("deck_id"),
+                p["card"].get("article_id"),
+            )
+            == same
+            for p in parts
+        ):
+            card = None
+    parts.append({"type": "tool", "name": name, "card": card})
+    yield {"tool": {"id": call_id, "name": name, "status": "done", "card": card}}
+    return outcome.result
+
+
+def _count_usage(stats: dict[str, int], usage: Any) -> None:
+    """Adds one round's tokens: prompt, answer, and how much of the prompt the cache served
+    (DeepSeek: prompt_cache_hit_tokens; the OpenAI form: prompt_tokens_details.cached_tokens)."""
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(usage, "prompt_cache_hit_tokens", None) or getattr(details, "cached_tokens", 0)
+    for key, value in (
+        ("prompt_tokens", usage.prompt_tokens),
+        ("completion_tokens", usage.completion_tokens),
+        ("cached_tokens", cached or 0),
+    ):
+        stats[key] = stats.get(key, 0) + int(value or 0)
+    stats["rounds"] = stats.get("rounds", 0) + 1
+
+
+def _stream_with_tools(
+    system: str,
+    messages: list[dict[str, str]],
+    settings: Settings,
+    ctx: mentor_tools.ToolContext,
+    parts: list[dict[str, Any]],
+) -> Generator[dict[str, Any]]:
+    """Stream DeepSeek's answer, running the tools it calls (at most MAX_TOOL_ROUNDS rounds) and
+    feeding their results back, so text and tool steps reach the screen as they happen."""
     import openai
-    from openai.types.chat import ChatCompletionMessageParam
 
     from app.services.generation import DEEPSEEK_URL, TIMEOUT_SECONDS
 
@@ -1098,26 +1450,104 @@ def _stream_deepseek(
         timeout=TIMEOUT_SECONDS,
         max_retries=0,
     )
-    all_messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": system}]
-    for m in messages:
-        role = m["role"]
-        if role == "user":
-            all_messages.append({"role": "user", "content": m["content"]})
-        elif role == "assistant":
-            all_messages.append({"role": "assistant", "content": m["content"]})
+    convo: list[Any] = [{"role": "system", "content": system}]
+    convo += [
+        {"role": m["role"], "content": m["content"]}
+        for m in messages
+        if m["role"] in ("user", "assistant")
+    ]
     try:
-        stream = client.chat.completions.create(
-            model=settings.deepseek_model,
-            max_tokens=settings.mentor_max_tokens,
-            temperature=settings.mentor_temperature,
-            messages=all_messages,
-            extra_body={"thinking": {"type": "disabled"}},
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content if chunk.choices else None
-            if delta:
-                yield delta
+        for round_ in range(MAX_TOOL_ROUNDS + 1):
+            with_tools = round_ < MAX_TOOL_ROUNDS
+            stream = client.chat.completions.create(
+                model=settings.deepseek_model,
+                max_tokens=settings.mentor_max_tokens,
+                temperature=settings.mentor_temperature,
+                messages=convo,
+                extra_body={"thinking": {"type": "disabled"}},
+                stream=True,
+                stream_options={"include_usage": True},
+                tools=cast(Any, mentor_tools.TOOLS) if with_tools else openai.omit,
+            )
+            said: list[str] = []
+            calls: dict[int, dict[str, str]] = {}
+            # Tool calls the model wrote as text are kept off the screen (app.services.dsml).
+            guard = dsml.Guard()
+            for chunk in stream:
+                usage = getattr(chunk, "usage", None)  # only the last chunk carries it
+                if usage is not None:
+                    _count_usage(ctx.stats, usage)
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                shown = guard.feed(delta.content) if delta.content else ""
+                if shown:
+                    said.append(shown)
+                    yield {"delta": shown}
+                for call in delta.tool_calls or []:
+                    slot = calls.setdefault(call.index, {"id": "", "name": "", "args": ""})
+                    if call.id:
+                        slot["id"] = call.id
+                    if call.function and call.function.name:
+                        slot["name"] += call.function.name
+                    if call.function and call.function.arguments:
+                        slot["args"] += call.function.arguments
+            tail = guard.end()
+            if tail:
+                said.append(tail)
+                yield {"delta": tail}
+            if guard.markup:
+                written = dsml.calls(guard.markup)
+                logger.warning(
+                    "mentor tool call written as text",
+                    extra={"tools": [name for name, _ in written], "run": with_tools},
+                )
+                # Run them as the calls they are, where tools are offered; past the last round,
+                # they are dropped like any call that comes too late.
+                if with_tools:
+                    after = max(calls, default=-1) + 1
+                    for n, (name, args) in enumerate(written):
+                        calls[after + n] = {
+                            "id": f"text-call-{round_}-{n}",
+                            "name": name,
+                            "args": json.dumps(args, ensure_ascii=False),
+                        }
+            if not calls:
+                return
+            ordered = [calls[i] for i in sorted(calls)]
+            convo.append(
+                {
+                    "role": "assistant",
+                    "content": "".join(said) or None,
+                    "tool_calls": [
+                        {
+                            "id": c["id"] or f"call-{n}",
+                            "type": "function",
+                            "function": {"name": c["name"], "arguments": c["args"] or "{}"},
+                        }
+                        for n, c in enumerate(ordered)
+                    ],
+                }
+            )
+            for n, c in enumerate(ordered):
+                try:
+                    args = json.loads(c["args"] or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                result = yield from _run_tool(
+                    ctx,
+                    c["name"],
+                    args if isinstance(args, dict) else {},
+                    c["id"] or f"call-{n}",
+                    parts,
+                )
+                convo.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": c["id"] or f"call-{n}",
+                        "content": json.dumps(result, ensure_ascii=False, default=str),
+                    }
+                )
     except openai.AuthenticationError as error:
         raise ApiError(503, "mentor_unavailable", "The mentor service key is wrong") from error
     except openai.RateLimitError as error:
@@ -1180,3 +1610,31 @@ def _call_deepseek(system: str, messages: list[dict[str, str]], settings: Settin
         logger.warning("mentor chat: empty response from DeepSeek")
         raise ApiError(502, "mentor_failed", "The mentor service answered with nothing")
     return choice.message.content
+
+
+SUMMARY_PROMPT = (
+    "Summarise this chat between an English learner and their study mentor in at most two short "
+    "sentences, in English: what it was about and anything decided or promised. No greetings."
+)
+
+
+def summarize_if_due(
+    db: Session, user: User, conversation: MentorConversation, settings: Settings
+) -> None:
+    """After an answer (ADR 0075): a chat long enough to need it gets a short summary, which later
+    chats read. Without a model, its title stands in. A failure leaves the old summary."""
+    if not memory.needs_summary(db, conversation):
+        return
+    if settings.mentor_chat_demo or not settings.deepseek_api_key:
+        memory.save_summary(db, conversation, conversation.title)
+        return
+    try:
+        summary = _call_deepseek(
+            SUMMARY_PROMPT,
+            [{"role": "user", "content": memory.transcript(db, conversation)}],
+            settings,
+        )
+    except ApiError:
+        logger.warning("mentor summary failed")
+        return
+    memory.save_summary(db, conversation, summary)

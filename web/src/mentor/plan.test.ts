@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { estimateSpellingMinutes, estimateVocabMinutes, levelFits, planToday } from './plan.ts';
+import { withWeek } from './plan.ts';
 import type { MentorInput } from './types.ts';
 
 const base: MentorInput = {
@@ -212,4 +213,21 @@ test('minute estimates stay within sensible bounds', () => {
   assert.equal(estimateVocabMinutes(1000), 15);
   assert.equal(estimateSpellingMinutes(1), 1);
   assert.equal(estimateSpellingMinutes(10), 3);
+});
+
+test("writing and speaking behind this week join the plan, within the day's minutes", () => {
+  const words = { kind: 'vocab' as const, deckId: 'a1', title: 'A1', count: 20, minutes: 4 };
+  const titles = { writing: 'Эссе', speaking: 'Ответ' };
+  const plan = withWeek([words], ['reading', 'writing', 'speaking'], null, titles);
+  assert.deepEqual(
+    plan.map((i) => i.kind),
+    ['vocab', 'writing', 'speaking'],
+  );
+  // 10 minutes a day: the essay (15) no longer fits after the words, the answer (5) does.
+  assert.deepEqual(
+    withWeek([words], ['writing', 'speaking'], 10, titles).map((i) => i.kind),
+    ['vocab', 'speaking'],
+  );
+  // Nothing behind: nothing added.
+  assert.deepEqual(withWeek([words], [], null, titles), [words]);
 });

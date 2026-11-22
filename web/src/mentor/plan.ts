@@ -100,3 +100,36 @@ function pickReading(
   const candidates = exact.length > 0 ? exact : unread.filter((article) => levelFits(article.level, userLevel));
   return candidates.sort((a, b) => a.minutes - b.minutes || a.title.localeCompare(b.title))[0] ?? null;
 }
+
+/** Minutes for one essay and one spoken answer, the coach's own estimates (ADR 0071). */
+export const SECTION_MINUTES = { writing: 15, speaking: 5 } as const;
+
+/**
+ * Today's plan with the coach's week in it (ADR 0071): when writing or speaking is behind for
+ * this point of the week, one essay or one spoken answer joins the list, within the day's minutes.
+ * Due reviews stay first: memory doesn't wait.
+ */
+export function withWeek(
+  items: PlanItem[],
+  behind: readonly string[],
+  dailyMinutes: number | null,
+  titles: { writing: string; speaking: string },
+): PlanItem[] {
+  const extra: PlanItem[] = [];
+  for (const skill of behind) {
+    if (skill === 'writing' || skill === 'speaking') {
+      extra.push({ kind: skill, title: titles[skill], minutes: SECTION_MINUTES[skill] });
+    }
+  }
+  const all = [...items, ...extra];
+  if (dailyMinutes === null || dailyMinutes <= 0) return all;
+  const kept: PlanItem[] = [];
+  let total = 0;
+  for (const item of all) {
+    if (kept.length === 0 || total + item.minutes <= dailyMinutes) {
+      kept.push(item);
+      total += item.minutes;
+    }
+  }
+  return kept;
+}
