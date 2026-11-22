@@ -63,9 +63,9 @@ questions:
       - "From astronauts who visited Mars"
       - "From rocks found in Antarctica"
     answer: "From spacecraft orbiting Mars and rovers on its surface"
-  - q: "Ferrihydrite forms in water-rich environments. What does this suggest about Mars long ago, and why might that matter to scientists who look for life beyond Earth?"
-    min: 40
+  - q: "What does ferrihydrite tell us about Mars long ago?"
+    min: 20
     max: 180
-  - q: "Scientists changed their idea about what colours Mars red. Why is it important to change our minds when new evidence appears? Give an example from science or from your own life."
-    min: 40
+  - q: "Why should scientists change their minds when new evidence appears?"
+    min: 20
     max: 180

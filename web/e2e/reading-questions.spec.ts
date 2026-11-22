@@ -17,10 +17,17 @@ async function openTea(page: Page) {
   await expect(page.getByRole('heading', { level: 1, name: 'Tea' })).toBeVisible();
 }
 
-/** Tea's fourth question, open: why people drink tea everywhere, 30–150 words. */
-const whyDrunk = (page: Page) => page.getByRole('textbox', { name: /Why do you think people in so many/ });
-const item = (page: Page, n: number) =>
-  page.getByRole('region', { name: 'Вопросы к тексту' }).getByRole('listitem').nth(n);
+const questionsOf = (page: Page) => page.getByRole('region', { name: 'Вопросы к тексту' });
+/** One card at a time (Daler's feedback): go to question n+1 by its number, and get its card. */
+async function item(page: Page, n: number) {
+  await questionsOf(page)
+    .getByRole('button', { name: `Вопрос ${n + 1}`, exact: true })
+    .click();
+  return page.getByRole('article', { name: new RegExp(`^Вопрос ${n + 1} из \\d+$`) });
+}
+/** Tea's fourth question, open: why people drink tea everywhere, 15–150 words. */
+const whyDrunk = async (page: Page) =>
+  (await await item(page, 3)).getByRole('textbox', { name: /Why do people in so many countries/ });
 const ANSWER =
   'People drink tea in many countries because it is cheap, warm and calming, and because sharing tea with guests is an old custom in many families and cultures around the world.';
 
@@ -28,18 +35,18 @@ test('an open answer within its limits is sent, kept and changed', async ({ page
   await openTea(page);
   const questions = page.getByRole('region', { name: 'Вопросы к тексту' });
   await questions.scrollIntoViewIfNeeded();
-  await expect(questions.getByRole('listitem')).toHaveCount(5);
+  await expect(questions.getByRole('group').getByRole('button')).toHaveCount(5);
 
   // Too short: counted, and nothing to send yet.
-  await whyDrunk(page).fill('Because it tastes good.');
-  await expect(item(page, 3).getByText('4 / 30–150 слов')).toBeVisible();
-  const send = item(page, 3).getByRole('button', { name: 'Отправить' });
+  await (await whyDrunk(page)).fill('Because it tastes good.');
+  await expect((await item(page, 3)).getByText('4 / 15–150 слов')).toBeVisible();
+  const send = (await item(page, 3)).getByRole('button', { name: 'Отправить' });
   await expect(send).toBeDisabled();
-  await whyDrunk(page).fill(ANSWER);
-  await expect(item(page, 3).getByText('31 / 30–150 слов')).toBeVisible();
+  await (await whyDrunk(page)).fill(ANSWER);
+  await expect((await item(page, 3)).getByText('31 / 15–150 слов')).toBeVisible();
   await send.click();
-  await expect(item(page, 3)).toContainText(ANSWER);
-  await expect(whyDrunk(page)).toHaveCount(0);
+  await expect(await item(page, 3)).toContainText(ANSWER);
+  await expect(await whyDrunk(page)).toHaveCount(0);
 
   // Still there after a reload; the library counts it.
   await page.reload();
@@ -47,20 +54,47 @@ test('an open answer within its limits is sent, kept and changed', async ({ page
   await page.getByRole('button', { name: /^Культура/ }).click();
   await expect(page.getByRole('button', { name: /^Tea/ })).toContainText('Ответы · 1/5');
   await page.getByRole('button', { name: /^Tea/ }).click();
-  await expect(item(page, 3)).toContainText(ANSWER);
+  await expect(await item(page, 3)).toContainText(ANSWER);
 
   // Changed: the box comes back with it.
-  await item(page, 3).getByRole('button', { name: 'Изменить' }).click();
-  await expect(whyDrunk(page)).toHaveValue(ANSWER);
-  await whyDrunk(page).fill(`${ANSWER} Tea is also part of many celebrations.`);
-  await item(page, 3).getByRole('button', { name: 'Отправить' }).click();
-  await expect(item(page, 3)).toContainText('Tea is also part of many celebrations.');
+  await (await item(page, 3)).getByRole('button', { name: 'Изменить' }).click();
+  await expect(await whyDrunk(page)).toHaveValue(ANSWER);
+  await (await whyDrunk(page)).fill(`${ANSWER} Tea is also part of many celebrations.`);
+  await (await item(page, 3)).getByRole('button', { name: 'Отправить' }).click();
+  await expect(await item(page, 3)).toContainText('Tea is also part of many celebrations.');
+});
+
+test('questions come one card at a time, and reopen on the first one not answered', async ({ page }) => {
+  await openTea(page);
+  const questions = questionsOf(page);
+  // One card, not a list: the first question only.
+  await expect(page.getByRole('article', { name: 'Вопрос 1 из 5' })).toBeVisible();
+  await expect(questions.getByRole('radiogroup')).toHaveCount(1);
+  await expect(questions.getByRole('button', { name: 'Предыдущий' })).toBeDisabled();
+  const first = await item(page, 0);
+  await first.getByRole('radio', { name: 'The leaves of the Camellia sinensis plant' }).click();
+  await first.getByRole('button', { name: 'Проверить' }).click();
+  // The verdict stays on screen; «Следующий» moves on.
+  await expect(first.getByRole('status')).toHaveText('Верно');
+  await questions.getByRole('button', { name: /^Следующий/ }).click();
+  await expect(page.getByRole('article', { name: 'Вопрос 2 из 5' })).toBeVisible();
+  await expect(questions.getByRole('button', { name: 'Вопрос 1', exact: true })).toHaveAttribute('data-done', 'right');
+
+  // Back later: it opens on the first question still to answer.
+  await page.reload();
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Культура/ }).click();
+  await page.getByRole('button', { name: /^Tea/ }).click();
+  await expect(page.getByRole('article', { name: 'Вопрос 2 из 5' })).toBeVisible();
+  // The last card has no «Следующий».
+  await item(page, 4);
+  await expect(questions.getByRole('button', { name: /^Следующий/ })).toHaveCount(0);
 });
 
 test('a question with options is checked at once, and stays as answered', async ({ page }) => {
   await openTea(page);
   // "Why is black tea called red tea in China?": the right one is the last option.
-  const question = item(page, 2);
+  const question = await item(page, 2);
   const check = question.getByRole('button', { name: 'Проверить' });
   await expect(check).toBeDisabled();
   await question.getByRole('radio', { name: 'It grows only in red soil' }).click();
@@ -76,9 +110,9 @@ test('a question with options is checked at once, and stays as answered', async 
   for (const option of await question.getByRole('radio').all()) await expect(option).toBeDisabled();
 
   // Another, right.
-  await item(page, 0).getByRole('radio', { name: 'The leaves of the Camellia sinensis plant' }).click();
-  await item(page, 0).getByRole('button', { name: 'Проверить' }).click();
-  await expect(item(page, 0).getByRole('status')).toHaveText('Верно');
+  await (await item(page, 0)).getByRole('radio', { name: 'The leaves of the Camellia sinensis plant' }).click();
+  await (await item(page, 0)).getByRole('button', { name: 'Проверить' }).click();
+  await expect((await item(page, 0)).getByRole('status')).toHaveText('Верно');
 
   // As answered after a reload: one try.
   await page.reload();
@@ -86,39 +120,39 @@ test('a question with options is checked at once, and stays as answered', async 
   await page.getByRole('button', { name: /^Культура/ }).click();
   await expect(page.getByRole('button', { name: /^Tea/ })).toContainText('Ответы · 2/5');
   await page.getByRole('button', { name: /^Tea/ }).click();
-  await expect(item(page, 2).getByRole('status')).toContainText('Неверно');
-  await expect(item(page, 2).getByRole('button', { name: 'Проверить' })).toHaveCount(0);
+  await expect((await item(page, 2)).getByRole('status')).toContainText('Неверно');
+  await expect((await item(page, 2)).getByRole('button', { name: 'Проверить' })).toHaveCount(0);
 });
 
 test('words written and not sent wait as a draft when one goes elsewhere', async ({ page }) => {
   await openTea(page);
-  await whyDrunk(page).fill('Tea is popular because');
+  await (await whyDrunk(page)).fill('Tea is popular because');
   // Away to «Сегодня» and back.
   await page.getByRole('button', { name: 'Назад' }).click();
   await page.getByRole('navigation').getByRole('button', { name: 'Сегодня' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Мои колоды' })).toBeVisible();
   await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
   await page.getByRole('button', { name: /^Tea/ }).click();
-  await expect(whyDrunk(page)).toHaveValue('Tea is popular because');
+  await expect(await whyDrunk(page)).toHaveValue('Tea is popular because');
   // Sent, the draft is gone: «Изменить» starts from the answer.
-  await whyDrunk(page).fill(ANSWER + ' Truly.');
-  await item(page, 3).getByRole('button', { name: 'Отправить' }).click();
-  await expect(item(page, 3).getByRole('button', { name: 'Изменить' })).toBeVisible();
+  await (await whyDrunk(page)).fill(ANSWER + ' Truly.');
+  await (await item(page, 3)).getByRole('button', { name: 'Отправить' }).click();
+  await expect((await item(page, 3)).getByRole('button', { name: 'Изменить' })).toBeVisible();
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
   await page.getByRole('button', { name: /^Культура/ }).click();
   await page.getByRole('button', { name: /^Tea/ }).click();
-  await expect(item(page, 3)).toContainText(ANSWER);
-  await expect(whyDrunk(page)).toHaveCount(0);
+  await expect(await item(page, 3)).toContainText(ANSWER);
+  await expect(await whyDrunk(page)).toHaveCount(0);
 });
 
 test('over the limit cannot be sent, and the box never holds more than 500 words', async ({ page }) => {
   await openTea(page);
-  await whyDrunk(page).fill(words(151));
-  await expect(item(page, 3).getByText('151 / 30–150 слов')).toBeVisible();
-  await expect(item(page, 3).getByRole('button', { name: 'Отправить' })).toBeDisabled();
-  await whyDrunk(page).fill(words(520));
-  await expect(item(page, 3).getByText('500 / 30–150 слов')).toBeVisible();
+  await (await whyDrunk(page)).fill(words(151));
+  await expect((await item(page, 3)).getByText('151 / 15–150 слов')).toBeVisible();
+  await expect((await item(page, 3)).getByRole('button', { name: 'Отправить' })).toBeDisabled();
+  await (await whyDrunk(page)).fill(words(520));
+  await expect((await item(page, 3)).getByText('500 / 15–150 слов')).toBeVisible();
 });
 
 /** The browser's speech recognition, played back: what a learner says, then silence. */
@@ -157,21 +191,21 @@ test('an answer can be spoken: what is heard goes into the box, to be corrected 
     'people drink tea everywhere because it is cheap and warm and it brings families and friends together after work and at every celebration';
   await fakeSpeech(page, said);
   await openTea(page);
-  await whyDrunk(page).fill('In my opinion');
-  await item(page, 3).getByRole('button', { name: 'Сказать' }).click();
+  await (await whyDrunk(page)).fill('In my opinion');
+  await (await item(page, 3)).getByRole('button', { name: 'Сказать' }).click();
   // What was typed stays; speech follows it.
-  await expect(whyDrunk(page)).toHaveValue(`In my opinion ${said}`);
-  await expect(item(page, 3).getByText('26 / 30–150 слов')).toBeVisible();
-  await whyDrunk(page).fill(`In my opinion ${said} and on holidays with the whole family.`);
-  await item(page, 3).getByRole('button', { name: 'Отправить' }).click();
-  await expect(item(page, 3)).toContainText(said);
+  await expect(await whyDrunk(page)).toHaveValue(`In my opinion ${said}`);
+  await expect((await item(page, 3)).getByText('26 / 15–150 слов')).toBeVisible();
+  await (await whyDrunk(page)).fill(`In my opinion ${said} and on holidays with the whole family.`);
+  await (await item(page, 3)).getByRole('button', { name: 'Отправить' }).click();
+  await expect(await item(page, 3)).toContainText(said);
 });
 
 test('a microphone not allowed says so; typing still works', async ({ page }) => {
   await fakeSpeech(page, null);
   await openTea(page);
-  await item(page, 3).getByRole('button', { name: 'Сказать' }).click();
-  await expect(item(page, 3).getByRole('alert')).toHaveText(
+  await (await item(page, 3)).getByRole('button', { name: 'Сказать' }).click();
+  await expect((await item(page, 3)).getByRole('alert')).toHaveText(
     'Нет доступа к микрофону. Разрешите его в настройках или напишите ответ.',
   );
 });
@@ -182,6 +216,8 @@ test('where the browser has no speech recognition, no «Сказать» is offe
     delete (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition;
   });
   await openTea(page);
+  // On the open question, where «Сказать» would be.
+  await expect(await whyDrunk(page)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Сказать' })).toHaveCount(0);
 });
 
@@ -195,12 +231,12 @@ test('a text of my own gets three questions with options and two open ones', asy
   await page.getByRole('button', { name: /^The oven/ }).click();
   const questions = page.getByRole('region', { name: 'Вопросы к тексту' });
   // Three with options, then two open ones.
-  await expect(questions.getByRole('listitem')).toHaveCount(5);
-  await expect(item(page, 0).getByRole('radio')).toHaveCount(4);
-  await expect(item(page, 3).getByRole('textbox')).toBeVisible();
-  await item(page, 3).getByRole('textbox').fill('It is about baking bread with a grandmother.');
-  await item(page, 3).getByRole('button', { name: 'Отправить' }).click();
-  await expect(item(page, 3)).toContainText('It is about baking bread');
+  await expect(questions.getByRole('group').getByRole('button')).toHaveCount(5);
+  await expect((await item(page, 0)).getByRole('radio')).toHaveCount(4);
+  await expect((await item(page, 3)).getByRole('textbox')).toBeVisible();
+  await (await item(page, 3)).getByRole('textbox').fill('It is about baking bread with a grandmother.');
+  await (await item(page, 3)).getByRole('button', { name: 'Отправить' }).click();
+  await expect(await item(page, 3)).toContainText('It is about baking bread');
   await expect(button(page, 'Изменить')).toBeVisible();
 });
 
@@ -226,18 +262,18 @@ test.describe('with no service worker', () => {
     await openTea(page);
     const answer = `${ANSWER} Truly.`;
     // The questions show at once, before the server answers.
-    await whyDrunk(page).fill(answer);
-    await item(page, 3).getByRole('button', { name: 'Отправить' }).click();
-    await expect(item(page, 3)).toContainText(answer);
+    await (await whyDrunk(page)).fill(answer);
+    await (await item(page, 3)).getByRole('button', { name: 'Отправить' }).click();
+    await expect(await item(page, 3)).toContainText(answer);
     release();
     await page.waitForTimeout(500);
-    await expect(item(page, 3)).toContainText(answer);
+    await expect(await item(page, 3)).toContainText(answer);
     // Kept on the device too: after a reload, with the server still not having it.
     await page.reload();
     await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
     await page.getByRole('button', { name: /^Культура/ }).click();
     await page.getByRole('button', { name: /^Tea/ }).click();
-    await expect(item(page, 3)).toContainText(answer);
+    await expect(await item(page, 3)).toContainText(answer);
   });
 });
 
@@ -272,13 +308,13 @@ test('my own text’s questions are mine: the AI’s changed, mine added, true o
 
   // Back in the text: the questions as left, the true-or-false one marked like the others.
   const questions = page.getByRole('region', { name: 'Вопросы к тексту' });
-  await expect(questions.getByRole('listitem')).toHaveCount(6);
-  await expect(questions.getByRole('listitem').nth(3)).toContainText('What do you cook with your family?');
-  const trueFalse = questions.getByRole('listitem').nth(4);
+  await expect(questions.getByRole('group').getByRole('button')).toHaveCount(6);
+  await expect(await item(page, 3)).toContainText('What do you cook with your family?');
+  const trueFalse = await item(page, 4);
   await trueFalse.getByRole('radio', { name: 'True' }).click();
   await trueFalse.getByRole('button', { name: 'Проверить' }).click();
   await expect(trueFalse.getByRole('status')).toHaveText('Неверно. Правильный ответ: False');
-  await expect(questions.getByRole('listitem').nth(5).getByRole('radio')).toHaveCount(3);
+  await expect((await item(page, 5)).getByRole('radio')).toHaveCount(3);
 });
 
 test('a question with an empty option is not saved', async ({ page }) => {

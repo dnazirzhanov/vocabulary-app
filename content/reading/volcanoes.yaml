@@ -74,9 +74,9 @@ questions:
       - "By an earthquake in 1984"
       - "By people building on it"
     answer: "By the Pacific plate moving over a hot spot"
-  - q: "Many people live near active volcanoes. Why do you think they stay, even though it can be dangerous?"
-    min: 40
+  - q: "Why do people stay near active volcanoes?"
+    min: 20
     max: 180
-  - q: "There are volcanoes on other planets too, like Olympus Mons on Mars. What could volcanoes on another planet tell us about that planet?"
-    min: 40
+  - q: "What can volcanoes on other planets tell us?"
+    min: 20
     max: 180

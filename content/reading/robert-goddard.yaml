@@ -51,9 +51,9 @@ questions:
       - "He did not finish school"
       - "He said a rocket could one day reach the moon"
     answer: "He said a rocket could one day reach the moon"
-  - q: "People laughed at Goddard's idea, and later it became real. Why do you think new ideas are often laughed at first?"
-    min: 30
+  - q: "Why are new ideas often laughed at first?"
+    min: 15
     max: 150
-  - q: "Goddard said: \"The dream of yesterday is the hope of today and the reality of tomorrow.\" Which dream of today could become real in your lifetime? Why do you think so?"
-    min: 30
+  - q: "Which dream of today could come true in your lifetime?"
+    min: 15
     max: 150

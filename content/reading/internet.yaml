@@ -77,9 +77,9 @@ questions:
       - "Sending and receiving e-mail"
       - "Paying bills"
     answer: "Sending and receiving e-mail"
-  - q: "The text says communication on the Internet can be dangerous. Why can sharing secret information online be risky, and what would you advise a younger friend?"
-    min: 30
+  - q: "Why is it risky to share secret information online?"
+    min: 15
     max: 150
-  - q: "How has the Internet changed the way people learn? Is the change only good, or does it also bring problems?"
-    min: 30
+  - q: "Has the Internet made learning better, worse, or both?"
+    min: 15
     max: 150

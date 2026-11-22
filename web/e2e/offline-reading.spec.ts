@@ -121,20 +121,21 @@ test('an answer written offline stays on the phone and reaches the server once o
   await visitOnline(page);
   await openMars(page);
   await context.setOffline(true);
-  const box = page.getByRole('textbox', { name: /What does this suggest about Mars long ago/ });
+  const questions = page.getByRole('region', { name: 'Вопросы к тексту' });
+  await questions.getByRole('button', { name: 'Вопрос 4', exact: true }).click();
+  const box = page.getByRole('textbox', { name: /What does ferrihydrite tell us about Mars long ago/ });
   const answer =
     'It suggests that Mars once had a lot of liquid water, because ferrihydrite forms in water-rich places. That matters to scientists who look for life, because life as we know it needs water, so old wet places on Mars are good places to search.';
   await box.fill(answer);
-  const item = page.getByRole('region', { name: 'Вопросы к тексту' }).getByRole('listitem').nth(3);
+  const item = page.getByRole('article', { name: 'Вопрос 4 из 5' });
   await item.getByRole('button', { name: 'Отправить' }).click();
   await expect(item).toContainText(answer);
 
   // A reload offline: still there.
   await page.reload();
   await openMars(page);
-  await expect(page.getByRole('region', { name: 'Вопросы к тексту' }).getByRole('listitem').nth(3)).toContainText(
-    answer,
-  );
+  await questions.getByRole('button', { name: 'Вопрос 4', exact: true }).click();
+  await expect(item).toContainText(answer);
 
   await context.setOffline(false);
   await expect

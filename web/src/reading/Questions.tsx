@@ -10,9 +10,11 @@ import { capWords } from './text.ts';
 import styles from './Reading.module.css';
 
 /**
- * «Вопросы к тексту», under the article (round 2): three with options on its facts, answered once
- * and marked at once; then two open ones, answered in writing or by voice within their limits, the
- * unsent words kept as a draft on this device, the sent answer kept to read or change any time.
+ * «Вопросы к тексту», under the article (round 2), one card at a time (Daler, 22 November 2026: not a
+ * long list): three with options on its facts, answered once and marked at once; then two open ones,
+ * answered in writing or by voice within their limits, the unsent words kept as a draft on this
+ * device, the sent answer kept to read or change any time. Numbered dots go to any question; it
+ * opens on the first one not yet answered.
  */
 export function Questions({
   account,
@@ -27,6 +29,8 @@ export function Questions({
   onEdit?: () => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, ReadingAnswer>>({});
+  // The card the learner moved to; until then, the first question not yet answered.
+  const [chosen, setChosen] = useState<number | null>(null);
   // The device's copy at once, the server's when it comes: each question's newer answer wins, so
   // a reply that left before an answer was written never undoes it.
   useEffect(() => {
@@ -38,8 +42,18 @@ export function Questions({
       live = false;
     };
   }, [readingRef]);
+  const at = Math.min(chosen ?? firstOpen(questions, answers), Math.max(questions.length - 1, 0));
   if (questions.length === 0 && !onEdit) return null;
-  const saved = (answer: ReadingAnswer) => setAnswers((before) => ({ ...before, [answer.question_ref]: answer }));
+  const saved = (answer: ReadingAnswer) => {
+    // Stay on this card to see the verdict, rather than following the next one unanswered.
+    setChosen(at);
+    setAnswers((before) => ({ ...before, [answer.question_ref]: answer }));
+  };
+  const go = (n: number) => setChosen(Math.max(0, Math.min(questions.length - 1, n)));
+  const question = questions[at];
+  const answered = question ? Boolean(answers[question.id]) : false;
+  const allDone = questions.length > 0 && questions.every((q) => answers[q.id]);
+  const last = at >= questions.length - 1;
   return (
     <section className={styles.questions} aria-labelledby="questions-title" lang="ru">
       <div className={styles.questionsHead}>
@@ -52,13 +66,29 @@ export function Questions({
           </button>
         )}
       </div>
-      <ol className={styles.questionList}>
-        {questions.map((question) => (
-          // An answer arriving (or changing) shows as sent; one being written isn't replaced.
-          <li key={question.id}>
+      {question && (
+        <>
+          <div className={styles.questionDots} role="group" aria-label={t.questionsTitle}>
+            {questions.map((q, n) => (
+              <button
+                key={q.id}
+                type="button"
+                className={styles.questionDot}
+                aria-label={t.questionNumber(n + 1)}
+                aria-current={n === at ? 'step' : undefined}
+                data-done={doneMark(q, answers[q.id])}
+                onClick={() => go(n)}
+              >
+                {n + 1}
+              </button>
+            ))}
+          </div>
+          <article className={styles.questionCard} aria-label={t.questionOf(at + 1, questions.length)}>
+            <p className={styles.questionCount}>{t.questionOf(at + 1, questions.length)}</p>
+            {/* An answer arriving (or changing) shows as sent; one being written isn't replaced. */}
             {question.kind === 'choice' ? (
               <ChoiceCard
-                key={answers[question.id]?.updated_at ?? 'none'}
+                key={`${question.id}:${answers[question.id]?.updated_at ?? 'none'}`}
                 readingRef={readingRef}
                 question={question}
                 answer={answers[question.id]}
@@ -66,7 +96,7 @@ export function Questions({
               />
             ) : (
               <OpenCard
-                key={answers[question.id]?.updated_at ?? 'none'}
+                key={`${question.id}:${answers[question.id]?.updated_at ?? 'none'}`}
                 account={account}
                 readingRef={readingRef}
                 question={question}
@@ -74,11 +104,43 @@ export function Questions({
                 onSaved={saved}
               />
             )}
-          </li>
-        ))}
-      </ol>
+            {allDone && last && (
+              <p className={styles.verdictRight} role="status">
+                <CheckIcon aria-hidden="true" /> {t.questionsAllDone}
+              </p>
+            )}
+          </article>
+          <div className={styles.questionNav}>
+            <button type="button" className={styles.answerCancel} disabled={at === 0} onClick={() => go(at - 1)}>
+              ‹ {t.questionPrev}
+            </button>
+            {!last && (
+              <button
+                type="button"
+                className={answered ? styles.answerSend : styles.answerCancel}
+                onClick={() => go(at + 1)}
+              >
+                {t.questionNext} ›
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
+}
+
+/** How an answered question's dot looks: right or wrong for options, sent for an open one. */
+function doneMark(question: ReadingQuestion, answer: ReadingAnswer | undefined): string | undefined {
+  if (!answer) return undefined;
+  if (question.kind !== 'choice') return 'sent';
+  return answer.correct ? 'right' : 'wrong';
+}
+
+/** The first question without an answer; the first of all when every one is answered. */
+function firstOpen(questions: ReadingQuestion[], answers: Record<string, ReadingAnswer>): number {
+  const open = questions.findIndex((q) => !answers[q.id]);
+  return open === -1 ? 0 : open;
 }
 
 /** Three or four options; «Проверить» once one is picked; then the right one shown. One try. */

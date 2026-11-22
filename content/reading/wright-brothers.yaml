@@ -58,9 +58,9 @@ questions:
       - "It had a big airport"
       - "It was in the mountains"
     answer: "It had the best wind conditions"
-  - q: "The brothers learned from bicycles, kites and a toy helicopter. How can playing with simple things help people invent big things?"
-    min: 20
+  - q: "How can simple toys help people invent big things?"
+    min: 10
     max: 100
-  - q: "Before 1903, most people thought flying machines were impossible. What seems impossible today but may be possible in the future?"
-    min: 20
+  - q: "What seems impossible today but may be possible one day?"
+    min: 10
     max: 100

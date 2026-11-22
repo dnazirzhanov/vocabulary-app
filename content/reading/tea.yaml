@@ -62,9 +62,9 @@ questions:
       - "It is mixed with rosehip"
       - "Brewed in boiling water, it looks deep dark red"
     answer: "Brewed in boiling water, it looks deep dark red"
-  - q: "After water, tea is the most popular drink in the world. Why do you think people in so many different countries drink it?"
-    min: 30
+  - q: "Why do people in so many countries drink tea?"
+    min: 15
     max: 150
-  - q: "The same leaves become black, oolong or green tea, depending on how they are made. What else changes a lot because of how it is prepared? Explain with an example."
-    min: 30
+  - q: "What else changes a lot depending on how it is made?"
+    min: 15
     max: 150
