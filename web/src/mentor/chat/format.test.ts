@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { grouped, groupOf, hhmm, messageTime, titleOf } from './format.ts';
+import { grouped, groupOf, hhmm, joinOvernight, messageTime, titleOf } from './format.ts';
 
 test('minutes read as a clock, wrapping past midnight', () => {
   assert.equal(hhmm(0), '00:00');
@@ -42,4 +42,21 @@ test('a working title is the first question, cut at a word', () => {
   assert.equal(titleOf('  Как   учить слова? '), 'Как учить слова?');
   const long = titleOf('Я хочу сдать IELTS на 6.5 к июню, но у меня очень мало свободного времени');
   assert.ok(long.length <= 61 && long.endsWith('…') && !long.includes('свобод'));
+});
+
+test('a night saved in two halves reads as the one block the learner said', () => {
+  const b = (title: string, weekdays: number[], start: number, end: number) => ({
+    title,
+    weekdays,
+    start_minute: start,
+    end_minute: end,
+    on_date: null,
+  });
+  // Mon–Fri nights: evenings Mon–Fri, mornings Tue–Sat.
+  const school = b('Школа', [0, 1, 2, 3, 4], 510, 810);
+  const shown = joinOvernight([b('Сон', [0, 1, 2, 3, 4], 1380, 1440), school, b('Сон', [1, 2, 3, 4, 5], 0, 420)]);
+  assert.deepEqual(shown, [b('Сон', [0, 1, 2, 3, 4], 1380, 420), school]);
+  // Halves that don't belong together stay apart.
+  const apart = [b('Сон', [0], 1380, 1440), b('Сон', [3], 0, 420)];
+  assert.deepEqual(joinOvernight(apart), apart);
 });

@@ -58,13 +58,12 @@ test('blocks at the same time sit side by side, never on top of each other', asy
   expect(school!.height / club!.height).toBeCloseTo(3, 1);
 });
 
-test('telling the mentor about the week turns into blocks after the tap', async ({ page }) => {
+test('telling the mentor about the week puts it in the calendar at once', async ({ page }) => {
   await openCalendar(page);
   await page.getByRole('textbox', { name: 'Расскажите о своей неделе' }).fill('учусь пн–пт 8–14');
   await page.getByRole('button', { name: 'Отправить наставнику' }).click();
-  const card = page.getByRole('listitem').filter({ hasText: 'Расписание — проверьте и добавьте' });
-  await card.getByRole('button', { name: 'Добавить в календарь' }).click();
-  await expect(card.getByText('Добавлено в календарь')).toBeVisible();
+  const card = page.getByRole('listitem').filter({ hasText: 'Календарь обновлён' });
+  await expect(card).toContainText('Школа');
   await page.getByRole('button', { name: 'Чаты', exact: true }).click();
   await page
     .getByRole('complementary', { name: 'Чаты' })
