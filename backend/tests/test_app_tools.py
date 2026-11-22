@@ -293,3 +293,35 @@ def test_a_lookup_streams_as_a_step_without_a_card(client: TestClient) -> None:
 def test_every_tool_the_model_is_offered_can_run() -> None:
     offered = {tool["function"]["name"] for tool in mentor_tools.TOOLS}
     assert offered == set(mentor_tools.RUNNERS)
+
+
+def test_ielts_essays_come_with_their_band_and_next_steps(client: TestClient, db: Session) -> None:
+    db.add(
+        WritingSubmission(
+            user_id=learner(db, client).id,
+            client_id=uuid.uuid4(),
+            question_id="ielts-tech-1",
+            answer="Smartphones changed how we talk to each other",
+            status="done",
+            created_at=NOW - timedelta(days=1),
+            evaluation={
+                "rubric": "ielts",
+                "enough_evidence": True,
+                "band": 6.5,
+                "words": 8,
+                "criteria": {
+                    "task_response": {"band": 7, "why": "w", "next_band": "Give an example."},
+                    "coherence_cohesion": {"band": 6, "why": "w", "next_band": "Use paragraphs."},
+                    "lexical_resource": {"band": 6, "why": "w", "next_band": ""},
+                    "grammatical_range_accuracy": {"band": 7, "why": "w", "next_band": ""},
+                },
+                "summary": "Clear position.",
+                "corrections": [],
+                "upgrades": [],
+            },
+        )
+    )
+    db.commit()
+    essay = call(db, client, "get_writing").result["essays"][0]
+    assert essay["ielts_band"] == 6.5 and "level" not in essay
+    assert essay["criteria"]["task_response"] == {"band": 7, "next_band": "Give an example."}
