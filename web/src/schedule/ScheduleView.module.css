@@ -393,6 +393,18 @@
   --kind: #c0357a;
 }
 
+.event[data-kind='rest'] {
+  --kind: #0e7c7e;
+}
+
+.event[data-kind='play'] {
+  --kind: #946200;
+}
+
+.event[data-kind='sleep'] {
+  --kind: #4338ca;
+}
+
 .event[data-kind='other'] {
   --kind: #5f6672;
 }

@@ -44,6 +44,9 @@ class MentorConversation(Base):
     title: Mapped[str] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # What the chat was about, in a few lines (ADR 0075), and how many messages it covers.
+    summary: Mapped[str | None] = mapped_column(Text)
+    summarized_messages: Mapped[int | None] = mapped_column()
 
 
 class MentorGoal(Base):
@@ -93,3 +96,55 @@ class MentorAdjustment(Base):
     status: Mapped[str] = mapped_column(String(12))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LearnerFact(Base):
+    """Something the mentor knows about a learner (ADR 0075): why they learn, what they like or
+    dislike, what limits their time, when they have energy, their own words for things. The
+    learner sees and edits every one; a changed fact is kept as superseded."""
+
+    __tablename__ = "learner_facts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # why, likes, dislikes, constraint, energy, word, other (check in the migration).
+    kind: Mapped[str] = mapped_column(String(12))
+    text: Mapped[str] = mapped_column(String(200))
+    # chat (proposed by the mentor, confirmed by a tap), user (written on the page), coach.
+    source: Mapped[str] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MentorTimelineEvent(Base):
+    """What happened with a learner's plan, dated (ADR 0075): a goal set, the time moved, a day
+    rescued, a pause, an adjustment. Written by the coach, read back by the mentor."""
+
+    __tablename__ = "mentor_timeline"
+    __table_args__ = (Index("ix_mentor_timeline_user_at", "user_id", "at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    kind: Mapped[str] = mapped_column(String(24))
+    note: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class MentorEvent(Base):
+    """What measurement needs that the timeline doesn't hold (ADR 0078): each chat answer's
+    timing and token use, and each «Начать» tapped. Not shown to the learner; deleted with them."""
+
+    __tablename__ = "mentor_events"
+    __table_args__ = (
+        Index("ix_mentor_events_at", "at"),
+        Index("ix_mentor_events_user_at", "user_id", "at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # chat_message, start_tapped. Check constraint in the migration.
+    name: Mapped[str] = mapped_column(String(24))
+    props: Mapped[dict[str, Any]] = mapped_column(JSONB)
