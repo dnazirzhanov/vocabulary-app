@@ -30,7 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import memory, mentor_demo, mentor_events, mentor_tools
+from app.services import dsml, memory, mentor_demo, mentor_events, mentor_tools
 from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
@@ -1471,6 +1471,8 @@ def _stream_with_tools(
             )
             said: list[str] = []
             calls: dict[int, dict[str, str]] = {}
+            # Tool calls the model wrote as text are kept off the screen (app.services.dsml).
+            guard = dsml.Guard()
             for chunk in stream:
                 usage = getattr(chunk, "usage", None)  # only the last chunk carries it
                 if usage is not None:
@@ -1478,9 +1480,10 @@ def _stream_with_tools(
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
-                if delta.content:
-                    said.append(delta.content)
-                    yield {"delta": delta.content}
+                shown = guard.feed(delta.content) if delta.content else ""
+                if shown:
+                    said.append(shown)
+                    yield {"delta": shown}
                 for call in delta.tool_calls or []:
                     slot = calls.setdefault(call.index, {"id": "", "name": "", "args": ""})
                     if call.id:
@@ -1489,6 +1492,26 @@ def _stream_with_tools(
                         slot["name"] += call.function.name
                     if call.function and call.function.arguments:
                         slot["args"] += call.function.arguments
+            tail = guard.end()
+            if tail:
+                said.append(tail)
+                yield {"delta": tail}
+            if guard.markup:
+                written = dsml.calls(guard.markup)
+                logger.warning(
+                    "mentor tool call written as text",
+                    extra={"tools": [name for name, _ in written], "run": with_tools},
+                )
+                # Run them as the calls they are, where tools are offered; past the last round,
+                # they are dropped like any call that comes too late.
+                if with_tools:
+                    after = max(calls, default=-1) + 1
+                    for n, (name, args) in enumerate(written):
+                        calls[after + n] = {
+                            "id": f"text-call-{round_}-{n}",
+                            "name": name,
+                            "args": json.dumps(args, ensure_ascii=False),
+                        }
             if not calls:
                 return
             ordered = [calls[i] for i in sorted(calls)]
