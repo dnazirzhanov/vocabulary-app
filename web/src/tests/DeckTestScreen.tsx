@@ -3,7 +3,7 @@ import { api, describeError } from '../lib/api.ts';
 import { clockText, scoreText, verdictText } from '../lib/groupTests.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
-import type { TestAttempt, TestAttemptKind, TestDetail, TestResultRow } from '../lib/types.ts';
+import type { TestAttempt, TestAttemptKind, TestAttemptSummary, TestDetail, TestResultRow } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
@@ -12,7 +12,7 @@ import report from '../groups/Group.module.css';
 import { TestSetup } from './TestSetup.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
 import styles from './Tests.module.css';
-import { t } from '../i18n/index.ts';
+import { t, uiLanguage } from '../i18n/index.ts';
 
 // Results arrive as students finish, and a closed test opens: everyone in the room sees it soon.
 const REFRESH_MS = 30_000;
@@ -189,10 +189,15 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
             )}
           </div>
 
-          <Results title={t.passedIt} state="done" rows={detail.passed} />
-          <Results title={t.didnTPass} state="missed" rows={detail.failed} />
+          <Results title={t.passedIt} state="done" rows={detail.passed} passPercent={test?.pass_percent ?? null} />
+          <Results title={t.didnTPass} state="missed" rows={detail.failed} passPercent={test?.pass_percent ?? null} />
           {/* Nobody is behind on a test that has never been open. */}
           {(test?.is_open || detail.passed.length + detail.failed.length > 0) && <NotTaken rows={detail.not_taken} />}
+          <History
+            attempts={mine.history ?? []}
+            busy={busy}
+            onOpen={(id) => void run(async () => onRun(await api.testAttempt(id)))}
+          />
         </div>
       </main>
       <Dialog open={starting} onClose={() => setStarting(false)} title={t.startTestQuestion}>
@@ -227,9 +232,47 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
   );
 }
 
+/** Every attempt I finished, newest first: when, test or practice, the score; each opens its result. */
+function History(props: { attempts: TestAttemptSummary[]; busy: boolean; onOpen: (id: string) => void }) {
+  const { attempts, busy, onOpen } = props;
+  if (attempts.length === 0) return null;
+  return (
+    <section className={styles.history} aria-labelledby="my-attempts">
+      <h2 id="my-attempts" className={report.namesTitle}>
+        {t.myAttempts} · {attempts.length}
+      </h2>
+      <ul className={styles.historyList}>
+        {attempts.map((a) => (
+          <li key={a.id}>
+            <button type="button" className={styles.historyRow} disabled={busy} onClick={() => onOpen(a.id)}>
+              <span className={styles.historyWhen}>{when(a.finished_at)}</span>
+              <span className={styles.historyKind}>{a.kind === 'test' ? t.test : t.practice}</span>
+              <span className={styles.historyScore}>{scoreText(a)}</span>
+              {a.passed !== null && <span className={styles.historyVerdict}>{verdictText(a.passed)}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function when(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(uiLanguage, { day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString(uiLanguage, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 /** One card, a quiet row a person: their name, and their score as a bar and in words. */
-function Results(props: { title: string; state: 'done' | 'missed'; rows: TestResultRow[] }) {
-  const { title, state, rows } = props;
+function Results(props: {
+  title: string;
+  state: 'done' | 'missed';
+  rows: TestResultRow[];
+  passPercent: number | null;
+}) {
+  const { title, state, rows, passPercent } = props;
   if (rows.length === 0) return null;
   return (
     <section aria-label={title} className={styles.results}>
@@ -242,6 +285,8 @@ function Results(props: { title: string; state: 'done' | 'missed'; rows: TestRes
               <>
                 <span className={styles.scoreBar} data-short={!row.score.passed || undefined} aria-hidden="true">
                   <span style={{ width: `${(row.score.correct / row.score.total) * 100}%` }} />
+                  {/* The pass mark: how far the bar had to reach. */}
+                  {passPercent !== null && <i className={styles.passTick} style={{ left: `${passPercent}%` }} />}
                 </span>
                 <span className={styles.score}>{scoreText(row.score)}</span>
               </>

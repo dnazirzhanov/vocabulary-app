@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.locale import DEFAULT, Texts, texts_for
 from app.core.logging import logger
-from app.models import DeckAssignment, Group, GroupMember, PushSubscription, User
+from app.models import DeckAssignment, Group, GroupMember, MentorDayType, PushSubscription, User
 from app.services import decks, pace
 from app.services.progress import local_day_bounds
 from app.services.promise import load_promises, promise_of, today_state
@@ -193,16 +193,34 @@ def morning_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> R
     return None
 
 
+def _sick(db: Session, user: User, day: date) -> bool:
+    found = db.get(MentorDayType, (user.id, day))
+    return found is not None and found.type == "sick"
+
+
 def afternoon_message(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Reminder | None:
     """Only if today is still open: the promise not done yet, or words left for a deadline."""
     if not user.notify_afternoon:
         return None
     texts = texts_for(user.ui_language)
     today = local_date(now, zone)
+    if _sick(db, user, today):
+        return None  # a sick day asks nothing (ADR 0076)
     words = _words_due(db, user, now, zone) if user.notify_deadline else []
     line = _words_line(texts, words, today) if words else None
     if _state_today(db, user, now, zone, today) == "pending":
-        return Reminder(texts.not_yet_title, line or texts.still_time)
+        promise = promise_of(db, user)
+        yesterday = today - timedelta(days=1)
+        studied = days_by_user(db, [user], local_day_bounds(yesterday, zone)[0], zone)[user.id]
+        day = studied.get(yesterday)
+        missed = (
+            promise.promised_on(yesterday)
+            and not (day and day.studied)
+            and not _sick(db, user, yesterday)
+        )
+        return Reminder(
+            texts.not_yet_title, line or (texts.never_twice if missed else texts.still_time)
+        )
     if not line:
         return None
     return Reminder(texts.deadline_title if words[0][2] == today else texts.words_title, line)
@@ -266,6 +284,7 @@ def send_reminders(
     for subscription, user in rows:
         by_user[user.id].append(subscription)
         users[user.id] = user
+    promises = load_promises(db, list(users.values()))
     sent = 0
     for user_id, subscriptions in by_user.items():
         user = users[user_id]
@@ -273,9 +292,16 @@ def send_reminders(
         zone = ZoneInfo(user.time_zone)
         local = now.astimezone(zone)
         today = local.date()
-        if MORNING[0] <= local.hour < MORNING[1]:
+        minute = local.hour * 60 + local.minute
+        # The day's second reminder comes at the learner's own study time when they promised one
+        # (ADR 0071), else in the late afternoon.
+        study = promises[user_id].time_on(today)
+        second = (study[0], study[0] + 60) if study else (AFTERNOON[0] * 60, AFTERNOON[1] * 60)
+        # A morning study time is reminded of instead of the morning note, never as well.
+        morning_free = second[1] <= MORNING[0] * 60 or second[0] >= MORNING[1] * 60
+        if MORNING[0] <= local.hour < MORNING[1] and morning_free:
             field, make = "last_morning_on", morning_message
-        elif AFTERNOON[0] <= local.hour < AFTERNOON[1]:
+        elif second[0] <= minute < second[1]:
             field, make = "last_sent_on", afternoon_message
         else:
             continue

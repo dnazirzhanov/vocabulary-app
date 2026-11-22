@@ -22,7 +22,7 @@ from __future__ import annotations
 import base64
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from app.services.speaking import audio as audio_mod
@@ -44,6 +44,12 @@ class WordPronunciationScore:
     # MissingBreak | Monotone.
     error_type: str
     phonemes: list[PhonemeScore]
+    # Where Azure heard the word, in ms from the start of the whole recording (acoustic alignment,
+    # far more exact than Whisper's word times); None for words it did not hear (Omission).
+    start_ms: int | None = None
+    end_ms: int | None = None
+    # Azure's prosody judgement of the break before this word («UnexpectedBreak»), when given.
+    break_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -117,7 +123,7 @@ def assess_free_speech(
         clip = audio_mod.slice_wav(wav, piece.start_ms, piece.end_ms)
         data = _call(clip, _params(reference, miscue=False), api_key, region)
         try:
-            results.append((_parse(data), piece.last - piece.first))
+            results.append((_shifted(_parse(data), piece.start_ms), piece.last - piece.first))
         except PronunciationError as exc:
             # A piece Azure heard nothing in (noise, a cough) is left out, not scored as zero.
             if exc.code != "no_speech":
@@ -223,12 +229,20 @@ def _parse(data: Mapping[str, Any]) -> PronunciationResult:
             )
             for ph in w.get("Phonemes") or []
         ]
+        error_type = str(ws.get("ErrorType") or "None")
+        offset, duration = _num(w, "Offset"), _num(w, "Duration")  # 100-nanosecond units
+        heard = offset is not None and duration is not None and error_type != "Omission"
         words.append(
             WordPronunciationScore(
                 word=str(w.get("Word", "")),
                 accuracy_score=_num(ws, "AccuracyScore") or 0.0,
-                error_type=str(ws.get("ErrorType") or "None"),
+                error_type=error_type,
                 phonemes=phonemes,
+                start_ms=round(offset / 10_000) if heard and offset is not None else None,
+                end_ms=round((offset + duration) / 10_000)
+                if heard and offset is not None and duration is not None
+                else None,
+                break_error=_break_error(w),
             )
         )
 
@@ -256,6 +270,34 @@ def _parse(data: Mapping[str, Any]) -> PronunciationResult:
             "snr": data.get("SNR"),
         },
     )
+
+
+def _break_error(word: Mapping[str, Any]) -> str | None:
+    """«UnexpectedBreak» / «MissingBreak» from a word's prosody feedback, if Azure gave one."""
+    feedback = word.get("Feedback")
+    prosody = feedback.get("Prosody") if isinstance(feedback, Mapping) else None
+    brk = prosody.get("Break") if isinstance(prosody, Mapping) else None
+    kinds = brk.get("ErrorTypes") if isinstance(brk, Mapping) else None
+    if isinstance(kinds, list):
+        for kind in kinds:
+            if isinstance(kind, str) and kind not in ("None", ""):
+                return kind
+    return None
+
+
+def _shifted(result: PronunciationResult, by_ms: int) -> PronunciationResult:
+    """A piece's word times moved onto the whole recording's clock."""
+    if by_ms == 0:
+        return result
+    words = [
+        replace(
+            w,
+            start_ms=None if w.start_ms is None else w.start_ms + by_ms,
+            end_ms=None if w.end_ms is None else w.end_ms + by_ms,
+        )
+        for w in result.words
+    ]
+    return replace(result, words=words)
 
 
 def _with_raw(result: PronunciationResult, extra: dict[str, object]) -> PronunciationResult:

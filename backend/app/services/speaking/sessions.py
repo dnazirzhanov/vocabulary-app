@@ -25,6 +25,10 @@ from app.services.speaking import jobs as jobs_svc
 from app.services.speaking import questions
 from app.services.speaking.storage import StorageClient
 
+# The recorder stops at 3:00 (ExerciseScreen); the margin covers a late stop and timer drift.
+MAX_RECORDING_MS = 190_000
+# Why a session failed when the learner deleted it.
+DELETED = "deleted_by_user"
 # Chunk 2 keeps audio for 30 days. The cleanup worker (Chunk 9) hard-deletes expired rows.
 AUDIO_RETENTION_DAYS = 30
 # MIME types we currently accept on upload. ffprobe content validation lands in Chunk 3.
@@ -46,23 +50,32 @@ ALLOWED_AUDIO_MIME = frozenset(
 def list_for_user(
     db: Session, user: User, question_id: str | None = None
 ) -> list[SessionSummaryOut]:
-    """Return all non-deleted sessions for the user, optionally filtered to one question."""
+    """The learner's attempts, newest first, optionally for one question. An attempt the learner
+    deleted is left out: it is gone for them."""
     stmt = (
-        select(SpeakingSession, SpeakingAssessment)
+        select(SpeakingSession, SpeakingAssessment, SpeakingAudioAsset)
         .outerjoin(SpeakingAssessment, SpeakingAssessment.session_id == SpeakingSession.id)
+        .outerjoin(
+            SpeakingAudioAsset,
+            (SpeakingAudioAsset.session_id == SpeakingSession.id)
+            & SpeakingAudioAsset.deleted_at.is_(None),
+        )
         .where(SpeakingSession.user_id == user.id)
+        .where(SpeakingSession.failure_reason.is_distinct_from(DELETED))
         .order_by(SpeakingSession.started_at.desc())
     )
     if question_id is not None:
         stmt = stmt.where(SpeakingSession.question_id == question_id)
-    rows = db.execute(stmt).all()
     return [
         SessionSummaryOut(
             id=session.id,
             question_id=session.question_id,
+            exercise_type=session.exercise_type,
             status=session.status,
             started_at=session.started_at,
             completed_at=session.completed_at,
+            duration_ms=audio.duration_ms if audio else None,
+            has_audio=audio is not None,
             overall_score=assessment.overall_score if assessment else None,
             pronunciation_score=assessment.pronunciation_score if assessment else None,
             fluency_score=assessment.fluency_score if assessment else None,
@@ -70,8 +83,21 @@ def list_for_user(
             grammar_score=assessment.grammar_score if assessment else None,
             coherence_score=assessment.coherence_score if assessment else None,
         )
-        for session, assessment in rows
+        for session, assessment, audio in db.execute(stmt).all()
     ]
+
+
+def audio_of(db: Session, user: User, session_id: uuid.UUID) -> SpeakingAudioAsset:
+    """The learner's own recording for one attempt, or 404 (also for someone else's attempt)."""
+    session = _owned(db, user, session_id)
+    asset = db.scalar(
+        select(SpeakingAudioAsset)
+        .where(SpeakingAudioAsset.session_id == session.id)
+        .where(SpeakingAudioAsset.deleted_at.is_(None))
+    )
+    if asset is None:
+        raise ApiError(404, "audio_not_available", "This attempt has no recording.")
+    return asset
 
 
 def create(db: Session, user: User, exercise_type: ExerciseType, question_id: str) -> SessionOut:
@@ -159,8 +185,7 @@ async def upload_audio(
         raise ApiError(400, "empty_audio", "Audio file is empty.")
     if len(content) > max_bytes:
         raise ApiError(413, "audio_too_large", "Audio file exceeds the size limit.")
-    # 2-minute hard limit on claimed duration; actual probe lands in Chunk 3.
-    if duration_ms is not None and (duration_ms < 0 or duration_ms > 130_000):
+    if duration_ms is not None and (duration_ms < 0 or duration_ms > MAX_RECORDING_MS):
         raise ApiError(400, "invalid_duration", "Reported duration is out of range.")
     if sample_rate is not None and (sample_rate < 4_000 or sample_rate > 96_000):
         raise ApiError(400, "invalid_sample_rate", "Reported sample rate is out of range.")
@@ -215,7 +240,7 @@ async def soft_delete(
         asset.deleted_at = now
     if session.status != "failed":
         session.status = "failed"
-        session.failure_reason = "deleted_by_user"
+        session.failure_reason = DELETED
         session.completed_at = now
     db.commit()
 

@@ -3,8 +3,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile
 
+from app.api.shadowing import audio_response
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now
 from app.core.config import Settings, get_settings
@@ -73,6 +74,21 @@ def get_session(session_id: uuid.UUID, user: CurrentUser, db: DbSession) -> Sess
     return sessions_svc.read(db, user, session_id)
 
 
+@router.get("/speaking/sessions/{session_id}/audio", dependencies=[Depends(_require_speaking)])
+def get_audio(
+    session_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbSession,
+    settings: DepSettings,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
+) -> Response:
+    """The learner's own recording of one attempt, to listen to again (seekable: Range/206)."""
+    asset = sessions_svc.audio_of(db, user, session_id)
+    data = get_storage(settings).download_sync(asset.storage_path)
+    media_type = asset.mime_type.split(";", 1)[0].strip()
+    return audio_response(data, media_type, range_header, cache="private, max-age=3600")
+
+
 @router.post("/speaking/sessions/{session_id}/audio", dependencies=[Depends(_require_speaking)])
 async def upload_audio(
     session_id: uuid.UUID,
@@ -81,7 +97,7 @@ async def upload_audio(
     now: Now,
     settings: DepSettings,
     file: Annotated[UploadFile, File(description="Audio blob (webm/opus preferred)")],
-    duration_ms: Annotated[int | None, Form(ge=0, le=130_000)] = None,
+    duration_ms: Annotated[int | None, Form(ge=0, le=sessions_svc.MAX_RECORDING_MS)] = None,
     sample_rate: Annotated[int | None, Form(ge=0, le=192_000)] = None,
 ) -> SessionDetailOut:
     content = await file.read()

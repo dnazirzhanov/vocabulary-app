@@ -18,29 +18,48 @@ const SAME_AS_RUSSIAN: Record<string, Set<string>> = {
   kk: new Set([
     'writingCriterionVocabulary',
     'writingCriterionGrammar',
+    'speakingSkillGrammar',
     'slovar',
     'n1Min',
     'account',
     'test',
+    'testMusic', // «Музыка» is the Kazakh word too
+    'scheduleTemplateStudent', // «Студент» is the Kazakh word too
     'code',
     'topicPsychology',
     'readingTheme',
     'themeSepia',
+    // «Шэдоуинг»: the method's own name, borrowed as it is.
+    'speakingModeShadowing',
+    'shadowingTitle',
   ]),
   ky: new Set([
     'writingCriterionVocabulary',
     'writingCriterionGrammar',
+    'speakingSkillGrammar',
     'slovar',
     'account',
     'test',
+    'testMusic', // «Музыка» is the Kyrgyz word too
+    'scheduleTemplateStudent', // «Студент» is the Kyrgyz word too
     'topic',
     'text',
     'topicPsychology',
     'readingTheme',
     'themeSepia',
     'category',
+    'speakingModeShadowing',
+    'shadowingTitle',
   ]),
-  tg: new Set(['writingCriterionGrammar', 'slovar', 'themeSepia', 'category']),
+  tg: new Set([
+    'writingCriterionGrammar',
+    'speakingSkillGrammar',
+    'slovar',
+    'themeSepia',
+    'category',
+    'speakingModeShadowing',
+    'shadowingTitle',
+  ]),
 };
 
 /** Arguments that aren't plain text, by the message's signature. */

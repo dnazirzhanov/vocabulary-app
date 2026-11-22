@@ -74,6 +74,20 @@ test.describe('a tester', () => {
     await expect(page.getByRole('button', { name: /^Tea/ })).toContainText('Прочитано');
   });
 
+  test('a timer counts the time spent reading, and stops on leaving', async ({ page }) => {
+    await page.clock.install();
+    await openArticle(page, 'Культура', /^Tea/);
+    const timer = page.getByRole('timer', { name: /^Время чтения/ });
+    await expect(timer).toHaveText('0:00');
+    await page.clock.runFor(75_000);
+    await expect(timer).toHaveText('1:15');
+    await page.getByRole('button', { name: 'Назад' }).first().click();
+    await expect(page.getByRole('timer')).toHaveCount(0);
+    // A new visit starts from zero.
+    await page.getByRole('button', { name: /^Tea/ }).click();
+    await expect(page.getByRole('timer', { name: /^Время чтения/ })).toHaveText('0:00');
+  });
+
   test('a tapped word shows its meaning without asking the server; kept words become a lesson', async ({ page }) => {
     await openArticle(page, 'Культура', /^Tea/);
     const api: string[] = [];
