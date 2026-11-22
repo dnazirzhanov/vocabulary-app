@@ -3,7 +3,7 @@
 import json
 import uuid
 from collections.abc import Generator
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -18,14 +18,24 @@ from app.schemas.coach import (
     CoachOut,
     CommitmentIn,
     CommitmentOut,
+    DayTypeIn,
     DecisionIn,
+    EventIn,
+    FactIn,
+    FactOut,
     FeasibilityOut,
     GoalIn,
     GoalOut,
+    MemoryOut,
     StudyTimeOut,
     TargetOut,
+    TimelineOut,
+    TodayIn,
+    TodayOut,
 )
 from app.schemas.mentor import (
+    ConversationIn,
+    ConversationOut,
     MentorChatIn,
     MentorChatOut,
     MentorGoalIn,
@@ -33,8 +43,9 @@ from app.schemas.mentor import (
     MentorHistoryItem,
     MentorHistoryOut,
     MentorStatusOut,
+    MessageOut,
 )
-from app.services import mentor
+from app.services import memory, mentor, mentor_events
 from app.services.card_reports import listed
 from app.services.coach import service as coach
 from app.services.promise import mask_of, weekdays_of
@@ -116,17 +127,31 @@ def mentor_chat_stream(
     time_zone: TimeZone,
     settings: DepSettings,
 ) -> StreamingResponse:
-    def _sse(chunks: Generator[str]) -> Generator[str]:
-        for delta in chunks:
-            yield f"data: {json.dumps({'delta': delta})}\n\n"
+    def _sse(events: Generator[dict[str, Any]]) -> Generator[str]:
+        for event in events:
+            yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
         used = mentor_chats_used(user.id)
         remaining = max(0, settings.mentor_chats_per_day - used)
         done_event = {"done": True, "created_at": now.isoformat(), "chats_remaining": remaining}
         yield f"data: {json.dumps(done_event)}\n\n"
+        # The answer is out; a long chat gets its summary now (ADR 0075).
+        mentor.summarize_if_due(db, user, conversation, settings)
 
     plan = [item.model_dump() for item in body.plan] if body.plan is not None else None
+    # Before the stream starts: someone else's chat is a plain 404.
+    conversation = mentor.resolve_conversation(
+        db, user, body.conversation_id, body.new_conversation, body.message, now
+    )
     chunks = mentor.stream_chat(
-        db, user, body.message, settings, now, time_zone, plan=plan, tip_id=body.tip_id
+        db,
+        user,
+        body.message,
+        settings,
+        now,
+        time_zone,
+        plan=plan,
+        tip_id=body.tip_id,
+        conversation=conversation,
     )
     return StreamingResponse(_sse(chunks), media_type="text/event-stream")
 
@@ -171,6 +196,7 @@ def _coach_out(state: coach.CoachState) -> CoachOut:
         )
         if adjustment
         else None,
+        today=TodayOut(**vars(state.today)),
     )
 
 
@@ -206,6 +232,8 @@ def mentor_study_times(
             start_minute=o.start,
             minutes=o.minutes,
             reasons=list(o.reasons),
+            kept=o.kept,
+            tried=o.tried,
         )
         for o in options
     ]
@@ -216,7 +244,33 @@ def mentor_commit(
     body: CommitmentIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
 ) -> CoachOut:
     today = now.astimezone(time_zone).date()
-    coach.commit(db, user, sorted(set(body.weekdays)), body.start_minute, body.minutes, today)
+    coach.commit(db, user, sorted(set(body.weekdays)), body.start_minute, body.minutes, today, now)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
+def mentor_set_today(
+    body: TodayIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    """When today doesn't work (ADR 0074): the minimum, a later time, or tomorrow."""
+    if body.mode == "moved" and body.start_minute is None:
+        raise ApiError(422, "start_required", "A moved plan needs its new time")
+    coach.set_today(db, user, body.mode, body.start_minute, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.delete("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
+def mentor_undo_today(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> CoachOut:
+    coach.set_today(db, user, None, None, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/day-type", dependencies=[Depends(_require_mentor)])
+def mentor_day_type(
+    body: DayTypeIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    """What kind of day today is (ADR 0076): it sets how much the plan asks."""
+    coach.set_day_type(db, user, body.type, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
 
 
@@ -231,3 +285,102 @@ def mentor_decide(
 ) -> CoachOut:
     coach.decide(db, user, adjustment_id, body.accept, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+# --- chats (ADR 0072) -----------------------------------------------------------------------
+
+
+@router.get("/mentor/conversations", dependencies=[Depends(_require_mentor)])
+def mentor_conversations(user: CurrentUser, db: DbSession) -> list[ConversationOut]:
+    return [
+        ConversationOut(id=c.id, title=c.title, updated_at=c.updated_at)
+        for c in mentor.conversations(db, user)
+    ]
+
+
+@router.get(
+    "/mentor/conversations/{conversation_id}/messages", dependencies=[Depends(_require_mentor)]
+)
+def mentor_conversation_messages(
+    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession
+) -> list[MessageOut]:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    return [
+        MessageOut(role=m.role, content=m.content, created_at=m.created_at, parts=m.parts or [])
+        for m in mentor.messages_of(db, conversation)
+    ]
+
+
+@router.patch("/mentor/conversations/{conversation_id}", dependencies=[Depends(_require_mentor)])
+def mentor_rename_conversation(
+    conversation_id: uuid.UUID, body: ConversationIn, user: CurrentUser, db: DbSession
+) -> ConversationOut:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    conversation.title = body.title
+    db.commit()
+    return ConversationOut(
+        id=conversation.id, title=conversation.title, updated_at=conversation.updated_at
+    )
+
+
+@router.delete(
+    "/mentor/conversations/{conversation_id}",
+    status_code=204,
+    dependencies=[Depends(_require_mentor)],
+)
+def mentor_delete_conversation(
+    conversation_id: uuid.UUID, user: CurrentUser, db: DbSession
+) -> None:
+    conversation = mentor.conversation_of(db, user, conversation_id)
+    db.delete(conversation)
+    db.commit()
+
+
+# --- what the mentor knows (ADR 0075) -------------------------------------------------------
+
+
+def _memory_out(db: Any, user: Any) -> MemoryOut:
+    return MemoryOut(
+        facts=[
+            FactOut(id=f.id, kind=f.kind, text=f.text, source=f.source, created_at=f.created_at)
+            for f in memory.facts(db, user)
+        ],
+        timeline=[
+            TimelineOut(at=e.at, kind=e.kind, note=e.note) for e in memory.timeline(db, user)
+        ],
+    )
+
+
+@router.get("/mentor/memory", dependencies=[Depends(_require_mentor)])
+def mentor_memory(user: CurrentUser, db: DbSession) -> MemoryOut:
+    """Everything the mentor remembers about the learner, for them to see and edit."""
+    return _memory_out(db, user)
+
+
+@router.post("/mentor/memory/facts", dependencies=[Depends(_require_mentor)])
+def mentor_add_fact(body: FactIn, user: CurrentUser, db: DbSession, now: Now) -> MemoryOut:
+    memory.add_fact(db, user, body.kind, body.text, body.source, now)
+    return _memory_out(db, user)
+
+
+@router.put("/mentor/memory/facts/{fact_id}", dependencies=[Depends(_require_mentor)])
+def mentor_change_fact(
+    fact_id: uuid.UUID, body: FactIn, user: CurrentUser, db: DbSession, now: Now
+) -> MemoryOut:
+    memory.change_fact(db, user, fact_id, body.kind, body.text, now)
+    return _memory_out(db, user)
+
+
+@router.delete("/mentor/memory/facts/{fact_id}", dependencies=[Depends(_require_mentor)])
+def mentor_forget_fact(fact_id: uuid.UUID, user: CurrentUser, db: DbSession) -> MemoryOut:
+    memory.forget_fact(db, user, fact_id)
+    return _memory_out(db, user)
+
+
+# --- measurement (ADR 0078) -----------------------------------------------------------------
+
+
+@router.post("/mentor/events", status_code=204, dependencies=[Depends(_require_mentor)])
+def mentor_event(body: EventIn, user: CurrentUser, db: DbSession, now: Now) -> None:
+    """«Начать» tapped on the mentor's home, a chat card or the plan beside the chat."""
+    mentor_events.record(db, user, "start_tapped", {"kind": body.kind, "where": body.where}, now)

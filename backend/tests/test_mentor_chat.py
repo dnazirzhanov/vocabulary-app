@@ -18,6 +18,7 @@ from app.services.mentor import (
     _format_tenure,
     _reading_accuracy,
     _sample_due_words,
+    _stats_text,
     _struggling_words,
     _system_prompt,
 )
@@ -158,7 +159,7 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
         due_spelling=5,
         deck_rows=[("Animals", 15, 80), ("Food", 5, 5)],
     )
-    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    prompt = _stats_text(user, MOMENT, _TZ, ctx)
     assert "Animals: 15 due / 80 in progress" in prompt
     assert "Food: 5 due" in prompt
     assert "Top decks due today" in prompt
@@ -167,7 +168,7 @@ def test_system_prompt_includes_deck_names_when_due() -> None:
 def test_system_prompt_deck_hides_started_when_equal_to_due() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(deck_rows=[("Grammar", 7, 7)])
-    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    prompt = _stats_text(user, MOMENT, _TZ, ctx)
     assert "Grammar: 7 due" in prompt
     assert "Grammar: 7 due / 7 in progress" not in prompt
 
@@ -184,7 +185,7 @@ def test_system_prompt_includes_reading_when_engaged() -> None:
     ctx = _ctx(
         streak_weeks=2, due_vocab=10, reading_total=5, reading_recent=["The Internet", "Volcanoes"]
     )
-    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    prompt = _stats_text(user, MOMENT, _TZ, ctx)
     assert "Library articles read: 5" in prompt
     assert '"The Internet"' in prompt
     assert '"Volcanoes"' in prompt
@@ -231,14 +232,14 @@ def test_system_prompt_includes_last_study_today() -> None:
 
 def test_system_prompt_includes_last_study_days_ago() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study="3 days ago"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(last_study="3 days ago"))
     assert "3 days ago" in prompt
 
 
 def test_system_prompt_includes_last_study_hour_precision() -> None:
     user = User(ui_language="en", name="Alex")
     for label in ("less than an hour ago", "1 hour ago", "5 hours ago"):
-        prompt = _system_prompt(user, MOMENT, _TZ, _ctx(last_study=label))
+        prompt = _stats_text(user, MOMENT, _TZ, _ctx(last_study=label))
         assert label in prompt
 
 
@@ -250,19 +251,19 @@ def test_system_prompt_includes_last_study_never() -> None:
 
 def test_system_prompt_includes_words_today() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_today=7))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_today=7))
     assert "New words learned today: 7" in prompt
 
 
 def test_system_prompt_includes_words_this_week() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_this_week=23))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_this_week=23))
     assert "New words learned this week: 23" in prompt
 
 
 def test_system_prompt_includes_reviews_this_week() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reviews_this_week=140))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(reviews_this_week=140))
     assert "Vocabulary reviews completed this week: 140" in prompt
 
 
@@ -281,27 +282,27 @@ def test_system_prompt_includes_days_this_week_no_promise() -> None:
 
 def test_system_prompt_includes_retention_when_known() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(retention="82%"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(retention="82%"))
     assert "82%" in prompt
     assert "retention rate" in prompt
 
 
 def test_system_prompt_includes_retention_no_data() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx())
     assert "no data yet" in prompt
 
 
 def test_system_prompt_includes_spelling_accuracy_when_known() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(spelling_accuracy="74%"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(spelling_accuracy="74%"))
     assert "74%" in prompt
     assert "Spelling accuracy" in prompt
 
 
 def test_system_prompt_includes_top_spelling_deck_when_set() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(top_spelling_deck=("Family", 8)))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(top_spelling_deck=("Family", 8)))
     assert "Family" in prompt
     assert "8 words" in prompt
     assert "spelling" in prompt.lower()
@@ -315,7 +316,7 @@ def test_system_prompt_omits_spelling_deck_line_when_none() -> None:
 
 def test_system_prompt_includes_total_decks_when_set() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(total_decks=4))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(total_decks=4))
     assert "Total vocabulary decks: 4 decks" in prompt
 
 
@@ -327,7 +328,7 @@ def test_system_prompt_omits_total_decks_line_when_zero() -> None:
 
 def test_system_prompt_includes_vocab_counts() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_in_progress=320, words_learned=150))
     assert "320" in prompt
     assert "150" in prompt
 
@@ -447,12 +448,15 @@ def test_history_context_capped_at_ten_turns(
 ) -> None:
     """_recent_history returns at most _HISTORY_TURNS * 2 = 20 messages for LLM context."""
     from app.models import MentorMessage
-    from app.services.mentor import _HISTORY_TURNS, _recent_history
+    from app.services.mentor import _HISTORY_TURNS, _recent_history, latest_conversation
 
     _enable_mentor(monkeypatch)
     client.post("/api/mentor/chat", json={"message": "seed"}, headers=as_("iris"))
     user = db.scalar(select(User).where(User.auth_subject == "dev|iris"))
     assert user is not None
+
+    conversation = latest_conversation(db, user)
+    assert conversation is not None
 
     # Insert 25 extra messages so the total is well above the 20-message cap.
     base_time = MOMENT + timedelta(seconds=10)
@@ -463,12 +467,14 @@ def test_history_context_capped_at_ten_turns(
                 role="user" if i % 2 == 0 else "assistant",
                 content=f"msg {i}",
                 created_at=base_time + timedelta(seconds=i),
+                conversation_id=conversation.id,
             )
         )
     db.commit()
 
-    messages = _recent_history(db, user)
-    assert len(messages) <= _HISTORY_TURNS * 2
+    messages = _recent_history(db, conversation)
+    assert len(messages) == _HISTORY_TURNS * 2
+    assert messages[-1].content == "msg 24"  # the latest ones, in order
 
 
 def test_history_requires_tester_flag(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -713,7 +719,7 @@ def test_system_prompt_plan_section_absent_when_no_plan() -> None:
 def test_system_prompt_reading_section_includes_last_read_label() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(reading_total=3, reading_recent=["Bees", "Cells"], reading_last="yesterday")
-    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    prompt = _stats_text(user, MOMENT, _TZ, ctx)
     assert "Library articles read: 3" in prompt
     assert "last read yesterday" in prompt
 
@@ -721,7 +727,7 @@ def test_system_prompt_reading_section_includes_last_read_label() -> None:
 def test_system_prompt_reading_section_shows_library_size() -> None:
     user = User(ui_language="en", name="Alex")
     ctx = _ctx(reading_total=5, reading_library_size=23, reading_last="today")
-    prompt = _system_prompt(user, MOMENT, _TZ, ctx)
+    prompt = _stats_text(user, MOMENT, _TZ, ctx)
     assert "Library articles read: 5 of 23" in prompt
 
 
@@ -793,13 +799,13 @@ def test_format_tenure_returns_expected_labels() -> None:
 
 def test_system_prompt_studying_since_shown() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(studying_since="3 months"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(studying_since="3 months"))
     assert "Studying since: 3 months" in prompt
 
 
 def test_system_prompt_studying_since_unknown_when_no_sessions() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(studying_since="unknown"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(studying_since="unknown"))
     assert "Studying since: unknown" in prompt
 
 
@@ -828,26 +834,26 @@ def test_chat_accepts_tip_id_in_body(client: TestClient, monkeypatch: pytest.Mon
 
 def test_system_prompt_includes_words_mastered() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_mastered=42))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_mastered=42))
     assert "42" in prompt
     assert "long-term" in prompt
 
 
 def test_system_prompt_words_mastered_zero_when_none() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx())
     assert "long-term (≥21-day interval): 0" in prompt
 
 
 def test_system_prompt_includes_active_weeks() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(active_weeks=3))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(active_weeks=3))
     assert "Weeks active in last 4 weeks: 3" in prompt
 
 
 def test_system_prompt_includes_words_last_week() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_last_week=12))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_last_week=12))
     assert "New words learned last week: 12" in prompt
 
 
@@ -866,7 +872,7 @@ def test_system_prompt_last_studied_deck_absent_when_none() -> None:
 
 def test_system_prompt_days_studied_month() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(days_studied_month=18))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(days_studied_month=18))
     assert "Days studied in last 30 days: 18" in prompt
 
 
@@ -885,20 +891,20 @@ def test_system_prompt_overdue_part_absent_when_zero() -> None:
 
 def test_system_prompt_sessions_this_week() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(sessions_this_week=4))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(sessions_this_week=4))
     assert "Study sessions completed this week: 4" in prompt
 
 
 def test_system_prompt_words_nearly_mastered() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(words_nearly_mastered=20))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(words_nearly_mastered=20))
     assert "nearly mastered" in prompt
     assert "20" in prompt
 
 
 def test_system_prompt_vocab_upcoming_3days() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(vocab_upcoming_3days=35))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(vocab_upcoming_3days=35))
     assert "Vocabulary due in next 3 days: 35" in prompt
 
 
@@ -972,7 +978,7 @@ def test_system_prompt_tone_hint_new_tips(tip_id: str, fragment: str) -> None:
 def test_system_prompt_includes_sample_due_words() -> None:
     user = User(ui_language="en", name="Ira")
     words = ["ambiguous", "criterion", "ephemeral"]
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(sample_due_words=words))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(sample_due_words=words))
     assert "ambiguous" in prompt
     assert "Sample words due today" in prompt
 
@@ -1052,7 +1058,7 @@ def test_system_prompt_urgency_hint_absent_in_morning() -> None:
 def test_system_prompt_includes_struggling_words() -> None:
     user = User(ui_language="en", name="Ira")
     words = ["criterion (критерий)", "ephemeral (мимолётный)"]
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(struggling_words=words))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(struggling_words=words))
     assert "criterion" in prompt
     assert "struggling with" in prompt
 
@@ -1133,14 +1139,14 @@ def test_struggling_words_integration(
 
 def test_system_prompt_reading_accuracy_shown() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_accuracy="78%"))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(reading_accuracy="78%"))
     assert "Reading comprehension accuracy" in prompt
     assert "78%" in prompt
 
 
 def test_system_prompt_reading_accuracy_no_data_default() -> None:
     user = User(ui_language="en", name="Alex")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx())
     assert "Reading comprehension accuracy" in prompt
     assert "no data yet" in prompt
 
@@ -1180,13 +1186,13 @@ def test_reading_accuracy_integration(
 
 def test_system_prompt_struggle_deck_shown() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Business English", 7)))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Business English", 7)))
     assert "Deck with most 'again' this week: Business English (7 times)" in prompt
 
 
 def test_system_prompt_struggle_deck_singular_time() -> None:
     user = User(ui_language="en", name="Ira")
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Grammar Basics", 1)))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(top_struggle_deck=("Grammar Basics", 1)))
     assert "Grammar Basics (1 time)" in prompt
 
 
@@ -1200,7 +1206,7 @@ def test_system_prompt_struggle_deck_absent_when_none() -> None:
 def test_system_prompt_reading_level_line_shown() -> None:
     user = User(ui_language="en", name="Ira")
     counts = {"A1": (3, 5), "B1": (1, 4)}
-    prompt = _system_prompt(user, MOMENT, _TZ, _ctx(reading_level_counts=counts))
+    prompt = _stats_text(user, MOMENT, _TZ, _ctx(reading_level_counts=counts))
     assert "Reading library by level (read/available): A1 3/5, B1 1/4" in prompt
 
 
@@ -1209,3 +1215,70 @@ def test_system_prompt_reading_level_line_absent_when_empty() -> None:
     prompt = _system_prompt(user, MOMENT, _TZ, _ctx())
     assert "Reading library by level" not in prompt
     assert "{READING_LEVEL_LINE}" not in prompt
+
+
+# --- a smaller prompt (ADR 0079) ------------------------------------------------------------
+
+
+def _busy_learner() -> LearnerContext:
+    return _ctx(
+        words_in_progress=320,
+        words_learned=210,
+        words_mastered=90,
+        words_this_week=23,
+        reviews_this_week=140,
+        retention="88%",
+        deck_rows=[("Animals", 15, 80)],
+        total_decks=4,
+        sample_due_words=["dog (собака)"],
+        struggling_words=["though (хотя)"],
+        reading_total=5,
+        reading_library_size=23,
+        due_vocab=15,
+    )
+
+
+def test_statistics_are_fetched_not_sent_with_every_message() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _busy_learner())
+    stats = _stats_text(user, MOMENT, _TZ, _busy_learner())
+    for line in (
+        "Vocabulary in progress: 320 words",
+        "New words learned this week: 23",
+        "Vocabulary retention rate (last 7 days): 88%",
+        "Animals: 15 due / 80 in progress",
+        "Words the learner has been struggling with this week: though (хотя)",
+        "Library articles read: 5 of 23",
+    ):
+        assert line in stats and line not in prompt
+    # What every answer needs stays: who, when, what's due today, the call to get the rest.
+    assert "Vocabulary due today: 15 words" in prompt and "call get_stats" in prompt
+
+
+def test_the_prompt_is_much_shorter() -> None:
+    user = User(ui_language="en", name="Alex")
+    prompt = _system_prompt(user, MOMENT, _TZ, _busy_learner())
+    whole = prompt + _stats_text(user, MOMENT, _TZ, _busy_learner())
+    print(f"prompt {len(prompt)} chars; with the statistics it was about {len(whole)}")
+    assert len(whole) - len(prompt) > 1000
+
+
+def test_the_mentor_fetches_statistics_when_asked(client: TestClient) -> None:
+    headers = {"X-Dev-User": "ann", "X-Dev-Now": MOMENT.isoformat()}
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(get_settings(), "mentor_testers", "*")
+        patch.setattr(get_settings(), "mentor_demo_stream_delay_ms", 0)
+        response = client.post(
+            "/api/mentor/chat/stream",
+            json={"message": "Покажи мою статистику", "new_conversation": True},
+            headers=headers,
+        )
+    tools = [
+        json.loads(x[6:])["tool"]
+        for x in response.text.split("\n\n")
+        if x.startswith("data: ") and '"tool"' in x
+    ]
+    assert [(t["name"], t["status"]) for t in tools] == [
+        ("get_stats", "running"),
+        ("get_stats", "done"),
+    ]

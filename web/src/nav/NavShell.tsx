@@ -10,6 +10,8 @@ import { t } from '../i18n/index.ts';
 export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'writing' | 'friends' | 'progress';
 
 interface NavShellProps {
+  /** A section with its own sidebar (the mentor): no app sidebar beside it on a wide screen. */
+  focused?: boolean;
   tab: NavTab;
   onNavigate: (tab: NavTab) => void;
   account: AccountProps;
@@ -39,6 +41,7 @@ export function NavShell({
   mentor = false,
   speaking = false,
   writing = false,
+  focused = false,
   children,
 }: NavShellProps) {
   const [settings, setSettings] = useState(false);
@@ -54,7 +57,7 @@ export function NavShell({
   ] as const;
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-focused={focused || undefined}>
       <div className={styles.content}>
         {children}
         <div className={styles.corner}>
