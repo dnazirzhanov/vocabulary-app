@@ -18,7 +18,9 @@ from app.schemas.coach import (
     CoachOut,
     CommitmentIn,
     CommitmentOut,
+    DayTypeIn,
     DecisionIn,
+    EventIn,
     FactIn,
     FactOut,
     FeasibilityOut,
@@ -43,7 +45,7 @@ from app.schemas.mentor import (
     MentorStatusOut,
     MessageOut,
 )
-from app.services import memory, mentor
+from app.services import memory, mentor, mentor_events
 from app.services.card_reports import listed
 from app.services.coach import service as coach
 from app.services.promise import mask_of, weekdays_of
@@ -230,6 +232,8 @@ def mentor_study_times(
             start_minute=o.start,
             minutes=o.minutes,
             reasons=list(o.reasons),
+            kept=o.kept,
+            tried=o.tried,
         )
         for o in options
     ]
@@ -258,6 +262,15 @@ def mentor_set_today(
 @router.delete("/mentor/coach/today", dependencies=[Depends(_require_mentor)])
 def mentor_undo_today(user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone) -> CoachOut:
     coach.set_today(db, user, None, None, now, time_zone)
+    return _coach_out(coach.coach_state(db, user, now, time_zone))
+
+
+@router.put("/mentor/coach/day-type", dependencies=[Depends(_require_mentor)])
+def mentor_day_type(
+    body: DayTypeIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
+) -> CoachOut:
+    """What kind of day today is (ADR 0076): it sets how much the plan asks."""
+    coach.set_day_type(db, user, body.type, now, time_zone)
     return _coach_out(coach.coach_state(db, user, now, time_zone))
 
 
@@ -362,3 +375,12 @@ def mentor_change_fact(
 def mentor_forget_fact(fact_id: uuid.UUID, user: CurrentUser, db: DbSession) -> MemoryOut:
     memory.forget_fact(db, user, fact_id)
     return _memory_out(db, user)
+
+
+# --- measurement (ADR 0078) -----------------------------------------------------------------
+
+
+@router.post("/mentor/events", status_code=204, dependencies=[Depends(_require_mentor)])
+def mentor_event(body: EventIn, user: CurrentUser, db: DbSession, now: Now) -> None:
+    """«Начать» tapped on the mentor's home, a chat card or the plan beside the chat."""
+    mentor_events.record(db, user, "start_tapped", {"kind": body.kind, "where": body.where}, now)

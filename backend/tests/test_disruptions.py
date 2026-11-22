@@ -195,52 +195,61 @@ def tool_cards(client: TestClient, message: str) -> list[dict[str, Any]]:
     return [e["tool"]["card"] for e in events if "tool" in e and e["tool"]["status"] == "done"]
 
 
-def test_no_school_tomorrow_is_proposed_as_a_skip_and_not_saved(client: TestClient) -> None:
+def test_no_school_tomorrow_is_applied_at_once_and_can_be_undone(client: TestClient) -> None:
     add(client, **SCHOOL)
     # Another block that day stays: only the school was named.
     add(client, title="Тренировка", kind="sport", weekdays=31, start_minute=1080, end_minute=1170)
     cards = tool_cards(client, "Завтра нет школы")
-    skip = cards[0]
-    assert (
-        skip["type"] == "exception" and skip["kind"] == "skip_day" and skip["date"] == "2026-11-20"
-    )
-    assert [e["title"] for e in skip["events"]] == ["Школа"]
-    assert cards[1] == {"type": "replies", "replies": ["Да, отменить", "Нет, всё как обычно"]}
-    assert client.get("/api/mentor/schedule", headers=as_()).json()["events"][0]["skipped"] == []
+    change = cards[0]
+    assert change["type"] == "schedule_saved" and change["added"] == []
+    assert [(b["title"], b["on_date"]) for b in change["removed"]] == [("Школа", "2026-11-20")]
+    assert cards[1]["type"] == "replies"
+    listed = client.get("/api/mentor/schedule", headers=as_()).json()["events"]
+    skipped = {e["title"]: e["skipped"] for e in listed}
+    assert skipped == {"Школа": ["2026-11-20"], "Тренировка": []}
+
+    undone = client.post("/api/mentor/schedule/undo", json=change["undo"], headers=as_())
+    assert undone.status_code == 204
+    listed = client.get("/api/mentor/schedule", headers=as_()).json()["events"]
+    assert all(e["skipped"] == [] for e in listed)
 
 
-def test_exceptions_are_checked_before_they_are_offered(client: TestClient, db: Session) -> None:
-    ctx = mentor_tools.ToolContext(db, None, THURSDAY, UTC_ZONE, [])  # type: ignore[arg-type]
-    run = mentor_tools.propose_exception
-    assert run(ctx, {"kind": "skip_day", "date": "2026-11-01"}).card is None  # the past
-    assert run(ctx, {"kind": "pause", "date": "2027-03-01"}).card is None  # too far ahead
-    assert (
-        run(
-            ctx,
-            {"kind": "one_off", "date": "today", "title": "Врач", "start": "15:00", "end": "14:00"},
-        ).card
-        is None
+def test_day_changes_are_checked_before_they_are_made(client: TestClient, db: Session) -> None:
+    add(client, **SCHOOL)
+    ctx = mentor_tools.ToolContext(db, user_of(db), THURSDAY, UTC_ZONE, [])
+    change = mentor_tools.change_day
+    assert change(ctx, {"kind": "skip_day", "date": "2026-11-01"}).card is None  # the past
+    assert change(ctx, {"kind": "skip_day", "date": "2026-11-22"}).card is None  # Sunday: no school
+    pause = mentor_tools.propose_exception(ctx, {"kind": "pause", "date": "2027-03-01"})
+    assert pause.card is None  # too far ahead
+    bad = {"kind": "one_off", "date": "today", "title": "Врач", "start": "15:00", "end": "14:00"}
+    assert change(ctx, bad).card is None
+    pause = mentor_tools.propose_exception(
+        ctx, {"kind": "pause", "date": "tomorrow", "until": "2027-02-01"}
     )
-    pause = run(ctx, {"kind": "pause", "date": "tomorrow", "until": "2027-02-01"}).card
-    assert pause is not None and pause["until"] == "2026-12-20"  # a pause lasts 31 days at most
-    one_off = run(
-        ctx,
-        {
-            "kind": "one_off",
-            "date": "2026-11-21",
-            "title": "Концерт",
-            "start": "15:00",
-            "end": "18:00",
-        },
-    ).card
-    assert one_off == {
-        "type": "exception",
+    assert pause.card is not None and pause.card["until"] == "2026-12-20"  # 31 days at most
+    assert pause.result["saved"] is False  # a pause still waits for the tap
+    concert = {
         "kind": "one_off",
         "date": "2026-11-21",
         "title": "Концерт",
-        "start_minute": 900,
-        "end_minute": 1080,
+        "block_kind": "personal",
+        "start": "15:00",
+        "end": "18:00",
     }
+    one_off = change(ctx, concert).card
+    assert one_off is not None and one_off["added"] == [
+        {
+            "title": "Концерт",
+            "kind": "personal",
+            "weekdays": [5],
+            "start_minute": 900,
+            "end_minute": 1080,
+            "on_date": "2026-11-21",
+        }
+    ]
+    saturday = datetime(2026, 11, 21).date()
+    assert [t for t, _ in coach.blocks_on(db, user_of(db), saturday)] == ["Концерт"]
     assert mentor_tools.offer_replies(ctx, {"replies": ["  ", "Да"] + ["x" * 60] * 5}).card == {
         "type": "replies",
         "replies": ["Да", "x" * 40, "x" * 40, "x" * 40],

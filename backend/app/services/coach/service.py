@@ -18,6 +18,7 @@ from app.models import (
     LearningSession,
     MentorAdjustment,
     MentorDayOverride,
+    MentorDayType,
     MentorGoal,
     ReadingAnswer,
     ReviewAttempt,
@@ -262,6 +263,29 @@ def blocks_on(db: Session, user: User, day: date) -> list[tuple[str, Block]]:
     return found
 
 
+def today_blocks(db: Session, user: User, day: date) -> list[tuple[str, str, int, int]]:
+    """A date's blocks as (title, kind, start, end), sorted: repeating ones not skipped that day,
+    and that day's one-offs (ADR 0074)."""
+    mask = 1 << day.weekday()
+    skipped = set(
+        db.scalars(
+            select(ScheduleSkip.event_id)
+            .join(ScheduleEvent, ScheduleEvent.id == ScheduleSkip.event_id)
+            .where(ScheduleEvent.user_id == user.id, ScheduleSkip.date == day)
+        )
+    )
+    rows = db.scalars(
+        select(ScheduleEvent)
+        .where(ScheduleEvent.user_id == user.id)
+        .order_by(ScheduleEvent.start_minute)
+    )
+    return [
+        (e.title, e.kind, e.start_minute, e.end_minute)
+        for e in rows
+        if e.on_date == day or (e.on_date is None and e.weekdays & mask and e.id not in skipped)
+    ]
+
+
 # --- the coach, put together ----------------------------------------------------------------
 
 
@@ -298,6 +322,13 @@ class Today:
     studied: bool
     promised: bool
     missed_yesterday: bool
+    # study, light, weekend, sick, exam; None until the learner says (ADR 0076).
+    day_type: str | None = None
+    # Whose «today» this is: the learner's local date, so a device never applies yesterday's
+    # choice (ADR 0080); and today's own study time, not the one that starts tomorrow.
+    day: date | None = None
+    study_start: int | None = None
+    study_minutes: int | None = None
 
 
 def _commitment(promise: promises.Promise, today: date) -> Commitment:
@@ -342,14 +373,20 @@ def coach_state(db: Session, user: User, now: datetime, zone: ZoneInfo) -> Coach
         db, user, datetime.combine(yesterday, datetime.min.time(), zone), zone
     ).minutes
     override = db.get(MentorDayOverride, (user.id, today))
+    today_time = promise.time_on(today) if promise.promised_on(today) else None
     today_state = Today(
         override_mode=override.mode if override else None,
         override_start=override.start_minute if override else None,
         studied=bool(studied[today.weekday()]),
         promised=promise.promised_on(today),
         # Only once a study time was promised for that day: a new learner has missed nothing.
+        day_type=day_type_on(db, user, today),
+        day=today,
+        study_start=today_time[0] if today_time else None,
+        study_minutes=today_time[1] if today_time else None,
         missed_yesterday=promise.promised_on(yesterday)
         and promise.time_on(yesterday) is not None
+        and day_type_on(db, user, yesterday) != "sick"
         and not before.get(yesterday)
         and not (studied_days.get(yesterday) and studied_days[yesterday].studied),
     )
@@ -414,8 +451,73 @@ def study_times(
     since = now - timedelta(days=HABIT_DAYS)
     habit = [m for day in activity_in(db, user, since, zone).starts.values() for m in day]
     return propose(
-        [block for _, block in schedule_of(db, user)], weekdays, minutes, habit, preference
+        [block for _, block in schedule_of(db, user)],
+        weekdays,
+        minutes,
+        habit,
+        preference,
+        record=record_of(db, user, now, zone),
     )
+
+
+def record_of(db: Session, user: User, now: datetime, zone: ZoneInfo) -> list[tuple[int, bool]]:
+    """Each recent promised day (ADR 0076): the start that was promised, and whether something
+    was studied that day. Sick days and days skipped on purpose prove nothing, so they're left
+    out; so is today, which isn't over."""
+    today = now.astimezone(zone).date()
+    since = datetime.combine(today - timedelta(days=HABIT_DAYS), datetime.min.time(), zone)
+    studied = activity_in(db, user, since, zone).minutes
+    promise = promises.promise_of(db, user)
+    excused = set(
+        db.scalars(
+            select(MentorDayType.date).where(
+                MentorDayType.user_id == user.id,
+                MentorDayType.type == "sick",
+                MentorDayType.date >= since.date(),
+            )
+        )
+    ) | set(
+        db.scalars(
+            select(MentorDayOverride.date).where(
+                MentorDayOverride.user_id == user.id,
+                MentorDayOverride.mode == "skip",
+                MentorDayOverride.date >= since.date(),
+            )
+        )
+    )
+    record: list[tuple[int, bool]] = []
+    for back in range(1, HABIT_DAYS + 1):
+        day = today - timedelta(days=back)
+        promised = promise.time_on(day) if promise.promised_on(day) else None
+        if promised is not None and day not in excused:
+            record.append((promised[0], bool(studied.get(day))))
+    return record
+
+
+# --- what kind of day today is (ADR 0076) ----------------------------------------------------
+
+DAY_TYPES = ("study", "light", "weekend", "sick", "exam")
+
+
+def day_type_on(db: Session, user: User, day: date) -> str | None:
+    found = db.get(MentorDayType, (user.id, day))
+    return found.type if found else None
+
+
+def set_day_type(db: Session, user: User, kind: str | None, now: datetime, zone: ZoneInfo) -> None:
+    """Today is a study, light, weekend, sick or exam day; None clears it. A sick day also pauses
+    the promise for today, so nothing counts as missed."""
+    today = now.astimezone(zone).date()
+    found = db.get(MentorDayType, (user.id, today))
+    if kind is None:
+        if found is not None:
+            db.delete(found)
+    elif found is None:
+        db.add(MentorDayType(user_id=user.id, date=today, type=kind, created_at=now))
+    else:
+        found.type, found.created_at = kind, now
+    memory.note(db, user, "day_type", {"type": kind}, now)
+    db.commit()
 
 
 def commit(

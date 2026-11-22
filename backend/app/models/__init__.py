@@ -27,6 +27,7 @@ from app.models.mentor import (
     LearnerFact,
     MentorAdjustment,
     MentorConversation,
+    MentorEvent,
     MentorGoal,
     MentorMessage,
     MentorTimelineEvent,
@@ -38,7 +39,7 @@ from app.models.reading import (
     ReadingCategory,
     ReadingQuestion,
 )
-from app.models.schedule import MentorDayOverride, ScheduleEvent, ScheduleSkip
+from app.models.schedule import MentorDayOverride, MentorDayType, ScheduleEvent, ScheduleSkip
 from app.models.shadowing import ShadowingAttempt, ShadowingExercise
 from app.models.speaking import (
     SpeakingAssessment,
@@ -82,6 +83,8 @@ __all__ = [
     "MentorAdjustment",
     "MentorConversation",
     "MentorDayOverride",
+    "MentorDayType",
+    "MentorEvent",
     "MentorGoal",
     "MentorMessage",
     "MentorTimelineEvent",

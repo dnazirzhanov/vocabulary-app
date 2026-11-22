@@ -1,10 +1,17 @@
 /**
- * What the mentor did before answering (ADR 0072): each tool as a step, and its card. Cards act
- * only on a tap: «Начать сейчас» opens the activity; a schedule, a study time or a goal is saved
- * only when the learner confirms it here.
+ * What the mentor did before answering (ADR 0072): each tool as a step, and its card. The calendar
+ * is changed at once and its card can undo it (ADR 0083); anything else acts only on a tap:
+ * «Начать сейчас» opens the activity; a study time, a goal or a pause is saved when confirmed here.
  */
 import { useState } from 'react';
-import { api, describeError, type MentorCard, type MentorToolName } from '../../lib/api.ts';
+import {
+  api,
+  describeError,
+  type CalendarBlock,
+  type MentorCard,
+  type MentorPlanItem,
+  type MentorToolName,
+} from '../../lib/api.ts';
 import { createEvent, skipDay } from '../../schedule/api.ts';
 import type { EventKind } from '../../schedule/types.ts';
 import { t, uiLanguage } from '../../i18n/index.ts';
@@ -19,8 +26,9 @@ import {
   PencilIcon,
   SparkleIcon,
 } from '../../ui/icons.tsx';
-import { hhmm } from './format.ts';
+import { hhmm, joinOvernight } from './format.ts';
 import styles from './Chat.module.css';
+import { CelebrateCard, ChoiceCard, DayCard, DayCheckCard, RemindersCard, WordsCard } from './GenCards.tsx';
 
 export type Activity = Extract<MentorCard, { type: 'activity' }>;
 
@@ -30,11 +38,24 @@ const STEP_LABEL: Record<MentorToolName, () => string> = {
   get_week_plan: () => t.mentorToolWeek,
   propose_goal: () => t.mentorToolGoal,
   propose_schedule: () => t.mentorToolSchedule,
+  set_schedule: () => t.mentorToolSetSchedule,
+  change_day: () => t.mentorToolChangeDay,
   propose_study_times: () => t.mentorToolTimes,
   propose_exception: () => t.mentorToolException,
   offer_replies: () => '',
   remember: () => t.mentorToolRemember,
   recall: () => t.mentorToolRecall,
+  show: () => t.mentorToolShow,
+  get_stats: () => t.mentorToolStats,
+  get_practice: () => t.mentorToolPractice,
+  get_words: () => t.mentorToolWords,
+  get_writing: () => t.mentorToolWriting,
+  get_speaking: () => t.mentorToolSpeaking,
+  get_reading: () => t.mentorToolReading,
+  get_assignments: () => t.mentorToolAssignments,
+  get_calendar: () => t.mentorToolCalendar,
+  get_progress: () => t.mentorToolProgress,
+  propose_reminders: () => t.mentorToolReminders,
 };
 
 export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }) {
@@ -52,9 +73,13 @@ export function ToolStep({ name, done }: { name: MentorToolName; done: boolean }
 interface CardProps {
   card: MentorCard;
   onStart: (activity: Activity) => Promise<void> | void;
+  /** Today's tasks, for the components that place or start them (ADR 0077). */
+  plan?: MentorPlanItem[];
+  /** Sends an answer as the learner's message (a choice card). */
+  onSend?: (text: string) => void;
 }
 
-export function ToolCard({ card, onStart }: CardProps) {
+export function ToolCard({ card, onStart, plan = [], onSend }: CardProps) {
   switch (card.type) {
     case 'activity':
       return <ActivityCard activity={card} onStart={onStart} />;
@@ -76,6 +101,8 @@ export function ToolCard({ card, onStart }: CardProps) {
       );
     case 'schedule':
       return <ScheduleCard events={card.events} />;
+    case 'schedule_saved':
+      return <CalendarSavedCard change={card} />;
     case 'study_times':
       return <StudyTimesCard options={card.options} />;
     case 'goal':
@@ -88,6 +115,18 @@ export function ToolCard({ card, onStart }: CardProps) {
       return null; // shown as chips under the answer
     case 'memory':
       return <MemoryChip fact={card} />;
+    case 'day':
+      return <DayCard card={card} plan={plan} />;
+    case 'words':
+      return <WordsCard card={card} plan={plan} onStart={onStart} />;
+    case 'day_check':
+      return <DayCheckCard card={card} />;
+    case 'choice':
+      return <ChoiceCard card={card} onSend={onSend} />;
+    case 'celebrate':
+      return <CelebrateCard card={card} />;
+    case 'reminders':
+      return <RemindersCard card={card} />;
   }
 }
 
@@ -209,7 +248,69 @@ function ScheduleCard({ events }: { events: Extract<MentorCard, { type: 'schedul
   );
 }
 
-const REASON: Record<string, () => string> = {
+/** «Пн–пт · 08:30–13:30», or for one date «суббота, 21 ноября · 15:00–18:00». */
+function whenOf(block: CalendarBlock): string {
+  const days = block.on_date ? fullDay(block.on_date) : dayNames(block.weekdays);
+  return `${days} · ${hhmm(block.start_minute)}–${hhmm(block.end_minute)}`;
+}
+
+/** What the mentor just changed in the calendar (ADR 0083): already saved; «Отменить» puts it back. */
+function CalendarSavedCard({ change }: { change: Extract<MentorCard, { type: 'schedule_saved' }> }) {
+  const [state, setState] = useState<'saved' | 'undoing' | 'undone'>('saved');
+  const [problem, setProblem] = useState<string | null>(null);
+  const undo = async () => {
+    setState('undoing');
+    setProblem(null);
+    try {
+      await api.scheduleUndo(change.undo);
+      setState('undone');
+    } catch (caught) {
+      setProblem(describeError(caught));
+      setState('saved');
+    }
+  };
+  const rows = [
+    ...joinOvernight(change.added).map((block) => ({ block, sign: '+', label: t.mentorCalendarAdded })),
+    ...joinOvernight(change.removed).map((block) => ({ block, sign: '−', label: t.mentorCalendarRemoved })),
+  ];
+  return (
+    <div className={styles.card} data-tone={state === 'undone' ? undefined : 'done'}>
+      <p className={styles.cardHead}>
+        <CalendarIcon aria-hidden="true" /> {t.mentorCalendarUpdated}
+      </p>
+      <ul className={styles.proposalList} data-undone={state === 'undone' || undefined}>
+        {rows.map(({ block, sign, label }, i) => (
+          <li key={i} className={styles.changeRow}>
+            <span className={styles.changeSign} aria-label={label} data-sign={sign === '+' ? 'add' : 'remove'}>
+              {sign}
+            </span>
+            <span className={styles.proposalTitle}>{block.title}</span>
+            <span className={styles.proposalMeta}>{whenOf(block)}</span>
+          </li>
+        ))}
+      </ul>
+      {problem && (
+        <p className={styles.cardProblem} role="alert">
+          {problem}
+        </p>
+      )}
+      {state === 'undone' ? (
+        <p className={styles.cardLine} role="status">
+          {t.mentorCalendarUndone}
+        </p>
+      ) : (
+        <button type="button" className={styles.undoButton} disabled={state === 'undoing'} onClick={() => void undo()}>
+          {t.mentorCalendarUndo}
+        </button>
+      )}
+    </div>
+  );
+}
+
+type StudyOption = Extract<MentorCard, { type: 'study_times' }>['options'][number];
+
+const REASON: Record<string, (o: StudyOption) => string> = {
+  works: (o) => t.mentorReasonWorks(o.kept ?? 0, o.tried ?? 0),
   habit: () => t.mentorReasonHabit,
   preferred: () => t.mentorReasonPreferred,
   after_block: () => t.mentorReasonAfterBlock,
@@ -253,7 +354,7 @@ function StudyTimesCard({ options }: { options: Extract<MentorCard, { type: 'stu
             <small>
               {o.reasons
                 .filter((r) => r in REASON)
-                .map((r) => REASON[r]())
+                .map((r) => REASON[r](o))
                 .join(' · ') || t.mentorReasonFree}
             </small>
           </button>

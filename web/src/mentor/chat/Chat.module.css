@@ -16,6 +16,13 @@
   }
 }
 
+/* Today's plan beside the chat (ADR 0077). */
+@media (min-width: 1280px) {
+  .layout {
+    grid-template-columns: 17rem minmax(0, 1fr) 18rem;
+  }
+}
+
 /* ── Sidebar ───────────────────────────────────────────── */
 .sidebar {
   display: flex;
@@ -176,6 +183,7 @@
   background: none;
   color: var(--color-text);
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -184,6 +192,7 @@
 }
 
 .calendarLink svg {
+  flex: none;
   width: 20px;
   height: 20px;
 }
@@ -659,6 +668,55 @@
 
 .proposalTitle {
   font-weight: var(--weight-strong);
+}
+
+/* A calendar change already made (ADR 0083): + added, − taken off; struck through once undone. */
+.changeRow {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  column-gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-1) 0;
+}
+
+.changeSign {
+  font-weight: var(--weight-strong);
+  text-align: center;
+}
+
+.changeSign[data-sign='add'] {
+  color: var(--color-success);
+}
+
+.changeSign[data-sign='remove'] {
+  color: var(--color-text-muted);
+}
+
+[data-undone] .changeRow {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.undoButton {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.undoButton:hover {
+  border-color: var(--color-primary-strong);
+}
+
+.undoButton:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .proposalMeta {

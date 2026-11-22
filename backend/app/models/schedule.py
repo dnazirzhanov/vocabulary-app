@@ -21,7 +21,7 @@ class ScheduleEvent(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     title: Mapped[str] = mapped_column(String(80))
-    # One of: school, work, sport, chore, personal, other. Check constraint in the migration.
+    # school, work, sport, chore, personal, other; rest, play, sleep (ADR 0076).
     kind: Mapped[str] = mapped_column(String(16))
     # Weekdays bitmask, same encoding as PromiseChange: Monday = 1, Sunday = 64.
     weekdays: Mapped[int] = mapped_column(SmallInteger)
@@ -57,4 +57,18 @@ class MentorDayOverride(Base):
     date: Mapped[date] = mapped_column(Date, primary_key=True)
     mode: Mapped[str] = mapped_column(String(12))
     start_minute: Mapped[int | None] = mapped_column(SmallInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class MentorDayType(Base):
+    """What kind of day today is for the learner (ADR 0076): an ordinary study day, a light one,
+    a weekend, a sick day (nothing asked, nothing missed) or an exam day (the minimum only)."""
+
+    __tablename__ = "mentor_day_types"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    type: Mapped[str] = mapped_column(String(8))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
