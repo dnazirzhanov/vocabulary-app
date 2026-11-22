@@ -51,6 +51,7 @@ import { loadAnswerCounts } from './answers.ts';
 import { addWord, basketCards, cardFor, findDeck, readingRef, removeWord } from './basket.ts';
 import { GroupAnswers } from './GroupAnswers.tsx';
 import { Questions } from './Questions.tsx';
+import { ReadingTimer } from './ReadingTimer.tsx';
 import { ordered, readNotes, saveNotes } from './notes.ts';
 import { contains, coverage, quoteOf, runs, sentenceAt, snap, type Highlight, type Point } from './text.ts';
 import styles from './Reading.module.css';
@@ -835,6 +836,7 @@ export function Reader({
         <button type="button" className={styles.barButton} onClick={onBack} aria-label={t.back}>
           <BackIcon aria-hidden="true" />
         </button>
+        {article && <ReadingTimer />}
         <span className={styles.barSpace} />
         <button
           type="button"

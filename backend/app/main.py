@@ -17,6 +17,7 @@ from app.api import (
     learning,
     me,
     mentor,
+    pronunciation,
     push,
     readings,
     schedule,
@@ -72,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(speaking.router, prefix="/api")
     app.include_router(shadowing.router, prefix="/api")
     app.include_router(writing.router, prefix="/api")
+    app.include_router(pronunciation.router, prefix="/api")
     if settings.web_dist:
         _serve_web_app(app, Path(settings.web_dist))
     return app
