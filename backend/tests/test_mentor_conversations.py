@@ -378,3 +378,83 @@ def test_messages_from_before_chats_become_each_learners_first_chat(database: No
             db.execute(text("DELETE FROM users WHERE id = :u"), {"u": user})
     finally:
         command.upgrade(config, "head")
+
+
+# --- tool calls written as text (DeepSeek's markup) -----------------------------------------
+
+MARKUP = (
+    '<｜｜DSML｜｜ calls>\n<｜｜DSML｜｜ invoke name="show">\n'
+    '<｜｜DSML｜｜ parameter name="component" string="true">day</｜｜DSML｜｜ parameter>\n'
+    '<｜｜DSML｜｜ parameter name="limit" string="false">3</｜｜DSML｜｜ parameter>\n'
+    "</｜｜DSML｜｜ invoke>\n</｜｜DSML｜｜ calls>"
+)
+
+
+def test_the_markup_is_held_back_even_split_across_chunks() -> None:
+    from app.services import dsml
+
+    guard = dsml.Guard()
+    pieces = ["Готово: школы нет.\n\n<", "｜｜DSML｜｜ calls>", MARKUP[20:]]
+    shown = "".join(guard.feed(p) for p in pieces) + guard.end()
+    assert shown == "Готово: школы нет.\n\n"
+    assert dsml.calls(guard.markup) == [("show", {"component": "day", "limit": 3})]
+    # A plain «<» in an answer is shown as it is.
+    plain = dsml.Guard()
+    assert plain.feed("5 <") + plain.feed(" 10") + plain.end() == "5 < 10"
+    assert dsml.calls("no markup here") == []
+
+
+class TextCallOpenAI:
+    """A model that writes its `show` call as text, then answers in the next round."""
+
+    rounds: ClassVar[list[dict[str, Any]]] = []
+
+    def __init__(self, **_: Any) -> None:
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
+
+    def create(self, **kwargs: Any) -> Iterator[Any]:
+        TextCallOpenAI.rounds.append(kwargs)
+        if len(TextCallOpenAI.rounds) == 1:
+            return iter([_chunk("Вот твой день."), _chunk("\n<"), _chunk(MARKUP[1:])])
+        return iter([_chunk(" Хорошего дня!")])
+
+
+def test_a_tool_call_written_as_text_is_run_and_never_shown(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import openai
+
+    TextCallOpenAI.rounds = []
+    monkeypatch.setattr(get_settings(), "mentor_chat_demo", False)
+    monkeypatch.setattr(get_settings(), "deepseek_api_key", "test-key")
+    monkeypatch.setattr(openai, "OpenAI", TextCallOpenAI)
+    stream = events(client, message="Какой у меня день?", new_conversation=True)
+    said = "".join(e["delta"] for e in stream if "delta" in e)
+    assert said == "Вот твой день.\n Хорошего дня!"
+    assert "DSML" not in said and "｜" not in said
+    done = [e["tool"] for e in stream if "tool" in e and e["tool"]["status"] == "done"]
+    assert [t["name"] for t in done] == ["show"] and done[0]["card"]["type"] == "day"
+    # The model was told the result, as for any call.
+    assert TextCallOpenAI.rounds[1]["messages"][-1]["role"] == "tool"
+
+
+def test_markup_past_the_last_round_is_dropped(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import openai
+
+    class Stubborn(TextCallOpenAI):
+        def create(self, **kwargs: Any) -> Iterator[Any]:
+            TextCallOpenAI.rounds.append(kwargs)
+            return iter([_chunk("Ответ."), _chunk(MARKUP)])
+
+    TextCallOpenAI.rounds = []
+    monkeypatch.setattr(get_settings(), "mentor_chat_demo", False)
+    monkeypatch.setattr(get_settings(), "deepseek_api_key", "test-key")
+    monkeypatch.setattr(openai, "OpenAI", Stubborn)
+    stream = events(client, message="Какой у меня день?", new_conversation=True)
+    said = "".join(e["delta"] for e in stream if "delta" in e)
+    assert "DSML" not in said and said.startswith("Ответ.")
+    # It keeps asking in text; the rounds end, and no tools were offered in the last one.
+    assert len(TextCallOpenAI.rounds) == mentor.MAX_TOOL_ROUNDS + 1
+    assert "tools" not in TextCallOpenAI.rounds[-1] or not TextCallOpenAI.rounds[-1]["tools"]
