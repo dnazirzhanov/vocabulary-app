@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './learner.ts';
+import { openMentorChat, openMentorPlan } from './mentorNav.ts';
 
 /**
  * The mentor composes the interface (ADR 0077): a component for today, the kind of day, a question
@@ -9,8 +10,7 @@ test.use({ mentor: true });
 
 async function ask(page: Page, message: string) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openMentorChat(page);
   const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
   await composer.fill(message);
   await composer.press('Enter');
@@ -34,7 +34,7 @@ test.describe('on a phone', () => {
     await card.getByRole('button', { name: 'Лёгкий день' }).click();
     await expect(card.getByRole('button', { name: 'Лёгкий день' })).toHaveAttribute('aria-pressed', 'true');
     await page.goto('/');
-    await page.getByRole('button', { name: 'Наставник', exact: true }).click();
+    await openMentorPlan(page);
     await expect(page.getByText('Лёгкий день', { exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Какой сегодня день?' })).toHaveCount(0);
   });

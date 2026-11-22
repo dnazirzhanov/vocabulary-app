@@ -1,4 +1,5 @@
 import { expect, test } from './learner.ts';
+import { openFromChatList, openMentorChat } from './mentorNav.ts';
 
 /**
  * What the mentor remembers (ADR 0075): a fact offered in the chat is kept only on the tap, then
@@ -8,8 +9,7 @@ test.use({ mentor: true, viewport: { width: 390, height: 844 } });
 
 test('a fact said in the chat is kept on the tap, and can be changed and forgotten', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Спросить наставника…' }).click();
+  await openMentorChat(page);
   const composer = page.getByRole('textbox', { name: 'Напишите вопрос…' });
   await composer.fill('Я люблю футбол и сериалы');
   await composer.press('Enter');
@@ -41,8 +41,8 @@ test('the learner adds a fact themselves, and the plan’s story shows', async (
     data: { weekdays: [0, 1, 2, 3, 4], start_minute: 19 * 60, minutes: 20 },
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Наставник', exact: true }).click();
-  await page.getByRole('button', { name: 'Что наставник знает обо мне' }).click();
+  await openMentorChat(page);
+  await openFromChatList(page, 'Что наставник знает обо мне');
   await page.getByRole('button', { name: 'Добавить' }).click();
   await page.getByRole('combobox', { name: 'О чём это' }).selectOption({ label: 'Когда есть силы' });
   await page.getByRole('textbox', { name: /Например/ }).fill('Лучше занимаюсь утром');

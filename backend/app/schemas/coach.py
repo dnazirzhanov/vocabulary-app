@@ -69,6 +69,10 @@ class TodayOut(BaseModel):
     promised: bool
     missed_yesterday: bool
     day_type: Literal["study", "light", "weekend", "sick", "exam"] | None = None
+    # The learner's local date this is for, and today's own study time (ADR 0080).
+    day: date | None = None
+    study_start: int | None = None
+    study_minutes: int | None = None
 
 
 class TodayIn(_Input):
@@ -146,3 +150,11 @@ class TimelineOut(BaseModel):
 class MemoryOut(BaseModel):
     facts: list[FactOut]
     timeline: list[TimelineOut]
+
+
+class EventIn(_Input):
+    """A «Начать» tapped (ADR 0078); the only event the app sends, the rest are the server's."""
+
+    name: Literal["start_tapped"]
+    kind: Literal["vocab", "spelling", "reading", "writing", "speaking"]
+    where: Literal["home", "chat", "panel"]
