@@ -3,6 +3,7 @@ import { t } from '../i18n/index.ts';
 import { listQuestions, listSubmissions, type WritingQuestion } from './api.ts';
 import { markOf, taskTypeLabel } from './scoreText.ts';
 import styles from './Writing.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface Props {
   topic: string;
@@ -44,9 +45,7 @@ export function QuestionList({ topic, onBack, onPick }: Props) {
 
   return (
     <main className={styles.screen}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.back}
-      </button>
+      <BackButton onClick={onBack} />
       <h1 className={styles.title}>{topic}</h1>
       <p className={styles.lead}>{instruction ?? t.writingChooseQuestion}</p>
       {error && (

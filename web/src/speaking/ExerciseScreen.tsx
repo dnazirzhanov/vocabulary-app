@@ -25,6 +25,7 @@ import { FeedbackList } from './FeedbackList.tsx';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
 import { ScoreGrid } from './ScoreGrid.tsx';
 import styles from './ExerciseScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface ExerciseScreenProps {
   question?: SpeakingQuestion | null;
@@ -118,9 +119,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.speakingBack}
-        </button>
+        <BackButton onClick={onBack} />
         <h1 className={styles.title}>{t.speakingExerciseHeading}</h1>
       </header>
 

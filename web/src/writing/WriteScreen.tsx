@@ -5,6 +5,7 @@ import { IELTS_WORDS, submitAnswer, type Submission, type WritingQuestion } from
 import { taskTypeLabel } from './scoreText.ts';
 import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from '../lib/stopwatch.ts';
 import styles from './Writing.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface Props {
   question: WritingQuestion;
@@ -100,9 +101,7 @@ export function WriteScreen({ question, initialText, onBack, onDone }: Props) {
 
   return (
     <main className={styles.writeScreen}>
-      <button type="button" className={styles.back} onClick={onBack} disabled={busy}>
-        ‹ {t.back}
-      </button>
+      <BackButton onClick={onBack} disabled={busy} />
       {question.task_type && <p className={styles.typeChip}>{taskTypeLabel(question.task_type)}</p>}
       <h1 className={styles.question}>{question.title}</h1>
       <p className={styles.instruction}>

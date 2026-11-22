@@ -15,6 +15,7 @@ import {
 } from './api.ts';
 import { markOf } from './scoreText.ts';
 import styles from './Writing.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 /** Where in the archive the learner is: all topics, one topic, or one question's attempts. */
 export interface ArchivePlace {
@@ -85,9 +86,7 @@ export function WritingArchive({ place, onGo, onBack, onOpen, onRetry }: Props) 
 
   return (
     <main className={styles.screen}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.back}
-      </button>
+      <BackButton onClick={onBack} />
       {place.questionId && <p className={styles.kicker}>{place.topic}</p>}
       <h1 className={place.questionId ? styles.context : styles.title}>{title}</h1>
       {error && (

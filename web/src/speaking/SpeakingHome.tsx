@@ -3,6 +3,7 @@ import { t } from '../i18n/index.ts';
 import { listQuestions, type SpeakingQuestion } from './api.ts';
 import { ChartIcon, MicIcon, RepeatIcon } from '../ui/icons.tsx';
 import styles from './SpeakingHome.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface SpeakingHomeProps {
   /** The three cards, or the topics inside «Говорение». */
@@ -82,9 +83,7 @@ export function SpeakingHome({
     return (
       <main className={styles.screen}>
         <header className={styles.header}>
-          <button type="button" className={styles.back} onClick={onBack}>
-            {t.speakingBack}
-          </button>
+          <BackButton onClick={onBack} />
           <h1 className={styles.title}>{t.speaking}</h1>
         </header>
         <ul className={styles.cards}>
@@ -112,9 +111,7 @@ export function SpeakingHome({
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.speakingBack}
-        </button>
+        <BackButton onClick={onBack} />
         <h1 className={styles.title}>{t.speakingTopicsHeading}</h1>
       </header>
 

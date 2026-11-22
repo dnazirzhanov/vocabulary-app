@@ -15,6 +15,7 @@ import { clock } from '../lib/stopwatch.ts';
 import { bandText, criterionLabel, ieltsLabel, ieltsShort, scoreLabel, taskTypeLabel } from './scoreText.ts';
 import { collectFixes, collectIeltsFixes, segments, type Fix } from './marks.ts';
 import styles from './Writing.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface Props {
   submission: Submission;
@@ -33,9 +34,7 @@ export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Pr
   const ev = submission.evaluation;
   return (
     <main className={`${styles.screen} ${styles.resultWide}`}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.back}
-      </button>
+      <BackButton onClick={onBack} />
       {submission.question?.task_type && (
         <p className={styles.typeChip}>{taskTypeLabel(submission.question.task_type)}</p>
       )}

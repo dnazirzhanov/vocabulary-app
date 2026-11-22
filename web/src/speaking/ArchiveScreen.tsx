@@ -15,6 +15,7 @@ import {
 import { overallSeries, skillTrend, type Point, type Skill } from './progress.ts';
 import { Recording } from './Recording.tsx';
 import styles from './ArchiveScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface Props {
   onOpen: (session: SpeakingSessionDetail, question: SpeakingQuestion, all: SpeakingQuestion[]) => void;
@@ -69,9 +70,7 @@ export function ArchiveScreen({ onOpen, onBack }: Props) {
 
   return (
     <main className={styles.screen}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.speakingBack}
-      </button>
+      <BackButton onClick={onBack} />
       <h1 className={styles.title}>{t.speakingArchive}</h1>
 
       {error && (

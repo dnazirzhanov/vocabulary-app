@@ -5,6 +5,7 @@ import { Recording } from './Recording.tsx';
 import type { FeedbackItem, SpeakingAssessment, SpeakingQuestion, SpeakingSessionDetail } from './api.ts';
 import { pausesOf, seconds, timeline } from './timeline.ts';
 import styles from './EvaluationScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface EvaluationScreenProps {
   session: SpeakingSessionDetail;
@@ -34,9 +35,7 @@ export function EvaluationScreen({ session, question, onBack }: EvaluationScreen
 
   return (
     <main className={styles.screen}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.speakingBack}
-      </button>
+      <BackButton onClick={onBack} />
       <h1 className={styles.title}>{t.speakingEvalHeading}</h1>
       <p className={styles.question}>
         {question.exercise_type === 'pronunciation' && question.reference_text

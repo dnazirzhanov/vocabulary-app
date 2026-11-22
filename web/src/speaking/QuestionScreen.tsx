@@ -8,6 +8,7 @@ import {
   type SpeakingSessionDetail,
 } from './api.ts';
 import styles from './QuestionScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface QuestionScreenProps {
   question: SpeakingQuestion;
@@ -48,9 +49,7 @@ export function QuestionScreen({ question, onRecord, onViewAttempt, onBack }: Qu
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.speakingBack}
-        </button>
+        <BackButton onClick={onBack} />
         <h1 className={styles.title}>{t.speakingQuestionDetailHeading}</h1>
       </header>
 

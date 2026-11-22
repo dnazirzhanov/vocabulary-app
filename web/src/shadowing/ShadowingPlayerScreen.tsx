@@ -23,6 +23,7 @@ import { getAttemptAudioUrl, getExerciseAudioUrl, listMyAttempts, saveAttempt } 
 import { AudioPlayer, PauseIcon, PlayIcon } from './AudioPlayer.tsx';
 import { claimPlayback, clock, mediaDuration, releasePlayback } from './oneAtATime.ts';
 import styles from './ShadowingPlayerScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface Props {
   exercise: ShadowingExercise;
@@ -290,9 +291,7 @@ export function ShadowingPlayerScreen({ exercise, onBack }: Props) {
 
       <div className={styles.scroll}>
         <div className={styles.column}>
-          <button type="button" className={styles.back} onClick={onBack} disabled={busy}>
-            ‹ {t.shadowingBack}
-          </button>
+          <BackButton onClick={onBack} disabled={busy} />
           <h1 className={styles.title}>{exercise.title}</h1>
           <p className={styles.meta}>{meta}</p>
 
