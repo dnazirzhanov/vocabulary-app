@@ -15,7 +15,7 @@ from app.core.errors import ApiError
 from app.models import WritingSubmission
 from app.services.writing import evaluator
 from app.services.writing import questions as bank
-from app.services.writing.schema import ModelEvaluation, clean
+from app.services.writing.schema import IeltsModelEvaluation, clean_ielts, overall_band
 from tests.support import at
 
 MOMENT = datetime(2026, 11, 18, 10, 0, tzinfo=UTC)
@@ -26,21 +26,18 @@ def as_(name: str) -> dict[str, str]:
     return {"X-Dev-User": name} | at(MOMENT)
 
 
-def criteria(score: int = 3) -> dict[str, Any]:
-    return {
-        name: {"score": score, "comment": "ok"}
-        for name in ("task", "organization", "vocabulary", "grammar", "mechanics")
-    }
+IELTS = ("task_response", "coherence_cohesion", "lexical_resource", "grammatical_range_accuracy")
+
+
+def criteria(band: int = 6) -> dict[str, Any]:
+    return {name: {"band": band, "why": "ok", "next_band": "do this"} for name in IELTS}
 
 
 def reply(**changes: Any) -> str:
     data: dict[str, Any] = {
         "enough_evidence": True,
-        "cefr_level": "A2",
         "criteria": criteria(),
         "summary": "A clear short answer.",
-        "strengths": [{"point": "Clear routine", "quote": "I go to university by bus"}],
-        "improvements": ["Check negatives"],
         "corrections": [
             {
                 "original": "I no have car",
@@ -49,7 +46,7 @@ def reply(**changes: Any) -> str:
                 "type": "grammar",
             }
         ],
-        "vocabulary": [],
+        "upgrades": [{"original": "go to university", "suggestion": "travel to university"}],
     }
     data.update(changes)
     return json.dumps(data)
@@ -124,12 +121,13 @@ def test_a_successful_submission_returns_checked_feedback(client: TestClient, mo
     got = r.json()
     assert got["status"] == "done"
     assert got["time_spent_seconds"] == 95
-    assert got["evaluation"]["overall"] == 3
+    assert got["evaluation"]["rubric"] == "ielts" and got["evaluation"]["band"] == 6.0
     assert got["question"]["title"] == "Describe a typical day in your life."
     assert got["evaluation"]["corrections"][0]["corrected"] == "I don't have a car"
-    assert got["evaluation"]["strengths"][0]["quote"] == "I go to university by bus"
+    assert got["evaluation"]["upgrades"][0]["suggestion"] == "travel to university"
+    assert got["evaluation"]["words"] == len(ANSWER.split())
     # The question and the answer reached the model, fenced as text to assess.
-    assert "Describe a typical day" in model.last_user and "<<<ANSWER" in model.last_user
+    assert "Describe a typical day" in model.last_user and "<<<ESSAY" in model.last_user
 
 
 def test_without_the_timer_no_time_is_recorded(client: TestClient, model: Model) -> None:
@@ -170,17 +168,16 @@ def test_invented_mistakes_are_dropped(client: TestClient, model: Model) -> None
     assert [c["original"] for c in got] == ["I no have car"]
 
 
-def test_an_invented_quote_is_dropped_but_the_praise_stays(
-    client: TestClient, model: Model
-) -> None:
-    model.answers = [reply(strengths=[{"point": "Nice", "quote": "words not in the answer"}])]
-    got = post(client).json()["evaluation"]["strengths"]
-    assert got == [{"point": "Nice", "quote": None}]
+def test_an_upgrade_of_words_not_in_the_answer_is_dropped(client: TestClient, model: Model) -> None:
+    invented = {"original": "words not in the answer", "suggestion": "better words"}
+    model.answers = [reply(upgrades=[invented])]
+    assert post(client).json()["evaluation"]["upgrades"] == []
 
 
 def test_too_many_items_are_cut_not_rejected(client: TestClient, model: Model) -> None:
-    model.answers = [reply(improvements=[f"tip {i}" for i in range(9)])]
-    assert len(post(client).json()["evaluation"]["improvements"]) == 4
+    same = {"original": "go to university", "suggestion": "travel to university"}
+    model.answers = [reply(upgrades=[same] * 9)]
+    assert len(post(client).json()["evaluation"]["upgrades"]) == 4
 
 
 def test_too_little_to_judge_is_said_plainly(client: TestClient, model: Model) -> None:
@@ -189,7 +186,7 @@ def test_too_little_to_judge_is_said_plainly(client: TestClient, model: Model) -
     ]
     got = post(client, answer="Bad.").json()["evaluation"]
     assert got["enough_evidence"] is False
-    assert got["overall"] is None and got["criteria"] is None and got["corrections"] == []
+    assert got["band"] is None and got["criteria"] is None and got["corrections"] == []
     assert model.calls == 1  # a short answer may be refused: no second request
 
 
@@ -200,12 +197,12 @@ OFF_TOPIC += " The end of this pasted text comes here at last now."
 
 def test_a_long_answer_is_always_marked_even_off_topic(client: TestClient, model: Model) -> None:
     refused = reply(enough_evidence=False, criteria=None, summary="Off topic.", corrections=[])
-    marks = criteria(3) | {"task": {"score": 1, "comment": "Does not answer the question."}}
-    model.answers = [refused, reply(criteria=marks, corrections=[], strengths=[])]
+    marks = criteria(6) | {"task_response": {"band": 3, "why": "Off the question."}}
+    model.answers = [refused, reply(criteria=marks, corrections=[], upgrades=[])]
     assert len(OFF_TOPIC.split()) >= 40
     got = post(client, answer=OFF_TOPIC).json()["evaluation"]
     assert got["enough_evidence"] is True
-    assert got["criteria"]["task"]["score"] == 1 and got["overall"] is not None
+    assert got["criteria"]["task_response"]["band"] == 3 and got["band"] == 5.5
     assert model.calls == 2
     assert "must be assessed" in model.last_user  # the second request says why
 
@@ -223,16 +220,32 @@ def test_a_long_answer_refused_twice_fails_and_can_be_retried(
 def test_the_prompt_tells_the_model_the_word_count_and_the_rule() -> None:
     from app.services.writing import prompt
 
-    assert "40 words or more is ALWAYS assessed" in prompt.system_prompt("ru")
+    system = prompt.system_prompt("ru")
+    assert "An answer under 40 words" in system and "Any longer answer is assessed" in system
+    # IELTS, with flexible length (the owner's choice): never marked down for under 250 words.
+    assert "Do not lower any band because the answer is under 250 words" in system
+    assert "Task Response (TR):" in system and "in Russian" in system
     assert "(47 words;" in prompt.user_message("Q", "I", OFF_TOPIC)
 
 
-def test_the_overall_score_is_the_mean_of_the_marks() -> None:
-    marks = {"task": 5, "organization": 4, "vocabulary": 4, "grammar": 3, "mechanics": 4}
+@pytest.mark.parametrize(
+    ("bands", "overall"),
+    [
+        ((6, 6, 6, 6), 6.0),
+        ((6, 6, 6, 7), 6.5),  # 6.25 rounds up to 6.5
+        ((6, 7, 6, 7), 6.5),  # 6.5 stays
+        ((7, 7, 7, 6), 7.0),  # 6.75 rounds up to 7
+        ((5, 6, 5, 5), 5.5),  # 5.25 → 5.5
+        ((4, 4, 4, 5), 4.5),
+    ],
+)
+def test_the_overall_band_is_rounded_as_ielts_does(
+    bands: tuple[int, int, int, int], overall: float
+) -> None:
     raw = json.loads(reply())
-    raw["criteria"] = {k: {"score": v, "comment": "c"} for k, v in marks.items()}
-    out = clean(ModelEvaluation.model_validate(raw), ANSWER)
-    assert out.overall == 4  # 20 / 5
+    raw["criteria"] = {k: {"band": b, "why": "w"} for k, b in zip(IELTS, bands, strict=True)}
+    assert clean_ielts(IeltsModelEvaluation.model_validate(raw), ANSWER).band == overall
+    assert overall_band(IeltsModelEvaluation.model_validate(raw).criteria) == overall  # type: ignore[arg-type]
 
 
 # -- failures ------------------------------------------------------------------------------------
@@ -314,7 +327,7 @@ def test_submissions_are_listed_newest_first_and_filterable(
     only = client.get(
         "/api/writing/submissions?question_id=life-morning", headers=as_("ann")
     ).json()
-    assert [s["question_id"] for s in only] == ["life-morning"] and only[0]["overall"] == 3
+    assert [s["question_id"] for s in only] == ["life-morning"] and only[0]["band"] == 6.0
 
 
 def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
@@ -345,10 +358,13 @@ def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
     assert newest["id"] == first["id"]
     assert newest["word_count"] == len(ANSWER.split())
     assert newest["excerpt"] == ANSWER
-    assert newest["cefr_level"] == "A2"
+    assert newest["band"] == 6.0
+    assert newest["question_topic"] == "Everyday Life"
     oldest = everything[-1]
+    # A retired question still has its topic, so its essays group with the rest.
+    assert oldest["question_topic"] == "Education"
     assert oldest["excerpt"].startswith("Essay number 1. word") and len(oldest["excerpt"]) <= 141
-    assert oldest["excerpt"].endswith("…") and oldest["cefr_level"] is None
+    assert oldest["excerpt"].endswith("…") and oldest["band"] is None
 
 
 def test_one_learner_cannot_read_another_learners_submission(
@@ -378,3 +394,60 @@ def test_the_daily_limit_stops_a_flood(
 ) -> None:
     monkeypatch.setattr(get_settings(), "writing_submissions_per_day", 2)
     assert [post(client).status_code for _ in range(3)] == [200, 200, 429]
+
+
+# -- IELTS Task 2 (ADR 0081) ---------------------------------------------------------------------
+
+
+def test_the_bank_is_ielts_task_2_five_per_topic() -> None:
+    assert len(bank.QUESTIONS) == 40
+    assert all(n == 5 for _, n in bank.topics())
+    assert {q.task_type for q in bank.QUESTIONS} == set(bank.TASK_TYPES)
+    assert all(q.instruction.endswith("Write at least 250 words.") for q in bank.QUESTIONS)
+    assert all(q.suggested_minutes == 40 for q in bank.QUESTIONS)
+
+
+def test_retired_questions_still_name_old_answers_but_are_not_offered(client: TestClient) -> None:
+    assert bank.get("life-morning") is not None
+    offered = client.get("/api/writing/questions?topic=Everyday%20Life", headers=as_("ann")).json()
+    assert all(q["id"].startswith("ielts-") for q in offered)
+    assert offered[0]["task_type"] == "opinion"
+
+
+def test_feedback_marked_on_the_old_scale_still_opens(client: TestClient, db: Session) -> None:
+    first = client.get("/api/me", headers=as_("ann"))
+    assert first.status_code == 200
+    from sqlalchemy import select
+
+    from app.models import User
+
+    ann = db.scalars(select(User).where(User.auth_subject == "dev|ann")).one()
+    old = {
+        "enough_evidence": True,
+        "cefr_level": "B1",
+        "criteria": {
+            n: {"score": 3, "comment": "c"}
+            for n in ("task", "organization", "vocabulary", "grammar", "mechanics")
+        },
+        "summary": "Old feedback.",
+        "strengths": [],
+        "improvements": ["Old advice"],
+        "corrections": [],
+        "vocabulary": [],
+        "overall": 3,
+    }
+    row = WritingSubmission(
+        user_id=ann.id,
+        client_id=uuid.uuid4(),
+        question_id="life-morning",
+        answer=ANSWER,
+        status="done",
+        evaluation=old,
+        created_at=MOMENT,
+    )
+    db.add(row)
+    db.commit()
+    got = client.get(f"/api/writing/submissions/{row.id}", headers=as_("ann")).json()
+    assert got["evaluation"]["rubric"] == "general" and got["evaluation"]["overall"] == 3
+    listed = client.get("/api/writing/submissions", headers=as_("ann")).json()
+    assert listed[0]["overall"] == 3 and listed[0]["band"] is None

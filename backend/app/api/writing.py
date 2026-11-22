@@ -43,6 +43,7 @@ def list_questions(_: CurrentUser, topic: str | None = None) -> list[QuestionOut
             instruction=q.instruction,
             level=q.level,
             suggested_minutes=q.suggested_minutes,
+            task_type=q.task_type,
         )
         for q in found
     ]
