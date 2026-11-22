@@ -11,6 +11,8 @@ def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
     if "напоминани" in said or "reminder" in said:
         on = not any(w in said for w in ("выключ", "отключ", "не нужн", "turn off"))
         return [("propose_reminders", {"afternoon": on, "morning": on})]
+    if any(w in said for w in ("статистик", "statistics", "сколько слов")):
+        return [("get_stats", {})]
     if "вчера" in said or "yesterday" in said:
         return [("get_practice", {"from": "yesterday", "to": "yesterday"})]
     if any(w in said for w in ("трудн", "сложн", "hard words", "struggl")):
@@ -26,10 +28,11 @@ def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
         return [("get_assignments", {})]
     if any(w in said for w in ("прогресс", "за неделю", "за месяц", "progress")):
         return [("get_progress", {"period": "month" if "месяц" in said else "week"})]
-    if any(w in said for w in ("расписание на", "что у меня", "schedule for")):
-        return [("get_calendar", {"date": "today"})]
-    if any(w in said for w in ("мой день", "my day", "как выглядит")):
-        return [("show", {"component": "day"})]
+    asks = any(w in said for w in ("?", "какое", "покажи", "what", "show", "как выглядит"))
+    about_day = ("расписан", "календар", "schedule", "calendar", "мой день", "my day", "что у меня")
+    if asks and any(w in said for w in about_day):
+        tomorrow = "завтра" in said or "tomorrow" in said
+        return [("show", {"component": "day", **({"date": "tomorrow"} if tomorrow else {})})]
     if any(w in said for w in ("разминк", "warm up", "warm-up")):
         return [("show", {"component": "words"})]
     if any(w in said for w in ("устал", "нет сил", "tired")):
@@ -51,34 +54,40 @@ def tools_for(message: str) -> list[tuple[str, dict[str, Any]]]:
         return [("remember", {"kind": "likes", "text": message.strip()[:200]})]
     if any(w in said for w in ("помнишь", "remember what", "я говорил", "я говорила")):
         return [("recall", {"query": message})]
-    if any(w in said for w in ("завтра нет", "не будет", "болею", "поездк")):
+    if any(w in said for w in ("болею", "поездк", "заболел")):
+        return [("propose_exception", {"kind": "pause", "date": "today", "until": "tomorrow"})]
+    if any(w in said for w in ("завтра нет", "не будет")):
         return [
             (
-                "propose_exception",
+                "change_day",
                 {
                     "kind": "skip_day",
                     "date": "tomorrow",
                     "title": "школы" if "школ" in said else "",
                 },
             ),
-            ("offer_replies", {"replies": ["Да, отменить", "Нет, всё как обычно"]}),
+            ("offer_replies", {"replies": ["Спасибо", "Что мне делать завтра?"]}),
         ]
-    if any(w in said for w in ("расписан", "schedule", "моя неделя", "my week", "учусь")):
+    if any(w in said for w in ("сплю", "sleep", "ложусь")):
+        block = {"title": "Сон", "kind": "sleep", "weekdays": list(range(7))}
+        return [("set_schedule", {"add": [{**block, "start": "23:00", "end": "07:00"}]})]
+    if any(w in said for w in ("расписан", "schedule", "моя неделя", "my week", "учусь", "школа")):
         return [
             (
-                "propose_schedule",
+                "set_schedule",
                 {
-                    "events": [
+                    "add": [
                         {
                             "title": "Школа",
                             "kind": "school",
                             "weekdays": [0, 1, 2, 3, 4],
-                            "start": "08:00",
+                            "start": "09:00" if "9" in said else "08:00",
                             "end": "14:00",
                         }
                     ]
                 },
-            )
+            ),
+            ("show", {"component": "day"}),
         ]
     if any(w in said for w in ("когда заниматься", "when to study", "время для", "study time")):
         return [("propose_study_times", {"minutes": 20, "weekdays": [0, 1, 2, 3, 4]})]

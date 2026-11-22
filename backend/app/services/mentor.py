@@ -30,7 +30,7 @@ from app.models import (
     UserWordProgress,
     Word,
 )
-from app.services import memory, mentor_demo, mentor_events, mentor_tools
+from app.services import dsml, memory, mentor_demo, mentor_events, mentor_tools
 from app.services.coach.service import day_type_on, today_blocks
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, week_streak, weekdays_of
@@ -122,13 +122,21 @@ suggest_activity.
 - For their goal, help make it concrete (what for, target level or IELTS band, by when, why), \
 then call propose_goal. If it is out of reach in their time, say so kindly and offer the two \
 choices it gives: more minutes a day, or a later date.
-- When they describe their week, call propose_schedule; then offer to find a study time with \
-propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless they \
-want more.
-- Anything proposed is saved only when the learner taps to confirm it: say so in a few words.
+- The calendar is yours to change. Whenever they say what their week is or how it changed \
+(school, work, sport, sleep...), call set_schedule at once: it saves, and they can undo it. Never \
+ask them to confirm first, never say the app adds a block by itself, and never say you can't add \
+something. To change or remove a block, use its existing title. Then offer to find a study time \
+with propose_study_times. Small and fixed beats big and vague: suggest 10–20 minutes unless \
+they want more.
+- When one date is different (no school tomorrow, a concert on Saturday), call change_day at \
+once; for illness or a trip offer a pause with propose_exception, so no promised day counts as \
+missed.
+- After a calendar change, say in one sentence what changed. A goal, a study time, a pause, a \
+reminder or a fact is saved only when they tap it: say so in a few words.
+- When they ask what their schedule or calendar is, or how today (or another day) looks, call \
+show with component day (and date for another day): never list it in text or call what_now \
+for it.
 - For their goal's progress this week, call get_week_plan.
-- When a day is different (a usual block isn't on, something extra, illness, a trip), call \
-propose_exception; for illness or a trip offer a pause, so no promised day counts as missed.
 - If they missed yesterday, say kindly that today matters most and that 5 minutes counts \
 (never miss twice); don't scold.
 - End most answers by calling offer_replies with 2–4 short replies they might tap.
@@ -137,6 +145,9 @@ like or dislike, what limits their time, when they have energy, their own words 
 call remember with one short fact in their language; it is saved only if they tap. Don't \
 remember passing moods or anything private that a family or teacher should not see.
 - Before answering about something they told you before, call recall.
+- For statistics (words in progress, learned or mastered, this and last week's numbers, \
+retention and accuracy, decks, reading, how long and how regularly they study), call get_stats; \
+never guess them.
 - Everything in the app can be looked up (ADR 0079): other days' practice (get_practice), \
 their words (get_words), essays and feedback (get_writing), speaking results (get_speaking), \
 reading (get_reading), group decks and deadlines (get_assignments), a date's plan \
@@ -148,7 +159,7 @@ when, how long, finished or not. It is complete, so never say you have no data a
 if something isn't listed, it wasn't done in the app today. An unfinished lesson can be \
 continued where it stopped.
 - Use show to put one interactive component on screen instead of describing it: day when \
-they ask how today looks or where something fits; words for a quick warm-up; day_check when \
+they ask about their schedule or where something fits; words for a quick warm-up; day_check when \
 the plan seems too much (tired, sick, an exam); choice whenever you ask a question with a few \
 likely answers; celebrate when they did well. At most one show per answer; say in one \
 sentence what it shows, never repeat its contents.
@@ -173,34 +184,40 @@ Current learner state (use this to give personal, relevant advice):
 - Local date and time: {LOCAL_DATE} {LOCAL_TIME} ({TIME_OF_DAY}, {DAY_OF_WEEK})
 - Study streak: {STREAK}
 - Sessions completed today: {SESSIONS_TODAY}
-- Studying since: {STUDYING_SINCE}
-- Last study session: {LAST_STUDY}
-- Vocabulary in progress: {WORDS_IN_PROGRESS} words
-- Vocabulary recalled at least once: {WORDS_LEARNED} words
-- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
-- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
-- New words learned today: {WORDS_TODAY}
-- New words learned this week: {WORDS_THIS_WEEK}
-- New words learned last week: {WORDS_LAST_WEEK}
-- Study sessions completed this week: {SESSIONS_THIS_WEEK}
-- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
 - Vocabulary due today: {DUE_VOCAB} words{OVERDUE_VOCAB_PART}
-- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
 - Spelling due today: {DUE_SPELLING} words
-{SAMPLE_DUE_LINE}{STRUGGLING_LINE}- Promised study days this week: {PROMISED_DAYS}
+- Promised study days this week: {PROMISED_DAYS}
 - Days studied this week: {DAYS_THIS_WEEK}
-- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
-- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
-{PROMISE_LINE}- Vocabulary retention rate (last 7 days): {RETENTION}
-- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
-- Reading comprehension accuracy (all time): {READING_ACCURACY}
-{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{TOTAL_DECKS_LINE}{LAST_STUDIED_DECK_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}\
+{PROMISE_LINE}{PACE_LINE}{LEVEL_LINE}{GOAL_LINE}{BUDGET_LINE}{SCHEDULE_SECTION}{LAST_STUDIED_DECK_LINE}\
 {PLAN_SECTION}\
 {TIP_LINE}\
 {TONE_HINT}\
 {URGENCY_HINT}\
 Help the learner decide what to study, encourage them, and answer questions about their progress.\
 """
+
+
+# The rest of what used to be in every prompt (ADR 0079): fetched with get_stats when needed.
+_STATS = """\
+The learner's statistics (from get_stats):
+- Studying since: {STUDYING_SINCE}
+- Last study session: {LAST_STUDY}
+- Vocabulary in progress: {WORDS_IN_PROGRESS} words
+- Vocabulary recalled at least once: {WORDS_LEARNED} words
+- Vocabulary retained long-term (≥21-day interval): {WORDS_MASTERED} words
+- Vocabulary nearly mastered (14–21-day interval): {WORDS_NEARLY_MASTERED} words
+- New words learned this week: {WORDS_THIS_WEEK}
+- New words learned last week: {WORDS_LAST_WEEK}
+- Study sessions completed this week: {SESSIONS_THIS_WEEK}
+- Vocabulary reviews completed this week: {REVIEWS_THIS_WEEK}
+- Vocabulary due in next 3 days: {VOCAB_UPCOMING_3DAYS} words
+- Weeks active in last 4 weeks: {ACTIVE_WEEKS}
+- Days studied in last 30 days: {DAYS_STUDIED_MONTH}
+- Vocabulary retention rate (last 7 days): {RETENTION}
+- Spelling accuracy (last 7 days): {SPELLING_ACCURACY}
+- Reading comprehension accuracy (all time): {READING_ACCURACY}
+- New words learned today: {WORDS_TODAY}
+{SAMPLE_DUE_LINE}{STRUGGLING_LINE}{TOTAL_DECKS_LINE}{DECK_SECTION}{SPELLING_DECK_LINE}{STRUGGLE_DECK_LINE}{READING_SECTION}{READING_LEVEL_LINE}"""
 
 
 def _time_of_day(hour: int) -> str:
@@ -572,6 +589,7 @@ def _system_prompt(
     time_zone: ZoneInfo,
     ctx: LearnerContext,
     plan: list[dict[str, Any]] | None = None,
+    template: str | None = None,
 ) -> str:
     lang = user.ui_language or "ru"
     t = texts_for(lang)
@@ -737,7 +755,8 @@ def _system_prompt(
     else:
         urgency_hint = ""
     return (
-        _SYSTEM.replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
+        (template or _SYSTEM)
+        .replace("{LANGUAGE}", _LANGUAGE_NAMES.get(lang, "Russian"))
         .replace("{NAME}", name)
         .replace("{LOCAL_DATE}", local_date_str)
         .replace("{LOCAL_TIME}", local_time)
@@ -791,6 +810,22 @@ def _system_prompt(
         .replace("{TONE_HINT}", tone_hint)
         .replace("{URGENCY_HINT}", urgency_hint)
     )
+
+
+def _stats_text(user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext) -> str:
+    """The statistics no longer in every prompt, worded as they were (ADR 0079)."""
+    return _system_prompt(user, now, time_zone, ctx, template=_STATS)
+
+
+def learner_context(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> LearnerContext:
+    """Everything the mentor is told about a learner, from the database."""
+    ctx = _learner_state(db, user, now, time_zone)
+    _fill_context(db, user, now, time_zone, ctx)
+    return ctx
+
+
+def stats_for(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> str:
+    return _stats_text(user, now, time_zone, learner_context(db, user, now, time_zone))
 
 
 _DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -1156,19 +1191,9 @@ def _persist(
     db.commit()
 
 
-def _build_context(
-    db: Session,
-    user: User,
-    message: str,
-    settings: Settings,
-    now: datetime,
-    time_zone: ZoneInfo,
-    plan: list[dict[str, Any]] | None = None,
-    tip_id: str | None = None,
-    conversation: MentorConversation | None = None,
-) -> tuple[str, list[dict[str, str]], str, bool]:
-    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
-    ctx = _learner_state(db, user, now, time_zone)
+def _fill_context(
+    db: Session, user: User, now: datetime, time_zone: ZoneInfo, ctx: LearnerContext
+) -> None:
     words_in_progress, words_learned = _vocab_summary(db, user)
     ctx.words_in_progress = words_in_progress
     ctx.words_learned = words_learned
@@ -1194,6 +1219,21 @@ def _build_context(
     ctx.reading_level_counts = _reading_level_breakdown(db, user)
     ctx.schedule_today = _schedule_today(db, user, now, time_zone)
     ctx.day_type = day_type_on(db, user, local_date(now, time_zone))
+
+
+def _build_context(
+    db: Session,
+    user: User,
+    message: str,
+    settings: Settings,
+    now: datetime,
+    time_zone: ZoneInfo,
+    plan: list[dict[str, Any]] | None = None,
+    tip_id: str | None = None,
+    conversation: MentorConversation | None = None,
+) -> tuple[str, list[dict[str, str]], str, bool]:
+    """Return (system_prompt, messages, demo_reply_or_empty, is_demo)."""
+    ctx = learner_context(db, user, now, time_zone)
     ctx.tip_id = tip_id
     system = _system_prompt(user, now, time_zone, ctx, plan=plan)
     # What the mentor remembers (ADR 0075): facts, the plan's story, earlier chats.
@@ -1431,6 +1471,8 @@ def _stream_with_tools(
             )
             said: list[str] = []
             calls: dict[int, dict[str, str]] = {}
+            # Tool calls the model wrote as text are kept off the screen (app.services.dsml).
+            guard = dsml.Guard()
             for chunk in stream:
                 usage = getattr(chunk, "usage", None)  # only the last chunk carries it
                 if usage is not None:
@@ -1438,9 +1480,10 @@ def _stream_with_tools(
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
-                if delta.content:
-                    said.append(delta.content)
-                    yield {"delta": delta.content}
+                shown = guard.feed(delta.content) if delta.content else ""
+                if shown:
+                    said.append(shown)
+                    yield {"delta": shown}
                 for call in delta.tool_calls or []:
                     slot = calls.setdefault(call.index, {"id": "", "name": "", "args": ""})
                     if call.id:
@@ -1449,6 +1492,26 @@ def _stream_with_tools(
                         slot["name"] += call.function.name
                     if call.function and call.function.arguments:
                         slot["args"] += call.function.arguments
+            tail = guard.end()
+            if tail:
+                said.append(tail)
+                yield {"delta": tail}
+            if guard.markup:
+                written = dsml.calls(guard.markup)
+                logger.warning(
+                    "mentor tool call written as text",
+                    extra={"tools": [name for name, _ in written], "run": with_tools},
+                )
+                # Run them as the calls they are, where tools are offered; past the last round,
+                # they are dropped like any call that comes too late.
+                if with_tools:
+                    after = max(calls, default=-1) + 1
+                    for n, (name, args) in enumerate(written):
+                        calls[after + n] = {
+                            "id": f"text-call-{round_}-{n}",
+                            "name": name,
+                            "args": json.dumps(args, ensure_ascii=False),
+                        }
             if not calls:
                 return
             ordered = [calls[i] for i in sorted(calls)]

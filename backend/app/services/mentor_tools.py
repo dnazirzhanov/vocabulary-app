@@ -1,8 +1,9 @@
 """What the mentor can do in a chat (ADR 0072): tools the model calls, run here on the coach's
 rules (ADR 0071). Each returns a card for the screen and a short result for the model. Nothing
-is saved by a tool: a goal, a schedule or a study time becomes real only when the learner taps
-the card. Activities only ever point at things that exist: today's tasks as the app sent them,
-or the Writing and Speaking sections."""
+is saved by a tool except the calendar (ADR 0083): set_schedule and change_day save at once and
+the card can undo them; a goal, a study time, a pause or a reminder becomes real only on a tap.
+Activities only ever point at things that exist: today's tasks as the app sent them, or the
+Writing and Speaking sections."""
 
 import re
 from collections.abc import Callable, Mapping, Sequence
@@ -17,17 +18,23 @@ from sqlalchemy.orm import Session
 
 from app.models import User, UserWordProgress, Word
 from app.schemas import gen_ui
-from app.services import memory, mentor_lookups
+from app.services import memory, mentor_lookups, schedule_edit
 from app.services import promise as promises
 from app.services.coach import service as coach
 from app.services.coach.goal import GOAL_KINDS, Goal, feasibility
 from app.services.study_days import HISTORY_DAYS, days_by_user
 
 ACTIVITY_KINDS = ("vocab", "spelling", "reading", "writing", "speaking")
-EVENT_KINDS = ("school", "work", "sport", "chore", "personal", "other")
+EVENT_KINDS = schedule_edit.EVENT_KINDS
 MAX_EVENTS = 12
 # Minutes assumed for a section with no task of its own today.
 SECTION_MINUTES = {"writing": 15, "speaking": 5}
+
+_WEEKDAYS = {
+    "type": "array",
+    "items": {"type": "integer", "minimum": 0, "maximum": 6},
+    "description": "0 = Monday … 6 = Sunday",
+}
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -102,34 +109,68 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_schedule",
+            "name": "set_schedule",
             "description": (
-                "Turn what the learner said about their week (school, work, sport, chores...) into "
-                "calendar events for them to confirm. Does not save them."
+                "Save the learner's usual week to their calendar at once, whenever they say what "
+                "it is or how it changed (school, work, sport, chores, sleep, rest...). Saying a "
+                "block again with its same title replaces it on those days where the times "
+                "overlap, so to change a block reuse its title (get_calendar shows them). Times "
+                "past midnight are fine (sleep 23:00-07:00). remove takes a block off, on some "
+                "days or all. The learner sees what changed, with Undo."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "events": {
+                    "add": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "title": {"type": "string"},
+                                "title": {"type": "string", "description": "learner's language"},
                                 "kind": {"type": "string", "enum": list(EVENT_KINDS)},
-                                "weekdays": {
-                                    "type": "array",
-                                    "items": {"type": "integer", "minimum": 0, "maximum": 6},
-                                    "description": "0 = Monday … 6 = Sunday",
-                                },
+                                "weekdays": _WEEKDAYS,
                                 "start": {"type": "string", "description": "HH:MM"},
                                 "end": {"type": "string", "description": "HH:MM"},
                             },
                             "required": ["title", "kind", "weekdays", "start", "end"],
                         },
-                    }
+                    },
+                    "remove": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string"},
+                                "weekdays": {**_WEEKDAYS, "description": "empty: every day"},
+                            },
+                            "required": ["title"],
+                        },
+                    },
                 },
-                "required": ["events"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "change_day",
+            "description": (
+                "Change one date in the calendar at once: skip_day when a usual block isn't "
+                "happening ('no school tomorrow'; title = which block, empty = all of them), "
+                "one_off for something extra on that date ('a concert on Saturday 15-18'). "
+                "The learner sees it with Undo."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": ["skip_day", "one_off"]},
+                    "date": {"type": "string", "description": "YYYY-MM-DD, today or tomorrow"},
+                    "title": {"type": "string"},
+                    "block_kind": {"type": "string", "enum": list(EVENT_KINDS)},
+                    "start": {"type": "string", "description": "HH:MM, one_off only"},
+                    "end": {"type": "string", "description": "HH:MM, one_off only"},
+                },
+                "required": ["kind", "date"],
             },
         },
     },
@@ -160,24 +201,15 @@ TOOLS: list[dict[str, Any]] = [
         "function": {
             "name": "propose_exception",
             "description": (
-                "When the learner says a day is different: a usual block isn't happening "
-                "(skip_day: 'no school tomorrow'), something extra on one date (one_off: "
-                "'a concert on Saturday 15-18'), or days off from studying (pause: illness, "
-                "a trip, until a date). "
-                "Shows a card to confirm. Does not save it."
+                "Days off from studying (illness, a trip, until a date): shows a pause to "
+                "confirm, so no promised day counts as missed. Saved only on the tap."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "kind": {"type": "string", "enum": ["skip_day", "one_off", "pause"]},
+                    "kind": {"type": "string", "enum": ["pause"]},
                     "date": {"type": "string", "description": "YYYY-MM-DD; the first day"},
-                    "until": {"type": "string", "description": "YYYY-MM-DD; pause only"},
-                    "title": {
-                        "type": "string",
-                        "description": "one_off: what it is; skip_day: which block (empty: all)",
-                    },
-                    "start": {"type": "string", "description": "HH:MM, one_off only"},
-                    "end": {"type": "string", "description": "HH:MM, one_off only"},
+                    "until": {"type": "string", "description": "YYYY-MM-DD; the last day"},
                 },
                 "required": ["kind", "date"],
             },
@@ -253,8 +285,9 @@ TOOLS += [
             "name": "show",
             "description": (
                 "Put one interactive component on screen (the app fills in every fact): "
-                "day = today on a timeline with blocks and the study time, for questions about "
-                "when or how today looks; words = a warm-up of words due for review; "
+                "day = a day (today unless date is given) on a timeline with its blocks and the "
+                "study time, whenever they ask about their schedule, calendar or day; "
+                "words = a warm-up of words due for review; "
                 "day_check = ask what kind of day today is (ordinary, light, day off, exam, sick); "
                 "choice = one question with 2-4 short answers the learner taps instead of typing; "
                 "celebrate = their real milestones, when they did well."
@@ -263,6 +296,7 @@ TOOLS += [
                 "type": "object",
                 "properties": {
                     "component": {"type": "string", "enum": list(gen_ui.COMPONENTS)},
+                    "date": {"type": "string", "description": "day only: YYYY-MM-DD or tomorrow"},
                     "question": {"type": "string", "description": "choice only"},
                     "options": {
                         "type": "array",
@@ -295,6 +329,14 @@ NOTIFY_KINDS = ("morning", "afternoon", "deadline", "report")
 # Reading the app (ADR 0079): the learner's own data, facts only, nothing changes.
 TOOLS += [
     _lookup(
+        "get_stats",
+        "The learner's statistics: words in progress, learned and mastered, this and last "
+        "week's new words, lessons and reviews, retention and accuracy (vocabulary, spelling, "
+        "reading), decks with words due, struggling words, reading library, how long and how "
+        "regularly they study.",
+        {},
+    ),
+    _lookup(
         "get_practice",
         "Each day's practice (lessons, writing, speaking, reading: when, how long, finished or "
         "not) between two dates, up to 31 days and 90 days back. Default: the last 7 days.",
@@ -311,8 +353,8 @@ TOOLS += [
     ),
     _lookup(
         "get_writing",
-        "Recent essays with their feedback: question, date, CEFR level, five scores (1-5), "
-        "summary, what to improve.",
+        "Recent essays with their feedback: question, date, IELTS band with the four criteria "
+        "and the next step for each (older essays: CEFR level and five 1-5 scores), summary.",
         _RECENT,
     ),
     _lookup(
@@ -509,31 +551,64 @@ def propose_goal(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(card, {**card, "saved": False})
 
 
-def propose_schedule(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
-    events: list[dict[str, Any]] = []
+def _told(block: Mapping[str, Any]) -> dict[str, Any]:
+    """A saved or removed block as the model reads it: HH:MM, not minutes."""
+    return {
+        "title": block["title"],
+        "weekdays": block["weekdays"],
+        "date": block.get("on_date"),
+        "start": _hhmm(block["start_minute"]),
+        "end": _hhmm(block["end_minute"]),
+    }
+
+
+def _saved(edit: schedule_edit.Edit, dropped: int = 0) -> ToolResult:
+    if not edit.added and not edit.removed:
+        return ToolResult(None, {"saved": False, "changed": 0, "dropped": dropped})
+    card = {
+        "type": "schedule_saved",
+        "added": edit.added,
+        "removed": edit.removed,
+        "undo": edit.undo(),
+    }
+    result = {
+        "saved": True,
+        "added": [_told(b) for b in edit.added],
+        "removed": [_told(b) for b in edit.removed],
+        "dropped": dropped,
+    }
+    return ToolResult(card, result)
+
+
+def set_schedule(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """The learner's week, saved at once (ADR 0083); the card can undo it."""
+    add: list[schedule_edit.NewBlock] = []
     dropped = 0
-    for raw in list(args.get("events") or [])[:MAX_EVENTS]:
+    for raw in list(args.get("add") or args.get("events") or [])[:MAX_EVENTS]:
         if not isinstance(raw, Mapping):
             dropped += 1
             continue
-        title = str(raw.get("title") or "").strip()[:80]
-        kind = raw.get("kind") if raw.get("kind") in EVENT_KINDS else "other"
-        days = sorted({d for d in raw.get("weekdays") or [] if isinstance(d, int) and 0 <= d <= 6})
+        title = " ".join(str(raw.get("title") or "").split())[:80]
+        kind = str(raw.get("kind")) if raw.get("kind") in EVENT_KINDS else "other"
+        days = [d for d in raw.get("weekdays") or [] if isinstance(d, int) and 0 <= d <= 6]
         start, end = _minute(raw.get("start")), _minute(raw.get("end"))
-        if not title or not days or start is None or end is None or not start < end <= 1440:
+        if not title or not days or start is None or end is None or start == end:
             dropped += 1
             continue
-        events.append(
-            {
-                "title": title,
-                "kind": kind,
-                "weekdays": days,
-                "start_minute": start,
-                "end_minute": end,
-            }
+        add.append(schedule_edit.NewBlock(title, kind, schedule_edit.mask(days), start, end))
+    remove: list[tuple[str, int]] = []
+    for raw in list(args.get("remove") or [])[:MAX_EVENTS]:
+        title = " ".join(str(raw.get("title") or "").split()) if isinstance(raw, Mapping) else ""
+        if not title:
+            dropped += 1
+            continue
+        days = [d for d in raw.get("weekdays") or [] if isinstance(d, int) and 0 <= d <= 6]
+        remove.append((title, schedule_edit.mask(days)))
+    if not add and not remove:
+        return ToolResult(
+            None, {"saved": False, "error": "nothing valid to save", "dropped": dropped}
         )
-    card = {"type": "schedule", "events": events} if events else None
-    return ToolResult(card, {"proposed": len(events), "dropped": dropped, "saved": False})
+    return _saved(schedule_edit.apply(ctx.db, ctx.user, ctx.now, add, remove), dropped)
 
 
 def propose_study_times(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
@@ -578,37 +653,57 @@ def _day(text: Any, today: date) -> date | None:
         return None
 
 
-def propose_exception(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
-    """A one-day change or a pause, checked; the learner's tap applies it."""
-    kind = args.get("kind")
+def _when(ctx: ToolContext, args: Mapping[str, Any]) -> tuple[date, date | None]:
     today = ctx.now.astimezone(ctx.zone).date()
     day = _day(args.get("date"), today)
-    if kind not in ("skip_day", "one_off", "pause") or day is None:
-        return ToolResult(None, {"error": "need kind and a YYYY-MM-DD date"})
-    if not today <= day <= today + timedelta(days=EXCEPTION_DAYS_AHEAD):
-        return ToolResult(None, {"error": "the date must be from today to 60 days ahead"})
-    title = str(args.get("title") or "").strip()[:80]
-    card: dict[str, Any] = {"type": "exception", "kind": kind, "date": day.isoformat()}
-    if kind == "pause":
-        until = _day(args.get("until"), today) or day
-        until = min(max(until, day), today + timedelta(days=MAX_PAUSE_DAYS))
-        card["until"] = until.isoformat()
-    elif kind == "one_off":
+    if day is not None and not today <= day <= today + timedelta(days=EXCEPTION_DAYS_AHEAD):
+        day = None
+    return today, day
+
+
+def change_day(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """One date changed at once (ADR 0083): a usual block off, or something extra."""
+    kind = args.get("kind")
+    _, day = _when(ctx, args)
+    if kind not in ("skip_day", "one_off") or day is None:
+        return ToolResult(None, {"error": "need kind and a date from today to 60 days ahead"})
+    title = " ".join(str(args.get("title") or "").split())[:80]
+    if kind == "one_off":
         start, end = _minute(args.get("start")), _minute(args.get("end"))
         if not title or start is None or end is None or not start < end <= 1440:
             return ToolResult(None, {"error": "a one-off needs a title and HH:MM start < end"})
-        card |= {"title": title, "start_minute": start, "end_minute": end}
-    else:
-        # «школы» names «Школа»: the word without its last letter, so endings don't matter.
-        stem = title.casefold()[:-1] if len(title) > 4 else title.casefold()
-        blocks = [
-            (event_id, name)
-            for event_id, name in coach.repeating_on(ctx.db, ctx.user, day)
-            if not stem or stem in name.casefold()
-        ]
-        if not blocks:
-            return ToolResult(None, {"error": "no usual block that day", "saved": False})
-        card["events"] = [{"id": str(i), "title": name} for i, name in blocks]
+        block_kind = str(args["block_kind"]) if args.get("block_kind") in EVENT_KINDS else "other"
+        block = schedule_edit.NewBlock(title, block_kind, 1 << day.weekday(), start, end, day)
+        return _saved(schedule_edit.apply(ctx.db, ctx.user, ctx.now, [block], []))
+    # «школы» names «Школа»: the word without its last letter, so endings don't matter.
+    stem = title.casefold()[:-1] if len(title) > 4 else title.casefold()
+    blocks = [
+        event_id
+        for event_id, name in coach.repeating_on(ctx.db, ctx.user, day)
+        if not stem or stem in name.casefold()
+    ]
+    if not blocks:
+        return ToolResult(None, {"error": "no usual block that day", "saved": False})
+    return _saved(schedule_edit.skip(ctx.db, ctx.user, day, blocks))
+
+
+def propose_exception(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    """A pause from studying, checked; the learner's tap applies it. A one-day change asked
+    for here is made at once, as change_day does."""
+    kind = args.get("kind")
+    if kind in ("skip_day", "one_off"):
+        return change_day(ctx, args)
+    today, day = _when(ctx, args)
+    if kind != "pause" or day is None:
+        return ToolResult(None, {"error": "need kind pause and a date from today on"})
+    until = _day(args.get("until"), today) or day
+    until = min(max(until, day), today + timedelta(days=MAX_PAUSE_DAYS))
+    card: dict[str, Any] = {
+        "type": "exception",
+        "kind": "pause",
+        "date": day.isoformat(),
+        "until": until.isoformat(),
+    }
     return ToolResult(card, {**card, "saved": False})
 
 
@@ -636,18 +731,32 @@ def recall(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(None, dict(memory.search(ctx.db, ctx.user, query, ctx.zone)))
 
 
-def _day_card(ctx: ToolContext) -> gen_ui.DayCard:
+def _day_card(ctx: ToolContext, asked: Any = None) -> gen_ui.DayCard:
+    """A day on a timeline: today unless another date (up to 60 days ahead) is asked for."""
     today = ctx.now.astimezone(ctx.zone).date()
-    state = coach.coach_state(ctx.db, ctx.user, ctx.now, ctx.zone)
-    moved = state.today.override_mode == "moved"
+    day = _day(asked, today) if asked else today
+    if day is None or not today <= day <= today + timedelta(days=EXCEPTION_DAYS_AHEAD):
+        day = today
+    blocks = [
+        gen_ui.DayBlock(title=t, kind=k, start_minute=a, end_minute=b)
+        for t, k, a, b in coach.today_blocks(ctx.db, ctx.user, day)
+    ]
+    if day == today:
+        state = coach.coach_state(ctx.db, ctx.user, ctx.now, ctx.zone)
+        moved = state.today.override_mode == "moved"
+        return gen_ui.DayCard(
+            date=today.isoformat(),
+            blocks=blocks,
+            study_start=state.today.override_start if moved else state.commitment.start_minute,
+            day_type=state.today.day_type,
+        )
+    promise = promises.promise_of(ctx.db, ctx.user)
+    time = promise.time_on(day) if promise.promised_on(day) else None
     return gen_ui.DayCard(
-        date=today.isoformat(),
-        blocks=[
-            gen_ui.DayBlock(title=t, kind=k, start_minute=a, end_minute=b)
-            for t, k, a, b in coach.today_blocks(ctx.db, ctx.user, today)
-        ],
-        study_start=state.today.override_start if moved else state.commitment.start_minute,
-        day_type=state.today.day_type,
+        date=day.isoformat(),
+        blocks=blocks,
+        study_start=time[0] if time else None,
+        day_type=coach.day_type_on(ctx.db, ctx.user, day),
     )
 
 
@@ -706,7 +815,7 @@ def show(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     card: BaseModel | None
     try:
         if component == "day":
-            card = _day_card(ctx)
+            card = _day_card(ctx, args.get("date"))
         elif component == "words":
             card = _words_card(ctx)
         elif component == "day_check":
@@ -753,19 +862,27 @@ def propose_reminders(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
     return ToolResult(card, {"current": current, "changes": changes, "saved": False})
 
 
+def get_stats(ctx: ToolContext, args: Mapping[str, Any]) -> ToolResult:
+    from app.services import mentor  # the mentor imports this module
+
+    return ToolResult(None, {"stats": mentor.stats_for(ctx.db, ctx.user, ctx.now, ctx.zone)})
+
+
 RUNNERS = {
+    "get_stats": get_stats,
     **{name: _reader(name) for name in mentor_lookups.LOOKUPS},
     "propose_reminders": propose_reminders,
     "show": show,
     "remember": remember,
     "recall": recall,
     "propose_exception": propose_exception,
+    "change_day": change_day,
     "offer_replies": offer_replies,
     "what_now": what_now,
     "suggest_activity": suggest_activity,
     "get_week_plan": get_week_plan,
     "propose_goal": propose_goal,
-    "propose_schedule": propose_schedule,
+    "set_schedule": set_schedule,
     "propose_study_times": propose_study_times,
 }
 
