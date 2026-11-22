@@ -123,6 +123,7 @@
 }
 
 .scoreBar {
+  position: relative;
   flex: none;
   width: clamp(48px, 18%, 96px);
   height: 8px;
@@ -141,6 +142,16 @@
 /* Short of the pass mark: calm, as on the result's ring. The heading says it in words. */
 .scoreBar[data-short] span {
   background: var(--color-text-muted);
+}
+
+/* The pass mark on the bar: a thin dark line the score has to reach. */
+.passTick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--color-text);
 }
 
 .score {
@@ -192,6 +203,14 @@
 .clock[data-low] {
   color: var(--color-text);
   font-weight: var(--weight-display);
+}
+
+/* A save that keeps failing: said quietly, the answers stay on the device and keep trying. */
+.saving {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  text-align: center;
 }
 
 .runError {

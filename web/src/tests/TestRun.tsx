@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SpellingExercise } from '../lesson/SpellingExercise.tsx';
 import { LessonProgress } from '../lesson/LessonProgress.tsx';
 import lesson from '../lesson/LessonScreen.module.css';
 import { api, ApiError, describeError } from '../lib/api.ts';
 import { clockText, rememberRunningTest } from '../lib/groupTests.ts';
-import type { TestAttempt } from '../lib/types.ts';
+import type { TestAttempt, TestWordState } from '../lib/types.ts';
 import { Dialog } from '../ui/Dialog.tsx';
 import { CloseIcon, MusicIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import shared from '../groups/Groups.module.css';
+import { SaveQueue, StopSaving } from './saveQueue.ts';
 import { TestCheck } from './TestCheck.tsx';
 import { TestResult } from './TestResult.tsx';
 import { useSecondsLeft } from './useSecondsLeft.ts';
@@ -29,10 +30,11 @@ interface TestRunProps {
 }
 
 /**
- * Taking a test or a practice (ADR 0046, 0068): the lesson's screen and spelling card, one word at a
- * time in the order the server keeps, with nothing said about each until the end. «Назад» and
- * «Дальше» walk through the words, saving each answer, which stays changeable; «Пропустить» leaves a
- * word empty. After the last word a check shows every word's state, and «Сдать» hands it in. At zero
+ * Taking a test or a practice (ADR 0046, 0069): the lesson's screen and spelling card, one word at a
+ * time in the order the server keeps, with nothing said about each until the end. Every word's card
+ * arrives with the attempt, so «Назад», «Дальше» and «Пропустить» move at once, on the device, and
+ * answers save behind them in order (`SaveQueue`); the tiles never wait for the network. After the
+ * last word a check shows every word's state, and «Сдать» hands in once everything is saved. At zero
  * the tiles lock, a word fully built is saved, and the server hands in what it has.
  */
 export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRunProps) {
@@ -40,35 +42,68 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   const [gone, setGone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [position, setPosition] = useState(initial?.position ?? 0);
   // After the last word: every word's state, and the way to hand in.
   const [checking, setChecking] = useState(false);
+  // What this device has given each word (key → answer; null: skipped), ahead of the server.
+  const [given, setGiven] = useState<Map<string, string | null>>(() => new Map());
   const draft = useRef<string | null>(null);
   const askedAtZero = useRef(false);
 
-  const call = useCallback(async (action: () => Promise<TestAttempt>, then?: (got: TestAttempt) => void) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const got = await action();
-      setAttempt(got);
-      then?.(got);
-    } catch (caught) {
-      // Erased by a change of the test's words, or the deck was taken back.
-      if (caught instanceof ApiError && caught.status === 404) setGone(true);
-      else setError(describeError(caught));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
-  // Not through `call`: nothing is on screen yet to mark as busy.
-  const load = useCallback(
+  // The attempt being taken: the one opened, or a new practice started from its result.
+  const liveId = attempt?.id ?? attemptId;
+  const queue = useMemo(
     () =>
-      api.testAttempt(attemptId).then(setAttempt, (caught: unknown) => {
+      new SaveQueue(async ({ key, answer }) => {
+        try {
+          const saved = await api.saveTestAnswer(liveId, key, answer, 0);
+          // Only a finished attempt changes the screen; a running one is already ahead here.
+          if (saved.result) setAttempt(saved);
+        } catch (caught) {
+          // Erased by a change of the test's words, or the deck was taken back.
+          if (caught instanceof ApiError && caught.status === 404) {
+            setGone(true);
+            throw new StopSaving();
+          }
+          throw caught;
+        }
+      }, setTrouble),
+    [liveId],
+  );
+
+  /** Saves what is waiting, then asks the server: handing in, or the time being up. */
+  const finish = useCallback(
+    async (action: () => Promise<TestAttempt>) => {
+      setBusy(true);
+      setError(null);
+      try {
+        await queue.idle();
+        setAttempt(await action());
+      } catch (caught) {
         if (caught instanceof ApiError && caught.status === 404) setGone(true);
         else setError(describeError(caught));
-      }),
+      } finally {
+        setBusy(false);
+      }
+    },
+    [queue],
+  );
+
+  // Not through `finish`: nothing is on screen yet to mark as busy.
+  const load = useCallback(
+    () =>
+      api.testAttempt(attemptId).then(
+        (got) => {
+          setAttempt(got);
+          setPosition(got.position ?? 0);
+        },
+        (caught: unknown) => {
+          if (caught instanceof ApiError && caught.status === 404) setGone(true);
+          else setError(describeError(caught));
+        },
+      ),
     [attemptId],
   );
   const hasInitial = initial !== undefined;
@@ -81,32 +116,46 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
     if (currentId) rememberRunningTest({ groupId, deckId, attemptId: currentId });
   }, [groupId, deckId, currentId]);
 
+  // Every word as this device knows it: the server's, with what was given here on top.
+  const words: TestWordState[] = useMemo(
+    () =>
+      (attempt?.words ?? []).map((word) =>
+        given.has(word.exercise.id)
+          ? {
+              ...word,
+              answer: given.get(word.exercise.id) ?? null,
+              state: given.get(word.exercise.id) === null ? 'skipped' : 'answered',
+            }
+          : word,
+      ),
+    [attempt, given],
+  );
+  const current = words[position] ?? null;
+
   const left = useSecondsLeft(attempt?.deadline_at ?? null);
   const timeUp = left === 0;
-  const question = attempt?.question ?? null;
-  const position = attempt?.position ?? 0;
+  const running = !!attempt && !attempt.result;
   useEffect(() => {
-    if (!timeUp || !attempt || attempt.result || !question || busy || error) return;
+    if (!timeUp || !attempt || attempt.result || busy || error) return;
     const timer = setTimeout(
       () => {
         const last = draft.current;
         draft.current = null;
+        if (last && current && last !== current.answer) queue.push({ key: current.exercise.id, answer: last });
         askedAtZero.current = true;
-        // Past the deadline the server hands in whatever it has, this last word included.
-        void call(() =>
-          last && last !== attempt.answer
-            ? api.saveTestAnswer(attempt.id, question.id, last, position)
-            : api.testAttempt(attempt.id, position),
-        );
+        // Past the deadline the server hands in whatever it has.
+        void finish(() => api.testAttempt(attempt.id));
       },
       askedAtZero.current ? ASK_AGAIN_MS : 0,
     );
     return () => clearTimeout(timer);
-  }, [timeUp, attempt, question, position, busy, error, call]);
+  }, [timeUp, attempt, current, busy, error, finish, queue]);
 
   // Quiz-show music while the words are being answered; faster in a test's last minute.
-  const answering = !!attempt && !attempt.result && !!question && !gone && !timeUp;
-  const [musicOn, toggleMusic] = useTestMusic(answering, attempt?.kind === 'test' && left !== null && left <= 60);
+  const [musicOn, toggleMusic] = useTestMusic(
+    running && !gone && !timeUp,
+    attempt?.kind === 'test' && left !== null && left <= 60,
+  );
 
   const mainRef = useRef<HTMLElement>(null);
   const setDraft = useCallback((answer: string | null) => {
@@ -144,34 +193,47 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
         result={attempt.result}
         busy={busy}
         error={error}
-        onAgain={() =>
-          void call(
-            () => api.startTestAttempt(groupId, deckId, 'practice'),
-            () => setChecking(false),
-          )
-        }
+        onAgain={() => {
+          // A new practice: a new attempt, so a new screen (and a new queue) from its first word.
+          setBusy(true);
+          api.startTestAttempt(groupId, deckId, 'practice').then(
+            (next) => {
+              setBusy(false);
+              setAttempt(next);
+              setGiven(new Map());
+              setPosition(next.position ?? 0);
+              setChecking(false);
+            },
+            (caught: unknown) => {
+              setBusy(false);
+              setError(describeError(caught));
+            },
+          );
+        }}
         onDone={onDone}
       />
     );
   }
 
   const last = attempt.total - 1;
-  /** Saves this word (or leaves it as saved) and shows another; past the last one, the check. */
+  /** Keeps an answer for this word (saved behind the screen) and shows another; past the last, the check. */
   const move = (answer: string | null | undefined, to: number) => {
-    if (!question) return;
-    const review = to > last;
-    const at = Math.min(Math.max(to, 0), last);
+    if (!current) return;
+    const key = current.exercise.id;
     // A skip is saved even on a word never answered, so the check can tell it from one not reached.
-    const skipping = answer === null && attempt.words[position]?.state !== 'skipped';
-    const changed = skipping || (answer !== undefined && answer !== attempt.answer);
-    void call(
-      () => (changed ? api.saveTestAnswer(attempt.id, question.id, answer, at) : api.testAttempt(attempt.id, at)),
-      () => setChecking(review),
-    );
+    const changed = answer === null ? current.state !== 'skipped' : answer !== undefined && answer !== current.answer;
+    if (changed) {
+      setGiven((was) => new Map(was).set(key, answer ?? null));
+      queue.push({ key, answer: answer ?? null });
+    }
+    draft.current = null;
+    if (to > last) setChecking(true);
+    else setPosition(Math.max(0, to));
   };
   // Going back keeps a word fully built; one half-built stays on the device as it was.
   const back = () => move(draft.current ?? undefined, position - 1);
   const timed = attempt.kind === 'test';
+  const answered = words.filter((word) => word.state !== 'empty').length;
 
   return (
     <div className={lesson.screen}>
@@ -185,7 +247,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
           >
             <CloseIcon />
           </button>
-          <LessonProgress answered={attempt.answered} total={attempt.total} />
+          <LessonProgress answered={answered} total={attempt.total} />
           {left !== null && (
             <p className={styles.clock} role="timer" data-low={left <= 60 || undefined}>
               {clockText(left)}
@@ -205,20 +267,23 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
       <main ref={mainRef} className={lesson.main}>
         {checking ? (
           <TestCheck
-            attempt={attempt}
+            words={words}
             busy={busy || timeUp}
-            onOpen={(index) => move(undefined, index)}
+            onOpen={(index) => {
+              setChecking(false);
+              setPosition(index);
+            }}
             onBack={() => setChecking(false)}
-            onHandIn={() => void call(() => api.submitTest(attempt.id))}
+            onHandIn={() => void finish(() => api.submitTest(attempt.id))}
           />
         ) : (
-          question && (
-            <div key={question.id} className={lesson.cardWrap}>
+          current && (
+            <div key={current.exercise.id} className={lesson.cardWrap}>
               <SpellingExercise
-                exercise={question}
-                storageKey={`test:${attempt.id}:${question.id}`}
-                savedAnswer={attempt.answer}
-                busy={busy || timeUp}
+                exercise={current.exercise}
+                storageKey={`test:${attempt.id}:${current.exercise.id}`}
+                savedAnswer={current.answer}
+                busy={timeUp}
                 result={null}
                 eyebrow={`${timed ? t.test : t.practice} · ${t.testWordOf(position + 1, attempt.total)}`}
                 submitLabel={position === last ? t.testToCheck : t.next}
@@ -230,6 +295,11 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
               />
             </div>
           )
+        )}
+        {trouble && !error && (
+          <p className={styles.saving} role="status">
+            {t.testSavingRetry}
+          </p>
         )}
         {error && (
           <div className={styles.runError}>

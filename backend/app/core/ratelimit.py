@@ -123,3 +123,15 @@ def reset_limits() -> None:
     """For tests."""
     with _lock:
         _recent.clear()
+
+
+def limit_new_pronunciations(user_id: UUID, settings: Settings) -> None:
+    """Each new text is one paid call to the voice; texts already made are free and unlimited."""
+    _check(
+        "pronunciations",
+        user_id,
+        settings.pronunciations_per_day,
+        "Too many new words spoken today; try again tomorrow",
+        window=24 * 60 * 60,
+        code="pronunciation_limit",
+    )

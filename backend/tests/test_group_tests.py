@@ -1485,8 +1485,9 @@ def test_back_shows_the_previous_word_with_its_saved_answer(client: TestClient) 
 
     back = _go(client, attempt, 0)
     assert back["question"]["id"] == first_key and back["answer"] == first
-    # The meaning is all a word shows; never the word itself.
-    assert first not in str(back["words"]) and first not in str(back["question"])
+    # The meaning is all a word shows; never the word itself (only what the student wrote).
+    cards = [w["exercise"] for w in back["words"]] + [back["question"]]
+    assert first not in json.dumps(cards)
 
 
 def test_an_answer_can_be_changed_until_it_is_handed_in(client: TestClient) -> None:
@@ -1579,3 +1580,25 @@ def test_my_attempts_are_all_kept_newest_first(client: TestClient) -> None:
     assert old["result"]["correct"] == 1 and len(old["result"]["mistakes"]) == 1
     # Mine alone: someone else's page lists only theirs.
     assert room.detail("ivan")["mine"]["history"] == []
+
+
+def test_every_word_comes_with_its_card_so_the_device_never_waits(client: TestClient) -> None:
+    room = Class(client, ["setback", "bargain", "harvest"])
+    room.ready()
+    attempt = room.start("pavel").json()
+    keys = _keys(attempt["id"])
+    cards = [word["exercise"] for word in attempt["words"]]
+    assert [card["id"] for card in cards] == keys  # in the attempt's own order
+    assert cards[0] == attempt["question"]  # the same card a single question shows
+    for card in cards:
+        # Every letter of its word is among its tiles (with a few decoys).
+        assert not Counter(right_word(attempt["id"], card["id"])) - Counter(card["tiles"])
+    # Never a word, never a word id, anywhere in it.
+    body = json.dumps(attempt)
+    for word in ["setback", "bargain", "harvest"]:
+        assert f'"{word}"' not in body
+    for word_id in order_of(attempt["id"]):
+        assert word_id not in body
+    # A saved answer comes back with its word.
+    saved = _save(client, attempt, "zzz", at=1)
+    assert [w["answer"] for w in saved["words"]] == ["zzz", None, None]

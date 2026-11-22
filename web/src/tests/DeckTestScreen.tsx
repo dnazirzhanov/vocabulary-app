@@ -189,8 +189,8 @@ export function DeckTestScreen({ groupId, deckId, onRun, onBack }: DeckTestScree
             )}
           </div>
 
-          <Results title={t.passedIt} state="done" rows={detail.passed} />
-          <Results title={t.didnTPass} state="missed" rows={detail.failed} />
+          <Results title={t.passedIt} state="done" rows={detail.passed} passPercent={test?.pass_percent ?? null} />
+          <Results title={t.didnTPass} state="missed" rows={detail.failed} passPercent={test?.pass_percent ?? null} />
           {/* Nobody is behind on a test that has never been open. */}
           {(test?.is_open || detail.passed.length + detail.failed.length > 0) && <NotTaken rows={detail.not_taken} />}
           <History
@@ -266,8 +266,13 @@ function when(iso: string): string {
 }
 
 /** One card, a quiet row a person: their name, and their score as a bar and in words. */
-function Results(props: { title: string; state: 'done' | 'missed'; rows: TestResultRow[] }) {
-  const { title, state, rows } = props;
+function Results(props: {
+  title: string;
+  state: 'done' | 'missed';
+  rows: TestResultRow[];
+  passPercent: number | null;
+}) {
+  const { title, state, rows, passPercent } = props;
   if (rows.length === 0) return null;
   return (
     <section aria-label={title} className={styles.results}>
@@ -280,6 +285,8 @@ function Results(props: { title: string; state: 'done' | 'missed'; rows: TestRes
               <>
                 <span className={styles.scoreBar} data-short={!row.score.passed || undefined} aria-hidden="true">
                   <span style={{ width: `${(row.score.correct / row.score.total) * 100}%` }} />
+                  {/* The pass mark: how far the bar had to reach. */}
+                  {passPercent !== null && <i className={styles.passTick} style={{ left: `${passPercent}%` }} />}
                 </span>
                 <span className={styles.score}>{scoreText(row.score)}</span>
               </>

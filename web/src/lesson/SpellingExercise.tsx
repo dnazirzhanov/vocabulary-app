@@ -11,6 +11,7 @@ import {
   savedHeard,
   slotWords,
   savedPicks,
+  letterOfKey,
   tileForKey,
   withSeparators,
 } from '../lib/spelling.ts';
@@ -150,7 +151,7 @@ export function SpellingExercise({
         setPicked(backspace);
         return;
       }
-      const tile = tileForKey(exercise.tiles, picked, event.key);
+      const tile = tileForKey(exercise.tiles, picked, letterOfKey(event.key, event.code));
       if (tile !== null) setPicked((current) => pick(current, tile, exercise.slots));
     };
     window.addEventListener('keydown', onKeyDown);
