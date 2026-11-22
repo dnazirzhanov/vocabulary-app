@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { differences } from '../lib/spelling.ts';
-import { scoreText } from '../lib/groupTests.ts';
+import { percentOf, scoreText } from '../lib/groupTests.ts';
 import type { TestAttempt } from '../lib/types.ts';
 import summary from '../summary/SessionSummary.module.css';
 import { Celebration } from '../ui/Celebration.tsx';
@@ -47,6 +47,7 @@ function ScoreRing({ result }: { result: Result }) {
       <span className={styles.score} aria-hidden="true">
         <strong>{result.correct}</strong>
         <small>{t.ofTotal(result.total)}</small>
+        <small className={styles.percent}>{percentOf(result.correct, result.total)}%</small>
       </span>
     </div>
   );

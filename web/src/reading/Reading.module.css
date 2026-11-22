@@ -278,6 +278,18 @@
   flex: 1;
 }
 
+/* Time spent reading: quiet ink, steady digits, beside «‹». */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
 .barButton {
   display: grid;
   place-items: center;

@@ -227,3 +227,17 @@
   font-weight: var(--weight-strong);
   text-align: center;
 }
+
+/* A section with its own sidebar (the mentor's chats): the app's sidebar steps aside. */
+@media (min-width: 1024px) {
+  .shell[data-focused] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'content'
+      'offline';
+  }
+
+  .shell[data-focused] .nav {
+    display: none;
+  }
+}
