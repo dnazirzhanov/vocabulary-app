@@ -11,6 +11,9 @@ export interface Task {
   repeat_until: string | null;
   priority: 0 | 1 | 2 | 3;
   kind: 'task' | 'study';
+  /** A group's task (ADR 0085): its teacher sets it, I tick it for myself. */
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 export type MarkState = 'done' | 'skipped';
@@ -50,4 +53,6 @@ export const tasksApi = {
   mark: (id: string, on: string, state: MarkState = 'done') =>
     request<null>('PUT', `/tasks/${id}/marks/${on}`, { state }),
   unmark: (id: string, on: string) => request<null>('DELETE', `/tasks/${id}/marks/${on}`),
+  /** A task for a whole group, by its teacher (ADR 0085). */
+  createForGroup: (groupId: string, body: TaskInput) => request<Task>('POST', `/groups/${groupId}/tasks`, body),
 };

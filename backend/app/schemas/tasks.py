@@ -47,6 +47,9 @@ class TaskOut(BaseModel):
     repeat_until: date | None
     priority: int
     kind: Kind
+    # A group's task (ADR 0085): set by its teacher, ticked by each member for themselves.
+    group_id: uuid.UUID | None = None
+    group_name: str | None = None
 
 
 class TaskItemOut(BaseModel):
@@ -65,3 +68,15 @@ class TasksOut(BaseModel):
 
 class MarkIn(BaseModel):
     state: MarkState = "done"
+
+
+class GroupTaskOut(BaseModel):
+    """A group's task on its board (ADR 0085): which days of the group's week it is on, and each
+    member's mark on each of them."""
+
+    task: TaskOut
+    on_today: bool
+    # Seven booleans, the group's week from Monday: whether the task falls on that day.
+    week: list[bool]
+    # member_id → seven marks («done», «skipped» or null), the same days.
+    marks: dict[str, list[MarkState | None]]

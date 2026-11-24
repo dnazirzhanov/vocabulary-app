@@ -19,6 +19,8 @@ RIGHTS: Final[dict[Action, frozenset[str]]] = {
     "transfer_ownership": frozenset({"owner"}),
     "delete_group": frozenset({"owner"}),
     "manage_tests": frozenset({"owner"}),
+    # A group's to-do list (ADR 0085): the teacher sets it; members tick their own.
+    "manage_tasks": frozenset({"owner"}),
 }
 
 

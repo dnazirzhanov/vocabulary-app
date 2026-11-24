@@ -274,6 +274,7 @@ def test_each_role_is_told_what_it_may_do(client: TestClient) -> None:
         "remove_member",
         "transfer_ownership",
         "manage_tests",
+        "manage_tasks",
         "delete_group",
     }
     (theirs,) = client.get("/api/groups", headers=as_("pavel")).json()

@@ -18,6 +18,7 @@ Action = Literal[
     "transfer_ownership",
     "delete_group",
     "manage_tests",
+    "manage_tasks",
 ]
 
 GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=40)]
@@ -199,3 +200,10 @@ class BoardOut(BaseModel):
     # Whether any of the group's decks has a test yet (ADR 0046).
     has_tests: bool = False
     latest_test: LatestTestOut | None = None
+    # The group's to-do list this week (ADR 0085), with each member's marks.
+    tasks: list["GroupTaskOut"] = []
+
+
+from app.schemas.tasks import GroupTaskOut  # noqa: E402  (tasks imports nothing from groups)
+
+BoardOut.model_rebuild()

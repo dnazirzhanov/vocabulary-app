@@ -14,12 +14,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import Task, TaskMark, User
-from app.schemas.tasks import TaskIn, TaskItemOut, TaskOut, TaskPatch
+from app.models import Group, GroupMember, Task, TaskMark, User
+from app.schemas.tasks import GroupTaskOut, TaskIn, TaskItemOut, TaskOut, TaskPatch
+from app.services import group_rights
 
 MAX_RANGE_DAYS = 62
 
@@ -46,7 +47,7 @@ def days(start: date, end: date) -> Iterable[date]:
         day += timedelta(days=1)
 
 
-def out(task: Task) -> TaskOut:
+def out(task: Task, group_name: str | None = None) -> TaskOut:
     return TaskOut(
         id=task.id,
         title=task.title,
@@ -57,6 +58,8 @@ def out(task: Task) -> TaskOut:
         repeat_until=task.repeat_until,
         priority=task.priority,
         kind=task.kind,
+        group_id=task.group_id,
+        group_name=group_name,
     )
 
 
@@ -80,22 +83,45 @@ def _marks(db: Session, user: User, tasks: list[Task]) -> Marks:
 
 
 def mine(db: Session, user: User) -> list[Task]:
-    return list(db.scalars(select(Task).where(Task.user_id == user.id, Task.deleted_at.is_(None))))
+    """My own tasks and my groups' (ADR 0085)."""
+    groups = select(GroupMember.group_id).where(GroupMember.user_id == user.id)
+    return list(
+        db.scalars(
+            select(Task).where(
+                or_(Task.user_id == user.id, Task.group_id.in_(groups)),
+                Task.deleted_at.is_(None),
+            )
+        )
+    )
+
+
+def group_names(db: Session, tasks: list[Task]) -> dict[uuid.UUID, str]:
+    ids = {t.group_id for t in tasks if t.group_id}
+    if not ids:
+        return {}
+    return dict(db.execute(select(Group.id, Group.name).where(Group.id.in_(ids))).tuples().all())
 
 
 def items(
-    tasks: list[Task], marks: Marks, start: date, end: date, today: date
+    tasks: list[Task],
+    marks: Marks,
+    start: date,
+    end: date,
+    today: date,
+    names: dict[uuid.UUID, str] | None = None,
 ) -> list[TaskItemOut]:
     """What «Планы» shows for [start, end]: each day's tasks; and, when the range reaches today,
     overdue one-offs and «Входящие»."""
     found: list[TaskItemOut] = []
+    names = names or {}
     for task in tasks:
         if task.deleted_at is not None:
             continue
+        shown = out(task, names.get(task.group_id) if task.group_id else None)
         if task.due_on is None:
             if start <= today <= end:
                 state = "done" if task.id in marks.done_once else None
-                found.append(TaskItemOut(task=out(task), on=None, state=state))
+                found.append(TaskItemOut(task=shown, on=None, state=state))
             continue
         if not task.repeat_mask:
             done = task.id in marks.done_once
@@ -103,19 +129,19 @@ def items(
                 state = "done" if done else marks.by_day.get((task.id, task.due_on))
                 found.append(
                     TaskItemOut(
-                        task=out(task),
+                        task=shown,
                         on=task.due_on,
                         state=state,
                         overdue=not done and task.due_on < today,
                     )
                 )
             elif task.due_on < start and not done and start <= today <= end:
-                found.append(TaskItemOut(task=out(task), on=task.due_on, state=None, overdue=True))
+                found.append(TaskItemOut(task=shown, on=task.due_on, state=None, overdue=True))
             continue
         for day in days(max(start, task.due_on), end):
             if falls_on(task, day):
                 state = marks.by_day.get((task.id, day))
-                found.append(TaskItemOut(task=out(task), on=day, state=state))
+                found.append(TaskItemOut(task=shown, on=day, state=state))
     return found
 
 
@@ -123,19 +149,44 @@ def listed(db: Session, user: User, start: date, end: date, today: date) -> list
     if end < start or (end - start).days >= MAX_RANGE_DAYS:
         raise ApiError(422, "bad_range", f"A range is 1 to {MAX_RANGE_DAYS} days")
     tasks = mine(db, user)
-    return items(tasks, _marks(db, user, tasks), start, end, today)
+    return items(tasks, _marks(db, user, tasks), start, end, today, group_names(db, tasks))
 
 
-def _own(db: Session, user: User, task_id: uuid.UUID) -> Task:
+def _own(db: Session, user: User, task_id: uuid.UUID, edit: bool = True) -> Task:
+    """A task I may change: my own, or my group's if I may manage its tasks. To mark one, being in
+    the group is enough. Anyone else's looks like no task at all."""
     task = db.get(Task, task_id)
-    if task is None or task.deleted_at is not None or task.user_id != user.id:
+    if task is None or task.deleted_at is not None:
         raise ApiError(404, "task_not_found", "No such task")
+    if task.user_id is not None:
+        if task.user_id != user.id:
+            raise ApiError(404, "task_not_found", "No such task")
+        return task
+    role = db.scalar(
+        select(GroupMember.role).where(
+            GroupMember.group_id == task.group_id, GroupMember.user_id == user.id
+        )
+    )
+    if role is None:
+        raise ApiError(404, "task_not_found", "No such task")
+    if edit:
+        group_rights.require(
+            role, "manage_tasks", "not_allowed", "Only the group's teacher sets its tasks"
+        )
     return task
 
 
-def create(db: Session, user: User, body: TaskIn, today: date, now: datetime) -> Task:
+def create(
+    db: Session,
+    user: User,
+    body: TaskIn,
+    today: date,
+    now: datetime,
+    group_id: uuid.UUID | None = None,
+) -> Task:
     task = Task(
-        user_id=user.id,
+        user_id=None if group_id else user.id,
+        group_id=group_id,
         created_by=user.id,
         title=body.title,
         notes=body.notes,
@@ -185,7 +236,8 @@ def update(
     if not falls_on(task, on):
         raise ApiError(422, "not_on_that_day", "The task is not on that day")
     copy = Task(
-        user_id=user.id,
+        user_id=task.user_id,
+        group_id=task.group_id,
         created_by=user.id,
         title=task.title,
         notes=task.notes,
@@ -253,7 +305,7 @@ def _set_mark(db: Session, user: User, task: Task, on: date, state: str, now: da
 def mark(db: Session, user: User, task_id: uuid.UUID, on: date, state: str, now: datetime) -> None:
     """Done or skipped for a day. A dated one-off is marked on its date; one with no date, on any.
     Marking again is harmless."""
-    task = _own(db, user, task_id)
+    task = _own(db, user, task_id, edit=False)
     if task.repeat_mask and not falls_on(task, on):
         raise ApiError(422, "not_on_that_day", "The task is not on that day")
     _set_mark(db, user, task, on, state, now)
@@ -261,7 +313,7 @@ def mark(db: Session, user: User, task_id: uuid.UUID, on: date, state: str, now:
 
 
 def unmark(db: Session, user: User, task_id: uuid.UUID, on: date) -> None:
-    task = _own(db, user, task_id)
+    task = _own(db, user, task_id, edit=False)
     if not task.repeat_mask:
         # A one-off: undone whichever day it was ticked.
         found = db.scalars(
@@ -276,3 +328,53 @@ def unmark(db: Session, user: User, task_id: uuid.UUID, on: date) -> None:
     for row in found:
         db.delete(row)
     db.commit()
+
+
+# --- a group's tasks (ADR 0085) -----------------------------------------------------------
+
+
+def for_group(
+    db: Session, group: Group, member_ids: dict[uuid.UUID, uuid.UUID], week: list[date], today: date
+) -> list[GroupTaskOut]:
+    """The group's tasks that fall in its week, with each member's mark on each day.
+    `member_ids` maps each member's user id to their membership id (the board's key)."""
+    tasks = [
+        t
+        for t in db.scalars(
+            select(Task).where(Task.group_id == group.id, Task.deleted_at.is_(None))
+        )
+        if any(falls_on(t, day) for day in week) or (not t.repeat_mask and t.due_on is None)
+    ]
+    if not tasks:
+        return []
+    marks = db.execute(
+        select(TaskMark.task_id, TaskMark.user_id, TaskMark.on, TaskMark.state).where(
+            TaskMark.task_id.in_([t.id for t in tasks]), TaskMark.user_id.in_(member_ids)
+        )
+    ).all()
+    by = {(task_id, user_id, on): state for task_id, user_id, on, state in marks}
+    done_any = {(task_id, user_id) for task_id, user_id, _, state in marks if state == "done"}
+    found: list[GroupTaskOut] = []
+    for task in sorted(tasks, key=lambda t: (t.start_minute is None, t.start_minute or 0, t.title)):
+        days = [falls_on(task, day) for day in week]
+        member_marks: dict[str, list[str | None]] = {}
+        for user_id, member_id in member_ids.items():
+            if task.repeat_mask:
+                member_marks[str(member_id)] = [
+                    by.get((task.id, user_id, day)) if on else None
+                    for day, on in zip(week, days, strict=True)
+                ]
+            else:
+                # A one-off is done once, whichever day: shown on its day (today, if it has none).
+                where = task.due_on or today
+                state = "done" if (task.id, user_id) in done_any else None
+                member_marks[str(member_id)] = [state if day == where else None for day in week]
+        found.append(
+            GroupTaskOut(
+                task=out(task, group.name),
+                on_today=falls_on(task, today) or (not task.repeat_mask and task.due_on is None),
+                week=days if task.due_on else [day == today for day in week],
+                marks=member_marks,
+            )
+        )
+    return found

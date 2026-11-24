@@ -5,7 +5,7 @@
  */
 import { useRef, useState, type PointerEvent } from 'react';
 import { t } from '../i18n/index.ts';
-import { CheckIcon, ClockIcon, ForwardIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
+import { CheckIcon, ClockIcon, ForwardIcon, PeopleIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
 import type { Item } from './api.ts';
 import { dayLabel, repeatLabel } from './DatePicker.tsx';
 import { hhmm } from './dates.ts';
@@ -30,6 +30,8 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
   const moved = useRef(false);
   const done = item.state === 'done';
   const { task } = item;
+  // A group's task is the teacher's: it can be ticked here, not moved or deleted.
+  const own = !task.group_id;
 
   const down = (e: PointerEvent) => {
     start.current = { x: e.clientX, y: e.clientY, base: dx };
@@ -47,7 +49,7 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
     }
     moved.current = true;
     setSwiping(true);
-    setDx(Math.max(OPEN - 20, Math.min(SWIPE + 40, s.base + x)));
+    setDx(Math.max(own ? OPEN - 20 : 0, Math.min(SWIPE + 40, s.base + x)));
   };
   const up = () => {
     if (!start.current) return;
@@ -63,11 +65,12 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
     task.start_minute !== null ? { icon: <ClockIcon />, text: hhmm(task.start_minute) } : null,
     item.overdue && item.on ? { icon: null, text: dayLabel(item.on, today) } : null,
     task.repeat_mask ? { icon: <RepeatIcon />, text: repeatLabel(task.repeat_mask) } : null,
+    task.group_name ? { icon: <PeopleIcon />, text: task.group_name } : null,
   ].filter((m) => m !== null);
 
   return (
     <li className={styles.rowWrap} data-done={done || undefined} data-open={dx !== 0 || undefined}>
-      <div className={styles.rowActions} aria-hidden={dx === 0}>
+      <div className={styles.rowActions} aria-hidden={dx === 0} hidden={!own}>
         <button
           type="button"
           className={styles.rowActionLater}

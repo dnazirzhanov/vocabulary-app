@@ -34,6 +34,8 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
   const [asking, setAsking] = useState<'save' | 'delete' | null>(null);
   const [busy, setBusy] = useState(false);
   const repeating = task.repeat_mask > 0;
+  // A group's task is its teacher's to change (ADR 0085): here it is read, ticked or skipped.
+  const own = !task.group_id;
 
   useEffect(() => {
     const close = (e: KeyboardEvent) => e.key === 'Escape' && !asking && onClose();
@@ -81,14 +83,17 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
           </button>
           <span className={styles.detailWhen}>{whenLabel(when, today)}</span>
         </header>
+        {!own && <p className={styles.fromGroup}>{t.groupTaskFrom(task.group_name ?? '')}</p>}
         <input
           className={styles.detailTitle}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           aria-label={t.planTaskTitle}
           maxLength={200}
+          readOnly={!own}
         />
         <textarea
+          readOnly={!own}
           className={styles.detailNotes}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -107,7 +112,7 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
           <span>{whenLabel(when, today)}</span>
         </button>
         {picking && <DatePicker value={when} today={today} onChange={setWhen} />}
-        <div className={styles.priorityRow} role="radiogroup" aria-label={t.planPriority}>
+        <div className={styles.priorityRow} role="radiogroup" aria-label={t.planPriority} hidden={!own}>
           {t.planPriorities.map((label, p) => (
             <button
               key={label}
@@ -123,26 +128,30 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
           ))}
         </div>
         <footer className={styles.detailFoot}>
-          <button
-            type="button"
-            className={styles.textDanger}
-            onClick={() => (repeating ? setAsking('delete') : onDelete('all'))}
-          >
-            <TrashIcon aria-hidden="true" /> {t.planDelete}
-          </button>
+          {own && (
+            <button
+              type="button"
+              className={styles.textDanger}
+              onClick={() => (repeating ? setAsking('delete') : onDelete('all'))}
+            >
+              <TrashIcon aria-hidden="true" /> {t.planDelete}
+            </button>
+          )}
           {repeating && item.on && (
             <button type="button" className={styles.textBtn} onClick={onSkip}>
               {t.planSkipDay}
             </button>
           )}
-          <button
-            type="button"
-            className={styles.saveBtn}
-            disabled={!changed || !title.trim() || busy}
-            onClick={() => (repeating ? setAsking('save') : void save('all'))}
-          >
-            {t.planSave}
-          </button>
+          {own && (
+            <button
+              type="button"
+              className={styles.saveBtn}
+              disabled={!changed || !title.trim() || busy}
+              onClick={() => (repeating ? setAsking('save') : void save('all'))}
+            >
+              {t.planSave}
+            </button>
+          )}
         </footer>
       </section>
       <Dialog

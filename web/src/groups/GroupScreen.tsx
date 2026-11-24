@@ -9,6 +9,7 @@ import { Dialog } from '../ui/Dialog.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
 import { DeleteGroup } from './DeleteGroup.tsx';
+import { GroupTasks } from './GroupTasks.tsx';
 import { GroupTitle } from './GroupTitle.tsx';
 import { InviteDialog } from './InviteDialog.tsx';
 import { LeaveGroup } from './LeaveGroup.tsx';
@@ -109,6 +110,8 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onTests
               <ForwardIcon aria-hidden="true" />
             </button>
           )}
+
+          <GroupTasks board={board} onChanged={() => void load()} />
 
           <section aria-labelledby="today-title" className={styles.section}>
             <div className={styles.sectionHead}>
