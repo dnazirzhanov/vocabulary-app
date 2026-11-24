@@ -60,7 +60,7 @@ test('the teacher gives a task; the student ticks it in «Планы»; the grou
   await expect(sheet.getByRole('button', { name: 'Сохранить' })).toHaveCount(0);
   await mashaPage.keyboard.press('Escape');
   await row.getByRole('checkbox', { name: 'Выполнить: Повторять слова' }).click();
-  await expect(mashaPage.getByRole('button', { name: 'Выполнено · 1' })).toBeVisible();
+  await expect(row.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
 
   // The teacher sees it: «1 из 1», and Masha's dot for today filled.
   await page.reload();

@@ -3,7 +3,7 @@
  * its time, repeat and date. Swipe right to tick it; swipe left for «На завтра» and «Удалить».
  * Every swipe has a button too, so nothing needs a gesture.
  */
-import { useRef, useState, type PointerEvent } from 'react';
+import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { t } from '../i18n/index.ts';
 import { BookIcon, CheckIcon, ClockIcon, ForwardIcon, PeopleIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
 import type { Item } from './api.ts';
@@ -12,6 +12,8 @@ import styles from './Planner.module.css';
 
 interface Props {
   item: Item;
+  /** Just ticked: the box pops and sparks fly from it (ADR 0088). */
+  burst?: boolean;
   today: string;
   onToggle: (item: Item) => void;
   onOpen: (item: Item) => void;
@@ -22,7 +24,7 @@ interface Props {
 const SWIPE = 72;
 const OPEN = -132;
 
-export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }: Props) {
+export function TaskRow({ item, today, burst = false, onToggle, onOpen, onTomorrow, onDelete }: Props) {
   const [dx, setDx] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const start = useRef<{ x: number; y: number; base: number } | null>(null);
@@ -69,7 +71,12 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
   ].filter((m) => m !== null);
 
   return (
-    <li className={styles.rowWrap} data-done={done || undefined} data-open={dx !== 0 || undefined}>
+    <li
+      className={styles.rowWrap}
+      data-done={done || undefined}
+      data-open={dx !== 0 || undefined}
+      data-burst={burst || undefined}
+    >
       <div className={styles.rowActions} aria-hidden={dx === 0} hidden={!own}>
         <button
           type="button"
@@ -110,6 +117,13 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
           onClick={() => onToggle(item)}
         >
           {done && <CheckIcon aria-hidden="true" />}
+          {burst && (
+            <span className={styles.sparks} aria-hidden="true">
+              {Array.from({ length: 8 }, (_, i) => (
+                <i key={i} style={{ '--a': `${i * 45}deg` } as CSSProperties} />
+              ))}
+            </span>
+          )}
         </button>
         <button
           type="button"

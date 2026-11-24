@@ -1157,7 +1157,6 @@ export const kk: Messages = {
   planToday: 'Бүгін',
   planUpcoming: 'Алдағылар',
   planOverdue: 'Мерзімі өткен',
-  planDone: (n: number) => `Орындалды · ${n}`,
   planEmptyDay: 'Бұл күнге тапсырма жоқ',
   planAllDone: 'Бүгінгінің бәрі орындалды',
   planEmptyHint: 'Тапсырма қосу үшін «+» басыңыз. Күні мен уақытын жолдың ішіне жаза беріңіз:',

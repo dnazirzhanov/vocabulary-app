@@ -1176,7 +1176,6 @@ export const en: Messages = {
   planToday: 'Today',
   planUpcoming: 'Upcoming',
   planOverdue: 'Overdue',
-  planDone: (n: number) => `Completed · ${n}`,
   planEmptyDay: 'No tasks for this day',
   planAllDone: 'Everything for today is done',
   planEmptyHint: 'Tap «+» to add a task. You can type the date and time right in the line:',

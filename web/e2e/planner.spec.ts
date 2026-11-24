@@ -49,14 +49,43 @@ test('a daily study task typed in one line: ticked, undone, and there again tomo
   await page.getByRole('button', { name: 'Отменить' }).click();
   await expect(task.getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
   await task.getByRole('checkbox').click();
-  await expect(page.getByRole('button', { name: 'Выполнено · 1' })).toBeVisible();
+  // Done, it stays in its place, crossed out; the day's only task, so the day is celebrated.
+  await expect(task.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
+  await expect(task).toHaveAttribute('data-done', 'true');
+  await expect(page.locator('[data-celebration]')).toBeAttached();
 
   // Tomorrow it is there again, not done; and it stayed done today after a reload.
   await page.getByRole('group', { name: 'Дата' }).getByRole('button', { name: 'Завтра' }).click();
   await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
-  await expect(page.getByRole('button', { name: 'Выполнено · 1' })).toBeVisible();
+  await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
+});
+
+test('ticking one of several: it pops with sparks and stays in place; the last one brings confetti', async ({
+  page,
+}) => {
+  await openPlans(page);
+  const box = await quickAdd(page, 'Слова в 8:00');
+  await box.press('Enter');
+  await box.fill('Чтение в 20:00');
+  await box.press('Enter');
+  await page.keyboard.press('Escape');
+  const titles = page.getByRole('region', { name: 'Сегодня', exact: true }).getByRole('listitem');
+  await expect(titles).toHaveText([/Слова/, /Чтение/]);
+
+  await row(page, 'Слова').getByRole('checkbox').click();
+  await expect(row(page, 'Слова')).toHaveAttribute('data-burst', 'true');
+  await expect(page.locator('[data-celebration]')).toHaveCount(0); // one is still left
+  // Still first in the list, crossed out, not moved away.
+  await expect(titles).toHaveText([/Слова/, /Чтение/]);
+  await expect(titles.first()).toHaveAttribute('data-done', 'true');
+
+  await row(page, 'Чтение').getByRole('checkbox').click();
+  await expect(page.locator('[data-celebration]')).toBeAttached();
+  // The course's words still wait in «Учёба на сегодня»: so not «всё сделано» yet.
+  await expect(page.getByRole('region', { name: 'Учёба на сегодня' })).toBeVisible();
+  await expect(page.getByText('Всё на сегодня сделано')).toHaveCount(0);
 });
 
 test('a task for tomorrow, then «Предстоящие»; edited, then deleted', async ({ page }) => {
@@ -138,7 +167,6 @@ test('the empty day offers a study task; a lesson ticks it «по занятию
   await finishSession(page);
   await button(page, 'На главную').click();
   await page.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
-  await page.getByRole('button', { name: 'Выполнено · 1' }).click();
   const done = row(page, 'Английский');
   await expect(done.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
   await expect(done).toContainText('по занятию');

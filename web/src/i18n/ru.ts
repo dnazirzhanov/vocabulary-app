@@ -1182,7 +1182,6 @@ export const ru = {
   planToday: 'Сегодня',
   planUpcoming: 'Предстоящие',
   planOverdue: 'Просрочено',
-  planDone: (n: number) => `Выполнено · ${n}`,
   planEmptyDay: 'На этот день задач нет',
   planAllDone: 'Всё на сегодня сделано',
   planEmptyHint: 'Нажмите «+», чтобы добавить задачу. Дату и время можно написать прямо в строке:',

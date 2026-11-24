@@ -1161,7 +1161,6 @@ export const tg: Messages = {
   planToday: 'Имрӯз',
   planUpcoming: 'Пешорӯ',
   planOverdue: 'Мӯҳлаташ гузашта',
-  planDone: (n: number) => `Иҷро шуд · ${n}`,
   planEmptyDay: 'Барои ин рӯз вазифа нест',
   planAllDone: 'Ҳамаи корҳои имрӯз иҷро шуд',
   planEmptyHint: 'Барои илова кардани вазифа «+»-ро пахш кунед. Сана ва вақтро дар худи сатр навиштан мумкин:',
