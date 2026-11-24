@@ -10,7 +10,7 @@ test.use({ writer: true, viewport: { width: 390, height: 844 } });
 
 const id = (n: number) => `bbbbbbbb-bbbb-bbbb-bbbb-${String(n).padStart(12, '0')}`;
 const HEALTH = 'Some people think health problems come from lifestyle. Discuss both views.';
-const PHONE = 'How often do you use your phone, and what for?';
+const FREE_UNI = 'Some people believe that university education should be free for all students.';
 
 const essay = (n: number, fields: Record<string, unknown>) => ({
   id: id(n),
@@ -25,7 +25,7 @@ const essay = (n: number, fields: Record<string, unknown>) => ({
 });
 
 // Newest first, as the server sends them: three attempts at one Health question, one at another
-// Health question, and an old general answer in Everyday Life (a retired question).
+// Health question, and one in Education.
 const ESSAYS = [
   essay(5, { question_id: 'ielts-health-1', question_title: HEALTH, question_topic: 'Health', band: 6 }),
   essay(4, {
@@ -36,13 +36,7 @@ const ESSAYS = [
   }),
   essay(3, { question_id: 'ielts-health-1', question_title: HEALTH, question_topic: 'Health', band: 5 }),
   essay(2, { question_id: 'ielts-health-1', question_title: HEALTH, question_topic: 'Health', status: 'failed' }),
-  essay(1, {
-    question_id: 'life-phone',
-    question_title: PHONE,
-    question_topic: 'Everyday Life',
-    overall: 3,
-    cefr_level: 'B1',
-  }),
+  essay(1, { question_id: 'ielts-edu-1', question_title: FREE_UNI, question_topic: 'Education', band: 6.5 }),
 ];
 
 test('the archive goes topics → questions → attempts, and each attempt opens', async ({ page }) => {
@@ -93,7 +87,11 @@ test('the archive goes topics → questions → attempts, and each attempt opens
   await expect(page.getByRole('heading', { name: 'Все мои эссе' })).toBeVisible();
   const topics = page.getByRole('list', { name: 'Все мои эссе' }).getByRole('listitem');
   await expect(topics).toHaveCount(2);
-  await expect(topics.nth(0)).toContainText('Everyday Life');
+  await expect(topics.nth(0)).toContainText('Education');
+  await expect(topics.nth(0)).toContainText('IELTS 6.5');
+  // One card design: every topic card the same height, whatever its mark (ADR 0090).
+  const heights = await topics.evaluateAll((items) => items.map((li) => Math.round(li.getBoundingClientRect().height)));
+  expect(new Set(heights).size).toBe(1);
   await expect(topics.nth(1)).toContainText('Health');
   await expect(topics.nth(1)).toContainText('Эссе: 4');
   await expect(topics.nth(1)).toContainText('IELTS 6');

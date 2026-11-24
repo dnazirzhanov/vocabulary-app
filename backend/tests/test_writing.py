@@ -80,7 +80,7 @@ def post(
 ) -> Any:
     body = {
         "client_id": str(client_id or uuid.uuid4()),
-        "question_id": "life-morning",
+        "question_id": "ielts-life-1",
         "answer": ANSWER,
     } | fields
     return client.post("/api/writing/submissions", json=body, headers=as_(who))
@@ -91,14 +91,20 @@ def post(
 
 def test_topics_list_every_topic_with_its_count(client: TestClient) -> None:
     got = client.get("/api/writing/topics", headers=as_("ann")).json()
-    assert [t["topic"] for t in got][:3] == ["Everyday Life", "Education", "Technology"]
-    assert len(got) == 8
+    assert [t["topic"] for t in got][:3] == [
+        "Education",
+        "Technology & AI",
+        "Environment & Climate",
+    ]
+    assert len(got) == 20
     assert all(t["question_count"] >= 3 for t in got)
 
 
 def test_questions_of_one_topic(client: TestClient) -> None:
-    got = client.get("/api/writing/questions?topic=Technology", headers=as_("ann")).json()
-    assert got and {q["topic"] for q in got} == {"Technology"}
+    got = client.get(
+        "/api/writing/questions", params={"topic": "Technology & AI"}, headers=as_("ann")
+    ).json()
+    assert got and {q["topic"] for q in got} == {"Technology & AI"}
     assert {"id", "title", "instruction", "level", "suggested_minutes"} <= set(got[0])
 
 
@@ -122,12 +128,12 @@ def test_a_successful_submission_returns_checked_feedback(client: TestClient, mo
     assert got["status"] == "done"
     assert got["time_spent_seconds"] == 95
     assert got["evaluation"]["rubric"] == "ielts" and got["evaluation"]["band"] == 6.0
-    assert got["question"]["title"] == "Describe a typical day in your life."
+    assert got["question"]["title"].startswith("Some people believe that cooking at home")
     assert got["evaluation"]["corrections"][0]["corrected"] == "I don't have a car"
     assert got["evaluation"]["upgrades"][0]["suggestion"] == "travel to university"
     assert got["evaluation"]["words"] == len(ANSWER.split())
     # The question and the answer reached the model, fenced as text to assess.
-    assert "Describe a typical day" in model.last_user and "<<<ESSAY" in model.last_user
+    assert "cooking at home" in model.last_user and "<<<ESSAY" in model.last_user
 
 
 def test_without_the_timer_no_time_is_recorded(client: TestClient, model: Model) -> None:
@@ -320,14 +326,14 @@ def test_submissions_are_listed_newest_first_and_filterable(
 ) -> None:
     post(client)
     later = {"X-Dev-User": "ann"} | at(MOMENT.replace(minute=5))
-    body = {"client_id": str(uuid.uuid4()), "question_id": "edu-subject", "answer": ANSWER}
+    body = {"client_id": str(uuid.uuid4()), "question_id": "ielts-edu-1", "answer": ANSWER}
     client.post("/api/writing/submissions", json=body, headers=later)
     everything = client.get("/api/writing/submissions", headers=as_("ann")).json()
-    assert len(everything) == 2 and everything[0]["question_id"] == "edu-subject"
+    assert len(everything) == 2 and everything[0]["question_id"] == "ielts-edu-1"
     only = client.get(
-        "/api/writing/submissions?question_id=life-morning", headers=as_("ann")
+        "/api/writing/submissions?question_id=ielts-life-1", headers=as_("ann")
     ).json()
-    assert [s["question_id"] for s in only] == ["life-morning"] and only[0]["band"] == 6.0
+    assert [s["question_id"] for s in only] == ["ielts-life-1"] and only[0]["band"] == 6.0
 
 
 def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
@@ -342,7 +348,7 @@ def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
             WritingSubmission(
                 user_id=owner.user_id,
                 client_id=uuid.uuid4(),
-                question_id="edu-subject",
+                question_id="ielts-edu-1",
                 answer=f"Essay number {n}. " + "word " * 60,
                 feedback_language="ru",
                 status="failed",
@@ -359,9 +365,9 @@ def test_the_archive_keeps_every_essay_with_a_glimpse_of_it(
     assert newest["word_count"] == len(ANSWER.split())
     assert newest["excerpt"] == ANSWER
     assert newest["band"] == 6.0
-    assert newest["question_topic"] == "Everyday Life"
+    assert newest["question_topic"] == "Food & Diet"
     oldest = everything[-1]
-    # A retired question still has its topic, so its essays group with the rest.
+    # Every essay's question has a topic, so the archive can group them.
     assert oldest["question_topic"] == "Education"
     assert oldest["excerpt"].startswith("Essay number 1. word") and len(oldest["excerpt"]) <= 141
     assert oldest["excerpt"].endswith("…") and oldest["band"] is None
@@ -399,19 +405,24 @@ def test_the_daily_limit_stops_a_flood(
 # -- IELTS Task 2 (ADR 0081) ---------------------------------------------------------------------
 
 
-def test_the_bank_is_ielts_task_2_five_per_topic() -> None:
-    assert len(bank.QUESTIONS) == 40
-    assert all(n == 5 for _, n in bank.topics())
+def test_the_bank_is_ielts_task_2_twenty_topics_five_each() -> None:
+    # The 20 topics the exam asks about most (ADR 0090).
+    assert len(bank.QUESTIONS) == 100
+    assert len(bank.topics()) == 20 and all(n == 5 for _, n in bank.topics())
+    assert len({q.title for q in bank.QUESTIONS}) == 100  # no question twice
     assert {q.task_type for q in bank.QUESTIONS} == set(bank.TASK_TYPES)
     assert all(q.instruction.endswith("Write at least 250 words.") for q in bank.QUESTIONS)
     assert all(q.suggested_minutes == 40 for q in bank.QUESTIONS)
 
 
-def test_retired_questions_still_name_old_answers_but_are_not_offered(client: TestClient) -> None:
-    assert bank.get("life-morning") is not None
-    offered = client.get("/api/writing/questions?topic=Everyday%20Life", headers=as_("ann")).json()
-    assert all(q["id"].startswith("ielts-") for q in offered)
-    assert offered[0]["task_type"] == "opinion"
+def test_the_old_general_questions_are_gone(client: TestClient) -> None:
+    # ADR 0090: only IELTS questions; the 40 first ones keep their ids, so their essays keep them.
+    assert bank.get("life-morning") is None and bank.get("edu-subject") is None
+    assert all(q.id.startswith("ielts-") for q in bank.QUESTIONS)
+    for kept in ("ielts-life-1", "ielts-society-5", "ielts-health-5", "ielts-work-5"):
+        assert bank.get(kept) is not None
+    offered = client.get("/api/writing/questions", headers=as_("ann")).json()
+    assert len(offered) == 100 and all(q["id"].startswith("ielts-") for q in offered)
 
 
 def test_feedback_marked_on_the_old_scale_still_opens(client: TestClient, db: Session) -> None:

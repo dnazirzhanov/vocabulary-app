@@ -98,15 +98,15 @@ export function WritingArchive({ place, onGo, onBack, onOpen, onRetry }: Props) 
       {essays?.length === 0 && <p className={styles.lead}>{t.writingArchiveEmpty}</p>}
 
       {essays && !place.topic && (
-        <ul className={styles.topicGrid} aria-label={t.writingArchive}>
+        <ul className={styles.archiveGrid} aria-label={t.writingArchive}>
           {topics.map((g) => (
             <li key={g.key}>
-              <button type="button" className={styles.topicCard} onClick={() => onGo({ topic: g.key })}>
-                <span className={styles.topicName}>{g.key}</span>
-                <span className={styles.topicFoot}>
-                  <span className={styles.topicMeta}>{t.writingEssaysCount(g.essays.length)}</span>
-                  {g.best && <span className={styles.bandTag}>{g.best}</span>}
+              <button type="button" className={styles.essayCard} onClick={() => onGo({ topic: g.key })}>
+                <span className={styles.essayCardTop}>
+                  <span className={styles.essayCardMeta}>{t.writingEssaysCount(g.essays.length)}</span>
+                  <Mark text={g.best} />
                 </span>
+                <span className={styles.essayCardTitle}>{g.key}</span>
               </button>
             </li>
           ))}
@@ -119,14 +119,14 @@ export function WritingArchive({ place, onGo, onBack, onOpen, onRetry }: Props) 
             <li key={g.key}>
               <button
                 type="button"
-                className={styles.questionCard}
+                className={styles.essayCard}
                 onClick={() => onGo({ topic: place.topic, questionId: g.key })}
               >
-                <span className={styles.questionTop}>
-                  <span className={styles.topicMeta}>{t.writingAttemptsCount(g.essays.length)}</span>
-                  {g.best && <span className={styles.bandTag}>{g.best}</span>}
+                <span className={styles.essayCardTop}>
+                  <span className={styles.essayCardMeta}>{t.writingAttemptsCount(g.essays.length)}</span>
+                  <Mark text={g.best} />
                 </span>
-                <span className={styles.cardTitle}>{g.essays[0].question_title}</span>
+                <span className={styles.essayCardTitle}>{g.essays[0].question_title}</span>
               </button>
             </li>
           ))}
@@ -145,21 +145,21 @@ export function WritingArchive({ place, onGo, onBack, onOpen, onRetry }: Props) 
                 <li key={item.id}>
                   <button
                     type="button"
-                    className={styles.archiveItem}
+                    className={styles.essayCard}
                     onClick={() => void open(item)}
                     disabled={opening === item.id}
                   >
-                    <span className={styles.essayMeta}>
-                      {[when(item.created_at), t.writingWords(item.word_count)].join(' · ')}
+                    <span className={styles.essayCardTop}>
+                      <span className={styles.essayCardMeta}>
+                        {[when(item.created_at), t.writingWords(item.word_count)].join(' · ')}
+                      </span>
+                      <Mark text={marked} unmarked={t.writingNotChecked} />
                     </span>
                     {item.excerpt && (
-                      <span className={styles.essayExcerpt} lang="en">
+                      <span className={styles.essayCardText} lang="en">
                         {item.excerpt}
                       </span>
                     )}
-                    <span className={marked ? styles.essayMark : styles.essayUnmarked}>
-                      {marked ?? t.writingNotChecked}
-                    </span>
                   </button>
                 </li>
               );
@@ -188,6 +188,12 @@ function bestMark(essays: SubmissionSummary[]): string | null {
     if (!best || score > best.score) best = { score, text };
   }
   return best?.text ?? null;
+}
+
+/** The band as a pill, always in the same place; «Не проверено» in grey when there is none. */
+function Mark({ text, unmarked }: { text: string | null; unmarked?: string }) {
+  if (text) return <span className={styles.bandTag}>{text}</span>;
+  return unmarked ? <span className={styles.essayCardUnmarked}>{unmarked}</span> : null;
 }
 
 function when(iso: string): string {
