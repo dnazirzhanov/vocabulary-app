@@ -16,6 +16,8 @@ export interface StudyItem {
   /** A teacher's «Выучить к» (ADR 0030). */
   dueOn: string | null;
   group: string | null;
+  /** Was on today's list and has nothing left now: studied today (ADR 0089). */
+  done?: boolean;
 }
 
 export interface SpellingDeck {
@@ -70,3 +72,23 @@ export function studyToday(course: Deck[], library: Library | null, spelling: Sp
 }
 
 const groupOf = (deck: LibraryDeck): string | null => deck.group_name;
+
+/**
+ * Today's list as the learner saw it (ADR 0089): what is waiting now, and what was waiting earlier
+ * today and isn't any more, which they finished, shown ticked. `seen` is what this device kept
+ * from earlier today; the result's `seen` is to keep. `fresh` are the ones finished since the last
+ * look, for the tick's celebration.
+ */
+export function withSeen(
+  pending: StudyItem[],
+  seen: Record<string, StudyItem>,
+): { items: StudyItem[]; seen: Record<string, StudyItem>; fresh: string[] } {
+  const waiting = new Set(pending.map((item) => item.key));
+  const finished = Object.values(seen)
+    .filter((item) => !waiting.has(item.key))
+    .map((item) => ({ ...item, done: true }));
+  const fresh = finished.filter((item) => !seen[item.key].done).map((item) => item.key);
+  const kept: Record<string, StudyItem> = {};
+  for (const item of [...pending, ...finished]) kept[item.key] = item;
+  return { items: [...pending, ...finished], seen: kept, fresh };
+}

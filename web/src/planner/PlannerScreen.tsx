@@ -8,13 +8,13 @@ import { describeError } from '../lib/api.ts';
 import { playTaskDone } from '../lib/sounds.ts';
 import { Celebration } from '../ui/Celebration.tsx';
 import { t } from '../i18n/index.ts';
-import { CardsIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
+import { CardsIcon, CheckIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { tasksApi, type Item, type Scope, type TaskInput } from './api.ts';
 import { addDays, localToday, weekday } from './dates.ts';
 import { dayLabel } from './DatePicker.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { Serial } from './queue.ts';
-import { loadStudyToday, type StudyItem } from './studyToday.ts';
+import { loadStudyDay, type StudyItem } from './studyToday.ts';
 import { byTime, dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
 import { TaskRow } from './TaskRow.tsx';
 import { TaskSheet } from './TaskSheet.tsx';
@@ -31,9 +31,11 @@ interface Toast {
 interface Props {
   /** Opens a deck's page: where a study item («Учить «…»») leads. */
   onOpenDeck: (deckId: string) => void;
+  /** Starts a study item's flashcards or spelling at once (ADR 0089); resolves false if it couldn't. */
+  onStartStudy: (item: StudyItem) => Promise<boolean>;
 }
 
-export default function PlannerScreen({ onOpenDeck }: Props) {
+export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
   const [today, setToday] = useState(localToday());
   const [items, setItems] = useState<Item[] | null>(null);
   const [view, setView] = useState<View>('today');
@@ -46,6 +48,7 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
   const [burst, setBurst] = useState<string | null>(null);
   const [party, setParty] = useState(0);
   const [studyItems, setStudyItems] = useState<StudyItem[] | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
 
   const load = useCallback(
     () =>
@@ -70,8 +73,17 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
       },
       () => live && setProblem(t.planLoadError),
     );
-    loadStudyToday().then(
-      (got) => live && setStudyItems(got),
+    loadStudyDay().then(
+      ({ items: got, fresh }) => {
+        if (!live) return;
+        setStudyItems(got);
+        // A deck finished since the last look: its tick is celebrated on the way back (ADR 0089).
+        if (fresh.length > 0) {
+          setBurst(fresh[0]);
+          playTaskDone();
+          window.setTimeout(() => live && setBurst(null), 900);
+        }
+      },
       () => live && setStudyItems([]),
     );
     return () => {
@@ -246,17 +258,40 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
               <h2 className={styles.section}>{t.planStudyToday}</h2>
               <ul className={styles.list}>
                 {studyItems.map((item) => (
-                  <li key={item.key}>
-                    <button type="button" className={styles.studyRow} onClick={() => onOpenDeck(item.deckId)}>
-                      <span className={styles.studyIcon} data-kind={item.kind} aria-hidden="true">
-                        {item.kind === 'learn' ? <CardsIcon /> : <PencilIcon />}
+                  <li
+                    key={item.key}
+                    className={styles.rowWrap}
+                    data-done={item.done || undefined}
+                    data-burst={burst === item.key || undefined}
+                  >
+                    <button
+                      type="button"
+                      className={styles.studyRow}
+                      disabled={starting !== null}
+                      aria-busy={starting === item.key}
+                      onClick={() => {
+                        setStarting(item.key);
+                        // Straight into the flashcards (or spelling); if that can't start, the deck.
+                        void onStartStudy(item).then((started) => {
+                          setStarting(null);
+                          if (!started) onOpenDeck(item.deckId);
+                        });
+                      }}
+                    >
+                      <span
+                        className={styles.studyIcon}
+                        data-kind={item.kind}
+                        data-done={item.done || undefined}
+                        aria-hidden="true"
+                      >
+                        {item.done ? <CheckIcon /> : item.kind === 'learn' ? <CardsIcon /> : <PencilIcon />}
                       </span>
                       <span className={styles.rowBody}>
                         <span className={styles.rowTitle}>
                           {item.kind === 'learn' ? t.planLearnDeck(item.title) : t.planSpellDeck(item.title)}
                         </span>
                         <span className={styles.rowMeta}>
-                          {studyMeta(item, today).map((part) => (
+                          {(item.done ? [t.planCompleted] : studyMeta(item, today)).map((part) => (
                             <span key={part} className={styles.metaPart}>
                               {part}
                             </span>
@@ -296,7 +331,7 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
           {/* «Всё сделано» only when nothing is left: the app's study list counts too. */}
           {shown.open.length === 0 &&
             shown.overdue.length === 0 &&
-            !(shown.done.length > 0 && day === today && studyItems?.length) && (
+            !(shown.done.length > 0 && day === today && studyItems?.some((i) => !i.done)) && (
               <div className={styles.emptyBox}>
                 <p className={styles.empty}>{shown.done.length > 0 ? t.planAllDone : t.planEmptyDay}</p>
                 {shown.done.length === 0 && (

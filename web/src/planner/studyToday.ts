@@ -3,11 +3,43 @@ import { api } from '../lib/api.ts';
 import type { Deck, Library } from '../lib/types.ts';
 import { withSnapshot } from '../local/session.ts';
 import { study } from '../study/device.ts';
-import { studyToday, type StudyItem } from './studyPlan.ts';
+import { studyToday, withSeen, type StudyItem } from './studyPlan.ts';
+import { localToday } from './dates.ts';
 
 export type { StudyItem };
 
 /** From what the app keeps (works offline too): the course, my and my groups' decks, spelling. */
+const seenKey = (day: string) => `plans-study:${day}`;
+
+function readSeen(day: string): Record<string, StudyItem> {
+  try {
+    return JSON.parse(localStorage.getItem(seenKey(day)) ?? '{}') as Record<string, StudyItem>;
+  } catch {
+    return {};
+  }
+}
+
+function keepSeen(day: string, seen: Record<string, StudyItem>) {
+  try {
+    localStorage.setItem(seenKey(day), JSON.stringify(seen));
+    // Yesterday's list is of no use any more.
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('plans-study:') && key !== seenKey(day)) localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: finished decks just leave the list, as before.
+  }
+}
+
+/** Today's study list with what was finished today ticked (ADR 0089); `fresh`: just finished. */
+export async function loadStudyDay(): Promise<{ items: StudyItem[]; fresh: string[] }> {
+  const day = localToday();
+  const { items, seen, fresh } = withSeen(await loadStudyToday(), readSeen(day));
+  keepSeen(day, seen);
+  return { items, fresh };
+}
+
 export async function loadStudyToday(): Promise<StudyItem[]> {
   const [course, library, snapshot] = await Promise.all([
     withSnapshot<Deck[]>('courseDecks', () => api.listDecks())
