@@ -169,22 +169,25 @@ for (const language of ['ru', 'uz', 'kk', 'ky', 'tg', 'en']) {
       );
       expect(over, where).toBeLessThanOrEqual(0);
     };
-    const screens = ['home', 'friends', 'group', 'progress', 'deck'];
+    const screens = ['home', 'plans', 'friends', 'group', 'progress', 'deck'];
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('lang', language);
     await fits(screens[0]);
+    // The tabs: «Сегодня», «Планы» (ADR 0084), «Друзья», «Прогресс».
     const nav = page.getByRole('navigation').first().getByRole('button');
     await nav.nth(1).click();
     await fits(screens[1]);
-    await page.getByRole('button', { name: new RegExp(`^${group.name}`) }).click();
-    await fits(screens[2]);
     await nav.nth(2).click();
+    await fits(screens[2]);
+    await page.getByRole('button', { name: new RegExp(`^${group.name}`) }).click();
     await fits(screens[3]);
+    await nav.nth(3).click();
+    await fits(screens[4]);
     await nav.nth(0).click();
     await page
       .getByRole('button', { name: /Travel/ })
       .first()
       .click();
-    await fits(screens[4]);
+    await fits(screens[5]);
   });
 }

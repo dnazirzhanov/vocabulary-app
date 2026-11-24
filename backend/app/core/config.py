@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     reading_testers: str = ""
     # Sign-ins (same format) who see the Mentor tab: translations and polish before rollout.
     mentor_testers: str = ""
+    # The Mentor tab itself (ADR 0084): hidden for everyone since «Планы» took its place; its
+    # code, data and API stay, and this brings the tab back. The e2e server turns it on.
+    mentor_tab: bool = False
     # Sign-ins (same format) who see the Writing tab; empty: nobody.
     writing_testers: str = ""
     # Mentor chat messages per user per day: each costs a model call.

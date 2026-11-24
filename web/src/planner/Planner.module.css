@@ -1,0 +1,993 @@
+/* «Планы» (ADR 0084): a quiet list, like TickTick's, in the app's own colours. */
+
+.screen {
+  --prio-0: #a3a3a3;
+  --prio-1: #2d6db5;
+  --prio-2: #b7791f;
+  --prio-3: #c2410c;
+  position: relative;
+  min-height: 100dvh;
+  padding: 16px 16px calc(120px + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  box-sizing: border-box;
+}
+
+@media (min-width: 900px) {
+  .screen {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 32px 120px;
+  }
+}
+
+.head {
+  display: grid;
+  gap: 12px;
+  padding-right: 56px; /* the settings button in the corner */
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
+}
+
+.views {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--color-track);
+  box-sizing: border-box;
+}
+
+.viewTab {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.viewTab[aria-selected='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+/* The week strip: seven days from today, each with a dot when something is still open. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin: 16px 0 8px;
+}
+
+.stripDay {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.stripDay:hover {
+  background: var(--color-primary-tint);
+}
+
+.stripDay[aria-pressed='true'] {
+  background: var(--color-text);
+  color: #fff;
+}
+
+.stripWeekday {
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.stripDate {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stripDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.stripDot[data-on] {
+  background: var(--color-primary);
+}
+
+.body {
+  display: grid;
+  gap: 4px;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 4px 6px;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.section[data-tone='overdue'] {
+  color: var(--color-error);
+}
+
+.sectionAction {
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: swipe actions sit behind it, revealed as it slides. */
+.rowWrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.rowActions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  border-radius: 14px;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+/* Only while a row slides: otherwise nothing shows round its corners. */
+.rowWrap[data-open] .rowActions {
+  visibility: visible;
+}
+
+.rowActionLater,
+.rowActionDelete {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  width: 66px;
+  border: 0;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+
+.rowActionLater {
+  background: var(--color-count-new);
+}
+
+.rowActionDelete {
+  background: var(--color-error);
+}
+
+.rowActionLater svg,
+.rowActionDelete svg {
+  width: 18px;
+  height: 18px;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-radius: 14px;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+.row[data-swiping] {
+  transition: none;
+}
+
+.row[data-tick] {
+  background: var(--color-success-tint);
+}
+
+.check {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  padding: 0;
+  border: 2px solid var(--prio-0);
+  border-radius: 50%;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    transform 0.18s;
+}
+
+/* A bigger target than the circle: 44 px for a thumb. */
+.check::after {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 44px;
+}
+
+.check[data-priority='1'] {
+  border-color: var(--prio-1);
+}
+
+.check[data-priority='2'] {
+  border-color: var(--prio-2);
+}
+
+.check[data-priority='3'] {
+  border-color: var(--prio-3);
+}
+
+.check:hover {
+  transform: scale(1.08);
+}
+
+.check[aria-checked='true'] {
+  border-color: var(--color-text-muted);
+  background: var(--color-text-muted);
+}
+
+.check svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3.5;
+}
+
+.rowBody {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rowWrap[data-done] .rowTitle {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.rowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.rowMeta[data-overdue] {
+  color: var(--color-error);
+}
+
+.metaPart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metaPart svg {
+  width: 13px;
+  height: 13px;
+}
+
+.doneToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 4px 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.emptyBox {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 48px auto 0;
+  max-width: 340px;
+  text-align: center;
+}
+
+.empty {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.exampleChip {
+  padding: 10px 16px;
+  border: 1px dashed var(--color-primary-strong);
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.problem {
+  margin: 12px 0;
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* «+»: above the tab bar on a phone. */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow:
+    0 6px 16px rgb(250 93 25 / 0.35),
+    0 2px 4px rgb(38 38 38 / 0.15);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.fab:hover {
+  transform: translateY(-1px) scale(1.04);
+}
+
+.fab svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 3;
+}
+
+@media (min-width: 900px) {
+  .fab {
+    bottom: 32px;
+    right: max(32px, calc((100vw - 760px) / 2 - 40px));
+  }
+}
+
+/* Sheets: from the bottom on a phone; a panel on the right on a wide screen. */
+.sheetLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(38 38 38 / 0.32);
+  animation: fade 0.15s ease;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  background: var(--color-surface);
+  box-shadow: 0 -8px 24px rgb(38 38 38 / 0.12);
+  box-sizing: border-box;
+  animation: rise 0.2s ease;
+}
+
+@media (min-width: 900px) {
+  .sheetLayer:has(.detail) {
+    justify-content: flex-end;
+    align-items: stretch;
+  }
+
+  .detail {
+    max-width: 420px;
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+    animation: slide 0.2s ease;
+  }
+
+  .sheetLayer:not(:has(.detail)) {
+    align-items: center;
+  }
+
+  .sheetLayer:not(:has(.detail)) .sheet {
+    border-radius: 20px;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheetLayer,
+  .sheet,
+  .detail,
+  .row,
+  .check {
+    animation: none;
+    transition: none;
+  }
+}
+
+.quickForm {
+  display: grid;
+  gap: 10px;
+}
+
+.quickInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid var(--color-border);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 600;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.quickInput:focus {
+  border-bottom-color: var(--color-primary);
+}
+
+.foundRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.foundChip {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.foundChip::after {
+  content: ' ×';
+  opacity: 0.6;
+}
+
+.quickBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolBtn {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toolBtn svg,
+.priorityChip svg,
+.detailRow svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.toolBtn[data-priority='0'] svg,
+.priorityChip[data-priority='0'] svg {
+  color: var(--prio-0);
+}
+
+.toolBtn[data-priority='1'] svg,
+.priorityChip[data-priority='1'] svg {
+  color: var(--prio-1);
+}
+
+.toolBtn[data-priority='2'] svg,
+.priorityChip[data-priority='2'] svg {
+  color: var(--prio-2);
+}
+
+.toolBtn[data-priority='3'] svg,
+.priorityChip[data-priority='3'] svg {
+  color: var(--prio-3);
+}
+
+.sendBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  cursor: pointer;
+}
+
+.sendBtn:disabled {
+  background: var(--color-track);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.sendBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* The date sheet. */
+.picker {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quickChip,
+.weekToggle {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quickChip[aria-pressed='true'],
+.weekToggle[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.weekToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.month {
+  display: grid;
+  gap: 6px;
+}
+
+.monthHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.monthName {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.monthWeekday {
+  padding: 4px 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.monthDay {
+  aspect-ratio: 1;
+  max-height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.monthDay:hover {
+  background: var(--color-primary-tint);
+}
+
+.monthDay[data-past] {
+  color: var(--color-text-muted);
+}
+
+.monthDay[data-today] {
+  color: var(--color-primary-strong);
+  box-shadow: inset 0 0 0 1.5px var(--color-primary-strong);
+}
+
+.monthDay[aria-pressed='true'] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: none;
+}
+
+.pickRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.pickValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeInput,
+.select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: var(--color-primary-tint);
+}
+
+.iconBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.textBtn {
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.textDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  color: var(--color-error);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.textDanger svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The task's details. */
+.detail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px -8px 0;
+}
+
+.detailWhen {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.detailTitle {
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1.375rem;
+  font-weight: 800;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.detailNotes {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.priorityRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.priorityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.priorityChip[aria-checked='true'] {
+  border-color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-text);
+}
+
+.detailFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.saveBtn {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.saveBtn:disabled {
+  background: var(--color-track);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.scopeList {
+  display: grid;
+  gap: 8px;
+}
+
+.scopeBtn {
+  min-height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scopeBtn:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+/* «Выполнено · Отменить» */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(160px + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-text);
+  color: #fff;
+  font-weight: 700;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 18px rgb(38 38 38 / 0.25);
+}
+
+@media (min-width: 900px) {
+  .toast {
+    bottom: 40px;
+  }
+}
+
+.toastUndo {
+  border: 0;
+  background: none;
+  color: var(--color-highlight);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* The date button in quick add takes the room left, on one line. */
+.toolBtn > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickBar .toolBtn:first-child {
+  flex: 1;
+  justify-content: flex-start;
+}

@@ -48,6 +48,8 @@ export default defineConfig({
         ...process.env,
         READING_TESTERS: 'e2e-reader-*',
         MENTOR_TESTERS: 'e2e-mentor-*',
+        // The mentor tab is hidden in production (ADR 0084); its tests still run.
+        MENTOR_TAB: 'true',
         // Speaking (and its Shadowing) is gated too; e2e/shadowing.spec.ts signs in as these.
         SPEAKING_TESTERS: 'e2e-speaking-*',
         // Writing is gated too (WRITING_TESTERS); e2e/writing.spec.ts signs in as these.

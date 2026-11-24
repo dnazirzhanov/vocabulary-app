@@ -22,7 +22,8 @@ def me_out(db: Session, user: User, now: datetime, time_zone: ZoneInfo) -> MeOut
         name=user.name,
         content_editor=card_reports.is_editor(user),
         reading=card_reports.listed(user, get_settings().reading_testers),
-        mentor=card_reports.listed(user, get_settings().mentor_testers),
+        mentor=get_settings().mentor_tab
+        and card_reports.listed(user, get_settings().mentor_testers),
         speaking=card_reports.listed(user, get_settings().speaking_testers),
         writing=card_reports.listed(user, get_settings().writing_testers),
         daily_target_words=user.daily_target_words,

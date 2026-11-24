@@ -44,6 +44,7 @@ const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({
 // Mentor tab: loaded only when its tab is opened, so home does not pull the mentor's
 // deterministic planner and its view of the reading index.
 const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
+const PlannerScreen = lazy(() => import('./planner/PlannerScreen.tsx'));
 
 // Speaking tab: loaded only when its tab is opened.
 const SpeakingExerciseScreen = lazy(() =>
@@ -75,6 +76,7 @@ type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
 type Screen =
   | { name: 'home' }
   | { name: 'mentor' }
+  | { name: 'plans' }
   | { name: 'speaking'; view?: 'home' | 'topics' }
   | { name: 'writing' }
   | { name: 'shadowing' }
@@ -424,6 +426,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
     else if (tab === 'mentor') setScreen({ name: 'mentor' });
+    else if (tab === 'plans') setScreen({ name: 'plans' });
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
     else if (tab === 'speaking') setScreen({ name: 'speaking' });
@@ -532,6 +535,13 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           onStudy={(session) => startSession(session, deckId)}
           onOpenDeck={(id) => setScreen({ name: 'deck', deckId: id, groupId: null })}
         />
+      );
+    }
+    if (screen.name === 'plans') {
+      return (
+        <Suspense fallback={null}>
+          <PlannerScreen />
+        </Suspense>
       );
     }
     if (screen.name === 'mentor') {
@@ -746,6 +756,7 @@ function backTo(from: PageFrom): Screen {
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
+  if (screen.name === 'plans') return 'plans';
   if (
     [
       'speaking',
