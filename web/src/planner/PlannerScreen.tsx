@@ -6,18 +6,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { describeError } from '../lib/api.ts';
 import { t } from '../i18n/index.ts';
-import { PlusIcon } from '../ui/icons.tsx';
+import { CardsIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { tasksApi, type Item, type Scope, type TaskInput } from './api.ts';
 import { addDays, localToday, weekday } from './dates.ts';
 import { dayLabel } from './DatePicker.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { Serial } from './queue.ts';
+import { loadStudyToday, type StudyItem } from './studyToday.ts';
 import { dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
 import { TaskRow } from './TaskRow.tsx';
 import { TaskSheet } from './TaskSheet.tsx';
 import styles from './Planner.module.css';
 
-type View = 'today' | 'upcoming' | 'inbox';
+type View = 'today' | 'upcoming';
 const DAYS = 7;
 
 interface Toast {
@@ -25,7 +26,12 @@ interface Toast {
   undo?: () => void;
 }
 
-export default function PlannerScreen() {
+interface Props {
+  /** Opens a deck's page: where a study item («Учить «…»») leads. */
+  onOpenDeck: (deckId: string) => void;
+}
+
+export default function PlannerScreen({ onOpenDeck }: Props) {
   const [today, setToday] = useState(localToday());
   const [items, setItems] = useState<Item[] | null>(null);
   const [view, setView] = useState<View>('today');
@@ -35,6 +41,7 @@ export default function PlannerScreen() {
   const [problem, setProblem] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [studyItems, setStudyItems] = useState<StudyItem[] | null>(null);
 
   const load = useCallback(
     () =>
@@ -58,6 +65,10 @@ export default function PlannerScreen() {
         setItems(got.items);
       },
       () => live && setProblem(t.planLoadError),
+    );
+    loadStudyToday().then(
+      (got) => live && setStudyItems(got),
+      () => live && setStudyItems([]),
     );
     return () => {
       live = false;
@@ -132,12 +143,19 @@ export default function PlannerScreen() {
 
   const shown: DayView | null = useMemo(() => {
     if (!items) return null;
-    if (view === 'inbox') return inbox(items);
-    return dayView(items, day, today);
-  }, [items, view, day, today]);
+    const dayList = dayView(items, day, today);
+    if (day !== today) return dayList;
+    // Tasks with no date are today's: there is no separate inbox (ADR 0087).
+    const undated = inbox(items);
+    return {
+      overdue: dayList.overdue,
+      open: [...dayList.open, ...undated.open],
+      done: [...dayList.done, ...undated.done],
+    };
+  }, [items, day, today]);
 
   const strip = Array.from({ length: DAYS }, (_, n) => addDays(today, n));
-  const heading = view === 'inbox' ? t.planInbox : view === 'upcoming' ? t.planUpcoming : dayLabel(day, today);
+  const heading = view === 'upcoming' ? t.planUpcoming : dayLabel(day, today);
 
   const rows = (list: Item[]) => (
     <ul className={styles.list}>
@@ -164,7 +182,6 @@ export default function PlannerScreen() {
             [
               ['today', t.planToday],
               ['upcoming', t.planUpcoming],
-              ['inbox', t.planInbox],
             ] as const
           ).map(([v, label]) => (
             <button
@@ -222,8 +239,37 @@ export default function PlannerScreen() {
         </div>
       )}
 
-      {shown && view !== 'upcoming' && (
+      {shown && view === 'today' && (
         <div className={styles.body}>
+          {day === today && studyItems && studyItems.length > 0 && (
+            <section aria-label={t.planStudyToday}>
+              <h2 className={styles.section}>{t.planStudyToday}</h2>
+              <ul className={styles.list}>
+                {studyItems.map((item) => (
+                  <li key={item.key}>
+                    <button type="button" className={styles.studyRow} onClick={() => onOpenDeck(item.deckId)}>
+                      <span className={styles.studyIcon} data-kind={item.kind} aria-hidden="true">
+                        {item.kind === 'learn' ? <CardsIcon /> : <PencilIcon />}
+                      </span>
+                      <span className={styles.rowBody}>
+                        <span className={styles.rowTitle}>
+                          {item.kind === 'learn' ? t.planLearnDeck(item.title) : t.planSpellDeck(item.title)}
+                        </span>
+                        <span className={styles.rowMeta}>
+                          {studyMeta(item, today).map((part) => (
+                            <span key={part} className={styles.metaPart}>
+                              {part}
+                            </span>
+                          ))}
+                        </span>
+                      </span>
+                      <ForwardIcon className={styles.studyGo} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {shown.overdue.length > 0 && (
             <section aria-label={t.planOverdue}>
               <h2 className={styles.section} data-tone="overdue">
@@ -248,10 +294,8 @@ export default function PlannerScreen() {
           )}
           {shown.open.length === 0 && shown.overdue.length === 0 && (
             <div className={styles.emptyBox}>
-              <p className={styles.empty}>
-                {shown.done.length > 0 ? t.planAllDone : view === 'inbox' ? t.planInboxEmpty : t.planEmptyDay}
-              </p>
-              {view === 'today' && shown.done.length === 0 && (
+              <p className={styles.empty}>{shown.done.length > 0 ? t.planAllDone : t.planEmptyDay}</p>
+              {shown.done.length === 0 && (
                 <>
                   <p className={styles.muted}>{t.planEmptyHint}</p>
                   <button
@@ -295,7 +339,7 @@ export default function PlannerScreen() {
       {adding !== null && (
         <QuickAdd
           today={today}
-          day={view === 'inbox' ? null : view === 'upcoming' ? today : day}
+          day={view === 'upcoming' ? today : day}
           initial={adding.text}
           study={adding.study}
           onAdd={add}
@@ -336,4 +380,15 @@ export default function PlannerScreen() {
       )}
     </main>
   );
+}
+
+/** «новых: 5 · на повтор: 12 · до 30 нояб. · 7Б», or «слов: 8» for spelling. */
+function studyMeta(item: StudyItem, today: string): string[] {
+  if (item.kind === 'spell') return [t.planWordsCount(item.dueCount)];
+  return [
+    item.newCount ? t.planNewWords(item.newCount) : '',
+    item.dueCount ? t.planReviewWords(item.dueCount) : '',
+    item.dueOn ? t.planDeadline(dayLabel(item.dueOn, today)) : '',
+    item.group ?? '',
+  ].filter(Boolean);
 }

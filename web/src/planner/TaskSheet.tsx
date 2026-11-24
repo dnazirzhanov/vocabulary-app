@@ -29,6 +29,7 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
   const [when, setWhen] = useState<When>({
     dueOn: task.repeat_mask ? item.on : task.due_on,
     startMinute: task.start_minute,
+    endMinute: task.end_minute ?? null,
     repeatMask: task.repeat_mask,
   });
   const [picking, setPicking] = useState(false);
@@ -51,6 +52,7 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
     if (priority !== task.priority) out.priority = priority;
     if (kind !== task.kind) out.kind = kind;
     if (when.startMinute !== task.start_minute) out.start_minute = when.startMinute;
+    if (when.endMinute !== (task.end_minute ?? null)) out.end_minute = when.endMinute;
     if (when.repeatMask !== task.repeat_mask) out.repeat_mask = when.repeatMask;
     const shownDay = repeating ? item.on : task.due_on;
     if (when.dueOn !== shownDay) out.due_on = when.dueOn;

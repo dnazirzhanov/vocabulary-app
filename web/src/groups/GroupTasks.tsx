@@ -77,6 +77,7 @@ export function GroupTasks({ board, onChanged }: Props) {
                     {
                       dueOn: task.task.due_on,
                       startMinute: task.task.start_minute,
+                      endMinute: task.task.end_minute ?? null,
                       repeatMask: task.task.repeat_mask,
                     },
                     board.today,

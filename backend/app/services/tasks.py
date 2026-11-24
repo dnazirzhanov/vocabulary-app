@@ -60,6 +60,7 @@ def out(task: Task, group_name: str | None = None) -> TaskOut:
         notes=task.notes,
         due_on=task.due_on,
         start_minute=task.start_minute,
+        end_minute=task.end_minute,
         repeat_mask=task.repeat_mask,
         repeat_until=task.repeat_until,
         priority=task.priority,
@@ -217,6 +218,11 @@ def _own(db: Session, user: User, task_id: uuid.UUID, edit: bool = True) -> Task
     return task
 
 
+def _check_times(start: int | None, end: int | None) -> None:
+    if end is not None and (start is None or end <= start):
+        raise ApiError(422, "bad_end_time", "The end comes after the start, on the same day")
+
+
 def create(
     db: Session,
     user: User,
@@ -225,6 +231,7 @@ def create(
     now: datetime,
     group_id: uuid.UUID | None = None,
 ) -> Task:
+    _check_times(body.start_minute, body.end_minute)
     task = Task(
         user_id=None if group_id else user.id,
         group_id=group_id,
@@ -234,6 +241,7 @@ def create(
         # A repeating task starts today unless told otherwise.
         due_on=body.due_on or (today if body.repeat_mask else None),
         start_minute=body.start_minute,
+        end_minute=body.end_minute,
         repeat_mask=body.repeat_mask,
         priority=body.priority,
         kind=body.kind,
@@ -265,6 +273,10 @@ def _apply(task: Task, patch: TaskPatch) -> None:
         setattr(task, name, getattr(patch, name))
     if task.repeat_mask and task.due_on is None:
         raise ApiError(422, "repeat_needs_date", "A repeating task needs a first date")
+    # Clearing the start clears the end with it.
+    if task.start_minute is None:
+        task.end_minute = None
+    _check_times(task.start_minute, task.end_minute)
 
 
 def update(
@@ -300,6 +312,7 @@ def update(
         notes=task.notes,
         due_on=on,
         start_minute=task.start_minute,
+        end_minute=task.end_minute,
         repeat_mask=task.repeat_mask if scope == "future" else 0,
         repeat_until=task.repeat_until if scope == "future" else None,
         priority=task.priority,

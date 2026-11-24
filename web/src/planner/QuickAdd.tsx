@@ -13,8 +13,8 @@ import styles from './Planner.module.css';
 
 interface Props {
   today: string;
-  /** The day being looked at (null in «Входящие»): where a task with no date typed goes. */
-  day: string | null;
+  /** The day being looked at: where a task with no date typed goes. */
+  day: string;
   initial?: string;
   /** Starts as a study task (the empty day's example, ADR 0086). */
   study?: boolean;
@@ -43,6 +43,7 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
   const when: When = manual ?? {
     dueOn: parsed.dueOn ?? day,
     startMinute: parsed.startMinute,
+    endMinute: parsed.endMinute,
     repeatMask: parsed.repeatMask,
   };
   const title = parsed.title || text.trim();
@@ -63,6 +64,7 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
         title,
         due_on: when.dueOn,
         start_minute: when.startMinute,
+        end_minute: when.endMinute,
         repeat_mask: when.repeatMask,
         priority: kept.priority,
         kind,

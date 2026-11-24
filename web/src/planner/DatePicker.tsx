@@ -11,28 +11,22 @@ import styles from './Planner.module.css';
 export interface When {
   dueOn: string | null;
   startMinute: number | null;
+  /** Until when, if set: after the start (ADR 0087). */
+  endMinute: number | null;
   repeatMask: number;
 }
 
-type RepeatChoice = 'none' | 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'days';
-
-export function repeatChoice(mask: number): RepeatChoice {
-  if (!mask) return 'none';
-  if (mask === 127) return 'daily';
-  if (mask === 31) return 'weekdays';
-  if (mask === 96) return 'weekends';
-  if ((mask & (mask - 1)) === 0) return 'weekly';
-  return 'days';
+/** «Каждый день», or the days themselves: «Ср, Сб». Nothing for a task that doesn't repeat. */
+export function repeatLabel(mask: number): string {
+  if (!mask) return '';
+  if (mask === 127) return t.planRepeatDaily;
+  return t.weekdays.filter((_, d) => mask & (1 << d)).join(', ');
 }
 
-/** «Каждый день», «По будням», «Пн, Ср»… */
-export function repeatLabel(mask: number): string {
-  const choice = repeatChoice(mask);
-  if (choice === 'none') return '';
-  if (choice === 'daily') return t.planRepeatDaily;
-  if (choice === 'weekdays') return t.planRepeatWeekdays;
-  if (choice === 'weekends') return t.planRepeatWeekends;
-  return t.weekdays.filter((_, d) => mask & (1 << d)).join(', ');
+/** «19:00», or «19:00–20:00» with an end. */
+export function timeLabel(start: number | null, end: number | null | undefined): string {
+  if (start === null) return '';
+  return end ? `${hhmm(start)}–${hhmm(end)}` : hhmm(start);
 }
 
 /** «Сегодня», «Завтра», or «пт, 27 нояб.». */
@@ -49,10 +43,16 @@ export function dayLabel(day: string, today: string): string {
 export function whenLabel(when: When, today: string): string {
   const parts = [
     when.dueOn ? dayLabel(when.dueOn, today) : t.planNoDate,
-    when.startMinute !== null ? hhmm(when.startMinute) : '',
+    timeLabel(when.startMinute, when.endMinute),
     repeatLabel(when.repeatMask),
   ];
   return parts.filter(Boolean).join(' · ');
+}
+
+function minuteOf(value: string): number | null {
+  if (!value) return null;
+  const [h, m] = value.split(':').map(Number);
+  return h * 60 + m;
 }
 
 const monthStart = (day: string) => `${day.slice(0, 8)}01`;
@@ -72,20 +72,12 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
     { label: t.planToday, day: today },
     { label: t.planTomorrow, day: addDays(today, 1) },
     { label: t.planNextMonday, day: nextMonday },
-    { label: t.planNoDate, day: null },
   ];
-  const choice = repeatChoice(value.repeatMask);
-  const pickRepeat = (next: RepeatChoice) => {
-    const base = value.dueOn ?? today;
-    const masks: Record<RepeatChoice, number> = {
-      none: 0,
-      daily: 127,
-      weekdays: 31,
-      weekends: 96,
-      weekly: 1 << weekday(base),
-      days: value.repeatMask || 1 << weekday(base),
-    };
-    set({ repeatMask: masks[next], dueOn: next === 'none' ? value.dueOn : base });
+  /** A repeat starts on the first of its days from the date chosen (or today). */
+  const repeatOn = (mask: number) => {
+    let day = value.dueOn ?? today;
+    if (mask) while (!(mask & (1 << weekday(day)))) day = addDays(day, 1);
+    set({ repeatMask: mask, dueOn: mask ? day : value.dueOn });
   };
   const shift = (by: number) => {
     const d = new Date(`${month}T12:00:00Z`);
@@ -101,7 +93,7 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
             type="button"
             className={styles.quickChip}
             aria-pressed={value.dueOn === q.day}
-            onClick={() => set({ dueOn: q.day, ...(q.day === null ? { repeatMask: 0 } : {}) })}
+            onClick={() => set({ dueOn: q.day })}
           >
             {q.label}
           </button>
@@ -149,37 +141,65 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
           )}
         </div>
       </div>
-      <label className={styles.pickRow}>
+      <div className={styles.pickRow}>
         <span>{t.planTime}</span>
         <span className={styles.pickValue}>
           <input
             type="time"
             className={styles.timeInput}
+            aria-label={t.planTime}
             value={value.startMinute === null ? '' : hhmm(value.startMinute)}
             onChange={(e) => {
-              const [h, m] = e.target.value.split(':').map(Number);
-              set({ startMinute: e.target.value ? h * 60 + m : null });
+              const start = minuteOf(e.target.value);
+              const end =
+                value.endMinute !== null && start !== null && value.endMinute > start ? value.endMinute : null;
+              set({ startMinute: start, endMinute: end });
+            }}
+          />
+          <span aria-hidden="true">–</span>
+          <input
+            type="time"
+            className={styles.timeInput}
+            aria-label={t.planUntil}
+            disabled={value.startMinute === null}
+            value={value.endMinute === null ? '' : hhmm(value.endMinute)}
+            onChange={(e) => {
+              const end = minuteOf(e.target.value);
+              set({ endMinute: end !== null && value.startMinute !== null && end > value.startMinute ? end : null });
             }}
           />
           {value.startMinute !== null && (
-            <button type="button" className={styles.textBtn} onClick={() => set({ startMinute: null })}>
+            <button
+              type="button"
+              className={styles.textBtn}
+              onClick={() => set({ startMinute: null, endMinute: null })}
+            >
               {t.planNoTime}
             </button>
           )}
         </span>
-      </label>
-      <label className={styles.pickRow}>
-        <span>{t.planRepeat}</span>
-        <select className={styles.select} value={choice} onChange={(e) => pickRepeat(e.target.value as RepeatChoice)}>
-          <option value="none">{t.planRepeatNone}</option>
-          <option value="daily">{t.planRepeatDaily}</option>
-          <option value="weekdays">{t.planRepeatWeekdays}</option>
-          <option value="weekends">{t.planRepeatWeekends}</option>
-          <option value="weekly">{t.planRepeatWeekly}</option>
-          <option value="days">{t.planRepeatDays}</option>
-        </select>
-      </label>
-      {choice === 'days' || choice === 'weekly' ? (
+      </div>
+      <div className={styles.repeatBlock}>
+        <span className={styles.repeatTitle}>{t.planRepeat}</span>
+        <div className={styles.quick} role="group" aria-label={t.planRepeat}>
+          <button
+            type="button"
+            className={styles.quickChip}
+            aria-pressed={value.repeatMask === 0}
+            onClick={() => repeatOn(0)}
+          >
+            {t.planRepeatNone}
+          </button>
+          <button
+            type="button"
+            className={styles.quickChip}
+            aria-pressed={value.repeatMask === 127}
+            onClick={() => repeatOn(127)}
+          >
+            {t.planRepeatDaily}
+          </button>
+        </div>
+        {/* Any days: tap Ср and Сб for «Wednesday and Saturday». */}
         <div className={styles.weekToggles} role="group" aria-label={t.planRepeatDays}>
           {t.weekdays.map((d, i) => (
             <button
@@ -187,16 +207,13 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
               type="button"
               className={styles.weekToggle}
               aria-pressed={Boolean(value.repeatMask & (1 << i))}
-              onClick={() => {
-                const next = value.repeatMask ^ (1 << i);
-                if (next) set({ repeatMask: next, dueOn: value.dueOn ?? today });
-              }}
+              onClick={() => repeatOn(value.repeatMask ^ (1 << i))}
             >
               {d}
             </button>
           ))}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -33,6 +33,11 @@ class Task(Base):
             "start_minute IS NULL OR start_minute BETWEEN 0 AND 1439", name="ck_tasks_start"
         ),
         CheckConstraint("kind IN ('task', 'study')", name="ck_tasks_kind"),
+        CheckConstraint(
+            "end_minute IS NULL OR (start_minute IS NOT NULL AND end_minute > start_minute"
+            " AND end_minute <= 1440)",
+            name="ck_tasks_end",
+        ),
         CheckConstraint("repeat_mask = 0 OR due_on IS NOT NULL", name="ck_tasks_repeat_dated"),
         Index("ix_tasks_user", "user_id"),
         Index("ix_tasks_group", "group_id"),
@@ -50,6 +55,8 @@ class Task(Base):
     # The day it is due; for a repeating task, the first day of the series. Null: no date.
     due_on: Mapped[date | None] = mapped_column(Date)
     start_minute: Mapped[int | None] = mapped_column(SmallInteger)
+    # Optional: until when («с 19:00 до 20:00»), after the start, on the same day.
+    end_minute: Mapped[int | None] = mapped_column(SmallInteger)
     # Weekdays it repeats on (Monday = 1 … Sunday = 64, as promises); 0: it doesn't repeat.
     repeat_mask: Mapped[int] = mapped_column(SmallInteger, default=0)
     # The last day of a repeating series ended by an edit «this and future»; null: no end.
