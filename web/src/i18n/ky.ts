@@ -1203,6 +1203,9 @@ export const ky: Messages = {
   planLoadError: 'Тапшырмалар жүктөлгөн жок. Интернетти текшериңиз.',
   planSaveError: 'Сакталган жок. Кайра аракет кылыңыз.',
   planTaskTitle: 'Аталышы',
+  planStudy: 'Тиркемедеги сабак',
+  planStudyHint: 'Тиркемеде окуганыңызда өзү белгиленет',
+  planByPractice: 'сабак боюнча',
   groupTasks: 'Топтун тапшырмалары',
   groupTaskAdd: 'Топко тапшырма',
   groupTasksEmpty:

@@ -999,3 +999,37 @@
   font-size: 0.875rem;
   font-weight: 700;
 }
+
+/* «Занятие в приложении» (ADR 0086): ticks itself when the learner studies. */
+.toolBtn[data-study] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.studyToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.studyToggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--color-primary-strong);
+}
+
+.studyToggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.studyToggle small {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}

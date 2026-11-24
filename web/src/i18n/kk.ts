@@ -1202,6 +1202,9 @@ export const kk: Messages = {
   planLoadError: 'Тапсырмалар жүктелмеді. Интернетті тексеріңіз.',
   planSaveError: 'Сақталмады. Қайталап көріңіз.',
   planTaskTitle: 'Атауы',
+  planStudy: 'Қосымшадағы сабақ',
+  planStudyHint: 'Қосымшада оқығаныңызда өзі белгіленеді',
+  planByPractice: 'сабақ бойынша',
   groupTasks: 'Топ тапсырмалары',
   groupTaskAdd: 'Топқа тапсырма',
   groupTasksEmpty:

@@ -1206,6 +1206,9 @@ export const tg: Messages = {
   planLoadError: 'Вазифаҳо бор нашуданд. Интернетро санҷед.',
   planSaveError: 'Нигоҳ дошта нашуд. Боз кӯшиш кунед.',
   planTaskTitle: 'Ном',
+  planStudy: 'Машғулот дар барнома',
+  planStudyHint: 'Вақте ки дар барнома машғул мешавед, худ қайд мешавад',
+  planByPractice: 'аз рӯи машғулот',
   groupTasks: 'Вазифаҳои гурӯҳ',
   groupTaskAdd: 'Вазифа барои гурӯҳ',
   groupTasksEmpty:

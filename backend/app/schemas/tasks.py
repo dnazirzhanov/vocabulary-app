@@ -59,6 +59,8 @@ class TaskItemOut(BaseModel):
     on: date | None
     state: MarkState | None
     overdue: bool = False
+    # A study task counted done because the learner practised that day (ADR 0086), not ticked.
+    by_practice: bool = False
 
 
 class TasksOut(BaseModel):

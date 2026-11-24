@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
-import { CalendarIcon, FlagIcon, SendIcon } from '../ui/icons.tsx';
+import { BookIcon, CalendarIcon, FlagIcon, SendIcon } from '../ui/icons.tsx';
 import type { TaskInput } from './api.ts';
 import { DatePicker, whenLabel, type When } from './DatePicker.tsx';
 import { parseQuick } from './parse.ts';
@@ -16,16 +16,19 @@ interface Props {
   /** The day being looked at (null in «Входящие»): where a task with no date typed goes. */
   day: string | null;
   initial?: string;
+  /** Starts as a study task (the empty day's example, ADR 0086). */
+  study?: boolean;
   onAdd: (input: TaskInput) => Promise<void>;
   onClose: () => void;
 }
 
-export function QuickAdd({ today, day, initial = '', onAdd, onClose }: Props) {
+export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClose }: Props) {
   const [text, setText] = useState(initial);
   const [ignore, setIgnore] = useState<string[]>([]);
   // Set by hand with the buttons; it wins over what the line says.
   const [manual, setManual] = useState<When | null>(null);
   const [priority, setPriority] = useState(0);
+  const [kind, setKind] = useState<'task' | 'study'>(study ? 'study' : 'task');
   const [picking, setPicking] = useState(false);
   const [problem, setProblem] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -62,6 +65,7 @@ export function QuickAdd({ today, day, initial = '', onAdd, onClose }: Props) {
         start_minute: when.startMinute,
         repeat_mask: when.repeatMask,
         priority: kept.priority,
+        kind,
       });
     } catch {
       setText((now) => now || kept.text);
@@ -132,6 +136,17 @@ export function QuickAdd({ today, day, initial = '', onAdd, onClose }: Props) {
               onClick={() => setPriority((p) => (p + 1) % 4)}
             >
               <FlagIcon aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.toolBtn}
+              data-study={kind === 'study' || undefined}
+              aria-pressed={kind === 'study'}
+              aria-label={`${t.planStudy}. ${t.planStudyHint}`}
+              title={t.planStudyHint}
+              onClick={() => setKind((k) => (k === 'study' ? 'task' : 'study'))}
+            >
+              <BookIcon aria-hidden="true" />
             </button>
             <button
               type="submit"
