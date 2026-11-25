@@ -19,6 +19,7 @@ off: it read like a broken form. On the group's page a student saw every classma
     A study task ticked by practice has no button: practice does it.
 - **Ticked from the view, there is no «Отменить» notice,** since «Вернуть» is right there. The tick still sparkles
   and sounds as in the list.
-- **On the group's page, a student sees only their own row;** the teacher still sees everyone's. Others' progress is
-  the teacher's to follow, not classmates'.
+- **On the group's page, a student's tap opens the same view** (the owner, 25 November 2026: «lets enable them to
+  press on a task in the friends group page and see the same thing»). A tick there updates the group's «N из M».
+  The teacher's tap still lists everyone's week. Others' progress is the teacher's to follow, not classmates'.
 - **A student's own tasks still open the edit form.**

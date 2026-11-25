@@ -74,14 +74,26 @@ test('the teacher gives a task; the student ticks it in «Планы»; the grou
   await mashaPage.keyboard.press('Escape');
   await expect(row.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
 
-  // On the group's page Masha sees her own week on the task, not her classmates'.
+  // On the group's page, a tap opens the same view: her own week, nobody else's, nothing to edit.
   await mashaPage.getByRole('navigation').getByRole('button', { name: 'Друзья' }).click();
   await mashaPage.getByRole('button', { name: /^7Б/ }).click();
   const hers = mashaPage.getByRole('region', { name: 'Задачи группы' });
   await hers.getByRole('button', { name: /Повторять слова/ }).click();
-  await expect(hers).toContainText('Маша');
-  await expect(hers).not.toContainText('Петя');
-  await expect(hers.getByRole('button', { name: 'Удалить задачу' })).toHaveCount(0);
+  const there = mashaPage.getByRole('dialog', { name: 'Повторять слова' });
+  await expect(there.getByText('Задача группы 7Б')).toBeVisible();
+  await expect(there).toContainText('19:00 · Каждый день');
+  await expect(there).toContainText('Сделано: 1 из 1');
+  await expect(there).not.toContainText('Петя');
+  await expect(there.getByRole('button', { name: 'Удалить задачу' })).toHaveCount(0);
+  // Undone and done again from here; the group's count follows.
+  await there.getByRole('button', { name: 'Вернуть' }).click();
+  await expect(there).toContainText('Сделано: 0 из 1');
+  await expect(hers).toContainText('0 из 2 сделали сегодня');
+  await there.getByRole('button', { name: 'Отметить выполненной' }).click();
+  await expect(there).toContainText('Сделано: 1 из 1');
+  await expect(hers).toContainText('1 из 2 сделали сегодня');
+  await mashaPage.keyboard.press('Escape');
+  await expect(there).toHaveCount(0);
 
   // The teacher sees it: «1 из 2», and Masha's dot for today filled.
   await page.reload();
