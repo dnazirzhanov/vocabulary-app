@@ -26,3 +26,5 @@ not»). Builds on 0084.
 - Members see the teacher's tasks; the teacher sees each member's ticks on the group's tasks only, never their own
   tasks.
 - A one-off group task done early counts on its own day.
+
+_A student's view of a group task, and their own row only on the group's page: ADR 0092._
