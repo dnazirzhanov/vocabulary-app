@@ -24,6 +24,7 @@ import {
 import { FeedbackList } from './FeedbackList.tsx';
 import { PronunciationBreakdown } from './PronunciationBreakdown.tsx';
 import { ScoreGrid } from './ScoreGrid.tsx';
+import { TappableText } from '../ui/TappableText.tsx';
 import styles from './ExerciseScreen.module.css';
 import { BackButton } from '../ui/BackButton.tsx';
 
@@ -134,10 +135,17 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
           {question?.exercise_type === 'pronunciation' && question.reference_text ? (
             <div>
               <p className={styles.questionLabel}>{t.speakingReadAloud}</p>
-              <p className={styles.referenceText}>{question.reference_text}</p>
+              <TappableText
+                className={styles.referenceText}
+                text={question.reference_text}
+                kind="speaking"
+                questionId={question.id}
+              />
             </div>
+          ) : question ? (
+            <TappableText className={styles.question} text={question.text} kind="speaking" questionId={question.id} />
           ) : (
-            <p className={styles.question}>{question?.text ?? t.speakingLoadingQuestion}</p>
+            <p className={styles.question}>{t.speakingLoadingQuestion}</p>
           )}
           {loadError && (
             <p role="alert" className={styles.error}>

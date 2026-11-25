@@ -17,6 +17,7 @@ from app.api import (
     learning,
     me,
     mentor,
+    prompt_glosses,
     pronunciation,
     push,
     readings,
@@ -72,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(mentor.router, prefix="/api")
     app.include_router(schedule.router, prefix="/api")
     app.include_router(tasks.router, prefix="/api")
+    app.include_router(prompt_glosses.router, prefix="/api")
     app.include_router(speaking.router, prefix="/api")
     app.include_router(shadowing.router, prefix="/api")
     app.include_router(writing.router, prefix="/api")

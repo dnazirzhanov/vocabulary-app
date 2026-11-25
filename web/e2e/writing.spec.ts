@@ -290,3 +290,16 @@ test('IELTS feedback: the band, four criteria, why and the next step; no generic
   await expect(page.getByText('Что делать дальше')).toHaveCount(0);
   await expect(page.getByText(ielts.evaluation.summary)).toHaveCount(0);
 });
+
+test('a word of the question can be tapped for its meaning, as in Reading', async ({ page }) => {
+  await openQuestion(page);
+  const question = page.getByRole('heading', { level: 1 });
+  await question.getByRole('button', { name: 'cooking', exact: true }).click();
+  const card = page.getByRole('dialog', { name: 'cooking: перевод' });
+  await expect(card).toBeVisible();
+  // The demo model's meaning (the real one writes the word's translation).
+  await expect(card).toContainText('перевод «cooking» (демо)');
+  await expect(card).not.toContainText('Перевод скоро появится');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+});

@@ -14,6 +14,7 @@ import {
 import { clock } from '../lib/stopwatch.ts';
 import { bandText, criterionLabel, ieltsLabel, ieltsShort, scoreLabel, taskTypeLabel } from './scoreText.ts';
 import { collectFixes, collectIeltsFixes, segments, type Fix } from './marks.ts';
+import { TappableText } from '../ui/TappableText.tsx';
 import styles from './Writing.module.css';
 import { BackButton } from '../ui/BackButton.tsx';
 
@@ -38,7 +39,17 @@ export function ResultScreen({ submission, onBack, onWriteAgain, onAnother }: Pr
       {submission.question?.task_type && (
         <p className={styles.typeChip}>{taskTypeLabel(submission.question.task_type)}</p>
       )}
-      <h1 className={styles.context}>{submission.question?.title ?? t.writing}</h1>
+      {submission.question ? (
+        <TappableText
+          as="h1"
+          className={styles.context}
+          text={submission.question.title}
+          kind="writing"
+          questionId={submission.question.id}
+        />
+      ) : (
+        <h1 className={styles.context}>{t.writing}</h1>
+      )}
 
       {ev && isIelts(ev) && ev.enough_evidence && ev.criteria && ev.band !== null ? (
         <IeltsFeedback submission={submission} ev={ev} />
