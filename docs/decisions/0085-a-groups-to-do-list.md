@@ -16,7 +16,9 @@ not»). Builds on 0084.
   - the group's page shows each task with «2 из 12 сделали сегодня»;
   - open it, and each student is named with seven dots for the group's week: done, skipped, not done, or not that
     task's day;
-  - names, never an order of merit (as the promise report).
+  - names, never an order of merit (as the promise report);
+  - one student per row, with room around it and a fine line between rows, so a teacher can follow one student's
+    week without the next row running into it (the owner, 25 November 2026).
 - **The board API** carries `tasks`: each task with the week's days it falls on and every member's marks.
 - **«Сегодня по обещанию» stays** until the study task becomes the promise (0086).
 
