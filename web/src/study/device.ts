@@ -29,6 +29,7 @@ import {
   planSpelling,
   planStudy,
   present,
+  showable,
   summarize,
   withExtra,
   type LocalLesson,
@@ -218,9 +219,10 @@ async function save(db: AccountDb, lesson: LocalLesson, extra: { answer?: KeptAn
   }
 }
 
-function openOf(lessons: Map<string, LocalLesson>, spelling: boolean): LocalLesson | null {
+/** The lesson to go on with: the latest open one this device can still show (ADR 0094). */
+function openOf(lessons: Map<string, LocalLesson>, spelling: boolean, learner: Learner): LocalLesson | null {
   const open = [...lessons.values()]
-    .filter((lesson) => isOpen(lesson) && (lesson.kind === 'spelling') === spelling)
+    .filter((lesson) => isOpen(lesson) && (lesson.kind === 'spelling') === spelling && showable(learner, lesson))
     .sort((a, b) => b.startedAt - a.startedAt);
   return open[0] ?? null;
 }
@@ -244,7 +246,11 @@ async function beginNow(
   const db = localDb()!;
   const { learner, lessons } = await loadWith(db, deckId);
   const moment = now();
-  const existing = openOf(lessons, kind === 'spelling');
+  // Open ones whose words left this device: set aside, so the server hears of their answers.
+  for (const stale of lessons.values())
+    if (isOpen(stale) && (stale.kind === 'spelling') === (kind === 'spelling') && !showable(learner, stale))
+      await setAside(db, stale, moment);
+  const existing = openOf(lessons, kind === 'spelling', learner);
   if (existing) {
     if (resumes(existing, learner)) return present(learner, existing, moment);
     await setAside(db, existing, moment);
@@ -300,7 +306,7 @@ async function respondNow(sessionId: string, exerciseId: string, response: Respo
  * when the main button starts afresh with them (ADR 0064).
  */
 function pausedSpelling(learner: Learner, lessons: Map<string, LocalLesson>, deckId: string): LocalLesson | null {
-  const open = openOf(lessons, true);
+  const open = openOf(lessons, true, learner);
   return open && open.deckId === deckId && !metSince(learner, deckId, open.startedAt) ? open : null;
 }
 
@@ -358,7 +364,7 @@ export const study = {
   async activeSession(): Promise<{ session: Session | null }> {
     if (!local()) return api.activeSession();
     const { learner, lessons } = await load(localDb()!);
-    const open = openOf(lessons, false);
+    const open = openOf(lessons, false, learner);
     return { session: open && present(learner, open, now()) };
   },
 

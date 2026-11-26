@@ -11,6 +11,8 @@ import {
   planPractice,
   planSpelling,
   planStudy,
+  present,
+  showable,
   summarize,
   withExtra,
   type LocalLesson,
@@ -298,4 +300,15 @@ test('«Повторить сейчас» gives met words, soonest back first, a
   assert.deepEqual(words(2), ['b', 'c']);
   // Nothing met yet: nothing to practise.
   assert.throws(() => planPractice(learnerFrom(packWith(), []), 'one', null), /nothing_to_practice/);
+});
+
+test('a lesson whose word left the device is not shown again (ADR 0094)', () => {
+  const learner = learnerFrom(packWith(), []);
+  const lesson = lessonOf(planStudy(learner, 'one', NOW));
+  assert.equal(showable(learner, lesson), true);
+  // Its teacher takes one of its words out of the deck: the next pack no longer has it.
+  learner.words.delete(lesson.steps[0].wordId);
+  assert.equal(showable(learner, lesson), false);
+  // What used to happen when it was shown anyway: the deck pages and lessons failed.
+  assert.throws(() => present(learner, lesson, NOW), TypeError);
 });

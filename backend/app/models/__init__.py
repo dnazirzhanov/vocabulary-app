@@ -1,5 +1,6 @@
 """Importing this package registers every table on Base.metadata (used by Alembic)."""
 
+from app.models.client_error import ClientError
 from app.models.content import (
     Deck,
     DeckAssignment,
@@ -67,6 +68,7 @@ from app.models.writing import WritingSubmission
 
 __all__ = [
     "CardReport",
+    "ClientError",
     "Deck",
     "DeckAssignment",
     "DeckPace",
