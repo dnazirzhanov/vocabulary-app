@@ -201,7 +201,8 @@ test('«Учёба на сегодня»: a tap starts the flashcards; done, the
   const studyList = page.getByRole('region', { name: 'Учёба на сегодня' });
   const first = studyList.getByRole('button', { name: /^Учить «/ }).first();
   await expect(first).toBeVisible();
-  await expect(first).toContainText(/новых: \d+/);
+  // Just the deck: no word counts under it (owner, 26 Nov).
+  await expect(studyList.getByRole('listitem').first()).not.toContainText(/новых|на повтор|слов:/);
   const title = (await first.textContent())!.match(/«(.+?)»/)![1];
   // Straight into the lesson, not the deck's page.
   await first.click();

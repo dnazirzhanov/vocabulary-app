@@ -293,13 +293,15 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
                         <span className={styles.rowTitle}>
                           {item.kind === 'learn' ? t.planLearnDeck(item.title) : t.planSpellDeck(item.title)}
                         </span>
-                        <span className={styles.rowMeta}>
-                          {(item.done ? [t.planCompleted] : studyMeta(item, today)).map((part) => (
-                            <span key={part} className={styles.metaPart}>
-                              {part}
-                            </span>
-                          ))}
-                        </span>
+                        {(item.done ? [t.planCompleted] : studyMeta(item, today)).length > 0 && (
+                          <span className={styles.rowMeta}>
+                            {(item.done ? [t.planCompleted] : studyMeta(item, today)).map((part) => (
+                              <span key={part} className={styles.metaPart}>
+                                {part}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </span>
                       <ForwardIcon className={styles.studyGo} aria-hidden="true" />
                     </button>
@@ -425,15 +427,10 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
   );
 }
 
-/** «новых: 5 · на повтор: 12 · до 30 нояб. · 7Б», or «слов: 8» for spelling. */
+/** «до 30 нояб. · 7Б»: a teacher's deadline and the group, if any; no word counts (owner, 26 Nov). */
 function studyMeta(item: StudyItem, today: string): string[] {
-  if (item.kind === 'spell') return [t.planWordsCount(item.dueCount)];
-  return [
-    item.newCount ? t.planNewWords(item.newCount) : '',
-    item.dueCount ? t.planReviewWords(item.dueCount) : '',
-    item.dueOn ? t.planDeadline(dayLabel(item.dueOn, today)) : '',
-    item.group ?? '',
-  ].filter(Boolean);
+  if (item.kind === 'spell') return [];
+  return [item.dueOn ? t.planDeadline(dayLabel(item.dueOn, today)) : '', item.group ?? ''].filter(Boolean);
 }
 
 /** A day's list; on today, tasks with no date are today's too (there is no inbox, ADR 0087). */
