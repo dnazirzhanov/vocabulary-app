@@ -102,3 +102,30 @@ test('a deck studied today stays on the list, ticked; the celebration is once', 
   // Words come back to it later the same day: waiting again.
   assert.equal(withSeen([item('a'), item('b')], again.seen).items.find((i) => i.key === 'a')?.done, undefined);
 });
+
+test("a deck deleted (or hidden) after it was on today's list leaves it, not ticked", () => {
+  const item = (key: string): StudyItem => ({
+    key,
+    kind: 'learn',
+    deckId: `deck-${key}`,
+    title: key,
+    newCount: 5,
+    dueCount: 0,
+    dueOn: null,
+    group: null,
+  });
+  const morning = withSeen([item('a'), item('b')], {});
+  // «a» was deleted: nothing waits on it, and it is no longer among my decks.
+  const after = withSeen([item('b')], morning.seen, new Set(['deck-b']));
+  assert.deepEqual(
+    after.items.map((i) => i.key),
+    ['b'],
+  );
+  assert.deepEqual(after.fresh, []);
+  assert.equal(after.seen.a, undefined);
+  // Studied to the end (still mine): ticked, as before.
+  const studied = withSeen([item('b')], morning.seen, new Set(['deck-a', 'deck-b']));
+  assert.equal(studied.items.find((i) => i.key === 'a')?.done, true);
+  // Whether it is still there couldn't be told (offline, no copy): kept, as before.
+  assert.equal(withSeen([item('b')], morning.seen, null).items.find((i) => i.key === 'a')?.done, true);
+});

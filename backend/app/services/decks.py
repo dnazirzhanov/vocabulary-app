@@ -22,6 +22,7 @@ from sqlalchemy import Select, and_, delete, exists, func, or_, select, true, up
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
+from app.core.config import get_settings
 from app.core.errors import ApiError
 from app.models import (
     CardReport,
@@ -163,8 +164,10 @@ def _active_assignments(user: User) -> Select[str, datetime, UUID, date | None]:
 
 def course_open(user: User) -> bool:
     """The course is written in Russian only, so it is for those studying in Russian (ADR 0055).
-    An account not yet asked reads as Russian. Every path to course words goes through this."""
-    return user.language in (None, COURSE_LANGUAGE)
+    An account not yet asked reads as Russian. Every path to course words goes through this, so
+    hiding the course (ADR 0093) hides it everywhere: home, its levels, the study pack, progress,
+    the pace and «Планы»."""
+    return get_settings().course_decks and user.language in (None, COURSE_LANGUAGE)
 
 
 def visible_deck(db: Session, user: User, deck_id: str) -> Deck:

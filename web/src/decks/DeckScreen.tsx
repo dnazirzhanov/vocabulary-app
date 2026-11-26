@@ -3,7 +3,8 @@ import { study } from '../study/device.ts';
 import type { DayPlan } from '../study/plan.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
-import { api, describeError } from '../lib/api.ts';
+import { api, ApiError, describeError } from '../lib/api.ts';
+import { reportError } from '../lib/report.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { deckStages } from '../lib/deckStages.ts';
 import { studyLabel } from '../lib/today.ts';
@@ -16,6 +17,7 @@ import { DailyPace, ExtraWords, Practice } from './DeckPace.tsx';
 import { ListRow, ListSection } from '../ui/List.tsx';
 import { wordsOf } from '../words/WordsScreen.tsx';
 import type { DeckWord } from '../lib/types.ts';
+import { DeleteDeck } from './DeleteDeck.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { BackIcon, PencilIcon } from '../ui/icons.tsx';
@@ -47,6 +49,8 @@ interface DeckScreenProps {
   onWords: (deckId: string, title: string, mine: boolean) => void;
   /** My own deck: straight to adding words (its editor). */
   onAddWords: (deckId: string) => void;
+  /** My own deck, deleted from the end of its page. */
+  onDeleted: () => void;
 }
 
 /**
@@ -54,7 +58,7 @@ interface DeckScreenProps {
  * Anki's three numbers, its own new words a day (ADR 0028) — and one button that studies this
  * deck, within today's pace. More words today are one tap further.
  */
-export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAddWords }: DeckScreenProps) {
+export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAddWords, onDeleted }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
@@ -80,10 +84,18 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
       // Worked out on this device from what it keeps, with or without a connection (ADR 0062); a
       // deck it can't hold yet comes from the server, or as last seen.
       Promise.all([
-        study
-          .deckStats(deckId)
-          .catch(() => withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value)),
-        study.activeSession(),
+        study.deckStats(deckId).catch((caught: unknown) => {
+          // This device couldn't work it out: from the server, or as last seen. Reported, since
+          // with the device's data it should have (ADR 0094).
+          if (!(caught instanceof ApiError && caught.kind === 'network')) reportError('deck-page/stats', caught);
+          return withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value);
+        }),
+        // A lesson left open that can't be shown again must not shut every deck page (ADR 0094):
+        // the page opens as if there were none, and the failure is reported.
+        study.activeSession().catch((caught: unknown) => {
+          reportError('deck-page/open-lesson', caught);
+          return { session: null };
+        }),
       ])
         .then(async ([stats, active]) => {
           // The pace (its suggestion, the setting) is secondary: the page works without it. Today's
@@ -359,6 +371,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
               onClick={() => onWords(deckId, stats.title, stats.is_mine)}
             />
           </ListSection>
+          {/* Last on the page, and only my own deck: it asks first (ADR 0093). */}
+          {stats.is_mine && (
+            <DeleteDeck
+              deckId={deckId}
+              title={stats.title}
+              wordCount={stats.word_count}
+              groups={given}
+              onDeleted={onDeleted}
+            />
+          )}
           {practicing && (
             <Practice
               open

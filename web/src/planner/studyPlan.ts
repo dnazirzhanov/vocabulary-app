@@ -77,15 +77,20 @@ const groupOf = (deck: LibraryDeck): string | null => deck.group_name;
  * Today's list as the learner saw it (ADR 0089): what is waiting now, and what was waiting earlier
  * today and isn't any more, which they finished, shown ticked. `seen` is what this device kept
  * from earlier today; the result's `seen` is to keep. `fresh` are the ones finished since the last
- * look, for the tick's celebration.
+ * look, for the tick's celebration. A deck no longer there is dropped (ADR 0093).
  */
 export function withSeen(
   pending: StudyItem[],
   seen: Record<string, StudyItem>,
+  /** The decks I still have; null when that couldn't be told (then nothing is dropped). */
+  exists: ReadonlySet<string> | null = null,
 ): { items: StudyItem[]; seen: Record<string, StudyItem>; fresh: string[] } {
   const waiting = new Set(pending.map((item) => item.key));
+  // A deck with nothing left was finished, unless it is gone: deleted, left with its group, or
+  // hidden. Then it leaves the list, not ticked.
   const finished = Object.values(seen)
     .filter((item) => !waiting.has(item.key))
+    .filter((item) => !exists || exists.has(item.deckId))
     .map((item) => ({ ...item, done: true }));
   const fresh = finished.filter((item) => !seen[item.key].done).map((item) => item.key);
   const kept: Record<string, StudyItem> = {};

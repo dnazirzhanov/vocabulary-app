@@ -738,6 +738,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           onSession={startSession}
           onWords={(id, title, mine) => setScreen({ name: 'words', deckId: id, title, mine, from })}
           onAddWords={(id) => setScreen({ name: 'deck', deckId: id, groupId: null, from })}
+          onDeleted={() => setScreen(backTo(from))}
         />
       );
     }

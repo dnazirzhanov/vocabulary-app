@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { t, uiLanguage } from '../i18n/index.ts';
 import { BackIcon, ForwardIcon } from '../ui/icons.tsx';
-import { addDays, hhmm, weekday } from './dates.ts';
+import { addDays, hhmm, repeatStart, weekday } from './dates.ts';
 import styles from './Planner.module.css';
 
 export interface When {
@@ -73,12 +73,14 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
     { label: t.planTomorrow, day: addDays(today, 1) },
     { label: t.planNextMonday, day: nextMonday },
   ];
-  /** A repeat starts on the first of its days from the date chosen (or today). */
-  const repeatOn = (mask: number) => {
-    let day = value.dueOn ?? today;
-    if (mask) while (!(mask & (1 << weekday(day)))) day = addDays(day, 1);
-    set({ repeatMask: mask, dueOn: mask ? day : value.dueOn });
+  // The date the person chose (a chip, the calendar, or today): a repeat counts from it, however
+  // many weekdays are tapped after (ADR 0093).
+  const [from, setFrom] = useState(value.dueOn ?? today);
+  const pick = (day: string) => {
+    setFrom(day);
+    set({ dueOn: repeatStart(day, value.repeatMask) });
   };
+  const repeatOn = (mask: number) => set({ repeatMask: mask, dueOn: mask ? repeatStart(from, mask) : from });
   const shift = (by: number) => {
     const d = new Date(`${month}T12:00:00Z`);
     d.setUTCMonth(d.getUTCMonth() + by);
@@ -93,7 +95,7 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
             type="button"
             className={styles.quickChip}
             aria-pressed={value.dueOn === q.day}
-            onClick={() => set({ dueOn: q.day })}
+            onClick={() => pick(q.day)}
           >
             {q.label}
           </button>
@@ -131,7 +133,7 @@ export function DatePicker({ value, today, onChange }: { value: When; today: str
                 })}
                 data-today={day === today || undefined}
                 data-past={day < today || undefined}
-                onClick={() => set({ dueOn: day })}
+                onClick={() => pick(day)}
               >
                 {Number(day.slice(8))}
               </button>
