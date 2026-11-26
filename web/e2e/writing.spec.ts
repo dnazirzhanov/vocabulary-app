@@ -6,7 +6,7 @@ const done = (answer: string) => ({
   question_id: 'life-morning',
   question: {
     id: 'life-morning',
-    topic: 'Everyday Life',
+    topic: 'Food & Diet',
     title: 'Describe a typical day in your life.',
     instruction: 'Write about what you usually do from morning to evening.',
     level: 'A2',
@@ -41,8 +41,8 @@ test.use({ writer: true, viewport: { width: 390, height: 844 } });
 async function openQuestion(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Письмо', exact: true }).click();
-  await page.getByRole('button', { name: /Everyday Life/ }).click();
-  // IELTS Task 2 questions since ADR 0081: the first of Everyday Life.
+  await page.getByRole('button', { name: /^Food & Diet/ }).click();
+  // IELTS Task 2 questions (ADR 0081, 0090): the first of Food & Diet.
   await page.getByRole('button', { name: /cooking at home/ }).click();
 }
 
@@ -228,7 +228,7 @@ const ielts = {
   question_id: 'ielts-life-1',
   question: {
     id: 'ielts-life-1',
-    topic: 'Everyday Life',
+    topic: 'Food & Diet',
     title: 'Some people believe that cooking at home is a waste of time. To what extent do you agree or disagree?',
     instruction: 'Give reasons for your answer. Write at least 250 words.',
     level: null,

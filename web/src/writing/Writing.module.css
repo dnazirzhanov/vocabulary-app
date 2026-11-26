@@ -111,65 +111,6 @@
   font-size: var(--text-meta);
 }
 
-/* The archive: each essay is a row that shows enough of it to recognise it. (Not `.essay`: that
-   is the answer's text on the feedback page, and the two must never share rules.) */
-.archiveItem {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.archiveItem:hover {
-  background: var(--color-primary-tint);
-}
-
-.archiveItem:disabled {
-  cursor: progress;
-}
-
-.essayMeta {
-  color: var(--color-text-muted);
-  font-size: var(--text-meta);
-  font-variant-numeric: tabular-nums;
-}
-
-.essayTitle {
-  font-weight: var(--weight-strong);
-  line-height: var(--leading-body);
-}
-
-.essayExcerpt {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-height: var(--leading-body);
-  overflow-wrap: anywhere;
-}
-
-.essayMark,
-.essayUnmarked {
-  font-size: var(--text-meta);
-  font-weight: var(--weight-strong);
-}
-
-.essayMark {
-  color: var(--color-primary-strong);
-}
-
-.essayUnmarked {
-  color: var(--color-text-muted);
-}
-
 /* The one way from the home into the essays already written. */
 .archiveLink {
   justify-self: start;
@@ -856,21 +797,6 @@
   font-size: var(--text-meta);
 }
 
-/* An archive topic: its essay count, and the best band in it. */
-.topicFoot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-/* A long old-style mark («Достаточный · 3 из 5») wraps inside a narrow card instead of spilling. */
-.topicFoot .bandTag {
-  min-width: 0;
-  white-space: normal;
-}
-
 /* A mark in a row: «IELTS 6.5». */
 .bandTag {
   padding: 2px 10px;
@@ -1091,4 +1017,113 @@
 .criterionName {
   margin: 0;
   font-weight: var(--weight-display);
+}
+
+/* On a computer the essay gets the room (ADR 0090): a wider column and a taller sheet; a phone
+   keeps the column it had. */
+@media (min-width: 1024px) {
+  .writeScreen {
+    max-width: 60rem;
+  }
+
+  .textarea {
+    min-height: max(62dvh, 22rem);
+    padding: var(--space-6) var(--space-6) var(--space-4);
+  }
+}
+
+/* «Все мои эссе» (ADR 0090): one card everywhere, topic, question and attempt alike. A top line
+   (what and how many, left; the band as a pill, right), then the title or the essay's start. */
+.archiveGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archiveGrid > li {
+  display: flex;
+}
+
+.essayCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 92px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.essayCard:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.essayCard:disabled {
+  cursor: progress;
+}
+
+.essayCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 24px;
+}
+
+.essayCardMeta {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.essayCardTitle {
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.essayCardText {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.essayCardUnmarked {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.essayCardTop .bandTag {
+  flex: none;
+}
+
+/* Topic cards in a row share one height, whichever name wraps («Environment & Climate»). */
+.topicGrid > li {
+  display: flex;
+}
+
+.topicGrid .topicCard {
+  height: 100%;
 }
