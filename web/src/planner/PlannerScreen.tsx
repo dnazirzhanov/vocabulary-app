@@ -3,8 +3,10 @@
  * «Входящие»; quick add with typed dates; tick, swipe, edit. Online first: the screen changes at
  * once and saves behind; on a failure it goes back and says so.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { describeError } from '../lib/api.ts';
+import { playTaskDone } from '../lib/sounds.ts';
+import { Celebration } from '../ui/Celebration.tsx';
 import { t } from '../i18n/index.ts';
 import { CardsIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
 import { tasksApi, type Item, type Scope, type TaskInput } from './api.ts';
@@ -13,7 +15,7 @@ import { dayLabel } from './DatePicker.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { Serial } from './queue.ts';
 import { loadStudyToday, type StudyItem } from './studyToday.ts';
-import { dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
+import { byTime, dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
 import { TaskRow } from './TaskRow.tsx';
 import { TaskSheet } from './TaskSheet.tsx';
 import styles from './Planner.module.css';
@@ -40,7 +42,9 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [showDone, setShowDone] = useState(false);
+  // The row just ticked (its sparks), and the day's finish (confetti), for a moment each (ADR 0088).
+  const [burst, setBurst] = useState<string | null>(null);
+  const [party, setParty] = useState(0);
   const [studyItems, setStudyItems] = useState<StudyItem[] | null>(null);
 
   const load = useCallback(
@@ -97,6 +101,8 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
   const replace = (target: Item, next: Partial<Item>) => (was: Item[]) =>
     was.map((i) => (keyOf(i) === keyOf(target) ? { ...i, ...next } : i));
 
+  const shown: DayView | null = items ? dayWithUndated(items, day, today) : null;
+
   const toggle = (item: Item) => {
     // Ticked by practising: there is no tick of mine to take back.
     if (item.by_practice) return;
@@ -107,6 +113,12 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
     }
     void act(replace(item, { state: 'done' }), () => tasksApi.mark(item.task.id, on));
     navigator.vibrate?.(12);
+    // The day's last open task: confetti and the finish chord; any other: a pop and sparks.
+    const left = shown ? [...shown.overdue, ...shown.open].filter((i) => keyOf(i) !== keyOf(item)) : [];
+    if (shown && day === today && left.length === 0) setParty((n) => n + 1);
+    else playTaskDone();
+    setBurst(keyOf(item));
+    window.setTimeout(() => setBurst((b) => (b === keyOf(item) ? null : b)), 900);
     setToast({
       text: t.planCompleted,
       undo: () => void act(replace(item, { state: null }), () => tasksApi.unmark(item.task.id, on)),
@@ -141,19 +153,6 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
     await load();
   };
 
-  const shown: DayView | null = useMemo(() => {
-    if (!items) return null;
-    const dayList = dayView(items, day, today);
-    if (day !== today) return dayList;
-    // Tasks with no date are today's: there is no separate inbox (ADR 0087).
-    const undated = inbox(items);
-    return {
-      overdue: dayList.overdue,
-      open: [...dayList.open, ...undated.open],
-      done: [...dayList.done, ...undated.done],
-    };
-  }, [items, day, today]);
-
   const strip = Array.from({ length: DAYS }, (_, n) => addDays(today, n));
   const heading = view === 'upcoming' ? t.planUpcoming : dayLabel(day, today);
 
@@ -163,6 +162,7 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
         <TaskRow
           key={keyOf(item)}
           item={item}
+          burst={burst === keyOf(item)}
           today={today}
           onToggle={toggle}
           onOpen={setOpen}
@@ -285,44 +285,34 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
               {rows(shown.overdue)}
             </section>
           )}
-          {shown.open.length > 0 && (
+          {(shown.open.length > 0 || shown.done.length > 0) && (
             <section aria-label={heading}>
               {/* Under «Просрочено», the day's own tasks get their heading, so they aren't read as late. */}
               {shown.overdue.length > 0 && <h2 className={styles.section}>{heading}</h2>}
-              {rows(shown.open)}
+              {/* Done tasks stay where they are, crossed out (ADR 0088): the day reads as a whole. */}
+              {rows([...shown.open, ...shown.done].sort(byTime))}
             </section>
           )}
-          {shown.open.length === 0 && shown.overdue.length === 0 && (
-            <div className={styles.emptyBox}>
-              <p className={styles.empty}>{shown.done.length > 0 ? t.planAllDone : t.planEmptyDay}</p>
-              {shown.done.length === 0 && (
-                <>
-                  <p className={styles.muted}>{t.planEmptyHint}</p>
-                  <button
-                    type="button"
-                    className={styles.exampleChip}
-                    onClick={() => setAdding({ text: t.planExample, study: true })}
-                  >
-                    {t.planExample}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          {shown.done.length > 0 && (
-            <section aria-label={t.planCompleted}>
-              <button
-                type="button"
-                className={styles.doneToggle}
-                aria-expanded={showDone}
-                onClick={() => setShowDone((s) => !s)}
-              >
-                {t.planDone(shown.done.length)}
-                <span aria-hidden="true">{showDone ? '▾' : '▸'}</span>
-              </button>
-              {showDone && rows(shown.done)}
-            </section>
-          )}
+          {/* «Всё сделано» only when nothing is left: the app's study list counts too. */}
+          {shown.open.length === 0 &&
+            shown.overdue.length === 0 &&
+            !(shown.done.length > 0 && day === today && studyItems?.length) && (
+              <div className={styles.emptyBox}>
+                <p className={styles.empty}>{shown.done.length > 0 ? t.planAllDone : t.planEmptyDay}</p>
+                {shown.done.length === 0 && (
+                  <>
+                    <p className={styles.muted}>{t.planEmptyHint}</p>
+                    <button
+                      type="button"
+                      className={styles.exampleChip}
+                      onClick={() => setAdding({ text: t.planExample, study: true })}
+                    >
+                      {t.planExample}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
         </div>
       )}
 
@@ -361,6 +351,7 @@ export default function PlannerScreen({ onOpenDeck }: Props) {
           }}
         />
       )}
+      {party > 0 && <Celebration key={party} />}
       {toast && (
         <div className={styles.toast} role="status">
           <span>{toast.text}</span>
@@ -391,4 +382,16 @@ function studyMeta(item: StudyItem, today: string): string[] {
     item.dueOn ? t.planDeadline(dayLabel(item.dueOn, today)) : '',
     item.group ?? '',
   ].filter(Boolean);
+}
+
+/** A day's list; on today, tasks with no date are today's too (there is no inbox, ADR 0087). */
+function dayWithUndated(items: Item[], day: string, today: string): DayView {
+  const dayList = dayView(items, day, today);
+  if (day !== today) return dayList;
+  const undated = inbox(items);
+  return {
+    overdue: dayList.overdue,
+    open: [...dayList.open, ...undated.open],
+    done: [...dayList.done, ...undated.done],
+  };
 }

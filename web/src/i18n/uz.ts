@@ -1164,7 +1164,6 @@ export const uz: Messages = {
   planToday: 'Bugun',
   planUpcoming: 'Kelgusi',
   planOverdue: 'Muddati o‘tgan',
-  planDone: (n: number) => `Bajarildi · ${n}`,
   planEmptyDay: 'Bu kunga vazifa yo‘q',
   planAllDone: 'Bugungi hammasi bajarildi',
   planEmptyHint: 'Vazifa qo‘shish uchun «+» ni bosing. Sana va vaqtni qatorning o‘zida yozish mumkin:',

@@ -89,3 +89,29 @@ export function playCelebration() {
   // A little sparkle on top as the chord blooms.
   [G6, C6 * 2, E6 * 2].forEach((pitch, index) => note(ctx, pitch, chord + 0.08 + index * 0.07, 0.35, 0.035));
 }
+
+/**
+ * A task ticked in «Планы» (ADR 0088): a quick «pop» and a bright rising pair (G5 → C6, with E6
+ * on top), under half a second. Lighter than the finish chord, so the day's last tick can still
+ * feel bigger.
+ */
+export function playTaskDone() {
+  const ctx = audio();
+  if (!ctx) return;
+  const now = ctx.currentTime + 0.01;
+  // The pop: a very short falling blip.
+  const pop = ctx.createOscillator();
+  const popGain = ctx.createGain();
+  pop.type = 'triangle';
+  pop.frequency.setValueAtTime(900, now);
+  pop.frequency.exponentialRampToValueAtTime(320, now + 0.06);
+  popGain.gain.setValueAtTime(0.0001, now);
+  popGain.gain.exponentialRampToValueAtTime(0.18, now + 0.005);
+  popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+  pop.connect(popGain).connect(ctx.destination);
+  pop.start(now);
+  pop.stop(now + 0.1);
+  note(ctx, G5, now + 0.05, 0.25, 0.12);
+  note(ctx, C6, now + 0.12, 0.4, 0.13);
+  note(ctx, E6, now + 0.16, 0.35, 0.05);
+}

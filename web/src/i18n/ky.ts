@@ -1158,7 +1158,6 @@ export const ky: Messages = {
   planToday: 'Бүгүн',
   planUpcoming: 'Алдыдагылар',
   planOverdue: 'Мөөнөтү өткөн',
-  planDone: (n: number) => `Аткарылды · ${n}`,
   planEmptyDay: 'Бул күнгө тапшырма жок',
   planAllDone: 'Бүгүнкүнүн баары аткарылды',
   planEmptyHint: 'Тапшырма кошуу үчүн «+» басыңыз. Күнүн жана убактысын саптын ичине эле жазсаңыз болот:',
