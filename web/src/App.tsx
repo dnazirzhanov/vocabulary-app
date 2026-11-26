@@ -45,6 +45,7 @@ const ReadingOwnText = lazy(() => import('./reading/OwnText.tsx').then((m) => ({
 // deterministic planner and its view of the reading index.
 const MentorScreen = lazy(() => import('./mentor/MentorScreen.tsx').then((m) => ({ default: m.MentorScreen })));
 const PlannerScreen = lazy(() => import('./planner/PlannerScreen.tsx'));
+import type { StudyItem } from './planner/studyPlan.ts';
 
 // Speaking tab: loaded only when its tab is opened.
 const SpeakingExerciseScreen = lazy(() =>
@@ -282,20 +283,42 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   // page; and where that page was opened from, for its «Назад».
   const [scope, setScope] = useState<string | null>(null);
   const [pageFrom, setPageFrom] = useState<PageFrom>('home');
+  // A lesson started from «Планы» (ADR 0089) goes back there when it ends.
+  const [fromPlans, setFromPlans] = useState(false);
   const goHome = useCallback(() => setScreen({ name: 'home' }), []);
   const openPage = useCallback((deckId: string, from: PageFrom) => {
     setPageFrom(from);
     setScreen({ name: 'deck-page', deckId, from });
   }, []);
   // After a lesson: back to the deck it was from.
-  const leave = useCallback(
-    () => (scope ? openPage(scope, pageFrom) : setScreen({ name: 'home' })),
-    [scope, pageFrom, openPage],
-  );
+  const leave = useCallback(() => {
+    if (fromPlans) {
+      setFromPlans(false);
+      setScreen({ name: 'plans' });
+    } else if (scope) openPage(scope, pageFrom);
+    else setScreen({ name: 'home' });
+  }, [fromPlans, scope, pageFrom, openPage]);
   const showSession = useCallback((session: Session) => setScreen({ name: 'session', session }), []);
   const startSession = useCallback((session: Session, from: string | null) => {
     setScope(from);
+    setFromPlans(false);
     setScreen({ name: 'session', session });
+  }, []);
+  /** A study item tapped in «Планы»: its flashcards or spelling at once, back to «Планы» after. */
+  const startFromPlans = useCallback(async (item: StudyItem): Promise<boolean> => {
+    try {
+      const session =
+        item.kind === 'learn'
+          ? await study.startStudySession(item.deckId)
+          : await study.startSpellingSession(item.deckId);
+      setScope(item.deckId);
+      setPageFrom('plans');
+      setFromPlans(true);
+      setScreen({ name: 'session', session });
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
   const showSummary = useCallback((summary: Summary) => setScreen({ name: 'summary', summary }), []);
   // Bumped when the groups change, so the navigation's line about them refreshes.
@@ -540,7 +563,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'plans') {
       return (
         <Suspense fallback={null}>
-          <PlannerScreen onOpenDeck={(deckId) => openPage(deckId, 'plans')} />
+          <PlannerScreen onOpenDeck={(deckId) => openPage(deckId, 'plans')} onStartStudy={startFromPlans} />
         </Suspense>
       );
     }

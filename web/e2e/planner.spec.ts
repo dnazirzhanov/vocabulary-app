@@ -196,19 +196,27 @@ test('Wednesday and Saturday from the day buttons; a time with an end', async ({
   await expect(pool.first()).toContainText('Ср, Сб');
 });
 
-test('«Учёба на сегодня»: the app lists the deck to study, and a tap opens it', async ({ page }) => {
+test('«Учёба на сегодня»: a tap starts the flashcards; done, the deck stays on the list, ticked', async ({ page }) => {
   await openPlans(page);
   const studyList = page.getByRole('region', { name: 'Учёба на сегодня' });
   const first = studyList.getByRole('button', { name: /^Учить «/ }).first();
   await expect(first).toBeVisible();
   await expect(first).toContainText(/новых: \d+/);
   const title = (await first.textContent())!.match(/«(.+?)»/)![1];
+  // Straight into the lesson, not the deck's page.
   await first.click();
-  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
-  // Back: «Планы» again.
-  await page
-    .getByRole('button', { name: /Назад|Планы/ })
-    .first()
-    .click();
-  await expect(page.getByRole('tab', { name: 'Сегодня' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из урока' })).toBeVisible();
+  await finishSession(page);
+  await button(page, 'На главную').click();
+  // Back in «Планы»: the deck is still listed, now ticked and crossed out.
+  await expect(page.getByRole('tab', { name: 'Сегодня' })).toHaveAttribute('aria-selected', 'true');
+  const done = page.getByRole('region', { name: 'Учёба на сегодня' }).getByRole('listitem').filter({ hasText: title });
+  await expect(done).toHaveAttribute('data-done', 'true');
+  await expect(done).toContainText('Выполнено');
+  // And after a reload too.
+  await page.reload();
+  await page.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Учёба на сегодня' }).getByRole('listitem').filter({ hasText: title }),
+  ).toHaveAttribute('data-done', 'true');
 });

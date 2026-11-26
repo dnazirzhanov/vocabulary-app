@@ -1215,3 +1215,22 @@
     display: none;
   }
 }
+
+/* A study item finished today (ADR 0089): ticked and crossed, like a done task. */
+.studyIcon[data-done] {
+  background: var(--color-success-tint);
+  color: var(--color-success);
+}
+
+.rowWrap[data-done] .studyRow .rowTitle {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.rowWrap[data-burst] .studyIcon {
+  animation: pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.studyRow:disabled {
+  cursor: progress;
+}

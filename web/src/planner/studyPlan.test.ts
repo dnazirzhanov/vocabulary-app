@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Deck, Library, LibraryDeck } from '../lib/types.ts';
-import { studyToday } from './studyPlan.ts';
+import { studyToday, withSeen, type StudyItem } from './studyPlan.ts';
 
 const lib = (id: string, title: string, counts: [number, number, number], extra: Partial<LibraryDeck> = {}) =>
   ({
@@ -68,4 +68,37 @@ test('deadlines first (nearest first), then the course by level, then group and 
 
 test('nothing waiting: nothing shown', () => {
   assert.deepEqual(studyToday([], null, []), []);
+});
+
+test('a deck studied today stays on the list, ticked; the celebration is once', () => {
+  const item = (key: string, extra: Partial<StudyItem> = {}): StudyItem => ({
+    key,
+    kind: 'learn',
+    deckId: key,
+    title: key,
+    newCount: 5,
+    dueCount: 0,
+    dueOn: null,
+    group: null,
+    ...extra,
+  });
+  // Morning: two decks waiting.
+  const morning = withSeen([item('a'), item('b')], {});
+  assert.deepEqual(morning.fresh, []);
+  // After studying «a»: only «b» waits; «a» is shown done, and is fresh.
+  const after = withSeen([item('b')], morning.seen);
+  assert.deepEqual(
+    after.items.map((i) => [i.key, i.done ?? false]),
+    [
+      ['b', false],
+      ['a', true],
+    ],
+  );
+  assert.deepEqual(after.fresh, ['a']);
+  // Looked at again: still done, no longer fresh.
+  const again = withSeen([item('b')], after.seen);
+  assert.deepEqual(again.fresh, []);
+  assert.equal(again.items.find((i) => i.key === 'a')?.done, true);
+  // Words come back to it later the same day: waiting again.
+  assert.equal(withSeen([item('a'), item('b')], again.seen).items.find((i) => i.key === 'a')?.done, undefined);
 });
