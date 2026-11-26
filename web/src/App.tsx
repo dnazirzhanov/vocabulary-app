@@ -75,7 +75,7 @@ type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
 type Screen =
   | { name: 'home' }
   | { name: 'mentor' }
-  | { name: 'speaking' }
+  | { name: 'speaking'; view?: 'home' | 'topics' }
   | { name: 'writing' }
   | { name: 'shadowing' }
   | { name: 'speaking-archive' }
@@ -559,10 +559,12 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       return (
         <Suspense fallback={null}>
           <SpeakingHomeScreen
+            view={screen.view}
+            onOpenTopics={() => setScreen({ name: 'speaking', view: 'topics' })}
             onSelectTopic={(topic, questions) => setScreen({ name: 'speaking-topic', topic, questions })}
             onSelectShadowing={() => setScreen({ name: 'shadowing' })}
             onOpenArchive={() => setScreen({ name: 'speaking-archive' })}
-            onBack={goHome}
+            onBack={screen.view === 'topics' ? () => setScreen({ name: 'speaking' }) : goHome}
           />
         </Suspense>
       );
@@ -611,7 +613,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
             onSelectQuestion={(question) =>
               setScreen({ name: 'speaking-question', question, topicQuestions: screen.questions })
             }
-            onBack={() => setScreen({ name: 'speaking' })}
+            onBack={() => setScreen({ name: 'speaking', view: 'topics' })}
           />
         </Suspense>
       );

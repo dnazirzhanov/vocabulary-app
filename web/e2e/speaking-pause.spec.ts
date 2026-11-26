@@ -16,6 +16,7 @@ test.use({
 async function openExercise(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation').getByRole('button', { name: 'Речь' }).click();
+  await page.getByRole('button', { name: /^Говорение/ }).click();
   await page.getByRole('button', { name: /^Daily Life/ }).click();
   await page.getByRole('button', { name: /typical morning routine/ }).click();
   await button(page, '🎙 Новая попытка').click();
@@ -51,4 +52,28 @@ test('an answer can be paused and resumed, and the paused time is not counted', 
   // Under 2.5 s of pause added: the length is the recorded time, not the time on the clock.
   const [m, s] = (await timer(page).textContent())!.split(':').map(Number);
   expect(m * 60 + s).toBeLessThan(5);
+});
+
+test('Speaking opens on three cards; «Говорение» holds the topics, and back returns there', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: 'Речь' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Речь' })).toBeVisible();
+  const cards = page.getByRole('main').getByRole('listitem');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0)).toContainText('Шэдоуинг');
+  await expect(cards.nth(1)).toContainText('Говорение');
+  await expect(cards.nth(1)).toContainText(/тем: \d+/);
+  await expect(cards.nth(2)).toContainText('Мои ответы');
+  // No topics on the home itself.
+  await expect(page.getByRole('button', { name: /^Daily Life/ })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole('button', { name: /^Говорение/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Темы для говорения' })).toBeVisible();
+  await page.getByRole('button', { name: /^Daily Life/ }).click();
+  // Back from a topic: its list of topics, then the three cards.
+  await page.getByRole('button', { name: 'Назад' }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Темы для говорения' })).toBeVisible();
+  await page.getByRole('button', { name: 'Назад' }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Речь' })).toBeVisible();
 });
