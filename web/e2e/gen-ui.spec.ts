@@ -33,6 +33,8 @@ test.describe('on a phone', () => {
     const card = page.getByRole('group', { name: 'Какой сегодня день?' });
     await card.getByRole('button', { name: 'Лёгкий день' }).click();
     await expect(card.getByRole('button', { name: 'Лёгкий день' })).toHaveAttribute('aria-pressed', 'true');
+    // The answer finishes (and is saved) before the page is left: leaving mid-answer loses it.
+    await expect(page.getByText('Загляни в «Сегодня»').last()).toBeVisible({ timeout: 10_000 });
     await page.goto('/');
     await openMentorPlan(page);
     await expect(page.getByText('Лёгкий день', { exact: true })).toBeVisible();

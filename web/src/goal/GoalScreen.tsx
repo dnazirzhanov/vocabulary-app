@@ -7,11 +7,11 @@ import { enablePush } from '../lib/push.ts';
 import type { Me } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { WeekdayPicker } from '../promise/WeekdayPicker.tsx';
-import { BackIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './GoalScreen.module.css';
 import { switchLanguage, t } from '../i18n/index.ts';
 import { CARD_LANGUAGES, type CardLanguage } from '../i18n/languages.ts';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface GoalScreenProps {
   me: Me;
@@ -77,13 +77,7 @@ export function GoalScreen({ me, onDone }: GoalScreenProps) {
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        {back ? (
-          <button type="button" className={styles.back} onClick={() => setStep(back)}>
-            <BackIcon aria-hidden="true" /> {t.back}
-          </button>
-        ) : (
-          <span />
-        )}
+        {back ? <BackButton onClick={() => setStep(back)} /> : <span />}
         {step !== 'language' && step !== 'name' && (
           <p className={styles.steps}>
             <span className="visually-hidden">{t.questionOf(position + 1, total)}</span>

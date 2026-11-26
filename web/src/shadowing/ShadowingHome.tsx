@@ -3,6 +3,7 @@ import { t } from '../i18n/index.ts';
 import { type ExerciseStatus, type ShadowingExercise, getExerciseAttempts, listExercises } from './api.ts';
 import { clock } from './oneAtATime.ts';
 import styles from './ShadowingHome.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface ShadowingHomeProps {
   onSelectExercise: (exercise: ShadowingExercise) => void;
@@ -45,9 +46,7 @@ export function ShadowingHome({ onSelectExercise, onBack }: ShadowingHomeProps) 
 
   return (
     <main className={styles.screen}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ‹ {t.shadowingBack}
-      </button>
+      <BackButton onClick={onBack} />
       <h1 className={styles.title}>{t.shadowingTitle}</h1>
 
       {error && (

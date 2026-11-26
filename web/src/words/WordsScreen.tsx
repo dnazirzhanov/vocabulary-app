@@ -8,11 +8,12 @@ import { partOfSpeech } from '../lib/partOfSpeech.ts';
 import { relativeDay } from '../lib/relativeDay.ts';
 import { playAudio } from '../lib/audio.ts';
 import type { DeckWord, WordStatus } from '../lib/types.ts';
-import { BackIcon, FlagIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
+import { FlagIcon, PencilIcon, SpeakerIcon } from '../ui/icons.tsx';
 import { CardMenu } from '../lesson/CardMenu.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import styles from './WordsScreen.module.css';
 import { t } from '../i18n/index.ts';
+import { BackButton } from '../ui/BackButton.tsx';
 
 const STATUS_LABEL: Record<WordStatus, string> = {
   not_started: t.aheadCapital,
@@ -69,9 +70,7 @@ export function WordsScreen({ deckId, deckTitle, onBack, onEdit }: WordsScreenPr
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          <BackIcon aria-hidden="true" /> {t.back}
-        </button>
+        <BackButton onClick={onBack} />
       </header>
       <main className={styles.main}>
         <div className={styles.column}>

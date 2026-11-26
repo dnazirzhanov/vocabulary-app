@@ -1178,7 +1178,6 @@ export const ru = {
   eventDialogErrorEndBeforeStart: 'Конец должен быть позже начала.',
   eventDialogErrorNoDays: 'Выберите хотя бы один день.',
   speaking: 'Речь',
-  speakingBack: 'Назад',
   speakingExerciseHeading: 'Говорение',
   speakingUnsupported:
     'Это устройство не поддерживает запись голоса. Попробуйте в последнем Chrome или в приложении для Android.',
@@ -1280,7 +1279,6 @@ export const ru = {
   speakingCardSpeakingText: (n: number) => `Ответы на вопросы · тем: ${n}`,
   speakingCardArchiveText: 'Все записи, оценки и прогресс',
   shadowingTitle: 'Шэдоуинг',
-  shadowingBack: 'Назад',
   shadowingLoadError: 'Не удалось загрузить упражнения. Попробуйте ещё раз.',
   shadowingDifficultyBeginner: 'Начинающий',
   shadowingDifficultyIntermediate: 'Средний',

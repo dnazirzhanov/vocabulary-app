@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { listSessions, type SessionSummary, type SpeakingQuestion } from './api.ts';
 import styles from './TopicScreen.module.css';
+import { BackButton } from '../ui/BackButton.tsx';
 
 interface TopicScreenProps {
   topic: string;
@@ -36,9 +37,7 @@ export function TopicScreen({ topic, questions, onSelectQuestion, onBack }: Topi
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
-        <button type="button" className={styles.back} onClick={onBack}>
-          {t.speakingBack}
-        </button>
+        <BackButton onClick={onBack} />
         <h1 className={styles.title}>{topic}</h1>
       </header>
 
