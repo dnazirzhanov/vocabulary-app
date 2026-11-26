@@ -97,7 +97,7 @@ async function send(
   return response;
 }
 
-async function request<T>(
+export async function request<T>(
   method: Method,
   path: string,
   body?: unknown,

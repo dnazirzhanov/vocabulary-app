@@ -268,3 +268,20 @@ export const CopyIcon = (props: IconProps) => (
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
+
+/** «Планы»: a list with ticks (ADR 0084). */
+export const ChecklistIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M4 6.5l1.5 1.5L8 5.5" />
+    <path d="M4 12.5l1.5 1.5L8 11.5" />
+    <path d="M4 18.5l1.5 1.5L8 17.5" />
+    <path d="M11.5 7h8.5M11.5 13h8.5M11.5 19h8.5" />
+  </svg>
+);
+
+export const ClockIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);

@@ -24,6 +24,7 @@ from app.api import (
     shadowing,
     speaking,
     sync,
+    tasks,
     writing,
 )
 from app.core.config import Settings, get_settings
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(readings.router, prefix="/api")
     app.include_router(mentor.router, prefix="/api")
     app.include_router(schedule.router, prefix="/api")
+    app.include_router(tasks.router, prefix="/api")
     app.include_router(speaking.router, prefix="/api")
     app.include_router(shadowing.router, prefix="/api")
     app.include_router(writing.router, prefix="/api")

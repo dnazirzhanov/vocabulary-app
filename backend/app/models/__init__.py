@@ -50,6 +50,7 @@ from app.models.speaking import (
 )
 from app.models.speech import PronunciationAudio
 from app.models.sync import SyncDevice, SyncOp, SyncTombstone
+from app.models.tasks import Task, TaskMark
 from app.models.user import (
     CardReport,
     DeckPace,
@@ -113,6 +114,8 @@ __all__ = [
     "SyncDevice",
     "SyncOp",
     "SyncTombstone",
+    "Task",
+    "TaskMark",
     "User",
     "UserWordProgress",
     "Word",

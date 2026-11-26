@@ -2,12 +2,22 @@ import { useState, type ReactNode } from 'react';
 import { AccountSection, type AccountProps } from '../account/AccountSection.tsx';
 import { SignOutConfirm } from '../account/SignOutConfirm.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { BookIcon, ChartIcon, GearIcon, HomeIcon, MicIcon, PencilIcon, PeopleIcon, SparkleIcon } from '../ui/icons.tsx';
+import {
+  BookIcon,
+  ChartIcon,
+  ChecklistIcon,
+  GearIcon,
+  HomeIcon,
+  MicIcon,
+  PencilIcon,
+  PeopleIcon,
+  SparkleIcon,
+} from '../ui/icons.tsx';
 import { useOffline } from '../local/online.ts';
 import styles from './NavShell.module.css';
 import { t } from '../i18n/index.ts';
 
-export type NavTab = 'today' | 'mentor' | 'reading' | 'speaking' | 'writing' | 'friends' | 'progress';
+export type NavTab = 'today' | 'plans' | 'mentor' | 'reading' | 'speaking' | 'writing' | 'friends' | 'progress';
 
 interface NavShellProps {
   /** A section with its own sidebar (the mentor): no app sidebar beside it on a wide screen. */
@@ -48,6 +58,8 @@ export function NavShell({
   const offline = useOffline();
   const items = [
     { tab: 'today', label: t.today, Icon: HomeIcon },
+    // «Планы» (ADR 0084): everyone's to-do list.
+    { tab: 'plans', label: t.plans, Icon: ChecklistIcon },
     ...(mentor ? [{ tab: 'mentor', label: t.mentor, Icon: SparkleIcon } as const] : []),
     ...(reading ? [{ tab: 'reading', label: t.reading, Icon: BookIcon } as const] : []),
     ...(speaking ? [{ tab: 'speaking', label: t.speaking, Icon: MicIcon } as const] : []),
