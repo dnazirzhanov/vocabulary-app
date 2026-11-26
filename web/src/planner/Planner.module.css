@@ -35,8 +35,7 @@
 }
 
 .views {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 4px;
   width: 100%;
   max-width: 420px;
@@ -47,6 +46,7 @@
 }
 
 .viewTab {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 36px;
   padding: 0 8px;
@@ -990,4 +990,12 @@
 .quickBar .toolBtn:first-child {
   flex: 1;
   justify-content: flex-start;
+}
+
+/* «Задача группы 7Б» over a group's task in its details (ADR 0085). */
+.fromGroup {
+  margin: 0;
+  color: var(--color-primary-strong);
+  font-size: 0.875rem;
+  font-weight: 700;
 }

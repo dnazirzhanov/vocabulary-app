@@ -45,6 +45,7 @@ from app.services.promise import (
 )
 from app.services.scheduling import local_date
 from app.services.study_days import StudyDay, days_by_user, week_of
+from app.services.tasks import for_group as group_tasks
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread
 CODE_LENGTH = 8
@@ -482,4 +483,7 @@ def board(
             cards=sum(row.cards for row in rows),
         ),
         assignments=assignments,
+        tasks=group_tasks(
+            db, group, {member.user_id: member.id for member, _ in members}, days, today
+        ),
     )

@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now, TimeZone
 from app.schemas.tasks import MarkIn, TaskIn, TaskOut, TaskPatch, TasksOut
-from app.services import tasks
+from app.services import group_rights, groups, tasks
 
 router = APIRouter(tags=["tasks"])
 
@@ -39,6 +39,24 @@ def create_task(
     body: TaskIn, user: CurrentUser, db: DbSession, now: Now, time_zone: TimeZone
 ) -> TaskOut:
     return tasks.out(tasks.create(db, user, body, now.astimezone(time_zone).date(), now))
+
+
+@router.post("/groups/{group_id}/tasks", status_code=201)
+def create_group_task(
+    group_id: uuid.UUID,
+    body: TaskIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
+) -> TaskOut:
+    """A task for the whole group (ADR 0085): its teacher sets it, each member ticks their own."""
+    group, me = groups.membership(db, user, group_id)
+    group_rights.require(
+        me.role, "manage_tasks", "not_allowed", "Only the group's teacher sets its tasks"
+    )
+    task = tasks.create(db, user, body, now.astimezone(time_zone).date(), now, group_id=group.id)
+    return tasks.out(task, group.name)
 
 
 @router.patch("/tasks/{task_id}")

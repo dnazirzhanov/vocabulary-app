@@ -288,7 +288,14 @@ export interface DeckWord {
 
 /** What a role may do in a group (ADR 0040); the server says which ones I may. */
 export type GroupAction =
-  'rename' | 'give_decks' | 'reset_invite' | 'remove_member' | 'transfer_ownership' | 'delete_group' | 'manage_tests';
+  | 'rename'
+  | 'give_decks'
+  | 'reset_invite'
+  | 'remove_member'
+  | 'transfer_ownership'
+  | 'delete_group'
+  | 'manage_tests'
+  | 'manage_tasks';
 
 export interface Group {
   id: string;
@@ -380,6 +387,16 @@ export interface Board {
   /** Whether any of the group's decks has a test yet. */
   has_tests: boolean;
   latest_test: { title: string; passed: number; students: number } | null;
+  /** The group's to-do list this week (ADR 0085), each member's marks on its days. */
+  tasks: GroupTask[];
+}
+
+/** A group's task on its board: which of the week's days it is on, and each member's mark. */
+export interface GroupTask {
+  task: import('../planner/api.ts').Task;
+  on_today: boolean;
+  week: boolean[];
+  marks: Record<string, ('done' | 'skipped' | null)[]>;
 }
 
 /** A deck given to the group (ADR 0017); its words never change a place on the board. */

@@ -246,8 +246,10 @@ export default function PlannerScreen() {
           )}
           {shown.open.length === 0 && shown.overdue.length === 0 && (
             <div className={styles.emptyBox}>
-              <p className={styles.empty}>{view === 'inbox' ? t.planInboxEmpty : t.planEmptyDay}</p>
-              {view === 'today' && (
+              <p className={styles.empty}>
+                {shown.done.length > 0 ? t.planAllDone : view === 'inbox' ? t.planInboxEmpty : t.planEmptyDay}
+              </p>
+              {view === 'today' && shown.done.length === 0 && (
                 <>
                   <p className={styles.muted}>{t.planEmptyHint}</p>
                   <button type="button" className={styles.exampleChip} onClick={() => setAdding(t.planExample)}>

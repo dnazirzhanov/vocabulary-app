@@ -1,0 +1,187 @@
+.block {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--weight-display, 800);
+}
+
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary-strong);
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.taskHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.taskTitle {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.taskWhen {
+  grid-row: 2;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.count {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-track);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.count[data-all] {
+  background: var(--color-success-tint);
+  color: var(--color-success);
+}
+
+.detail {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.members {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.dots {
+  display: flex;
+  gap: 5px;
+}
+
+/* A day: done filled green; skipped grey; open an outline; not that day's task a faint dash. */
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.dot[data-state='done'] {
+  background: var(--color-success);
+}
+
+.dot[data-state='skipped'] {
+  background: var(--color-activity-none);
+  border: 2px solid var(--color-text-muted);
+}
+
+.dot[data-state='none'] {
+  border: 2px solid var(--color-option-edge-hover);
+}
+
+.dot[data-state='off'] {
+  height: 3px;
+  margin-top: 5.5px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.dot[data-today] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.delete {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  color: var(--color-error);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete svg {
+  width: 16px;
+  height: 16px;
+}
