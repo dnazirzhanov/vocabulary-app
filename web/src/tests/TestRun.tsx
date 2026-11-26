@@ -244,6 +244,9 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   };
   // Going back keeps a word fully built; one half-built stays on the device as it was.
   const back = () => move(draft.current ?? undefined, step(-1));
+  // «Пропустить» on a word that has an answer walks past it, the word kept as built (learners step
+  // through the words this way to look them over); only with its letters taken away is it left empty.
+  const skip = () => move(current?.state === 'answered' ? draft.current : null, step(1));
   const timed = attempt.kind === 'test';
   // The bar fills with words that have an answer, right or wrong alike (a test never says which
   // before it is handed in); a skipped word has none, so it doesn't count until it gets one.
@@ -319,7 +322,7 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
                 }
                 onDraft={setDraft}
                 onSubmit={(answer) => move(answer, step(1))}
-                onSkip={() => move(null, step(1))}
+                onSkip={skip}
                 onBack={(review && inReview !== -1 ? inReview > 0 : position > 0) ? back : null}
                 onContinue={() => undefined}
               />

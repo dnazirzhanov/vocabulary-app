@@ -532,6 +532,48 @@ test('«К пропущенным» goes through only the skipped words, then ba
   await expect(page.getByRole('img', { name: '4 из 4 · 100%' })).toBeVisible();
 });
 
+test('«Пропустить» on a word with an answer walks past it and keeps the answer', async ({ page, context }) => {
+  const group = await ownerGroup(context, 3);
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}`, { data: {} });
+  await context.request.put(`/api/groups/${group.id}/tests/${group.deckId}/open`, { data: { open: true } });
+  await openDeckTest(page);
+  await startTest(page);
+
+  // Every word answered, right.
+  const shown: string[] = [];
+  for (let n = 0; n < 3; n += 1) {
+    const word = (await meaning(page).textContent())!;
+    shown.push(word);
+    await build(page, WORDS[word]);
+    await forward(page).click();
+  }
+  await expect(checkHeading(page)).toBeVisible();
+  const rows = page.getByRole('list', { name: 'Проверьте перед сдачей' }).getByRole('listitem');
+
+  // From the first word, «Пропустить» through them all to look them over: nothing is lost.
+  await rows.nth(0).getByRole('button').click();
+  await expect(meaning(page)).toHaveText(shown[0]);
+  await button(page, 'Пропустить').click();
+  await expect(meaning(page)).toHaveText(shown[1]);
+  await button(page, 'Пропустить').click();
+  await expect(meaning(page)).toHaveText(shown[2]);
+  await button(page, 'Пропустить').click();
+  await expect(checkHeading(page)).toBeVisible();
+  await expect(rows).toHaveText([`1${shown[0]}Есть ответ`, `2${shown[1]}Есть ответ`, `3${shown[2]}Есть ответ`]);
+
+  // Its letters taken away first, «Пропустить» leaves the word empty, as asked.
+  await rows.nth(1).getByRole('button').click();
+  await page.getByRole('button', { name: 'Очистить' }).click();
+  await button(page, 'Пропустить').click();
+  await button(page, 'Пропустить').click();
+  await expect(checkHeading(page)).toBeVisible();
+  await expect(rows.nth(1)).toHaveText(`2${shown[1]}Пропущено`);
+  await expect(rows.nth(2)).toHaveText(`3${shown[2]}Есть ответ`);
+
+  await handIn(page);
+  await expect(page.getByRole('img', { name: /^2 из 3 · / })).toBeVisible();
+});
+
 test('the owner opens the test again: a student who passed takes it again, and the list follows', async ({
   page,
   context,
