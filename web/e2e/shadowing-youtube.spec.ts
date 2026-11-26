@@ -195,6 +195,18 @@ test('sentence by sentence: listen, your turn, compare; finishing counts as done
   // 3. Compare: the original, my recording, then on.
   await expect(page.getByRole('button', { name: 'Оригинал' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Я', exact: true })).toBeVisible();
+  // «Ещё раз» records again at once: no listening first, one press.
+  const seeks = async () =>
+    (
+      (await page.evaluate(() => (window as unknown as { __yt: { log: unknown[][] } }).__yt.log)) as [string, number][]
+    ).filter(([what]) => what === 'seek').length;
+  const heard = await seeks();
+  await page.getByRole('button', { name: 'Ещё раз' }).click();
+  await expect(page.getByRole('button', { name: 'Стоп' })).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Стоп' }).click();
+  await expect(page.getByRole('button', { name: 'Оригинал' })).toBeVisible();
+  expect(await seeks()).toBe(heard);
   await page.getByRole('button', { name: 'Дальше' }).click();
   await expect(page.getByText('Предложение 2 из 2').first()).toBeVisible();
 

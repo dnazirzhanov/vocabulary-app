@@ -425,3 +425,11 @@
     padding: var(--space-3) var(--space-4);
   }
 }
+
+/* «Ещё раз» records: a small red dot says so, as on a recorder. */
+.recDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-error);
+}
