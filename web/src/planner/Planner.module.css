@@ -1033,3 +1033,85 @@
   color: var(--color-text-muted);
   font-size: 0.8125rem;
 }
+
+/* «Учёба на сегодня» (ADR 0087): the app's own list of what to study; a tap opens the deck. */
+.studyRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.studyRow:hover {
+  background: var(--color-primary-tint);
+}
+
+.studyIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.studyIcon[data-kind='spell'] {
+  background: #e8f0fa;
+  color: var(--color-count-new);
+}
+
+.studyIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.studyGo {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+}
+
+/* The repeat: «Не повторять», «Каждый день», then any days. */
+.repeatBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.repeatTitle {
+  font-weight: 700;
+}
+
+/* Sheets never grow past the screen: a wide row (two times on a narrow phone) wraps instead. */
+.quickForm,
+.picker,
+.detail,
+.repeatBlock {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pickRow,
+.pickValue {
+  flex-wrap: wrap;
+}
+
+.pickValue {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.timeInput {
+  min-width: 0;
+  max-width: 132px;
+}

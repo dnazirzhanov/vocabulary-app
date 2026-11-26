@@ -7,8 +7,7 @@ import { useRef, useState, type PointerEvent } from 'react';
 import { t } from '../i18n/index.ts';
 import { BookIcon, CheckIcon, ClockIcon, ForwardIcon, PeopleIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
 import type { Item } from './api.ts';
-import { dayLabel, repeatLabel } from './DatePicker.tsx';
-import { hhmm } from './dates.ts';
+import { dayLabel, repeatLabel, timeLabel } from './DatePicker.tsx';
 import styles from './Planner.module.css';
 
 interface Props {
@@ -62,7 +61,7 @@ export function TaskRow({ item, today, onToggle, onOpen, onTomorrow, onDelete }:
   };
 
   const meta = [
-    task.start_minute !== null ? { icon: <ClockIcon />, text: hhmm(task.start_minute) } : null,
+    task.start_minute !== null ? { icon: <ClockIcon />, text: timeLabel(task.start_minute, task.end_minute) } : null,
     item.overdue && item.on ? { icon: null, text: dayLabel(item.on, today) } : null,
     task.repeat_mask ? { icon: <RepeatIcon />, text: repeatLabel(task.repeat_mask) } : null,
     task.group_name ? { icon: <PeopleIcon />, text: task.group_name } : null,

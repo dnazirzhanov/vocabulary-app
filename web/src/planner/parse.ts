@@ -18,6 +18,8 @@ export interface Parsed {
   title: string;
   dueOn: string | null;
   startMinute: number | null;
+  /** «с 19:00 до 20:00»: until when, if said. */
+  endMinute: number | null;
   repeatMask: number;
   found: Found[];
 }
@@ -56,7 +58,16 @@ const hour12 = (h: number, part: string) => {
   return h;
 };
 
-// Order matters: repeats before plain weekdays, full times before bare hours.
+function range(m: RegExpExecArray, p: Parsed): void {
+  // A part of the day said once covers both ends: «с 7 до 8 вечера».
+  const part = m[6] ?? m[3] ?? '';
+  const start = hour12(Number(m[1]), m[3] ?? part) * 60 + Number(m[2] ?? 0);
+  const end = hour12(Number(m[4]), m[6] ?? part) * 60 + Number(m[5] ?? 0);
+  p.startMinute = start;
+  if (end > start) p.endMinute = end;
+}
+
+// Order matters: repeats before plain weekdays, ranges before single times.
 const RULES: Rule[] = [
   {
     kind: 'repeat',
@@ -74,9 +85,18 @@ const RULES: Rule[] = [
     apply: (_, __, p) => void (p.repeatMask = WEEKENDS),
   },
   {
+    // One day or several: «по средам и субботам», «каждый понедельник, среду и пятницу»,
+    // «every wednesday and saturday».
     kind: 'repeat',
-    pattern: new RegExp(`(?:кажд[а-я]+ ${RU_DAY}|по ${RU_DAY}|every ${EN_DAY})`, 'i'),
-    apply: (m, __, p) => void (p.repeatMask |= 1 << dayIndex(m[1] ?? m[2] ?? m[3])),
+    pattern: new RegExp(
+      `(?:кажд[а-я]+ |по )${RU_DAY}(?:(?:, ?| и )(?:в |во )?${RU_DAY})*|(?:every|on) ${EN_DAY}(?:(?:, ?| and )${EN_DAY})*`,
+      'i',
+    ),
+    apply: (m, __, p) => {
+      for (const word of m[0].toLowerCase().match(new RegExp(`${RU_DAY}|${EN_DAY}`, 'gi')) ?? []) {
+        p.repeatMask |= 1 << dayIndex(word);
+      }
+    },
   },
   { kind: 'date', pattern: /(послезавтра|day after tomorrow)/i, apply: (_, t, p) => void (p.dueOn = addDays(t, 2)) },
   { kind: 'date', pattern: /(завтра|tomorrow)/i, apply: (_, t, p) => void (p.dueOn = addDays(t, 1)) },
@@ -85,6 +105,23 @@ const RULES: Rule[] = [
     kind: 'date',
     pattern: new RegExp(`(?:во? ${RU_DAY}|(?:on )?${EN_DAY})`, 'i'),
     apply: (m, t, p) => void (p.dueOn = nextDay(t, dayIndex(m[1] ?? m[2]))),
+  },
+  {
+    // «с 19:00 до 20:00», «с 7 до 8 вечера», «from 7pm to 8pm».
+    kind: 'time',
+    pattern:
+      /(?:с|from) ([01]?\d|2[0-3])(?:[:.]([0-5]\d))?\s?(am|pm|утра|вечера|дня|ночи)? (?:до|to) ([01]?\d|2[0-3])(?:[:.]([0-5]\d))?\s?(am|pm|утра|вечера|дня|ночи)?/i,
+    apply: (m, _, p) => range(m, p),
+  },
+  {
+    // «19:00–20:00»: both with minutes, so «2-3 слова» stays a title.
+    kind: 'time',
+    pattern: /([01]?\d|2[0-3])[:.]([0-5]\d)\s?[-–—]\s?([01]?\d|2[0-3])[:.]([0-5]\d)/i,
+    apply: (m, _, p) => {
+      p.startMinute = Number(m[1]) * 60 + Number(m[2]);
+      const end = Number(m[3]) * 60 + Number(m[4]);
+      if (end > p.startMinute) p.endMinute = end;
+    },
   },
   {
     kind: 'time',
@@ -99,7 +136,7 @@ const RULES: Rule[] = [
 ];
 
 export function parseQuick(line: string, today: string, ignore: readonly string[] = []): Parsed {
-  const parsed: Parsed = { title: '', dueOn: null, startMinute: null, repeatMask: 0, found: [] };
+  const parsed: Parsed = { title: '', dueOn: null, startMinute: null, endMinute: null, repeatMask: 0, found: [] };
   let rest = ` ${line} `;
   for (const rule of RULES) {
     // Words around a match must be whole: «завтрак» is no «завтра».

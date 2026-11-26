@@ -210,3 +210,22 @@ def test_the_mentor_tab_is_hidden_unless_switched_on(
     assert client.get("/api/me", headers=as_()).json()["mentor"] is False
     monkeypatch.setattr(get_settings(), "mentor_tab", True)
     assert client.get("/api/me", headers=as_()).json()["mentor"] is True
+
+
+def test_a_task_can_have_an_end_time_after_its_start(client: TestClient) -> None:
+    # «с 19:00 до 20:00» (ADR 0087).
+    task = add(
+        client, title="Кружок", due_on=D.isoformat(), start_minute=19 * 60, end_minute=20 * 60
+    )
+    assert (task["start_minute"], task["end_minute"]) == (19 * 60, 20 * 60)
+    for bad in (
+        {"title": "x", "end_minute": 600},  # an end with no start
+        {"title": "x", "start_minute": 600, "end_minute": 600},  # not after it
+        {"title": "x", "start_minute": 600, "end_minute": 1441},
+    ):
+        assert client.post("/api/tasks", json=bad, headers=as_()).status_code == 422
+    url = f"/api/tasks/{task['id']}"
+    assert client.patch(url, json={"end_minute": 18 * 60}, headers=as_()).status_code == 422
+    # Clearing the time clears its end too.
+    cleared = client.patch(url, json={"start_minute": None}, headers=as_()).json()
+    assert (cleared["start_minute"], cleared["end_minute"]) == (None, None)

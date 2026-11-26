@@ -90,7 +90,7 @@ test('a task for tomorrow, then «Предстоящие»; edited, then deleted
 
 test('a repeat skipped for today; a word inside another word is no date', async ({ page }) => {
   await openPlans(page);
-  let box = await quickAdd(page, 'Слова по будням в 7:30');
+  const box = await quickAdd(page, 'Слова по будням в 7:30');
   await box.press('Enter');
   await box.fill('Приготовить завтрак');
   await box.press('Enter');
@@ -106,12 +106,6 @@ test('a repeat skipped for today; a word inside another word is no date', async 
     await page.getByRole('dialog', { name: 'Слова' }).getByRole('button', { name: 'Пропустить этот день' }).click();
     await expect(row(page, 'Слова')).toHaveCount(0);
   }
-  // A plain task with no date: «Входящие».
-  await page.getByRole('tab', { name: 'Входящие' }).click();
-  box = await quickAdd(page, 'Посмотреть фильм на английском');
-  await box.press('Enter');
-  await page.keyboard.press('Escape');
-  await expect(row(page, 'Посмотреть фильм на английском')).toBeVisible();
 });
 
 test('an overdue task waits on top until moved to today', async ({ page }) => {
@@ -148,4 +142,45 @@ test('the empty day offers a study task; a lesson ticks it «по занятию
   const done = row(page, 'Английский');
   await expect(done.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
   await expect(done).toContainText('по занятию');
+});
+
+test('Wednesday and Saturday from the day buttons; a time with an end', async ({ page }) => {
+  await openPlans(page);
+  await expect(page.getByRole('tab', { name: 'Входящие' })).toHaveCount(0);
+  const box = await quickAdd(page, 'Бассейн');
+  const dialog = page.getByRole('dialog', { name: 'Новая задача' });
+  await dialog.getByRole('button', { expanded: false }).first().click();
+  const days = dialog.getByRole('group', { name: 'По дням недели' });
+  await days.getByRole('button', { name: 'Ср' }).click();
+  await days.getByRole('button', { name: 'Сб' }).click();
+  await expect(dialog.getByRole('button', { expanded: true })).toContainText('Ср, Сб');
+  await box.press('Enter');
+  // Typed: from a time to a time.
+  await box.fill('Английский с 19:00 до 20:00');
+  await box.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(row(page, 'Английский')).toContainText('19:00–20:00');
+
+  await page.getByRole('tab', { name: 'Предстоящие' }).click();
+  const pool = page.getByRole('listitem').filter({ hasText: 'Бассейн' });
+  // On Wednesdays and Saturdays only: two of the next seven days.
+  await expect(pool).toHaveCount(2);
+  await expect(pool.first()).toContainText('Ср, Сб');
+});
+
+test('«Учёба на сегодня»: the app lists the deck to study, and a tap opens it', async ({ page }) => {
+  await openPlans(page);
+  const studyList = page.getByRole('region', { name: 'Учёба на сегодня' });
+  const first = studyList.getByRole('button', { name: /^Учить «/ }).first();
+  await expect(first).toBeVisible();
+  await expect(first).toContainText(/новых: \d+/);
+  const title = (await first.textContent())!.match(/«(.+?)»/)![1];
+  await first.click();
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+  // Back: «Планы» again.
+  await page
+    .getByRole('button', { name: /Назад|Планы/ })
+    .first()
+    .click();
+  await expect(page.getByRole('tab', { name: 'Сегодня' })).toBeVisible();
 });

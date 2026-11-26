@@ -7,6 +7,8 @@ export interface Task {
   notes: string;
   due_on: string | null;
   start_minute: number | null;
+  /** «с 19:00 до 20:00»: until when, if set (ADR 0087). */
+  end_minute?: number | null;
   repeat_mask: number;
   repeat_until: string | null;
   priority: 0 | 1 | 2 | 3;
@@ -33,6 +35,7 @@ export interface TaskInput {
   notes?: string;
   due_on?: string | null;
   start_minute?: number | null;
+  end_minute?: number | null;
   repeat_mask?: number;
   priority?: number;
   kind?: 'task' | 'study';

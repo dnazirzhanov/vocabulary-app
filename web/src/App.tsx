@@ -71,7 +71,7 @@ const ShadowingPlayerScreen = lazy(() =>
 );
 
 /** Where a deck's page was opened from, for its «Назад». */
-type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks';
+type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks' | 'plans';
 
 type Screen =
   | { name: 'home' }
@@ -540,7 +540,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'plans') {
       return (
         <Suspense fallback={null}>
-          <PlannerScreen />
+          <PlannerScreen onOpenDeck={(deckId) => openPage(deckId, 'plans')} />
         </Suspense>
       );
     }
@@ -707,7 +707,9 @@ function Learning({ email, subject }: { email: string | null; subject: string })
                 ? t.progress
                 : from === 'reading-decks'
                   ? t.fromReading
-                  : t.myDecks
+                  : from === 'plans'
+                    ? t.plans
+                    : t.myDecks
           }
           onBack={() => setScreen(backTo(from))}
           onSession={startSession}
@@ -751,12 +753,14 @@ function backTo(from: PageFrom): Screen {
   if (from === 'course') return { name: 'course' };
   if (from === 'reading-decks') return { name: 'reading-decks' };
   if (from === 'progress') return { name: 'progress' };
+  if (from === 'plans') return { name: 'plans' };
   return { name: 'home' };
 }
 
 function tabOf(screen: Screen): NavTab {
   if (screen.name === 'mentor') return 'mentor';
   if (screen.name === 'plans') return 'plans';
+  if ((screen.name === 'deck-page' || screen.name === 'words') && screen.from === 'plans') return 'plans';
   if (
     [
       'speaking',

@@ -65,5 +65,36 @@ test('a part tapped to keep as text stays in the title', () => {
 
 test('a plain line is just a title', () => {
   const got = p('  Купить   ручку ');
-  assert.deepEqual(got, { title: 'Купить ручку', dueOn: null, startMinute: null, repeatMask: 0, found: [] });
+  assert.deepEqual(got, {
+    title: 'Купить ручку',
+    dueOn: null,
+    startMinute: null,
+    endMinute: null,
+    repeatMask: 0,
+    found: [],
+  });
+});
+
+test('several days: Wednesday and Saturday, in either language', () => {
+  const wedSat = 4 | 32;
+  assert.equal(p('Бассейн по средам и субботам').repeatMask, wedSat);
+  assert.equal(p('Бассейн каждую среду и субботу').repeatMask, wedSat);
+  assert.equal(p('Кружок по понедельникам, средам и пятницам').repeatMask, 1 | 4 | 16);
+  assert.equal(p('Pool every wednesday and saturday').repeatMask, wedSat);
+  const got = p('Бассейн по средам и субботам в 18:00');
+  assert.equal(got.title, 'Бассейн');
+  assert.equal(got.dueOn, '2026-11-25'); // the first Wednesday
+});
+
+test('from a time to a time', () => {
+  const a = p('Английский с 19:00 до 20:00');
+  assert.deepEqual([a.title, a.startMinute, a.endMinute], ['Английский', 19 * 60, 20 * 60]);
+  const b = p('Слова 7:30-8:15');
+  assert.deepEqual([b.startMinute, b.endMinute], [7 * 60 + 30, 8 * 60 + 15]);
+  const c = p('Чтение с 7 до 8 вечера');
+  assert.deepEqual([c.startMinute, c.endMinute], [19 * 60, 20 * 60]);
+  const d = p('Words from 7pm to 8pm');
+  assert.deepEqual([d.title, d.startMinute, d.endMinute], ['Words', 19 * 60, 20 * 60]);
+  // A count is no time: «2-3 слова» stays in the title.
+  assert.equal(p('Выучить 2-3 слова').title, 'Выучить 2-3 слова');
 });

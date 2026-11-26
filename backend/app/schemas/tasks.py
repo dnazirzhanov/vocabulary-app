@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, StringConstraints
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Notes = Annotated[str, StringConstraints(max_length=2000)]
 Minute = Annotated[int, Field(ge=0, le=1439)]
+EndMinute = Annotated[int, Field(ge=1, le=1440)]
 Mask = Annotated[int, Field(ge=0, le=127)]
 Priority = Annotated[int, Field(ge=0, le=3)]
 Kind = Literal["task", "study"]
@@ -20,6 +21,7 @@ class TaskIn(BaseModel):
     notes: Notes = ""
     due_on: date | None = None
     start_minute: Minute | None = None
+    end_minute: EndMinute | None = None
     repeat_mask: Mask = 0
     priority: Priority = 0
     kind: Kind = "task"
@@ -32,6 +34,7 @@ class TaskPatch(BaseModel):
     notes: Notes | None = None
     due_on: date | None = None
     start_minute: Minute | None = None
+    end_minute: EndMinute | None = None
     repeat_mask: Mask | None = None
     priority: Priority | None = None
     kind: Kind | None = None
@@ -43,6 +46,7 @@ class TaskOut(BaseModel):
     notes: str
     due_on: date | None
     start_minute: int | None
+    end_minute: int | None = None
     repeat_mask: int
     repeat_until: date | None
     priority: int
