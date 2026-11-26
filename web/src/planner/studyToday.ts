@@ -35,12 +35,14 @@ function keepSeen(day: string, seen: Record<string, StudyItem>) {
 /** Today's study list with what was finished today ticked (ADR 0089); `fresh`: just finished. */
 export async function loadStudyDay(): Promise<{ items: StudyItem[]; fresh: string[] }> {
   const day = localToday();
-  const { items, seen, fresh } = withSeen(await loadStudyToday(), readSeen(day));
+  const { items: pending, decks } = await loadStudyToday();
+  const { items, seen, fresh } = withSeen(pending, readSeen(day), decks);
   keepSeen(day, seen);
   return { items, fresh };
 }
 
-export async function loadStudyToday(): Promise<StudyItem[]> {
+/** What waits today, and every deck I still have (null if that couldn't be told). */
+export async function loadStudyToday(): Promise<{ items: StudyItem[]; decks: Set<string> | null }> {
   const [course, library, snapshot] = await Promise.all([
     withSnapshot<Deck[]>('courseDecks', () => api.listDecks())
       .then((r) => r.value)
@@ -50,5 +52,14 @@ export async function loadStudyToday(): Promise<StudyItem[]> {
       .catch(() => null),
     study.learnerSnapshot().catch(() => null),
   ]);
-  return studyToday(course, library, snapshot?.decks ?? []);
+  const spelling = snapshot?.decks ?? [];
+  const decks = library
+    ? new Set([
+        ...course.map((d) => d.id),
+        ...library.mine.map((d) => d.id),
+        ...library.from_groups.map((d) => d.id),
+        ...spelling.map((d) => d.id),
+      ])
+    : null;
+  return { items: studyToday(course, library, spelling), decks };
 }

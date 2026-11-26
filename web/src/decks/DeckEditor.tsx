@@ -5,12 +5,10 @@ import { wordsLabel } from '../lib/pace.ts';
 import type { DeckWordInput, GenerateResult, PartOfSpeech, Session, TeacherDeck, WordFlag } from '../lib/types.ts';
 import { useAsyncAction } from '../lib/useAsyncAction.ts';
 import { playAudio } from '../lib/audio.ts';
-import { Dialog } from '../ui/Dialog.tsx';
 import { AlertIcon, BackIcon, FlagIcon, PencilIcon, SpeakerIcon, TrashIcon } from '../ui/icons.tsx';
 import { deckView, type DeckView } from '../local/deckView.ts';
 import {
   addCard,
-  deleteDeck,
   editCard,
   keepMine,
   rememberServerDeck,
@@ -24,6 +22,7 @@ import { localDb, withSnapshot } from '../local/session.ts';
 import { syncNow, syncSoon, useLocalVersion } from '../local/sync.ts';
 import { GeneratePanel } from './GeneratePanel.tsx';
 import { GiveButton } from './GiveButton.tsx';
+import { DeleteDeck } from './DeleteDeck.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { QuickAddPanel } from './QuickAddPanel.tsx';
 import { TranslationLanguage } from './TranslationLanguage.tsx';
@@ -107,7 +106,6 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
   const [canGive, setCanGive] = useState(false);
   const [giving, setGiving] = useState(false);
   // Deleting asks first, in a window: a deck and the progress on it can't be brought back.
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { run, busy, error } = useAsyncAction();
@@ -606,15 +604,13 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
             )}
           </section>
 
-          <section className={styles.danger} aria-labelledby="danger-title">
-            <h2 id="danger-title" className={styles.sectionTitle}>
-              {t.deleteDeck}
-            </h2>
-            <p className={styles.note}>{t.theCardsAndTheirProgressWill}</p>
-            <button type="button" className={styles.dangerButton} onClick={() => setConfirmDelete(true)}>
-              <TrashIcon aria-hidden="true" /> {t.deleteDeck}
-            </button>
-          </section>
+          <DeleteDeck
+            deckId={deck.id}
+            title={deck.title}
+            wordCount={count}
+            groups={deck.groups}
+            onDeleted={onDeleted}
+          />
         </div>
       </main>
 
@@ -643,51 +639,6 @@ export function DeckEditor({ deckId, backLabel, onDone, onDeleted, onStudy, onOp
         </div>
       </footer>
 
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t.deleteTheDeck(deck.title)}>
-        <div className={styles.confirm}>
-          <p>{count > 0 ? t.deckWordsWillBeDeleted(count) : t.theDeckWillBeDeletedFor}</p>
-          {deck.groups.length > 0 && (
-            <p className={styles.confirmWarning}>
-              <AlertIcon aria-hidden="true" />
-              {t.deckIsGivenWarning(deck.groups.length, deck.groups.map((group) => t.quoted(group.name)).join(', '))}
-            </p>
-          )}
-          <div className={styles.confirmActions}>
-            {/* Cancel takes focus first, so a reflexive Enter never deletes. */}
-            <button
-              type="button"
-              className={styles.outlineButton}
-              data-autofocus
-              onClick={() => setConfirmDelete(false)}
-            >
-              {t.cancel}
-            </button>
-            <button
-              type="button"
-              className={styles.dangerSolid}
-              disabled={busy}
-              aria-busy={busy}
-              onClick={() =>
-                run(async () => {
-                  if (local) {
-                    await deleteDeck(local, deck.id);
-                    syncSoon();
-                  } else await api.deleteDeck(deck.id);
-                  setConfirmDelete(false);
-                  onDeleted();
-                })
-              }
-            >
-              {busy ? t.deleting : t.deleteDeck}
-            </button>
-          </div>
-          {error && (
-            <p className={styles.problem} role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-      </Dialog>
       {giving && <GiveDialog deckId={deck.id} onClose={() => setGiving(false)} onChanged={(given) => changed(given)} />}
     </div>
   );

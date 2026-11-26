@@ -13,6 +13,8 @@ os.environ["DATABASE_URL"] = os.environ.get(
 )
 # Never a real model call from tests, whatever .env holds (ADR 0018).
 os.environ["GENERATION_PROVIDER"] = "demo"
+# The ready-made course is hidden in production (ADR 0093); the suite still proves it works.
+os.environ["COURSE_DECKS"] = "true"
 
 from alembic import command
 from alembic.config import Config

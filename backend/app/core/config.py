@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # The Mentor tab itself (ADR 0084): hidden for everyone since «Планы» took its place; its
     # code, data and API stay, and this brings the tab back. The e2e server turns it on.
     mentor_tab: bool = False
+    # The ready-made course, «Английский по уровням» (ADR 0093): hidden since 26 November 2026, its
+    # words and everyone's progress on them kept; this brings it back. The tests turn it on.
+    course_decks: bool = False
     # Sign-ins (same format) who see the Writing tab; empty: nobody.
     writing_testers: str = ""
     # Mentor chat messages per user per day: each costs a model call.

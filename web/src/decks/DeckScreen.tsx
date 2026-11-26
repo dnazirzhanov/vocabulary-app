@@ -16,6 +16,7 @@ import { DailyPace, ExtraWords, Practice } from './DeckPace.tsx';
 import { ListRow, ListSection } from '../ui/List.tsx';
 import { wordsOf } from '../words/WordsScreen.tsx';
 import type { DeckWord } from '../lib/types.ts';
+import { DeleteDeck } from './DeleteDeck.tsx';
 import { GiveButton } from './GiveButton.tsx';
 import { GiveDialog } from './GiveDialog.tsx';
 import { BackIcon, PencilIcon } from '../ui/icons.tsx';
@@ -47,6 +48,8 @@ interface DeckScreenProps {
   onWords: (deckId: string, title: string, mine: boolean) => void;
   /** My own deck: straight to adding words (its editor). */
   onAddWords: (deckId: string) => void;
+  /** My own deck, deleted from the end of its page. */
+  onDeleted: () => void;
 }
 
 /**
@@ -54,7 +57,7 @@ interface DeckScreenProps {
  * Anki's three numbers, its own new words a day (ADR 0028) — and one button that studies this
  * deck, within today's pace. More words today are one tap further.
  */
-export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAddWords }: DeckScreenProps) {
+export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAddWords, onDeleted }: DeckScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modesOpen, setModesOpen] = useState(false);
@@ -359,6 +362,16 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
               onClick={() => onWords(deckId, stats.title, stats.is_mine)}
             />
           </ListSection>
+          {/* Last on the page, and only my own deck: it asks first (ADR 0093). */}
+          {stats.is_mine && (
+            <DeleteDeck
+              deckId={deckId}
+              title={stats.title}
+              wordCount={stats.word_count}
+              groups={given}
+              onDeleted={onDeleted}
+            />
+          )}
           {practicing && (
             <Practice
               open
