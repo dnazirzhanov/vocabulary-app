@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.models import Group, GroupMember, Task, TaskMark, User
 from app.schemas.tasks import GroupTaskOut, TaskIn, TaskItemOut, TaskOut, TaskPatch
-from app.services import group_rights
+from app.services import group_rights, task_links
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, set_weekdays, weekdays_of
 from app.services.study_days import days_by_user, zone_of
@@ -67,6 +67,7 @@ def out(task: Task, group_name: str | None = None) -> TaskOut:
         kind=task.kind,
         group_id=task.group_id,
         group_name=group_name,
+        link=task_links.link_out(task),
     )
 
 
@@ -129,6 +130,7 @@ def items(
     today: date,
     names: dict[uuid.UUID, str] | None = None,
     practised: set[date] | None = None,
+    linked: dict[uuid.UUID, set[date]] | None = None,
 ) -> list[TaskItemOut]:
     """What «Планы» shows for [start, end]: each day's tasks; and, when the range reaches today,
     overdue one-offs and «Входящие». A study task with no mark is done on a day the learner
@@ -136,20 +138,33 @@ def items(
     found: list[TaskItemOut] = []
     names = names or {}
     practised_days = practised or set()
+    linked_days = linked or {}
+
+    def by_doing(task: Task) -> set[date]:
+        """The days that count as done without a tick: practised (a study task), or its
+        material done (a linked task, ADR 0096)."""
+        days_ = set(linked_days.get(task.id, set()))
+        if task.kind == "study":
+            days_ |= practised_days
+        return days_
+
     for task in tasks:
         if task.deleted_at is not None:
             continue
         shown = out(task, names.get(task.group_id) if task.group_id else None)
         if task.due_on is None:
             if start <= today <= end:
-                state = "done" if task.id in marks.done_once else None
-                found.append(TaskItemOut(task=shown, on=None, state=state))
+                # No date: its material done any day counts.
+                practice = task.id not in marks.done_once and bool(linked_days.get(task.id))
+                state = "done" if task.id in marks.done_once or practice else None
+                found.append(TaskItemOut(task=shown, on=None, state=state, by_practice=practice))
             continue
         if not task.repeat_mask:
-            practice = (
-                task.kind == "study"
-                and task.id not in marks.done_once
-                and task.due_on in practised_days
+            doing = by_doing(task)
+            practice = task.id not in marks.done_once and (
+                task.due_on in doing
+                # A linked one-off is done once its material is done, any day (ADR 0096).
+                or bool(linked_days.get(task.id))
             )
             done = task.id in marks.done_once or practice
             if start <= task.due_on <= end:
@@ -169,7 +184,7 @@ def items(
         for day in days(max(start, task.due_on), end):
             if falls_on(task, day):
                 state = marks.by_day.get((task.id, day))
-                practice = task.kind == "study" and state is None and day in practised_days
+                practice = state is None and day in by_doing(task)
                 found.append(
                     TaskItemOut(
                         task=shown,
@@ -204,8 +219,23 @@ def listed(
     # Overdue one-offs may be older than the range: their study days are looked up from the oldest.
     since = min([start] + [t.due_on for t in tasks if t.due_on and t.kind == "study"])
     days_done = practised(db, [user], since, zone).get(user.id, set())
+    # Linked material done (ADR 0096), from the oldest day that could matter.
+    oldest = min([since] + [t.due_on for t in tasks if t.due_on and t.link_kind])
+    linked = {
+        task_id: days_
+        for (task_id, _), days_ in task_links.done_days(
+            db, tasks, [user], local_day_bounds(oldest, zone)[0]
+        ).items()
+    }
     return items(
-        tasks, _marks(db, user, tasks, zone), start, end, today, group_names(db, tasks), days_done
+        tasks,
+        _marks(db, user, tasks, zone),
+        start,
+        end,
+        today,
+        group_names(db, tasks),
+        days_done,
+        linked,
     )
 
 
@@ -247,6 +277,8 @@ def create(
     group_id: uuid.UUID | None = None,
 ) -> Task:
     _check_times(body.start_minute, body.end_minute)
+    # The material first: checked, and given to the group (a deck, a reading) (ADR 0096).
+    link_title = task_links.attach(db, user, group_id, body.link, now) if body.link else None
     task = Task(
         user_id=None if group_id else user.id,
         group_id=group_id,
@@ -260,6 +292,9 @@ def create(
         repeat_mask=body.repeat_mask,
         priority=body.priority,
         kind=body.kind,
+        link_kind=body.link.kind if body.link else None,
+        link_ref=body.link.ref if body.link else None,
+        link_title=link_title,
         created_at=now,
         updated_at=now,
     )
@@ -283,9 +318,13 @@ def _promise_follows(db: Session, user: User, task: Task, today: date) -> None:
     db.commit()
 
 
-def _apply(task: Task, patch: TaskPatch) -> None:
-    for name in patch.model_fields_set:
+def _apply(task: Task, patch: TaskPatch, link_title: str | None = None) -> None:
+    for name in patch.model_fields_set - {"link"}:
         setattr(task, name, getattr(patch, name))
+    if "link" in patch.model_fields_set:
+        task.link_kind = patch.link.kind if patch.link else None
+        task.link_ref = patch.link.ref if patch.link else None
+        task.link_title = link_title if patch.link else None
     if task.repeat_mask and task.due_on is None:
         raise ApiError(422, "repeat_needs_date", "A repeating task needs a first date")
     # Clearing the start clears the end with it.
@@ -307,10 +346,15 @@ def update(
     """Change a task. For one that repeats: «all» changes the series; «future» ends it the day
     before `on` and starts a changed one from `on`; «one» skips `on` and makes a one-off for it."""
     task = _own(db, user, task_id)
+    link_title = (
+        task_links.attach(db, user, task.group_id, patch.link, now)
+        if "link" in patch.model_fields_set and patch.link
+        else None
+    )
     repeating = bool(task.repeat_mask)
     whole = scope == "all" or on is None or (scope == "future" and on <= (task.due_on or on))
     if not repeating or whole:
-        _apply(task, patch)
+        _apply(task, patch, link_title)
         task.updated_at = now
         db.commit()
         db.refresh(task)
@@ -332,10 +376,13 @@ def update(
         repeat_until=task.repeat_until if scope == "future" else None,
         priority=task.priority,
         kind=task.kind,
+        link_kind=task.link_kind,
+        link_ref=task.link_ref,
+        link_title=task.link_title,
         created_at=now,
         updated_at=now,
     )
-    _apply(copy, patch)
+    _apply(copy, patch, link_title)
     db.add(copy)
     db.flush()
     if scope == "future":
@@ -457,6 +504,17 @@ def for_group(
         (task_id, user_id): day for task_id, user_id, _, state, day in marks if state == "done"
     }
     done_any = set(done_on)
+    # Linked material done counts as done that day (ADR 0096); a one-off, done once.
+    since = local_day_bounds(week[0], ZoneInfo("Etc/GMT-14"))[0]
+    for (task_id, user_id), days_ in task_links.done_days(db, tasks, users, since).items():
+        task = by_id[task_id]
+        if task.repeat_mask:
+            for day in days_:
+                if falls_on(task, day) and (task_id, user_id, day) not in by:
+                    by[(task_id, user_id, day)] = "done"
+        elif (task_id, user_id) not in done_any:
+            done_any.add((task_id, user_id))
+            done_on[(task_id, user_id)] = min(days_)
     # A study task with no mark is done on a day the member practised (ADR 0086).
     if any(t.kind == "study" for t in tasks):
         studied = practised(db, users, week[0], None)

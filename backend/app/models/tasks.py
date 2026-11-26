@@ -64,6 +64,11 @@ class Task(Base):
     priority: Mapped[int] = mapped_column(SmallInteger, default=0)
     # A study task is also done on a day the learner practised (ADR 0086).
     kind: Mapped[str] = mapped_column(String(8), default="task")
+    # A group task's material (ADR 0096): deck, reading, writing, speaking or shadowing, the
+    # item's id, and its title as linked.
+    link_kind: Mapped[str | None] = mapped_column(String(16))
+    link_ref: Mapped[str | None] = mapped_column(String(80))
+    link_title: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

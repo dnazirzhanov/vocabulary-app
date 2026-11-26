@@ -1219,6 +1219,13 @@ export const uz: Messages = {
   planStudyHint: 'Ilovada shug‘ullanganingizda o‘zi belgilanadi',
   planByPractice: 'mashg‘ulot bo‘yicha',
   planNotYet: 'O‘sha kuni belgilash mumkin',
+  linkMaterial: 'Material',
+  linkSearch: 'Qidirish',
+  linkEmpty: 'Hozircha bu yerda hech narsa yo‘q',
+  linkLoadError: 'Ro‘yxat yuklanmadi. Qayta urinib ko‘ring.',
+  linkRemove: (a: Arg) => `«${a}» materialini olib tashlash`,
+  linkOpen: 'Ochish',
+  linkByDoing: 'Buni bajarganingizda o‘zi belgilanadi',
   groupTasks: 'Guruh vazifalari',
   groupTaskAdd: 'Guruh uchun vazifa',
   groupTasksEmpty:

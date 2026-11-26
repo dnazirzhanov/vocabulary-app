@@ -1213,6 +1213,13 @@ export const ky: Messages = {
   planStudyHint: 'Тиркемеде окуганыңызда өзү белгиленет',
   planByPractice: 'сабак боюнча',
   planNotYet: 'Ошол күнү белгилесе болот',
+  linkMaterial: 'Окуу материалы',
+  linkSearch: 'Издөө',
+  linkEmpty: 'Азырынча бул жерде эч нерсе жок',
+  linkLoadError: 'Тизме жүктөлгөн жок. Кайра аракет кылыңыз.',
+  linkRemove: (a: Arg) => `«${a}» материалын алып салуу`,
+  linkOpen: 'Ачуу',
+  linkByDoing: 'Муну аткарганда өзү белгиленет',
   groupTasks: 'Топтун тапшырмалары',
   groupTaskAdd: 'Топко тапшырма',
   groupTasksEmpty:

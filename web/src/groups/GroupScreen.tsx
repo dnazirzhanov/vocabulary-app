@@ -10,6 +10,7 @@ import { PrimaryButton } from '../ui/PrimaryButton.tsx';
 import { GroupDecks } from '../decks/GroupDecks.tsx';
 import { DeleteGroup } from './DeleteGroup.tsx';
 import { GroupTasks } from './GroupTasks.tsx';
+import type { TaskLink } from '../planner/api.ts';
 import { GroupTitle } from './GroupTitle.tsx';
 import { InviteDialog } from './InviteDialog.tsx';
 import { LeaveGroup } from './LeaveGroup.tsx';
@@ -29,6 +30,8 @@ interface GroupScreenProps {
   onTests: () => void;
   onBack: () => void;
   onLeft: () => void;
+  /** Opens a group task's material (ADR 0096). */
+  onOpenLink?: (link: TaskLink) => void;
 }
 
 /**
@@ -37,7 +40,15 @@ interface GroupScreenProps {
  * and the month's missed days. A person's window adds the words they know. Everything else is a tap
  * away: the rule in «Как это считается?», housekeeping folded at the bottom.
  */
-export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onTests, onBack, onLeft }: GroupScreenProps) {
+export function GroupScreen({
+  groupId,
+  inviteOnOpen = false,
+  onOpenDeck,
+  onTests,
+  onBack,
+  onLeft,
+  onOpenLink,
+}: GroupScreenProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(inviteOnOpen);
@@ -111,7 +122,7 @@ export function GroupScreen({ groupId, inviteOnOpen = false, onOpenDeck, onTests
             </button>
           )}
 
-          <GroupTasks board={board} onChanged={() => void load()} />
+          <GroupTasks board={board} onChanged={() => void load()} onOpenLink={onOpenLink} />
 
           <section aria-labelledby="today-title" className={styles.section}>
             <div className={styles.sectionHead}>

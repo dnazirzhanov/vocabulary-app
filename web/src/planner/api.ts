@@ -16,6 +16,17 @@ export interface Task {
   /** A group's task (ADR 0085): its teacher sets it, I tick it for myself. */
   group_id?: string | null;
   group_name?: string | null;
+  /** A group task's material (ADR 0096): opened from the task, and doing it ticks the task. */
+  link?: TaskLink | null;
+}
+
+export type LinkKind = 'deck' | 'reading' | 'writing' | 'speaking' | 'shadowing';
+
+export interface TaskLink {
+  kind: LinkKind;
+  /** The item's id: a deck's, `library:<article>` / `reading:<id>`, a question's, an exercise's. */
+  ref: string;
+  title: string;
 }
 
 export type MarkState = 'done' | 'skipped';
@@ -26,7 +37,7 @@ export interface Item {
   on: string | null;
   state: MarkState | null;
   overdue: boolean;
-  /** A study task done because I practised that day (ADR 0086), not ticked. */
+  /** Done because I practised that day (a study task, ADR 0086) or did its material (ADR 0096). */
   by_practice?: boolean;
 }
 
@@ -38,6 +49,7 @@ export interface TaskInput {
   end_minute?: number | null;
   repeat_mask?: number;
   priority?: number;
+  link?: { kind: LinkKind; ref: string } | null;
   kind?: 'task' | 'study';
 }
 

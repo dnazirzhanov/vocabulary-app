@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Header, Response, UploadFile
+from sqlalchemy import select
 
 from app.api.shadowing import audio_response
 from app.core.auth import CurrentUser, DbSession
@@ -11,6 +12,7 @@ from app.core.clock import Now
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 from app.core.ratelimit import limit_speaking_sessions
+from app.models import GroupMember
 from app.schemas.speaking import (
     CreateSessionIn,
     QuestionOut,
@@ -18,6 +20,7 @@ from app.schemas.speaking import (
     SessionOut,
     SessionSummaryOut,
 )
+from app.services import task_links
 from app.services.card_reports import listed
 from app.services.speaking import questions as questions_svc
 from app.services.speaking import sessions as sessions_svc
@@ -28,8 +31,32 @@ router = APIRouter(tags=["speaking"])
 DepSettings = Annotated[Settings, Depends(get_settings)]
 
 
-def _require_speaking(user: CurrentUser, settings: DepSettings) -> None:
-    if not listed(user, settings.speaking_testers):
+def _teaches(db: DbSession, user: CurrentUser) -> bool:
+    """Sets a group's tasks: picks a speaking question for one (ADR 0096)."""
+    return (
+        db.scalar(
+            select(GroupMember.group_id).where(
+                GroupMember.user_id == user.id, GroupMember.role == "owner"
+            )
+        )
+        is not None
+    )
+
+
+def _require_speaking(user: CurrentUser, db: DbSession, settings: DepSettings) -> None:
+    """A tester; or a teacher, to pick questions for a group's tasks; or a member of a group whose
+    task links a speaking question, for that question (ADR 0096)."""
+    if listed(user, settings.speaking_testers) or _teaches(db, user):
+        return
+    if not task_links.linked_refs(db, user, "speaking"):
+        raise ApiError(403, "not_a_speaking_tester", "Speaking is not available for this account")
+
+
+def _may_answer(db: DbSession, user: CurrentUser, settings: DepSettings, question_id: str) -> None:
+    """Recording an answer: a tester, any question; anyone else, one their group's task links."""
+    if listed(user, settings.speaking_testers):
+        return
+    if question_id not in task_links.linked_refs(db, user, "speaking"):
         raise ApiError(403, "not_a_speaking_tester", "Speaking is not available for this account")
 
 
@@ -43,7 +70,15 @@ def list_sessions(
 
 
 @router.get("/speaking/questions", dependencies=[Depends(_require_speaking)])
-def list_questions(exercise_type: str | None = None) -> list[QuestionOut]:
+def list_questions(
+    user: CurrentUser, db: DbSession, settings: DepSettings, exercise_type: str | None = None
+) -> list[QuestionOut]:
+    # A member who isn't a tester sees only what their groups' tasks link (ADR 0096).
+    only = (
+        None
+        if listed(user, settings.speaking_testers) or _teaches(db, user)
+        else task_links.linked_refs(db, user, "speaking")
+    )
     if exercise_type is not None and exercise_type not in ("spontaneous", "pronunciation"):
         raise ApiError(
             400, "invalid_exercise_type", "exercise_type must be spontaneous or pronunciation"
@@ -58,6 +93,7 @@ def list_questions(exercise_type: str | None = None) -> list[QuestionOut]:
             reference_text=q.reference_text,
         )
         for q in questions_svc.list_all(exercise_type)
+        if only is None or q.id in only
     ]
 
 
@@ -65,7 +101,10 @@ def list_questions(exercise_type: str | None = None) -> list[QuestionOut]:
     "/speaking/sessions",
     dependencies=[Depends(_require_speaking), Depends(limit_speaking_sessions)],
 )
-def create_session(body: CreateSessionIn, user: CurrentUser, db: DbSession) -> SessionOut:
+def create_session(
+    body: CreateSessionIn, user: CurrentUser, db: DbSession, settings: DepSettings
+) -> SessionOut:
+    _may_answer(db, user, settings, body.question_id)
     return sessions_svc.create(db, user, body.exercise_type, body.question_id)
 
 

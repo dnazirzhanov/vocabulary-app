@@ -1212,6 +1212,13 @@ export const kk: Messages = {
   planStudyHint: 'Қосымшада оқығаныңызда өзі белгіленеді',
   planByPractice: 'сабақ бойынша',
   planNotYet: 'Сол күні белгілеуге болады',
+  linkMaterial: 'Оқу материалы',
+  linkSearch: 'Іздеу',
+  linkEmpty: 'Әзірге мұнда ештеңе жоқ',
+  linkLoadError: 'Тізім жүктелмеді. Қайтадан көріңіз.',
+  linkRemove: (a: Arg) => `«${a}» материалын алып тастау`,
+  linkOpen: 'Ашу',
+  linkByDoing: 'Мұны орындағанда өзі белгіленеді',
   groupTasks: 'Топ тапсырмалары',
   groupTaskAdd: 'Топқа тапсырма',
   groupTasksEmpty:

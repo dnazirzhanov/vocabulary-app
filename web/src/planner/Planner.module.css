@@ -1362,3 +1362,164 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* A group task's material (ADR 0096): the picker in the quick add, and the chosen one. */
+.linkPicker {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.linkTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.linkTab {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.linkTab[aria-selected='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+}
+
+.linkSearch {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.linkList {
+  display: grid;
+  gap: 4px;
+  max-height: min(42dvh, 320px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.linkItem {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.linkItem:hover {
+  border-color: var(--color-border);
+}
+
+.linkItem[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+
+.linkItemTitle {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.linkItemNote,
+.linkNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.linkChosen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.linkChosen > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkChosen svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.linkChosenRemove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* On a task: its material, and «Открыть». */
+.linkBlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* A long title (a whole question) takes the line; «Открыть» goes under it. */
+.linkBlock > button {
+  margin-left: 30px;
+}
+
+.linkBlock > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary-strong);
+}
+
+.linkBlockText {
+  display: grid;
+  flex: 1 1 200px;
+  min-width: 0;
+  gap: 2px;
+}
+
+.linkBlockTitle {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}

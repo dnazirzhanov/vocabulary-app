@@ -5,8 +5,9 @@
  */
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
-import { CloseIcon, PeopleIcon } from '../ui/icons.tsx';
-import { tasksApi, type Item, type MarkState } from './api.ts';
+import { ClipIcon, CloseIcon, PeopleIcon } from '../ui/icons.tsx';
+import { tasksApi, type Item, type MarkState, type TaskLink } from './api.ts';
+import { kindName } from './LinkPicker.tsx';
 import { whenLabel } from './DatePicker.tsx';
 import { addDays, weekday } from './dates.ts';
 import { ahead } from './sections.ts';
@@ -15,6 +16,8 @@ import styles from './Planner.module.css';
 interface Props {
   item: Item;
   today: string;
+  /** Opens the task's material (ADR 0096). */
+  onOpenLink?: (link: TaskLink) => void;
   onToggle: () => void;
   onSkip: () => void;
   onClose: () => void;
@@ -22,7 +25,7 @@ interface Props {
 
 type Day = { day: string; on: boolean; state: MarkState | null };
 
-export function TaskView({ item, today, onToggle, onSkip, onClose }: Props) {
+export function TaskView({ item, today, onOpenLink, onToggle, onSkip, onClose }: Props) {
   const { task } = item;
   const monday = addDays(today, -weekday(today));
   const [week, setWeek] = useState<Day[] | null>(null);
@@ -104,6 +107,27 @@ export function TaskView({ item, today, onToggle, onSkip, onClose }: Props) {
             </span>
           )}
         </div>
+
+        {task.link && (
+          <div className={styles.viewBlock}>
+            <span className={styles.viewLabel}>{t.linkMaterial}</span>
+            <div className={styles.linkBlock}>
+              <ClipIcon aria-hidden="true" />
+              <span className={styles.linkBlockText}>
+                <span className={styles.linkItemNote}>{kindName(task.link.kind)}</span>
+                <span className={styles.linkBlockTitle} lang={task.link.kind === 'deck' ? undefined : 'en'}>
+                  {task.link.title}
+                </span>
+              </span>
+              {onOpenLink && (
+                <button type="button" className={styles.saveBtn} onClick={() => onOpenLink(task.link!)}>
+                  {t.linkOpen}
+                </button>
+              )}
+            </div>
+            <span className={styles.linkItemNote}>{t.linkByDoing}</span>
+          </div>
+        )}
 
         {days && onDays.length > 0 && (
           <div className={styles.viewBlock}>

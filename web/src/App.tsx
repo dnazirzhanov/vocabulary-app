@@ -29,8 +29,14 @@ import { SessionSummary } from './summary/SessionSummary.tsx';
 import { study } from './study/device.ts';
 import { PrimaryButton } from './ui/PrimaryButton.tsx';
 import { switchLanguage, t, uiLanguage } from './i18n/index.ts';
-import type { SpeakingQuestion, SpeakingSessionDetail } from './speaking/api.ts';
-import type { ShadowingExercise } from './shadowing/api.ts';
+import {
+  listQuestions as speakingQuestions,
+  type SpeakingQuestion,
+  type SpeakingSessionDetail,
+} from './speaking/api.ts';
+import { listExercises, type ShadowingExercise } from './shadowing/api.ts';
+import type { TaskLink } from './planner/api.ts';
+import { articleOf } from './planner/links.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -79,7 +85,7 @@ type Screen =
   | { name: 'mentor' }
   | { name: 'plans' }
   | { name: 'speaking'; view?: 'home' | 'topics' }
-  | { name: 'writing' }
+  | { name: 'writing'; questionId?: string }
   | { name: 'shadowing' }
   | { name: 'speaking-archive' }
   | { name: 'shadowing-player'; exercise: ShadowingExercise }
@@ -290,6 +296,32 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     setPageFrom(from);
     setScreen({ name: 'deck-page', deckId, from });
   }, []);
+  // A group task's material (ADR 0096): its own screen, as if opened in its section.
+  const openLink = useCallback(
+    (link: TaskLink) => {
+      if (link.kind === 'deck') return openPage(link.ref, 'plans');
+      if (link.kind === 'reading') return setScreen({ name: 'article', articleId: articleOf(link.ref) });
+      if (link.kind === 'writing') return setScreen({ name: 'writing', questionId: link.ref });
+      if (link.kind === 'speaking') {
+        void speakingQuestions().then(
+          (all) => {
+            const question = all.find((q) => q.id === link.ref);
+            if (question) setScreen({ name: 'speaking-question', question, topicQuestions: [question] });
+          },
+          () => undefined,
+        );
+        return;
+      }
+      void listExercises().then(
+        (all) => {
+          const exercise = all.find((e) => e.id === link.ref);
+          if (exercise) setScreen({ name: 'shadowing-player', exercise });
+        },
+        () => undefined,
+      );
+    },
+    [openPage],
+  );
   // After a lesson: back to the deck it was from.
   const leave = useCallback(() => {
     if (fromPlans) {
@@ -514,6 +546,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
           inviteOnOpen={screen.invite}
           onOpenDeck={(deckId) => setScreen({ name: 'deck', deckId, groupId: screen.groupId })}
           onTests={() => setScreen({ name: 'tests', groupId: screen.groupId })}
+          onOpenLink={openLink}
           onBack={() => setScreen({ name: 'groups' })}
           onLeft={() => {
             setScreen({ name: 'groups' });
@@ -563,7 +596,11 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'plans') {
       return (
         <Suspense fallback={null}>
-          <PlannerScreen onOpenDeck={(deckId) => openPage(deckId, 'plans')} onStartStudy={startFromPlans} />
+          <PlannerScreen
+            onOpenDeck={(deckId) => openPage(deckId, 'plans')}
+            onStartStudy={startFromPlans}
+            onOpenLink={openLink}
+          />
         </Suspense>
       );
     }
@@ -584,7 +621,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'writing') {
       return (
         <Suspense fallback={null}>
-          <WritingFlow />
+          <WritingFlow key={screen.questionId ?? ''} questionId={screen.questionId} />
         </Suspense>
       );
     }

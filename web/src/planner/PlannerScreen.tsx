@@ -9,7 +9,7 @@ import { playTaskDone } from '../lib/sounds.ts';
 import { Celebration } from '../ui/Celebration.tsx';
 import { t } from '../i18n/index.ts';
 import { CardsIcon, CheckIcon, ForwardIcon, PencilIcon, PlusIcon } from '../ui/icons.tsx';
-import { tasksApi, type Item, type Scope, type TaskInput } from './api.ts';
+import { tasksApi, type Item, type Scope, type TaskInput, type TaskLink } from './api.ts';
 import { addDays, localToday, weekday } from './dates.ts';
 import { dayLabel } from './DatePicker.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
@@ -34,9 +34,11 @@ interface Props {
   onOpenDeck: (deckId: string) => void;
   /** Starts a study item's flashcards or spelling at once (ADR 0089); resolves false if it couldn't. */
   onStartStudy: (item: StudyItem) => Promise<boolean>;
+  /** Opens a group task's material (ADR 0096). */
+  onOpenLink: (link: TaskLink) => void;
 }
 
-export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
+export default function PlannerScreen({ onOpenDeck, onStartStudy, onOpenLink }: Props) {
   const [today, setToday] = useState(localToday());
   const [items, setItems] = useState<Item[] | null>(null);
   const [view, setView] = useState<View>('today');
@@ -387,6 +389,7 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
           key={keyOf(open)}
           item={items?.find((i) => keyOf(i) === keyOf(open)) ?? open}
           today={today}
+          onOpenLink={onOpenLink}
           onClose={() => setOpen(null)}
           onSkip={() => skip(open)}
           onToggle={() => {
