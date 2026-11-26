@@ -503,6 +503,9 @@ test('«К пропущенным» goes through only the skipped words, then ba
     }
   }
   await expect(checkHeading(page)).toBeVisible();
+  // The bar counts the words with an answer, not the skipped ones.
+  const bar = page.getByRole('progressbar');
+  await expect(bar).toHaveAttribute('aria-valuenow', '2');
 
   // Through the two skipped, in turn: the answered ones in between are passed by.
   await button(page, 'К пропущенным · 2').click();
@@ -524,6 +527,7 @@ test('«К пропущенным» goes through only the skipped words, then ba
   // Back on the check, nothing missing: no way to the skipped, and it hands in at once.
   await expect(checkHeading(page)).toBeVisible();
   await expect(page.getByRole('button', { name: /^К пропущенным/ })).toHaveCount(0);
+  await expect(bar).toHaveAttribute('aria-valuenow', '4');
   await button(page, 'Сдать').click();
   await expect(page.getByRole('img', { name: '4 из 4 · 100%' })).toBeVisible();
 });
@@ -592,7 +596,9 @@ test('words misspelled and skipped in a test wait in «Трудные» on the d
 
   const skipped = (await meaning(annaPage).textContent())!;
   await button(annaPage, 'Пропустить').click();
-  await expect(annaPage.getByText('2 / 3')).toBeVisible();
+  // A skipped word has no answer: the bar stays where it was.
+  await expect(annaPage.locator('[data-spelling]').getByText('Тест · слово 3 из 3')).toBeVisible();
+  await expect(annaPage.getByText('1 / 3')).toBeVisible();
 
   const right = (await meaning(annaPage).textContent())!;
   await build(annaPage, WORDS[right]);

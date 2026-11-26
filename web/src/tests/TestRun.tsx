@@ -245,7 +245,9 @@ export function TestRun({ groupId, deckId, attemptId, initial, onDone }: TestRun
   // Going back keeps a word fully built; one half-built stays on the device as it was.
   const back = () => move(draft.current ?? undefined, step(-1));
   const timed = attempt.kind === 'test';
-  const answered = words.filter((word) => word.state !== 'empty').length;
+  // The bar fills with words that have an answer, right or wrong alike (a test never says which
+  // before it is handed in); a skipped word has none, so it doesn't count until it gets one.
+  const answered = words.filter((word) => word.state === 'answered').length;
 
   return (
     <div className={lesson.screen}>
