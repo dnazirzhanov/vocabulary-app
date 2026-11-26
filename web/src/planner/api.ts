@@ -24,6 +24,8 @@ export interface Item {
   on: string | null;
   state: MarkState | null;
   overdue: boolean;
+  /** A study task done because I practised that day (ADR 0086), not ticked. */
+  by_practice?: boolean;
 }
 
 export interface TaskInput {

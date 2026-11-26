@@ -1209,6 +1209,9 @@ export const uz: Messages = {
   planLoadError: 'Vazifalar yuklanmadi. Internetni tekshiring.',
   planSaveError: 'Saqlanmadi. Qayta urinib ko‘ring.',
   planTaskTitle: 'Nomi',
+  planStudy: 'Ilovadagi mashg‘ulot',
+  planStudyHint: 'Ilovada shug‘ullanganingizda o‘zi belgilanadi',
+  planByPractice: 'mashg‘ulot bo‘yicha',
   groupTasks: 'Guruh vazifalari',
   groupTaskAdd: 'Guruh uchun vazifa',
   groupTasksEmpty:

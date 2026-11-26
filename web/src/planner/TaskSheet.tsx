@@ -25,6 +25,7 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes);
   const [priority, setPriority] = useState(task.priority);
+  const [kind, setKind] = useState(task.kind);
   const [when, setWhen] = useState<When>({
     dueOn: task.repeat_mask ? item.on : task.due_on,
     startMinute: task.start_minute,
@@ -48,6 +49,7 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
     if (title.trim() && title.trim() !== task.title) out.title = title.trim();
     if (notes !== task.notes) out.notes = notes;
     if (priority !== task.priority) out.priority = priority;
+    if (kind !== task.kind) out.kind = kind;
     if (when.startMinute !== task.start_minute) out.start_minute = when.startMinute;
     if (when.repeatMask !== task.repeat_mask) out.repeat_mask = when.repeatMask;
     const shownDay = repeating ? item.on : task.due_on;
@@ -127,6 +129,19 @@ export function TaskSheet({ item, today, onSave, onSkip, onDelete, onClose }: Pr
             </button>
           ))}
         </div>
+        {own && (
+          <label className={styles.studyToggle}>
+            <input
+              type="checkbox"
+              checked={kind === 'study'}
+              onChange={(e) => setKind(e.target.checked ? 'study' : 'task')}
+            />
+            <span>
+              <strong>{t.planStudy}</strong>
+              <small>{t.planStudyHint}</small>
+            </span>
+          </label>
+        )}
         <footer className={styles.detailFoot}>
           {own && (
             <button

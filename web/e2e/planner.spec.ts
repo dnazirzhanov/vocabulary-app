@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './learner.ts';
+import { button, expect, finishSession, openDeck, test } from './learner.ts';
 
 /**
  * «Планы» (ADR 0084): a to-do app, TickTick-style. Quick add understands typed dates and repeats;
@@ -125,4 +125,27 @@ test('an overdue task waits on top until moved to today', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Просрочено' })).toHaveCount(0);
   await expect(row(page, 'Сдать эссе')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('the empty day offers a study task; a lesson ticks it «по занятию»', async ({ page }) => {
+  await openPlans(page);
+  // The example on an empty day: a study task, ready to add.
+  await page.getByRole('button', { name: 'Английский каждый день в 21:00' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Новая задача' });
+  await expect(dialog.getByRole('button', { name: /^Занятие в приложении/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('textbox', { name: 'Новая задача' }).press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
+
+  // A lesson in the app, then back: ticked by studying.
+  await page.getByRole('navigation').getByRole('button', { name: 'Сегодня' }).click();
+  await openDeck(page);
+  await button(page, 'Начать урок · 5 слов').click();
+  await finishSession(page);
+  await button(page, 'На главную').click();
+  await page.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
+  await page.getByRole('button', { name: 'Выполнено · 1' }).click();
+  const done = row(page, 'Английский');
+  await expect(done.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
+  await expect(done).toContainText('по занятию');
 });

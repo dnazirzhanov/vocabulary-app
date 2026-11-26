@@ -13,6 +13,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -21,8 +22,13 @@ from app.core.errors import ApiError
 from app.models import Group, GroupMember, Task, TaskMark, User
 from app.schemas.tasks import GroupTaskOut, TaskIn, TaskItemOut, TaskOut, TaskPatch
 from app.services import group_rights
+from app.services.progress import local_day_bounds
+from app.services.promise import promise_of, set_weekdays, weekdays_of
+from app.services.study_days import days_by_user
 
 MAX_RANGE_DAYS = 62
+# The time a study task promises when nothing was promised before (ADR 0086).
+STUDY_MINUTES = 20
 
 
 def bit(day: date) -> int:
@@ -109,11 +115,14 @@ def items(
     end: date,
     today: date,
     names: dict[uuid.UUID, str] | None = None,
+    practised: set[date] | None = None,
 ) -> list[TaskItemOut]:
     """What «Планы» shows for [start, end]: each day's tasks; and, when the range reaches today,
-    overdue one-offs and «Входящие»."""
+    overdue one-offs and «Входящие». A study task with no mark is done on a day the learner
+    practised (`practised`, ADR 0086)."""
     found: list[TaskItemOut] = []
     names = names or {}
+    practised_days = practised or set()
     for task in tasks:
         if task.deleted_at is not None:
             continue
@@ -124,7 +133,12 @@ def items(
                 found.append(TaskItemOut(task=shown, on=None, state=state))
             continue
         if not task.repeat_mask:
-            done = task.id in marks.done_once
+            practice = (
+                task.kind == "study"
+                and task.id not in marks.done_once
+                and task.due_on in practised_days
+            )
+            done = task.id in marks.done_once or practice
             if start <= task.due_on <= end:
                 state = "done" if done else marks.by_day.get((task.id, task.due_on))
                 found.append(
@@ -133,6 +147,7 @@ def items(
                         on=task.due_on,
                         state=state,
                         overdue=not done and task.due_on < today,
+                        by_practice=practice,
                     )
                 )
             elif task.due_on < start and not done and start <= today <= end:
@@ -141,15 +156,41 @@ def items(
         for day in days(max(start, task.due_on), end):
             if falls_on(task, day):
                 state = marks.by_day.get((task.id, day))
-                found.append(TaskItemOut(task=shown, on=day, state=state))
+                practice = task.kind == "study" and state is None and day in practised_days
+                found.append(
+                    TaskItemOut(
+                        task=shown,
+                        on=day,
+                        state="done" if practice else state,
+                        by_practice=practice,
+                    )
+                )
     return found
 
 
-def listed(db: Session, user: User, start: date, end: date, today: date) -> list[TaskItemOut]:
+def practised(
+    db: Session, users: list[User], since: date, zone: ZoneInfo
+) -> dict[uuid.UUID, set[date]]:
+    """The days each learner finished a session from `since` on: what ticks a study task."""
+    found = days_by_user(db, users, local_day_bounds(since, zone)[0], zone)
+    return {
+        user_id: {d for d, day in by_day.items() if day.studied}
+        for user_id, by_day in found.items()
+    }
+
+
+def listed(
+    db: Session, user: User, start: date, end: date, today: date, zone: ZoneInfo
+) -> list[TaskItemOut]:
     if end < start or (end - start).days >= MAX_RANGE_DAYS:
         raise ApiError(422, "bad_range", f"A range is 1 to {MAX_RANGE_DAYS} days")
     tasks = mine(db, user)
-    return items(tasks, _marks(db, user, tasks), start, end, today, group_names(db, tasks))
+    # Overdue one-offs may be older than the range: their study days are looked up from the oldest.
+    since = min([start] + [t.due_on for t in tasks if t.due_on and t.kind == "study"])
+    days_done = practised(db, [user], since, zone).get(user.id, set())
+    return items(
+        tasks, _marks(db, user, tasks), start, end, today, group_names(db, tasks), days_done
+    )
 
 
 def _own(db: Session, user: User, task_id: uuid.UUID, edit: bool = True) -> Task:
@@ -202,7 +243,21 @@ def create(
     db.add(task)
     db.commit()
     db.refresh(task)
+    _promise_follows(db, user, task, today)
     return task
+
+
+def _promise_follows(db: Session, user: User, task: Task, today: date) -> None:
+    """A learner's own repeating study task is their promise (ADR 0086): its days and time
+    become the promised ones (from tomorrow, as any change of the promise), so the group's report,
+    the streaks and the morning reminder follow the planner."""
+    if task.user_id != user.id or task.kind != "study" or not task.repeat_mask:
+        return
+    kept = promise_of(db, user).time_on(today + timedelta(days=1))
+    minutes = kept[1] if kept and kept[1] else STUDY_MINUTES
+    time = (task.start_minute, minutes) if task.start_minute is not None else None
+    set_weekdays(db, user, weekdays_of(task.repeat_mask), today, time)
+    db.commit()
 
 
 def _apply(task: Task, patch: TaskPatch) -> None:
@@ -220,6 +275,7 @@ def update(
     scope: str,
     on: date | None,
     now: datetime,
+    today: date | None = None,
 ) -> Task:
     """Change a task. For one that repeats: «all» changes the series; «future» ends it the day
     before `on` and starts a changed one from `on`; «one» skips `on` and makes a one-off for it."""
@@ -231,6 +287,7 @@ def update(
         task.updated_at = now
         db.commit()
         db.refresh(task)
+        _promise_follows(db, user, task, today or now.date())
         return task
     assert on is not None  # «whole» covers a missing day
     if not falls_on(task, on):
@@ -265,6 +322,7 @@ def update(
     task.updated_at = now
     db.commit()
     db.refresh(copy)
+    _promise_follows(db, user, copy, today or now.date())
     return copy
 
 
@@ -354,6 +412,18 @@ def for_group(
     ).all()
     by = {(task_id, user_id, on): state for task_id, user_id, on, state in marks}
     done_any = {(task_id, user_id) for task_id, user_id, _, state in marks if state == "done"}
+    # A study task with no mark is done on a day the member practised (ADR 0086).
+    if any(t.kind == "study" for t in tasks):
+        users = list(db.scalars(select(User).where(User.id.in_(member_ids))))
+        studied = practised(db, users, week[0], ZoneInfo(group.time_zone))
+        for task in tasks:
+            if task.kind != "study":
+                continue
+            for user_id in member_ids:
+                for day in studied.get(user_id, set()):
+                    if falls_on(task, day) and (task.id, user_id, day) not in by:
+                        by[(task.id, user_id, day)] = "done"
+                        done_any.add((task.id, user_id))
     found: list[GroupTaskOut] = []
     for task in sorted(tasks, key=lambda t: (t.start_minute is None, t.start_minute or 0, t.title)):
         days = [falls_on(task, day) for day in week]

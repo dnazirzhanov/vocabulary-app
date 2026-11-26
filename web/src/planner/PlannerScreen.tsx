@@ -30,7 +30,7 @@ export default function PlannerScreen() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [view, setView] = useState<View>('today');
   const [day, setDay] = useState(today);
-  const [adding, setAdding] = useState<string | null>(null);
+  const [adding, setAdding] = useState<{ text: string; study: boolean } | null>(null);
   const [open, setOpen] = useState<Item | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -87,6 +87,8 @@ export default function PlannerScreen() {
     was.map((i) => (keyOf(i) === keyOf(target) ? { ...i, ...next } : i));
 
   const toggle = (item: Item) => {
+    // Ticked by practising: there is no tick of mine to take back.
+    if (item.by_practice) return;
     const on = item.on ?? today;
     if (item.state === 'done') {
       void act(replace(item, { state: null }), () => tasksApi.unmark(item.task.id, on));
@@ -252,7 +254,11 @@ export default function PlannerScreen() {
               {view === 'today' && shown.done.length === 0 && (
                 <>
                   <p className={styles.muted}>{t.planEmptyHint}</p>
-                  <button type="button" className={styles.exampleChip} onClick={() => setAdding(t.planExample)}>
+                  <button
+                    type="button"
+                    className={styles.exampleChip}
+                    onClick={() => setAdding({ text: t.planExample, study: true })}
+                  >
                     {t.planExample}
                   </button>
                 </>
@@ -281,7 +287,7 @@ export default function PlannerScreen() {
         className={styles.fab}
         aria-label={t.planAdd}
         title={t.planAdd}
-        onClick={() => setAdding('')}
+        onClick={() => setAdding({ text: '', study: false })}
       >
         <PlusIcon aria-hidden="true" />
       </button>
@@ -290,7 +296,8 @@ export default function PlannerScreen() {
         <QuickAdd
           today={today}
           day={view === 'inbox' ? null : view === 'upcoming' ? today : day}
-          initial={adding}
+          initial={adding.text}
+          study={adding.study}
           onAdd={add}
           onClose={() => setAdding(null)}
         />

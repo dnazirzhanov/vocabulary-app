@@ -31,7 +31,7 @@ def list_tasks(
     today = now.astimezone(time_zone).date()
     first = start or today
     last = end or first + timedelta(days=6)
-    return TasksOut(today=today, items=tasks.listed(db, user, first, last, today))
+    return TasksOut(today=today, items=tasks.listed(db, user, first, last, today, time_zone))
 
 
 @router.post("/tasks", status_code=201)
@@ -66,10 +66,12 @@ def update_task(
     user: CurrentUser,
     db: DbSession,
     now: Now,
+    time_zone: TimeZone,
     scope: Scope = "all",
     on: date | None = None,
 ) -> TaskOut:
-    return tasks.out(tasks.update(db, user, task_id, body, scope, on, now))
+    today = now.astimezone(time_zone).date()
+    return tasks.out(tasks.update(db, user, task_id, body, scope, on, now, today))
 
 
 @router.delete("/tasks/{task_id}", status_code=204)
