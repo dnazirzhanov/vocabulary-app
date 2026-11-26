@@ -28,3 +28,15 @@ export function hhmm(minute: number): string {
 export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
+
+/**
+ * Where a repeat starts: the first of its days from the date the person chose (ADR 0093). Always
+ * from that date, never from where an earlier tap moved it: Wednesday then Saturday, tapped on a
+ * Thursday, starts this Saturday, not next Wednesday.
+ */
+export function repeatStart(from: string, mask: number): string {
+  if (!mask) return from;
+  let day = from;
+  while (!(mask & bitOf(day))) day = addDays(day, 1);
+  return day;
+}

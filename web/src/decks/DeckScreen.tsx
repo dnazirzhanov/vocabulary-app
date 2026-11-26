@@ -3,7 +3,8 @@ import { study } from '../study/device.ts';
 import type { DayPlan } from '../study/plan.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { rich } from '../i18n/rich.tsx';
-import { api, describeError } from '../lib/api.ts';
+import { api, ApiError, describeError } from '../lib/api.ts';
+import { reportError } from '../lib/report.ts';
 import { wordsLabel } from '../lib/pace.ts';
 import { deckStages } from '../lib/deckStages.ts';
 import { studyLabel } from '../lib/today.ts';
@@ -80,10 +81,18 @@ export function DeckScreen({ deckId, backLabel, onBack, onSession, onWords, onAd
       // Worked out on this device from what it keeps, with or without a connection (ADR 0062); a
       // deck it can't hold yet comes from the server, or as last seen.
       Promise.all([
-        study
-          .deckStats(deckId)
-          .catch(() => withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value)),
-        study.activeSession(),
+        study.deckStats(deckId).catch((caught: unknown) => {
+          // This device couldn't work it out: from the server, or as last seen. Reported, since
+          // with the device's data it should have (ADR 0094).
+          if (!(caught instanceof ApiError && caught.kind === 'network')) reportError('deck-page/stats', caught);
+          return withSnapshot(`deckStats:${deckId}`, () => api.deckStats(deckId)).then(({ value }) => value);
+        }),
+        // A lesson left open that can't be shown again must not shut every deck page (ADR 0094):
+        // the page opens as if there were none, and the failure is reported.
+        study.activeSession().catch((caught: unknown) => {
+          reportError('deck-page/open-lesson', caught);
+          return { session: null };
+        }),
       ])
         .then(async ([stats, active]) => {
           // The pace (its suggestion, the setting) is secondary: the page works without it. Today's
