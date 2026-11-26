@@ -10,6 +10,8 @@
  *                                   └─ deny  ──▶ permission_denied
  *   ready
  *     └─ start() ──▶ recording
+ *                      ├─ pause()  ──▶ paused ── resume() ──▶ recording
+ *                      │                └─ stop() ──▶ stopped
  *                      ├─ stop()                        ──▶ stopped
  *                      ├─ max-duration timeout          ──▶ stopped
  *                      ├─ visibilitychange (background) ──▶ recording_interrupted
@@ -29,6 +31,7 @@ export type RecorderState =
   | 'permission_denied'
   | 'ready'
   | 'recording'
+  | 'paused'
   | 'recording_interrupted'
   | 'stopped'
   | 'playing'
@@ -92,6 +95,8 @@ export class AudioRecorder {
   private _chunks: Blob[] = [];
   private _mime = '';
   private _startedAt = 0;
+  // Time recorded before the latest resume: a pause stops the clock and the 3-minute limit alike.
+  private _recordedBefore = 0;
   private _durationTimer: ReturnType<typeof setInterval> | null = null;
   private _maxTimer: ReturnType<typeof setTimeout> | null = null;
   private _audio: HTMLAudioElement | null = null;
@@ -130,6 +135,11 @@ export class AudioRecorder {
   }
   get lastError(): RecorderError | null {
     return this._lastError;
+  }
+  /** Whether this browser's recorder can pause and resume (all current ones can). */
+  get canPause(): boolean {
+    const proto = this.globals.MediaRecorderCtor?.prototype as Partial<MediaRecorder> | undefined;
+    return typeof proto?.pause === 'function' && typeof proto?.resume === 'function';
   }
 
   subscribeState(l: Listener<RecorderState>): () => void {
@@ -209,13 +219,8 @@ export class AudioRecorder {
       };
       recorder.onstop = () => this.handleRecorderStopped();
       recorder.start(/* timeslice */ 1000);
-      this._startedAt = Date.now();
-      this._durationTimer = setInterval(() => {
-        this.emitDuration(Date.now() - this._startedAt);
-      }, 200);
-      this._maxTimer = setTimeout(() => {
-        if (this._state === 'recording') this.stop();
-      }, this.maxDurationMs);
+      this._recordedBefore = 0;
+      this.runClock();
       this.setState('recording');
     } catch (err) {
       this.fail('start_failed', formatError(err, 'Could not start recording.'));
@@ -224,9 +229,37 @@ export class AudioRecorder {
     }
   }
 
+  /** Pause mid-answer: the audio so far is kept, the clock and the time limit stop. */
+  pause(): void {
+    if (this._state !== 'recording' || !this._recorder || !this.canPause) return;
+    try {
+      this._recorder.pause();
+    } catch (err) {
+      this.fail('unknown', formatError(err, 'Could not pause recording.'));
+      return;
+    }
+    this._recordedBefore += Date.now() - this._startedAt;
+    this.stopClock();
+    this.emitDuration(this._recordedBefore);
+    this.setState('paused');
+  }
+
+  /** Go on recording into the same answer. */
+  resume(): void {
+    if (this._state !== 'paused' || !this._recorder) return;
+    try {
+      this._recorder.resume();
+    } catch (err) {
+      this.fail('unknown', formatError(err, 'Could not resume recording.'));
+      return;
+    }
+    this.runClock();
+    this.setState('recording');
+  }
+
   /** Stop recording. The onstop handler finalizes the Recording blob. */
   stop(): void {
-    if (this._state !== 'recording' && this._state !== 'recording_interrupted') return;
+    if (this._state !== 'recording' && this._state !== 'paused' && this._state !== 'recording_interrupted') return;
     try {
       this._recorder?.stop();
     } catch (err) {
@@ -270,14 +303,14 @@ export class AudioRecorder {
 
   /** Discard the current recording and return to ready (if permission still granted). */
   reset(): void {
-    if (this._state === 'recording' || this._state === 'requesting_permission') return;
+    if (this._state === 'recording' || this._state === 'paused' || this._state === 'requesting_permission') return;
     this.clearRecording();
     this.setState(this._mediaStream ? 'ready' : 'idle');
   }
 
   /** Full teardown: stop recording, release the microphone, revoke blob URLs, drop listeners. */
   destroy(): void {
-    if (this._recorder && this._state === 'recording') {
+    if (this._recorder && (this._state === 'recording' || this._state === 'paused')) {
       try {
         this._recorder.stop();
       } catch {
@@ -307,8 +340,37 @@ export class AudioRecorder {
     return '';
   }
 
+  /** The clock (shown every 200 ms) and the time limit, from now; what was recorded before counts. */
+  private runClock(): void {
+    this.stopClock();
+    this._startedAt = Date.now();
+    this._durationTimer = setInterval(() => {
+      this.emitDuration(this._recordedBefore + Date.now() - this._startedAt);
+    }, 200);
+    this._maxTimer = setTimeout(
+      () => {
+        if (this._state === 'recording') this.stop();
+      },
+      Math.max(0, this.maxDurationMs - this._recordedBefore),
+    );
+  }
+
+  private stopClock(): void {
+    if (this._durationTimer) {
+      clearInterval(this._durationTimer);
+      this._durationTimer = null;
+    }
+    if (this._maxTimer) {
+      clearTimeout(this._maxTimer);
+      this._maxTimer = null;
+    }
+  }
+
   private handleRecorderStopped(): void {
-    const durationMs = this._startedAt ? Date.now() - this._startedAt : 0;
+    // Time recorded: before the last pause, plus since the last resume unless it ended paused.
+    const running = this._durationTimer !== null && this._startedAt ? Date.now() - this._startedAt : 0;
+    const durationMs = this._recordedBefore + running;
+    this._recordedBefore = 0;
     const blob = new Blob(this._chunks, { type: this._mime || 'audio/webm' });
     this._recording = { blob, mimeType: this._mime || blob.type, durationMs };
     this._chunks = [];
@@ -319,14 +381,7 @@ export class AudioRecorder {
   }
 
   private cleanupStreamAndTimers(): void {
-    if (this._durationTimer) {
-      clearInterval(this._durationTimer);
-      this._durationTimer = null;
-    }
-    if (this._maxTimer) {
-      clearTimeout(this._maxTimer);
-      this._maxTimer = null;
-    }
+    this.stopClock();
     if (this._mediaStream) {
       for (const track of this._mediaStream.getTracks()) track.stop();
       this._mediaStream = null;

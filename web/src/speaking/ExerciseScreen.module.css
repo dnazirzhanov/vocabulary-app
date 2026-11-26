@@ -130,6 +130,8 @@
 .recording {
   animation: pulse 1.3s ease-in-out infinite;
   background: var(--color-error, #ef4444);
+  /* White on the error red reads at 6.5:1; the primary's dark text on red did not. */
+  color: #fff;
 }
 
 .secondary {

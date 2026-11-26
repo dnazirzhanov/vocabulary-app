@@ -242,3 +242,69 @@ test('AudioRecorder: max-duration auto-stops the recording', async () => {
   assert.equal(r.state, 'stopped');
   r.destroy();
 });
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+test('AudioRecorder: pause and resume record one answer; paused time is not counted', async () => {
+  const { globals } = makeGlobals();
+  const r = new AudioRecorder({ globals, maxDurationMs: 10_000 });
+  await r.requestPermission();
+  assert.equal(r.canPause, true);
+  await r.start();
+  await wait(60);
+  r.pause();
+  assert.equal(r.state, 'paused');
+  // A long pause: the clock stands still.
+  await wait(200);
+  r.resume();
+  assert.equal(r.state, 'recording');
+  await wait(60);
+  r.stop();
+  await tick();
+  assert.equal(r.state, 'stopped');
+  const ms = r.recording!.durationMs;
+  assert.ok(ms >= 100 && ms < 200, `recorded ${ms} ms, the 200 ms pause left out`);
+  r.destroy();
+});
+
+test('AudioRecorder: stopping while paused keeps the answer so far', async () => {
+  const { globals } = makeGlobals();
+  const r = new AudioRecorder({ globals, maxDurationMs: 10_000 });
+  await r.requestPermission();
+  await r.start();
+  await wait(40);
+  r.pause();
+  await wait(100);
+  r.stop();
+  await tick();
+  assert.equal(r.state, 'stopped');
+  assert.ok(r.recording && r.recording.blob.size > 0);
+  assert.ok(r.recording.durationMs < 100, `recorded ${r.recording.durationMs} ms`);
+  r.destroy();
+});
+
+test('AudioRecorder: the time limit counts recorded time only, and never fires while paused', async () => {
+  const { globals } = makeGlobals();
+  const r = new AudioRecorder({ globals, maxDurationMs: 80 });
+  await r.requestPermission();
+  await r.start();
+  await wait(50);
+  r.pause();
+  await wait(120); // past the limit by the wall clock, not by recorded time
+  assert.equal(r.state, 'paused');
+  r.resume();
+  await wait(60); // 50 + 60 recorded: past 80
+  await tick();
+  assert.equal(r.state, 'stopped');
+  r.destroy();
+});
+
+test('AudioRecorder: pause and resume do nothing outside recording', async () => {
+  const { globals } = makeGlobals();
+  const r = new AudioRecorder({ globals });
+  await r.requestPermission();
+  r.pause();
+  r.resume();
+  assert.equal(r.state, 'ready');
+  r.destroy();
+});
