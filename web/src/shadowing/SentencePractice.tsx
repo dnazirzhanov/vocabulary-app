@@ -17,6 +17,7 @@ import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
 import { BackButton } from '../ui/BackButton.tsx';
 import { completeAttempt, createAttempt, getExerciseAudioUrl, type ShadowingExercise } from './api.ts';
 import { PauseIcon, PlayIcon } from './AudioPlayer.tsx';
+import { GiveExercise } from './GiveExercise.tsx';
 import { audioPlayer } from './youtube/audioPlayer.ts';
 import type { VideoPlayer } from './youtube/player.ts';
 import { useYouTube } from './youtube/useYouTube.ts';
@@ -311,6 +312,7 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
       <header className={styles.header}>
         <BackButton onClick={onBack} />
         <h1 className={styles.title}>{exercise.title}</h1>
+        <GiveExercise exercise={exercise} />
       </header>
 
       <div className={styles.modes} role="group" aria-label={t.spMode}>

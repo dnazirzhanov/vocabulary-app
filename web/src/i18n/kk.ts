@@ -1468,5 +1468,8 @@ export const kk: Messages = {
   spNoMic: 'Мұнда жазу жұмыс істемейді: тыңдап, дауыстап қайталаңыз.',
   spDone: 'Жарайсың!',
   spDoneText: (n: number) => `Сөйлемдер: ${n}`,
+  shGiveWhen: 'Қашан',
+  shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
+  shGiven: (group: string) => `«${group}» тобында тапсырма`,
   spToList: 'Жаттығуларға оралу',
 };

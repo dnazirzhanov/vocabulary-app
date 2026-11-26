@@ -4,6 +4,7 @@
  */
 import { api, request } from '../lib/api.ts';
 import { listExercises } from '../shadowing/api.ts';
+import { levelName } from '../shadowing/levels.ts';
 import { listQuestions as speakingQuestions } from '../speaking/api.ts';
 import type { WritingQuestion } from '../writing/api.ts';
 import type { LinkKind } from './api.ts';
@@ -40,5 +41,5 @@ export async function pickable(kind: LinkKind): Promise<Pickable[]> {
     return questions.map((q) => ({ ref: q.id, title: q.text, note: q.topic }));
   }
   const exercises = await listExercises();
-  return exercises.map((e) => ({ ref: e.id, title: e.title, note: e.difficulty ?? null }));
+  return exercises.map((e) => ({ ref: e.id, title: e.title, note: levelName(e.difficulty) }));
 }

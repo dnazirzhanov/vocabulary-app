@@ -1492,6 +1492,9 @@ export const ru = {
   spNoMic: 'Запись здесь не работает: слушайте и повторяйте вслух.',
   spDone: 'Молодец!',
   spDoneText: (n: number) => `Предложений: ${n}`,
+  shGiveWhen: 'Когда',
+  shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
+  shGiven: (group: string) => `Задание в «${group}»`,
   spToList: 'К списку упражнений',
 };
 

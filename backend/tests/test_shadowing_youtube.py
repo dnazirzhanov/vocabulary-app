@@ -310,3 +310,30 @@ def test_loading_the_curated_ones_leaves_learners_own_alone(
     ids = [e["id"] for e in listed(client, "masha")]
     assert exercise["id"] in ids
     assert len(ids) == 2  # her own, and the curated one everyone sees
+
+
+def test_an_owner_gives_their_own_exercise_but_never_someone_elses(client: TestClient) -> None:
+    group = client.post(
+        "/api/groups", json={"name": "7Б"}, headers=named(client, as_("olga"), "Ольга")
+    ).json()
+    client.post(
+        f"/api/groups/join/{group['invite_code']}", headers=named(client, as_("masha"), "Маша")
+    )
+    mine = make(client, "olga").json()
+    hers = make(client, "petya").json()
+    path = f"/api/groups/{group['id']}/tasks"
+    task = {"title": "Шэдоуинг", "repeat_mask": 127}
+    given = client.post(
+        path, json=task | {"link": {"kind": "shadowing", "ref": mine["id"]}}, headers=as_("olga")
+    )
+    assert given.status_code == 201, given.text
+    refused = client.post(
+        path, json=task | {"link": {"kind": "shadowing", "ref": hers["id"]}}, headers=as_("olga")
+    )
+    assert refused.status_code == 404
+    # A member doesn't set the group's tasks.
+    own = make(client, "masha").json()
+    member = client.post(
+        path, json=task | {"link": {"kind": "shadowing", "ref": own["id"]}}, headers=as_("masha")
+    )
+    assert member.status_code == 403

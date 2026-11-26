@@ -10,6 +10,7 @@ import { clock } from './oneAtATime.ts';
 import { mergeWithNext, parseTranscript, suggestedRange, toSentences, type Sentence } from './youtube/transcript.ts';
 import { useYouTube } from './youtube/useYouTube.ts';
 import styles from './YouTubeCreateScreen.module.css';
+import { levelName } from './levels.ts';
 
 interface Props {
   onCreated: (exercise: ShadowingExercise) => void;
@@ -19,12 +20,6 @@ interface Props {
 const LEVELS: ShadowingExercise['difficulty'][] = ['beginner', 'intermediate', 'advanced'];
 /** As the server allows (ADR 0097). */
 const MAX_CLIP_MS = 10 * 60 * 1000;
-
-export function levelName(level: ShadowingExercise['difficulty']): string {
-  if (level === 'beginner') return t.shadowingDifficultyBeginner;
-  if (level === 'intermediate') return t.shadowingDifficultyIntermediate;
-  return t.shadowingDifficultyAdvanced;
-}
 
 /**
  * A shadowing exercise from a YouTube video (ADR 0097), on one screen: the link, then the video's

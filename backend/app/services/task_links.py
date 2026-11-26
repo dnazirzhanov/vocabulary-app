@@ -80,7 +80,10 @@ def attach(db: Session, user: User, group_id: uuid.UUID | None, link: LinkIn, no
             raise ApiError(404, "question_not_found", "No such question")
         return spoken.text
     exercise = _exercise(db, link.ref)
-    if exercise is None:
+    # Someone's own YouTube exercise is theirs to give (ADR 0097): never another learner's.
+    from app.services.shadowing import youtube
+
+    if exercise is None or not exercise.is_active or not youtube.may_open(db, user, exercise):
         raise ApiError(404, "exercise_not_found", "No such exercise")
     return exercise.title
 

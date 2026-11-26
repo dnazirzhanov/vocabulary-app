@@ -1474,5 +1474,8 @@ export const tg: Messages = {
   spNoMic: 'Сабт дар ин ҷо кор намекунад: гӯш кунед ва бо овоз такрор кунед.',
   spDone: 'Офарин!',
   spDoneText: (n: number) => `Ҷумлаҳо: ${n}`,
+  shGiveWhen: 'Кай',
+  shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
+  shGiven: (group: string) => `Супориш дар «${group}»`,
   spToList: 'Бозгашт ба машқҳо',
 };

@@ -14,7 +14,7 @@ import {
 } from './api.ts';
 import { clock } from './oneAtATime.ts';
 import styles from './ShadowingHome.module.css';
-import { levelName } from './YouTubeCreateScreen.tsx';
+import { levelName } from './levels.ts';
 
 interface ShadowingHomeProps {
   onSelectExercise: (exercise: ShadowingExercise) => void;

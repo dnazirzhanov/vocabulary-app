@@ -1469,5 +1469,8 @@ export const ky: Messages = {
   spNoMic: 'Бул жерде жазуу иштебейт: угуп, үнүңүз менен кайталаңыз.',
   spDone: 'Азаматсың!',
   spDoneText: (n: number) => `Сүйлөмдөр: ${n}`,
+  shGiveWhen: 'Качан',
+  shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
+  shGiven: (group: string) => `«${group}» тобунда тапшырма`,
   spToList: 'Көнүгүүлөргө кайтуу',
 };
