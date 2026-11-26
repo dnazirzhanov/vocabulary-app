@@ -29,3 +29,6 @@ start», every deck showing «Что-то пошло не так. Попробу
   - **Limits:** each different error once per visit, and 20 an hour per learner. Long texts are cut.
   - **Why a table:** Fly keeps only the last 100 log lines, so a log line alone would be lost. The table is read
     the same read-only way as other production data.
+- **Carried with this fix:** the planner's repeat start (`repeatStart`, ADR 0093 in #160). Tapping Wednesday then
+  Saturday on a Thursday started the series next Wednesday; the planner's browser test fails on Thursdays without
+  it, and CI must pass on the commit that is deployed.
