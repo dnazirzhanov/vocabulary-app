@@ -55,6 +55,14 @@ export interface LocalLesson {
 
 export const isOpen = (lesson: LocalLesson) => lesson.finishedAt === null && lesson.setAsideAt === null;
 
+/**
+ * Whether a lesson can be shown again here: every word of it still on this device (ADR 0094). A
+ * word leaves when its teacher takes it out of the deck, or the deck leaves; a lesson left open
+ * across that can't be shown, and must not keep every deck page and lesson from opening.
+ */
+export const showable = (learner: Learner, lesson: LocalLesson) =>
+  lesson.steps.every((step) => learner.words.has(step.wordId));
+
 const refuse = (status: number, code: string) => new ApiError('http', status, code, code);
 
 function deckOf(learner: Learner, deckId: string) {

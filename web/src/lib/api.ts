@@ -741,5 +741,8 @@ export function describeError(error: unknown): string {
   if (error instanceof ApiError && error.status >= 500) {
     return t.theServerIsnTRespondingTry;
   }
+  // Nothing the learner can do about it: what failed is reported, so it can be fixed (ADR 0094).
+  // Imported when needed: the reporter itself sends through this module.
+  void import('./report.ts').then(({ reportError }) => reportError('shown', error));
   return t.somethingWentWrongTryAgain;
 }

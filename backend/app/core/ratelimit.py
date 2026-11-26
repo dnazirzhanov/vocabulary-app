@@ -19,6 +19,8 @@ from app.core.errors import ApiError
 
 WINDOW_SECONDS = 60.0
 JOINS_PER_MINUTE = 10
+# The app reporting its own errors (ADR 0094): enough to see a problem, never a flood.
+CLIENT_ERRORS_PER_HOUR = 20
 _recent: dict[tuple[str, UUID], deque[float]] = defaultdict(deque)
 _lock = Lock()
 
@@ -134,4 +136,14 @@ def limit_new_pronunciations(user_id: UUID, settings: Settings) -> None:
         "Too many new words spoken today; try again tomorrow",
         window=24 * 60 * 60,
         code="pronunciation_limit",
+    )
+
+
+def limit_client_errors(user: CurrentUser) -> None:
+    _check(
+        "client-errors",
+        user.id,
+        CLIENT_ERRORS_PER_HOUR,
+        "Too many error reports; wait a while",
+        window=3600.0,
     )
