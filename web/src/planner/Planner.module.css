@@ -278,6 +278,13 @@
   transform: scale(1.08);
 }
 
+/* A repeat's day still to come: done on that day (ADR 0095). */
+.check[aria-disabled='true'] {
+  border-style: dashed;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .check[aria-checked='true'] {
   border-color: var(--color-text-muted);
   background: var(--color-text-muted);

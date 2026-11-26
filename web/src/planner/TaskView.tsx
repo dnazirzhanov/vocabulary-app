@@ -9,6 +9,7 @@ import { CloseIcon, PeopleIcon } from '../ui/icons.tsx';
 import { tasksApi, type Item, type MarkState } from './api.ts';
 import { whenLabel } from './DatePicker.tsx';
 import { addDays, weekday } from './dates.ts';
+import { ahead } from './sections.ts';
 import styles from './Planner.module.css';
 
 interface Props {
@@ -128,10 +129,14 @@ export function TaskView({ item, today, onToggle, onSkip, onClose }: Props) {
               {t.taskSkipToday}
             </button>
           )}
-          {!item.by_practice && (
-            <button type="button" className={styles.saveBtn} onClick={onToggle}>
-              {isDone ? t.taskUndo : t.taskMarkAsDone}
-            </button>
+          {ahead(item, today) ? (
+            <span className={styles.viewLabel}>{t.planNotYet}</span>
+          ) : (
+            !item.by_practice && (
+              <button type="button" className={styles.saveBtn} onClick={onToggle}>
+                {isDone ? t.taskUndo : t.taskMarkAsDone}
+              </button>
+            )
           )}
         </footer>
       </section>

@@ -1230,6 +1230,7 @@ export const en: Messages = {
   planStudy: 'Study in the app',
   planStudyHint: 'Ticks itself when you study in the app',
   planByPractice: 'by studying',
+  planNotYet: 'You can tick it on that day',
   groupTasks: 'Group tasks',
   groupTaskAdd: 'Task for the group',
   groupTasksEmpty: 'Give the group a task: it appears in everyone’s «Plans», and here you see who did it.',

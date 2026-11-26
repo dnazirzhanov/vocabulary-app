@@ -46,3 +46,10 @@ export function openCount(items: Item[], day: string): number {
 
 /** The same item, as one stands for a key (a repeat's occurrence is task + day). */
 export const keyOf = (i: Item) => `${i.task.id}:${i.on ?? ''}`;
+
+/**
+ * A repeat's day still to come (ADR 0095): it is done on that day, not ahead. Skipping it ahead
+ * stays possible. A one-off can be done early; it shows on the day it was done.
+ */
+export const ahead = (i: Item, today: string) =>
+  i.task.repeat_mask > 0 && i.on !== null && i.on > today && i.state !== 'done';

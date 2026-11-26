@@ -1218,6 +1218,7 @@ export const uz: Messages = {
   planStudy: 'Ilovadagi mashg‘ulot',
   planStudyHint: 'Ilovada shug‘ullanganingizda o‘zi belgilanadi',
   planByPractice: 'mashg‘ulot bo‘yicha',
+  planNotYet: 'O‘sha kuni belgilash mumkin',
   groupTasks: 'Guruh vazifalari',
   groupTaskAdd: 'Guruh uchun vazifa',
   groupTasksEmpty:

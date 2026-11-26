@@ -1211,6 +1211,7 @@ export const kk: Messages = {
   planStudy: 'Қосымшадағы сабақ',
   planStudyHint: 'Қосымшада оқығаныңызда өзі белгіленеді',
   planByPractice: 'сабақ бойынша',
+  planNotYet: 'Сол күні белгілеуге болады',
   groupTasks: 'Топ тапсырмалары',
   groupTaskAdd: 'Топқа тапсырма',
   groupTasksEmpty:

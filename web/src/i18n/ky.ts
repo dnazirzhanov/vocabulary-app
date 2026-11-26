@@ -1212,6 +1212,7 @@ export const ky: Messages = {
   planStudy: 'Тиркемедеги сабак',
   planStudyHint: 'Тиркемеде окуганыңызда өзү белгиленет',
   planByPractice: 'сабак боюнча',
+  planNotYet: 'Ошол күнү белгилесе болот',
   groupTasks: 'Топтун тапшырмалары',
   groupTaskAdd: 'Топко тапшырма',
   groupTasksEmpty:

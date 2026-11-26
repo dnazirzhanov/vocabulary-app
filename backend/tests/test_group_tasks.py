@@ -1,11 +1,15 @@
 """A group's to-do list (ADR 0085): the teacher sets it, every member sees it in «Планы» and ticks
 it for themselves, and the group's board shows who did what this week."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.models import TaskMark, User
 from tests.support import at, named
 
 MONDAY = datetime(2026, 11, 23, 10, 0, tzinfo=UTC)
@@ -122,8 +126,8 @@ def test_the_board_shows_who_did_it_this_week(client: TestClient) -> None:
         False,
         False,
     ]
-    # Done early, it shows on its own day.
-    assert essay["marks"][members["Masha"]][2] == "done"
+    # Done early (on Monday, for Wednesday): shown on the day it was done, never ahead (ADR 0095).
+    assert essay["marks"][members["Masha"]] == ["done"] + [None] * 6
     assert essay["marks"][members["Petya"]] == [None] * 7
 
 
@@ -133,3 +137,53 @@ def test_a_deleted_group_task_leaves_everyones_list(client: TestClient) -> None:
     assert client.delete(f"/api/tasks/{task['id']}", headers=as_("olga")).status_code == 204
     assert plans(client, "masha") == []
     assert board(client, group)["tasks"] == []
+
+
+def test_a_day_still_to_come_cant_be_done_and_an_old_early_tick_doesnt_count(
+    client: TestClient, db: Session
+) -> None:
+    """26 Nov 2026: a student ticked tomorrow's «Learn new words» and the board showed tomorrow as
+    done. A repeat's day is done on that day or later; skipping ahead stays possible (ADR 0095)."""
+    group = class_with(client, "masha")
+    daily = give(client, group, title="Повторять слова", repeat_mask=127).json()
+    tomorrow = (D + timedelta(days=1)).isoformat()
+    url = f"/api/tasks/{daily['id']}/marks/{tomorrow}"
+    refused = client.put(url, json={}, headers=as_("masha"))
+    assert refused.status_code == 422 and refused.json()["error"]["code"] == "not_yet"
+    assert client.put(url, json={"state": "skipped"}, headers=as_("masha")).status_code == 204
+    client.delete(url, headers=as_("masha"))
+
+    # One made before this rule (written straight in, as the old app could): ignored, kept.
+    masha = db.scalars(select(User).where(User.auth_subject.endswith("masha"))).one()
+    db.add(
+        TaskMark(
+            task_id=uuid.UUID(daily["id"]),
+            user_id=masha.id,
+            on=D + timedelta(days=1),
+            state="done",
+            at=MONDAY,
+        )
+    )
+    db.commit()
+    seen = board(client, group, who="olga")
+    members = {row["name"]: row["member_id"] for row in seen["rows"]}
+    assert seen["tasks"][0]["marks"][members["Masha"]][:2] == [None, None]
+    mine = plans(client, "masha", start=D, end=D + timedelta(days=1))
+    assert [(i["on"], i["state"]) for i in mine] == [(D.isoformat(), None), (tomorrow, None)]
+
+    # Tomorrow, on her own clock, it can be done; and the old tick, once its day began, counts.
+    on_tuesday = {"X-Dev-User": "masha"} | at(MONDAY + timedelta(days=1))
+    assert client.put(url, json={}, headers=on_tuesday).status_code == 204
+
+
+def test_each_member_on_their_own_clock(client: TestClient) -> None:
+    # 22:30 UTC on Monday is already Tuesday in Bishkek: Tuesday's day can be done there.
+    group = class_with(client, "masha")
+    daily = give(client, group, title="Повторять слова", repeat_mask=127).json()
+    late = datetime(2026, 11, 23, 22, 30, tzinfo=UTC)
+    tuesday = (D + timedelta(days=1)).isoformat()
+    in_bishkek = {"X-Dev-User": "masha"} | at(late, "Asia/Bishkek")
+    in_utc = {"X-Dev-User": "masha"} | at(late, "UTC")
+    url = f"/api/tasks/{daily['id']}/marks/{tuesday}"
+    assert client.put(url, json={}, headers=in_utc).status_code == 422
+    assert client.put(url, json={}, headers=in_bishkek).status_code == 204
