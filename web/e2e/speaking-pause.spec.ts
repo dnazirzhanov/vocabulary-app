@@ -77,3 +77,10 @@ test('Speaking opens on three cards; «Говорение» holds the topics, an
   await page.getByRole('button', { name: 'Назад' }).first().click();
   await expect(page.getByRole('heading', { level: 1, name: 'Речь' })).toBeVisible();
 });
+
+test('a word of a speaking question can be tapped for its meaning', async ({ page }) => {
+  await openExercise(page);
+  await page.getByRole('button', { name: 'morning', exact: true }).first().click();
+  const card = page.getByRole('dialog', { name: 'morning: перевод' });
+  await expect(card).toContainText('перевод «morning» (демо)');
+});

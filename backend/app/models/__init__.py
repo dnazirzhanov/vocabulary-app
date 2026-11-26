@@ -32,6 +32,7 @@ from app.models.mentor import (
     MentorMessage,
     MentorTimelineEvent,
 )
+from app.models.prompt_glossary import PromptGlossary
 from app.models.reading import (
     Reading,
     ReadingAnswer,
@@ -92,6 +93,7 @@ __all__ = [
     "PaceDismissal",
     "PromiseChange",
     "PromisePause",
+    "PromptGlossary",
     "PronunciationAudio",
     "PushSubscription",
     "Reading",

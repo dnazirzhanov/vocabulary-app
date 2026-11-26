@@ -7,6 +7,7 @@ import {
   type SpeakingQuestion,
   type SpeakingSessionDetail,
 } from './api.ts';
+import { TappableText } from '../ui/TappableText.tsx';
 import styles from './QuestionScreen.module.css';
 import { BackButton } from '../ui/BackButton.tsx';
 
@@ -58,10 +59,20 @@ export function QuestionScreen({ question, onRecord, onViewAttempt, onBack }: Qu
           {question.exercise_type === 'pronunciation' && question.reference_text ? (
             <>
               <p className={styles.questionLabel}>{t.speakingReadAloud}</p>
-              <p className={styles.referenceText}>{question.reference_text}</p>
+              <TappableText
+                className={styles.referenceText}
+                text={question.reference_text}
+                kind="speaking"
+                questionId={question.id}
+              />
             </>
           ) : (
-            <p className={styles.questionText}>{question.text}</p>
+            <TappableText
+              className={styles.questionText}
+              text={question.text}
+              kind="speaking"
+              questionId={question.id}
+            />
           )}
           {question.level && <span className={styles.level}>{question.level}</span>}
         </div>

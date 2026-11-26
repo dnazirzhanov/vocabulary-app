@@ -1,0 +1,32 @@
+/* A word in a question: reads as text; shows it can be tapped on hover and focus (ADR 0091). */
+.word {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted transparent;
+  text-underline-offset: 0.2em;
+  transition:
+    background 0.12s,
+    text-decoration-color 0.12s;
+}
+
+.word:hover {
+  text-decoration-color: var(--color-text-muted);
+}
+
+.word[aria-expanded='true'] {
+  background: var(--color-highlight);
+}
+
+.word:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}

@@ -4,6 +4,7 @@ import { t } from '../i18n/index.ts';
 import { IELTS_WORDS, submitAnswer, type Submission, type WritingQuestion } from './api.ts';
 import { taskTypeLabel } from './scoreText.ts';
 import { clock, elapsed, idle, start, stop, timeToSubmit, type Stopwatch } from '../lib/stopwatch.ts';
+import { TappableText } from '../ui/TappableText.tsx';
 import styles from './Writing.module.css';
 import { BackButton } from '../ui/BackButton.tsx';
 
@@ -103,7 +104,7 @@ export function WriteScreen({ question, initialText, onBack, onDone }: Props) {
     <main className={styles.writeScreen}>
       <BackButton onClick={onBack} disabled={busy} />
       {question.task_type && <p className={styles.typeChip}>{taskTypeLabel(question.task_type)}</p>}
-      <h1 className={styles.question}>{question.title}</h1>
+      <TappableText as="h1" className={styles.question} text={question.title} kind="writing" questionId={question.id} />
       <p className={styles.instruction}>
         {question.task_type ? t.writingIeltsTask(IELTS_WORDS, question.suggested_minutes ?? 40) : question.instruction}
       </p>
