@@ -44,6 +44,99 @@
   border-top: 1px solid var(--color-border);
 }
 
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The video's own picture: a small 16:9 frame. */
+.thumb {
+  flex: none;
+  width: 80px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background: var(--color-track);
+  object-fit: cover;
+}
+
+.remove {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* «Из YouTube»: the first thing on the screen, one tap to a new exercise. */
+.new {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-3) var(--space-4);
+  border: 2px dashed var(--color-primary-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-tint);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.newIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 1.5rem;
+  font-weight: var(--weight-display);
+  line-height: 1;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog p {
+  margin: 0;
+}
+
+.keep {
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
 .row {
   display: flex;
   align-items: center;

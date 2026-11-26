@@ -3,7 +3,6 @@
  * opens. The lists come from the sections' own endpoints.
  */
 import { api, request } from '../lib/api.ts';
-import { loadIndex, loadOwn } from '../reading/articles.ts';
 import { listExercises } from '../shadowing/api.ts';
 import { listQuestions as speakingQuestions } from '../speaking/api.ts';
 import type { WritingQuestion } from '../writing/api.ts';
@@ -24,6 +23,8 @@ export async function pickable(kind: LinkKind): Promise<Pickable[]> {
     return library.mine.map((d) => ({ ref: d.id, title: d.title, note: null }));
   }
   if (kind === 'reading') {
+    // Loaded only here: the task row imports this file, and the first screen shouldn't load Reading.
+    const { loadIndex, loadOwn } = await import('../reading/articles.ts');
     const [articles, own] = await Promise.all([loadIndex(), loadOwn().catch(() => null)]);
     return [
       ...(own?.readings ?? []).map((r) => ({ ref: `reading:${r.id}`, title: r.title, note: null })),
@@ -41,6 +42,3 @@ export async function pickable(kind: LinkKind): Promise<Pickable[]> {
   const exercises = await listExercises();
   return exercises.map((e) => ({ ref: e.id, title: e.title, note: e.difficulty ?? null }));
 }
-
-/** A reading link's article id, as the reader takes it. */
-export const articleOf = (ref: string) => ref.replace(/^(library|reading):/, '');

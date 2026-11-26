@@ -36,7 +36,7 @@ import {
 } from './speaking/api.ts';
 import { listExercises, type ShadowingExercise } from './shadowing/api.ts';
 import type { TaskLink } from './planner/api.ts';
-import { articleOf } from './planner/links.ts';
+import { articleOf } from './planner/articleOf.ts';
 
 // Reading Mode (an experiment): its code, styles and font load only when it is opened.
 const ReadingLibrary = lazy(() => import('./reading/ReadingScreens.tsx').then((m) => ({ default: m.Library })));
@@ -76,6 +76,12 @@ const ShadowingHomeScreen = lazy(() =>
 const ShadowingPlayerScreen = lazy(() =>
   import('./shadowing/ShadowingPlayerScreen.tsx').then((m) => ({ default: m.ShadowingPlayerScreen })),
 );
+const SentencePracticeScreen = lazy(() =>
+  import('./shadowing/SentencePractice.tsx').then((m) => ({ default: m.SentencePractice })),
+);
+const YouTubeCreateScreen = lazy(() =>
+  import('./shadowing/YouTubeCreateScreen.tsx').then((m) => ({ default: m.YouTubeCreateScreen })),
+);
 
 /** Where a deck's page was opened from, for its «Назад». */
 type PageFrom = 'home' | 'course' | 'progress' | 'reading-decks' | 'plans';
@@ -89,6 +95,8 @@ type Screen =
   | { name: 'shadowing' }
   | { name: 'speaking-archive' }
   | { name: 'shadowing-player'; exercise: ShadowingExercise }
+  | { name: 'shadowing-practice'; exercise: ShadowingExercise }
+  | { name: 'shadowing-new' }
   | { name: 'speaking-topic'; topic: string; questions: SpeakingQuestion[] }
   | { name: 'speaking-question'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
   | { name: 'speaking-exercise'; question: SpeakingQuestion; topicQuestions: SpeakingQuestion[] }
@@ -315,7 +323,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       void listExercises().then(
         (all) => {
           const exercise = all.find((e) => e.id === link.ref);
-          if (exercise) setScreen({ name: 'shadowing-player', exercise });
+          if (exercise) setScreen({ name: 'shadowing-practice', exercise });
         },
         () => undefined,
       );
@@ -478,19 +486,20 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   }
 
   // Every other screen sits in the navigation, which stays mounted while the screens change.
+  // Chunk 2+: the server tells us whether this account is a Speaking tester (SPEAKING_TESTERS).
+  const speakingEnabled = me.speaking === true;
   const navigate = (tab: NavTab) => {
     if (tab === 'today') goHome();
     else if (tab === 'mentor') setScreen({ name: 'mentor' });
     else if (tab === 'plans') setScreen({ name: 'plans' });
     else if (tab === 'progress') setScreen({ name: 'progress' });
     else if (tab === 'reading') setScreen({ name: 'reading' });
-    else if (tab === 'speaking') setScreen({ name: 'speaking' });
+    // Shadowing is everyone's (ADR 0097); the rest of «Говорение» is for its testers.
+    else if (tab === 'speaking') setScreen(speakingEnabled ? { name: 'speaking' } : { name: 'shadowing' });
     else if (tab === 'writing') setScreen({ name: 'writing' });
     // «Друзья» always opens the list of groups first (ADR 0023).
     else setScreen({ name: 'groups' });
   };
-  // Chunk 2+: the server tells us whether this account is a Speaking tester (SPEAKING_TESTERS).
-  const speakingEnabled = me.speaking === true;
   return (
     <NavShell
       tab={tabOf(screen)}
@@ -508,7 +517,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       onSignOut={supabase && screen.name === 'home' ? signOutHere : undefined}
       reading={me.reading === true}
       mentor={me.mentor === true}
-      speaking={speakingEnabled}
+      speaking
       writing={me.writing === true}
       focused={screen.name === 'mentor'}
     >
@@ -661,8 +670,34 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       return (
         <Suspense fallback={null}>
           <ShadowingHomeScreen
-            onSelectExercise={(exercise) => setScreen({ name: 'shadowing-player', exercise })}
-            onBack={() => setScreen({ name: 'speaking' })}
+            onSelectExercise={(exercise) => setScreen({ name: 'shadowing-practice', exercise })}
+            onNew={() => setScreen({ name: 'shadowing-new' })}
+            onBack={speakingEnabled ? () => setScreen({ name: 'speaking' }) : goHome}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'shadowing-new') {
+      return (
+        <Suspense fallback={null}>
+          <YouTubeCreateScreen
+            onCreated={(exercise) => setScreen({ name: 'shadowing-practice', exercise })}
+            onBack={() => setScreen({ name: 'shadowing' })}
+          />
+        </Suspense>
+      );
+    }
+    if (screen.name === 'shadowing-practice') {
+      const { exercise } = screen;
+      return (
+        <Suspense fallback={null}>
+          <SentencePracticeScreen
+            key={exercise.id}
+            exercise={exercise}
+            onBack={() => setScreen({ name: 'shadowing' })}
+            onTogether={
+              exercise.source === 'youtube' ? undefined : () => setScreen({ name: 'shadowing-player', exercise })
+            }
           />
         </Suspense>
       );
@@ -670,7 +705,10 @@ function Learning({ email, subject }: { email: string | null; subject: string })
     if (screen.name === 'shadowing-player') {
       return (
         <Suspense fallback={null}>
-          <ShadowingPlayerScreen exercise={screen.exercise} onBack={() => setScreen({ name: 'shadowing' })} />
+          <ShadowingPlayerScreen
+            exercise={screen.exercise}
+            onBack={() => setScreen({ name: 'shadowing-practice', exercise: screen.exercise })}
+          />
         </Suspense>
       );
     }
@@ -827,6 +865,8 @@ function tabOf(screen: Screen): NavTab {
       'speaking',
       'shadowing',
       'shadowing-player',
+      'shadowing-practice',
+      'shadowing-new',
       'speaking-archive',
       'speaking-topic',
       'speaking-question',

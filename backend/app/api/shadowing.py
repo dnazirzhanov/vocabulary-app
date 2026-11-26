@@ -8,18 +8,25 @@ from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
 from fastapi.responses import Response
 
 from app.core.auth import CurrentUser, DbSession
+from app.core.clock import Now
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
+from app.models import ShadowingExercise, User
 from app.schemas.shadowing import (
     AttemptListItem,
     AttemptOut,
     CreateAttemptIn,
+    ExerciseIn,
     ExerciseOut,
+    ExercisePatch,
     ExerciseStatusOut,
     SentenceOut,
+    YouTubeCheckIn,
+    YouTubeVideoOut,
 )
 from app.services.shadowing import attempts as attempts_svc
 from app.services.shadowing import exercises as exercises_svc
+from app.services.shadowing import youtube as youtube_svc
 from app.services.speaking.storage import get_storage
 
 router = APIRouter(tags=["shadowing"])
@@ -27,8 +34,14 @@ router = APIRouter(tags=["shadowing"])
 DepSettings = Annotated[Settings, Depends(get_settings)]
 
 
-def _exercise_out(ex) -> ExerciseOut:  # type: ignore[no-untyped-def]
+def _exercise_out(ex: ShadowingExercise, user: User) -> ExerciseOut:
     return ExerciseOut(
+        source="youtube" if ex.source == "youtube" else "file",
+        youtube_id=ex.youtube_id,
+        clip_start_ms=ex.clip_start_ms,
+        clip_end_ms=ex.clip_end_ms,
+        thumbnail_url=ex.thumbnail_url,
+        mine=ex.created_by == user.id,
         id=ex.id,
         slug=ex.slug,
         title=ex.title,
@@ -46,7 +59,32 @@ def _exercise_out(ex) -> ExerciseOut:  # type: ignore[no-untyped-def]
 
 @router.get("/shadowing/exercises")
 def list_exercises(db: DbSession, user: CurrentUser) -> list[ExerciseOut]:
-    return [_exercise_out(ex) for ex in exercises_svc.list_active(db)]
+    """Curated ones, my own and those my groups' tasks link (ADR 0097)."""
+    return [_exercise_out(ex, user) for ex in youtube_svc.visible(db, user)]
+
+
+@router.post("/shadowing/youtube/check")
+def check_youtube(body: YouTubeCheckIn, user: CurrentUser) -> YouTubeVideoOut:
+    """Whether YouTube's player may show this video here, with its title."""
+    return youtube_svc.check(body.url)
+
+
+@router.post("/shadowing/exercises", status_code=201)
+def create_exercise(body: ExerciseIn, db: DbSession, user: CurrentUser, now: Now) -> ExerciseOut:
+    return _exercise_out(youtube_svc.create(db, user, body, now), user)
+
+
+@router.patch("/shadowing/exercises/{exercise_id}")
+def update_exercise(
+    exercise_id: uuid.UUID, body: ExercisePatch, db: DbSession, user: CurrentUser
+) -> ExerciseOut:
+    return _exercise_out(youtube_svc.update(db, user, exercise_id, body), user)
+
+
+@router.delete("/shadowing/exercises/{exercise_id}", status_code=204)
+def delete_exercise(exercise_id: uuid.UUID, db: DbSession, user: CurrentUser) -> Response:
+    youtube_svc.remove(db, user, exercise_id)
+    return Response(status_code=204)
 
 
 @router.get("/shadowing/exercises/{exercise_id}/audio")
@@ -103,7 +141,7 @@ def create_attempt(
     user: CurrentUser,
 ) -> AttemptOut:
     ex = exercises_svc.by_id(db, body.exercise_id)
-    if ex is None or not ex.is_active:
+    if ex is None or not ex.is_active or not youtube_svc.may_open(db, user, ex):
         raise ApiError(404, "exercise_not_found", "Exercise not found")
     attempt = attempts_svc.create(db, user, body.exercise_id)
     return AttemptOut(

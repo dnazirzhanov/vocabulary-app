@@ -1,0 +1,347 @@
+/* Making an exercise from a YouTube video: three numbered steps down one column (ADR 0097). */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter) var(--space-7);
+  color: var(--color-text);
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+}
+
+.stepNumber {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--text-meta);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.linkForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.linkRow .input {
+  flex: 1 1 14rem;
+}
+
+.input,
+.textarea,
+.select,
+.sentenceText {
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-body);
+}
+
+.textarea {
+  resize: vertical;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: var(--text-meta);
+}
+
+.input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible,
+.sentenceText:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.video {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* YouTube's own player, as its terms want it: visible, at least 200×200. */
+.frame {
+  overflow: hidden;
+  width: 100%;
+  min-height: 200px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.videoTitle {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-weight: var(--weight-strong);
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-body);
+}
+
+.linkButton {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.how {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+  font-size: var(--text-meta);
+}
+
+.how summary {
+  min-height: 24px;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.how ol {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  line-height: var(--leading-body);
+}
+
+.file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.range {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+
+.select {
+  width: 100%;
+}
+
+.sentences {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sentence {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'hear time actions'
+    'text text text';
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.sentence + .sentence {
+  border-top: 1px solid var(--color-border);
+}
+
+.hear {
+  grid-area: hear;
+  display: grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-strong);
+  cursor: pointer;
+}
+
+.hear svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.hear:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.time {
+  grid-area: time;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.sentenceText {
+  grid-area: text;
+  width: 100%;
+  resize: vertical;
+}
+
+.rowActions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.smallButton {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.levels legend {
+  margin-bottom: var(--space-1);
+}
+
+.level {
+  position: relative;
+}
+
+.level input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+}
+
+.level span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.level input:checked + span {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary-strong);
+}
+
+.level input:focus-visible + span {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+/* «Сохранить» stays in reach at the bottom of a long list. */
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) 0;
+  background: linear-gradient(transparent, var(--color-bg) 30%);
+}
+
+/* Whatever is scrolled to stays clear of the «Сохранить» bar above it. */
+.step :is(input, textarea, select, button, label) {
+  scroll-margin-bottom: 96px;
+}

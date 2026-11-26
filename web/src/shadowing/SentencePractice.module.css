@@ -1,0 +1,427 @@
+/* Sentence by sentence (ADR 0098): the video, one big sentence, one big button. Made for children:
+   few words, large targets, the next step always in the same place. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 44rem;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: var(--space-4) var(--gutter) var(--space-5);
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
+  margin: 0;
+  padding-right: 56px; /* the settings gear */
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.modes {
+  display: flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--color-track);
+}
+
+.modeButton {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.modeButton[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgb(38 38 38 / 0.12);
+}
+
+/* YouTube's own player, visible as its terms want (at least 200×200). */
+.frame {
+  overflow: hidden;
+  width: 100%;
+  min-height: 200px;
+  max-height: 38vh;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A small dot inside a full-size tap target. */
+.dot {
+  position: relative;
+  width: 24px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-option-edge);
+  border-radius: 50%;
+  background: var(--color-surface);
+  transform: translate(-50%, -50%);
+}
+
+.dot[data-said]::after {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.dot[data-current]::after {
+  width: 14px;
+  height: 14px;
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+.sentence {
+  margin: 0;
+  font-size: clamp(1.375rem, 1.1rem + 1.4vw, 2rem);
+  font-weight: var(--weight-display);
+  line-height: 1.3;
+}
+
+/* The words already said: a warm marker behind them (a guide to follow, not information). */
+.sentence span {
+  transition: background-color 120ms ease;
+}
+
+.said {
+  border-radius: 4px;
+  background: var(--color-highlight);
+}
+
+.upNext {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+  opacity: 0.75;
+}
+
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  list-style: none;
+}
+
+.steps li {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.steps li[data-on] {
+  background: var(--color-primary-tint);
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.compareButton svg,
+.mainIcon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.compare {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.compareButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+/* The one big button: always here, always the next step. */
+.main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-size: var(--text-option);
+  font-weight: var(--weight-display);
+  box-shadow: var(--shadow-press);
+  cursor: pointer;
+}
+
+.main:active {
+  box-shadow: var(--shadow-press-active);
+  transform: translateY(2px);
+}
+
+.main:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.main[data-recording] {
+  background: var(--color-error);
+  color: #fff;
+  box-shadow: none;
+}
+
+.main[data-recording] .mainIcon {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.mainIcon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  font-size: 1.25rem;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main[data-recording] .mainIcon {
+    animation: none;
+  }
+  .main:active {
+    transform: none;
+  }
+}
+
+.secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.navButton {
+  display: grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 1px solid var(--color-option-edge);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.navButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.slow {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.slow[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+.finished {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin: auto 0;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.doneTitle {
+  margin: 0;
+  font-size: var(--text-display);
+  font-weight: var(--weight-display);
+}
+
+.doneText {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-option);
+}
+
+.textButton {
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--color-primary-strong);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.stage,
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.panel {
+  flex: 1;
+}
+
+/* A wide screen: the video and sentence on the left, the steps and buttons on the right, all in
+   view without scrolling. */
+@media (min-width: 900px) {
+  .screen {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--space-6);
+    max-width: 72rem;
+  }
+
+  .header,
+  .modes {
+    grid-column: 1 / -1;
+  }
+
+  .modes {
+    justify-self: start;
+  }
+
+  .frame {
+    max-height: none;
+  }
+
+  .panel {
+    justify-content: center;
+  }
+
+  .controls {
+    margin-top: 0;
+  }
+}
+
+/* A short phone: the extras give way, so the big button stays in view. */
+@media (max-width: 899px) and (max-height: 780px) {
+  .frame {
+    max-height: 24vh;
+  }
+
+  .upNext,
+  .steps {
+    display: none;
+  }
+
+  .card {
+    padding: var(--space-3) var(--space-4);
+  }
+}

@@ -31,6 +31,16 @@ class ShadowingExercise(Base):
     display_order: Mapped[int] = mapped_column(Integer, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # ADR 0097: 'file' (our audio, curated) or 'youtube' (a learner's own, played in YouTube's
+    # player; nothing stored but the timings). `created_by` null: curated, seen by everyone.
+    source: Mapped[str] = mapped_column(String(16), server_default="file")
+    youtube_id: Mapped[str | None] = mapped_column(String(16))
+    clip_start_ms: Mapped[int | None] = mapped_column(Integer)
+    clip_end_ms: Mapped[int | None] = mapped_column(Integer)
+    thumbnail_url: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
 
 
 class ShadowingAttempt(Base):

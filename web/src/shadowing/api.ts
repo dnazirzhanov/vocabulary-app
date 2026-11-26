@@ -1,3 +1,4 @@
+import { request } from '../lib/api.ts';
 import { accessToken } from '../lib/auth.ts';
 import { apiBase } from '../lib/platform.ts';
 
@@ -25,7 +26,40 @@ export interface ShadowingExercise {
   speaker: string | null;
   has_audio: boolean;
   display_order: number;
+  /** ADR 0097: a YouTube exercise plays in YouTube's player; its sentences' times are the video's. */
+  source: 'file' | 'youtube';
+  youtube_id: string | null;
+  clip_start_ms: number | null;
+  clip_end_ms: number | null;
+  thumbnail_url: string | null;
+  /** Made by me (I may change or remove it). */
+  mine: boolean;
 }
+
+export interface YouTubeVideo {
+  youtube_id: string;
+  title: string;
+  author: string;
+  thumbnail_url: string;
+}
+
+export interface NewYouTubeExercise {
+  youtube_id: string;
+  title: string;
+  author: string;
+  difficulty: ShadowingExercise['difficulty'];
+  clip_start_ms: number;
+  clip_end_ms: number;
+  sentences: ShadowingSentence[];
+}
+
+/** Whether YouTube's player may show this video here (public, embedding allowed), with its title. */
+export const checkYouTube = (url: string) => request<YouTubeVideo>('POST', '/shadowing/youtube/check', { url });
+
+export const createYouTubeExercise = (body: NewYouTubeExercise) =>
+  request<ShadowingExercise>('POST', '/shadowing/exercises', body);
+
+export const removeExercise = (id: string) => request<null>('DELETE', `/shadowing/exercises/${id}`);
 
 export interface ShadowingAttempt {
   id: string;
