@@ -18,6 +18,7 @@ import { loadStudyDay, type StudyItem } from './studyToday.ts';
 import { byTime, dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
 import { TaskRow } from './TaskRow.tsx';
 import { TaskSheet } from './TaskSheet.tsx';
+import { TaskView } from './TaskView.tsx';
 import styles from './Planner.module.css';
 
 type View = 'today' | 'upcoming';
@@ -115,7 +116,8 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
 
   const shown: DayView | null = items ? dayWithUndated(items, day, today) : null;
 
-  const toggle = (item: Item) => {
+  // From the task's own view no «Отменить» notice: the view has its own «Вернуть» (ADR 0092).
+  const toggle = (item: Item, notice = true) => {
     // Ticked by practising: there is no tick of mine to take back.
     if (item.by_practice) return;
     const on = item.on ?? today;
@@ -131,6 +133,7 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
     else playTaskDone();
     setBurst(keyOf(item));
     window.setTimeout(() => setBurst((b) => (b === keyOf(item) ? null : b)), 900);
+    if (!notice) return;
     setToast({
       text: t.planCompleted,
       undo: () => void act(replace(item, { state: null }), () => tasksApi.unmark(item.task.id, on)),
@@ -371,7 +374,21 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
           onClose={() => setAdding(null)}
         />
       )}
-      {open && (
+      {/* A group's task is the teacher's: its student sees it, ticks it, and sees their week (ADR 0092). */}
+      {open && open.task.group_id && (
+        <TaskView
+          key={keyOf(open)}
+          item={items?.find((i) => keyOf(i) === keyOf(open)) ?? open}
+          today={today}
+          onClose={() => setOpen(null)}
+          onSkip={() => skip(open)}
+          onToggle={() => {
+            const now = items?.find((i) => keyOf(i) === keyOf(open)) ?? open;
+            toggle(now, false);
+          }}
+        />
+      )}
+      {open && !open.task.group_id && (
         <TaskSheet
           key={keyOf(open)}
           item={open}

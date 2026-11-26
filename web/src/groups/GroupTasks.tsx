@@ -92,7 +92,8 @@ export function GroupTasks({ board, onChanged }: Props) {
               {expanded && (
                 <div className={styles.detail}>
                   <ul className={styles.members}>
-                    {students.map((row) => (
+                    {/* The teacher follows everyone; a student sees their own week only (ADR 0092). */}
+                    {(teacher ? students : students.filter((row) => row.is_me)).map((row) => (
                       <li key={row.member_id} className={styles.member}>
                         <span className={styles.name}>{row.name}</span>
                         <span className={styles.dots}>
