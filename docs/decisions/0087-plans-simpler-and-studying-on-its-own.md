@@ -28,3 +28,5 @@ figuring out what decks to study, and what spelling tasks to do … just show th
 - A learner's own tasks and the app's study list sit together on one screen; the promise (0086) still follows a
   repeating study task.
 - Typed days and ranges are understood in Russian and English; other languages use the buttons.
+
+_26 November 2026 (the owner): «Учёба на сегодня» shows no word counts any more. An item names only the deck, plus a teacher's deadline and the group when there are any._
