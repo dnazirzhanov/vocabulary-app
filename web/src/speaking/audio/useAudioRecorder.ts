@@ -29,6 +29,8 @@ export interface UseAudioRecorderResult {
   reset: () => void;
   /** The recorder's state right now: after an `await`, `state` above may not have caught up. */
   current: () => RecorderState;
+  /** Why the last step failed, right now (as `current`). */
+  lastError: () => RecorderError | null;
 }
 
 export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRecorderResult {
@@ -67,6 +69,7 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRe
   const pausePlayback = useCallback(() => recorder.pausePlayback(), [recorder]);
   const reset = useCallback(() => recorder.reset(), [recorder]);
   const current = useCallback(() => recorder.state, [recorder]);
+  const lastError = useCallback(() => recorder.lastError, [recorder]);
 
   return {
     state,
@@ -83,5 +86,6 @@ export function useAudioRecorder(options: AudioRecorderOptions = {}): UseAudioRe
     pausePlayback,
     reset,
     current,
+    lastError,
   };
 }

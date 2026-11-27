@@ -1375,7 +1375,10 @@ export const ru = {
   shadowingFinishBtn: 'Сохранить',
   shadowingSavingLabel: 'Сохраняем…',
   shadowingSaved: 'Сохранено',
-  shadowingPermissionDenied: 'Доступ к микрофону запрещён. Разрешите его в настройках браузера.',
+  shadowingPermissionDenied:
+    'Микрофон не разрешён. Нажмите на значок замка или «aA» рядом с адресом сайта → «Микрофон» → «Разрешить», затем попробуйте ещё раз.',
+  micInAppBrowser:
+    'Здесь запись голоса не работает: ссылка открыта во встроенном браузере приложения (Telegram, Instagram…). Откройте её в Chrome или Safari: меню ⋮ или ··· → «Открыть в браузере».',
   shadowingUnsupported: 'Запись аудио не поддерживается на этом устройстве.',
   shadowingAudioError: 'Не удалось включить аудио. Попробуйте ещё раз.',
   shadowingHeadphonesHint: 'Наденьте наушники: так ваш голос не смешается с записью.',

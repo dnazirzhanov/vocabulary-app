@@ -1358,7 +1358,10 @@ export const uz: Messages = {
   shadowingFinishBtn: 'Saqlash',
   shadowingSavingLabel: 'Saqlanmoqda…',
   shadowingSaved: 'Saqlandi',
-  shadowingPermissionDenied: 'Mikrofonga ruxsat yo‘q. Brauzer sozlamalarida ruxsat bering.',
+  shadowingPermissionDenied:
+    'Mikrofonga ruxsat yo‘q. Sayt manzili yonidagi qulf yoki «aA» belgisini bosing → «Mikrofon» → «Ruxsat berish», so‘ng qayta urinib ko‘ring.',
+  micInAppBrowser:
+    'Bu yerda ovoz yozish ishlamaydi: havola ilovaning ichki brauzerida ochilgan (Telegram, Instagram…). Uni Chrome yoki Safari’da oching: ⋮ yoki ··· menyusi → «Brauzerda ochish».',
   shadowingUnsupported: 'Bu qurilmada ovoz yozib bo‘lmaydi.',
   shadowingAudioError: 'Audioni yoqib bo‘lmadi. Qayta urinib ko‘ring.',
   shadowingHeadphonesHint: 'Quloqchin taqing: ovozingiz yozuv bilan aralashmaydi.',

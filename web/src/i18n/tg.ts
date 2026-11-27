@@ -1355,7 +1355,10 @@ export const tg: Messages = {
   shadowingFinishBtn: 'Нигоҳ доштан',
   shadowingSavingLabel: 'Нигоҳ дошта мешавад…',
   shadowingSaved: 'Нигоҳ дошта шуд',
-  shadowingPermissionDenied: 'Ба микрофон иҷозат нест. Дар танзимоти браузер иҷозат диҳед.',
+  shadowingPermissionDenied:
+    'Ба микрофон иҷозат нест. Қулф ё «aA»-ро дар назди суроғаи сайт пахш кунед → «Микрофон» → «Иҷозат додан», баъд боз кӯшиш кунед.',
+  micInAppBrowser:
+    'Дар ин ҷо сабти овоз кор намекунад: пайванд дар браузери дохилии барнома кушода шуд (Telegram, Instagram…). Онро дар Chrome ё Safari кушоед: менюи ⋮ ё ··· → «Дар браузер кушодан».',
   shadowingUnsupported: 'Дар ин дастгоҳ сабти овоз дастрас нест.',
   shadowingAudioError: 'Аудио фаъол нашуд. Бори дигар кӯшиш кунед.',
   shadowingHeadphonesHint: 'Гӯшмонак пӯшед: овози шумо бо сабт омехта намешавад.',
