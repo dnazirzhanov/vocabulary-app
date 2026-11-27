@@ -1,5 +1,5 @@
 import type { AuthChangeEvent, Session as AuthSession } from '@supabase/supabase-js';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bindAccount, closeLocal, localForgetter, openLocal, withSnapshot } from './local/session.ts';
 import { saveSnapshot } from './local/db.ts';
 import { syncNow } from './local/sync.ts';
@@ -19,6 +19,7 @@ import { CourseScreen } from './home/CourseScreen.tsx';
 import { HomeScreen } from './home/HomeScreen.tsx';
 import { LessonScreen } from './lesson/LessonScreen.tsx';
 import { NavShell, type NavTab } from './nav/NavShell.tsx';
+import { reloadIfNewer, takePendingTab } from './lib/freshness.ts';
 import { api, ApiError, describeError } from './lib/api.ts';
 import { authMode, supabase } from './lib/auth.ts';
 import { forgetRunningTest, runningTest } from './lib/groupTests.ts';
@@ -168,6 +169,20 @@ function forgetInvite() {
   }
 }
 rememberInviteFromUrl();
+const TABS: readonly NavTab[] = ['today', 'plans', 'mentor', 'reading', 'speaking', 'writing', 'friends', 'progress'];
+
+/** After a reload into a newer release, the tab the learner had just chosen opens. */
+function ReopenTab({ open }: { open: (tab: NavTab) => void }) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    const tab = takePendingTab();
+    if (tab && (TABS as readonly string[]).includes(tab)) open(tab as NavTab);
+  }, [open]);
+  return null;
+}
+
 const startScreen = (): Screen => {
   const code = pendingInvite();
   if (code) return { name: 'join', code };
@@ -489,6 +504,8 @@ function Learning({ email, subject }: { email: string | null; subject: string })
   // Chunk 2+: the server tells us whether this account is a Speaking tester (SPEAKING_TESTERS).
   const speakingEnabled = me.speaking === true;
   const navigate = (tab: NavTab) => {
+    // A newer release is out: this calm moment loads it, and the new page opens this tab.
+    if (reloadIfNewer(tab)) return;
     if (tab === 'today') goHome();
     else if (tab === 'mentor') setScreen({ name: 'mentor' });
     else if (tab === 'plans') setScreen({ name: 'plans' });
@@ -521,6 +538,7 @@ function Learning({ email, subject }: { email: string | null; subject: string })
       writing={me.writing === true}
       focused={screen.name === 'mentor'}
     >
+      <ReopenTab open={navigate} />
       {tabScreen()}
     </NavShell>
   );

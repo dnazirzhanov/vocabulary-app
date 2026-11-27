@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { t } from '../i18n/index.ts';
+import { t, uiLanguage } from '../i18n/index.ts';
 import { isAudioRecordingSupported } from '../speaking/audio/AudioRecorder.ts';
 import { inAppNow, micTrouble, reportMic } from '../speaking/audio/micHelp.ts';
 import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
@@ -38,6 +38,23 @@ type Phase = 'ready' | 'listening' | 'turn' | 'starting' | 'recording' | 'compar
 
 /** Time to say a sentence back: slower than the original, plus a breath. */
 const turnMs = (ms: number) => Math.round(ms * 1.6 + 1500);
+
+/** Speeds as YouTube offers them, from half to one and a half. */
+const RATES = [0.5, 0.75, 1, 1.25, 1.5];
+const RATE_KEY = 'shadowing-rate';
+
+/** The speed this device used last; normal speed when none was kept (or storage is off). */
+function savedRate(): number {
+  try {
+    const kept = Number(localStorage.getItem(RATE_KEY));
+    return RATES.includes(kept) ? kept : 1;
+  } catch {
+    return 1;
+  }
+}
+
+/** «0,75×» in the app's language. */
+const rateName = (rate: number) => `${rate.toLocaleString(uiLanguage, { maximumFractionDigits: 2 })}×`;
 
 export function SentencePractice({ exercise, onBack, onTogether }: Props) {
   const sentences = exercise.sentences;
@@ -72,12 +89,11 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
     chosenPhase === 'recording' && (recorder.state === 'stopped' || recorder.state === 'recording_interrupted')
       ? 'compare'
       : chosenPhase;
-  const [slow, setSlow] = useState(false);
+  const [rate, setRate] = useState(savedRate);
   const [said, setSaid] = useState<Set<number>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const autoStop = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rate = slow ? 0.75 : 1;
 
   // Where the playing video is, to light up the words as they are said.
   const playingNow = phase === 'listening' || (mode === 'together' && phase === 'recording');
@@ -106,6 +122,18 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
     if (phaseRef.current === 'recording') stopRecorder();
   }, [player, stopRecorder]);
   useEffect(() => () => clearAutoStop(), []);
+
+  /** One step slower or faster; kept for next time on this device. */
+  const changeRate = (step: number) => {
+    const next = RATES[Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(rate) + step))];
+    if (next === undefined || next === rate) return;
+    setRate(next);
+    try {
+      localStorage.setItem(RATE_KEY, String(next));
+    } catch {
+      // Storage off (a private window): the speed lasts this visit.
+    }
+  };
 
   const goTo = (to: number) => {
     stopAll();
@@ -269,6 +297,8 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
         runMain();
       } else if (event.key === 'ArrowRight') goTo(index + 1);
       else if (event.key === 'ArrowLeft') goTo(index - 1);
+      else if (event.key === '-') changeRate(-1);
+      else if (event.key === '+' || event.key === '=') changeRate(1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -349,24 +379,6 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
           <audio ref={audioRef} src={getExerciseAudioUrl(exercise.id)} preload="auto" />
         )}
 
-        {mode === 'sentences' && (
-          <ol className={styles.dots} aria-label={t.ytSentences}>
-            {sentences.map((s, i) => (
-              <li key={`${s.start_ms}-${i}`}>
-                <button
-                  type="button"
-                  className={styles.dot}
-                  data-current={i === index || undefined}
-                  data-said={said.has(i) || undefined}
-                  aria-label={t.spSentence(i + 1, sentences.length)}
-                  aria-current={i === index ? 'step' : undefined}
-                  onClick={() => goTo(i)}
-                />
-              </li>
-            ))}
-          </ol>
-        )}
-
         <section className={styles.card} aria-live="polite" aria-label={t.spSentence(shown + 1, sentences.length)}>
           {mode === 'sentences' && <p className={styles.eyebrow}>{t.spSentence(index + 1, sentences.length)}</p>}
           {/* Tap a word for its meaning, as in Reading (ADR 0099); the words light up as they are said. */}
@@ -379,11 +391,6 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
             marked={spoken}
             markClassName={styles.said}
           />
-          {sentences[shown + 1] && (
-            <p className={styles.upNext} lang="en">
-              {sentences[shown + 1].text}
-            </p>
-          )}
         </section>
       </div>
 
@@ -462,9 +469,29 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
                 ‹
               </button>
             )}
-            <button type="button" className={styles.slow} aria-pressed={slow} onClick={() => setSlow((s) => !s)}>
-              {t.spSlower}
-            </button>
+            <div className={styles.speed} role="group" aria-label={t.spSpeed}>
+              <button
+                type="button"
+                className={styles.speedButton}
+                disabled={rate <= RATES[0]}
+                aria-label={t.spSlowerStep}
+                onClick={() => changeRate(-1)}
+              >
+                −
+              </button>
+              <output className={styles.speedValue} aria-live="polite">
+                {rateName(rate)}
+              </output>
+              <button
+                type="button"
+                className={styles.speedButton}
+                disabled={rate >= RATES[RATES.length - 1]}
+                aria-label={t.spFasterStep}
+                onClick={() => changeRate(1)}
+              >
+                +
+              </button>
+            </div>
             {mode === 'sentences' && (
               <button
                 type="button"

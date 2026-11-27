@@ -4,6 +4,7 @@ import '@fontsource-variable/nunito';
 import './styles/tokens.css';
 import './styles/global.css';
 import { loadLanguage } from './i18n/index.ts';
+import { watchForNewBuild } from './lib/freshness.ts';
 import { isApp } from './lib/platform.ts';
 
 // The app keeps itself on the device, so it opens without a connection (ADR 0060). Built apps
@@ -21,6 +22,9 @@ window.addEventListener('error', (event) => {
   if (!noise(event.message ?? '')) report(event.error ?? event.message);
 });
 window.addEventListener('unhandledrejection', (event) => report(event.reason));
+
+// A tab left open picks up a new release (a lazy screen of an old build can't load any more).
+watchForNewBuild();
 
 // The language first: the app's modules may read their text as they load.
 void loadLanguage()
