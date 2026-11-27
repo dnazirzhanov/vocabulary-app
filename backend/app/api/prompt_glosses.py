@@ -1,4 +1,4 @@
-"""Tap a word in a Writing or Speaking question (ADR 0091)."""
+"""Tap a word in a Writing or Speaking question (ADR 0091), or a shadowing sentence (ADR 0099)."""
 
 from typing import Annotated, Any, Literal
 
@@ -17,7 +17,7 @@ Drafting = Annotated[Provider, Depends(get_provider)]
 
 @router.get("/prompt-glossary/{kind}/{question_id}")
 def prompt_glossary(
-    kind: Literal["writing", "speaking"],
+    kind: Literal["writing", "speaking", "shadowing"],
     question_id: str,
     user: CurrentUser,
     db: DbSession,
@@ -26,4 +26,6 @@ def prompt_glossary(
 ) -> dict[str, Any]:
     """Each word of the question with its meaning in the learner's card language."""
     language = user.language or "ru"
-    return {"glossary": prompt_glosses.glossary(db, kind, question_id, language, provider, now)}
+    return {
+        "glossary": prompt_glosses.glossary(db, kind, question_id, language, provider, now, user)
+    }

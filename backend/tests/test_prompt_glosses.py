@@ -103,3 +103,53 @@ def test_a_model_failure_is_said_and_nothing_is_kept(client: TestClient) -> None
     finally:
         del client.app.dependency_overrides[get_provider]  # type: ignore[attr-defined]
     assert len(made.calls) == 1  # asked again: the failure was not kept
+
+
+def _youtube(client: TestClient, who: str) -> str:
+    made = client.post(
+        "/api/shadowing/exercises",
+        json={
+            "youtube_id": "dQw4w9WgXcQ",
+            "title": "Food",
+            "clip_start_ms": 0,
+            "clip_end_ms": 6000,
+            "sentences": [
+                {"start_ms": 0, "end_ms": 3000, "text": "Good morning, everyone."},
+                {"start_ms": 3000, "end_ms": 6000, "text": "We are cooking today."},
+            ],
+        },
+        headers=as_(who),
+    )
+    assert made.status_code == 201, made.text
+    exercise_id: str = made.json()["id"]
+    return exercise_id
+
+
+def test_a_shadowing_sentence_is_glossed_on_its_own_once_and_kept(
+    client: TestClient, provider: CountingProvider
+) -> None:
+    exercise = _youtube(client, "anna")
+    url = f"/api/prompt-glossary/shadowing/{exercise}.1"
+    got = client.get(url, headers=as_()).json()["glossary"]
+    assert got["cooking"]["t"] == "готовить"
+    assert set(got) == {"we", "are", "cooking", "today"}
+    # Only that sentence goes to the model, and only once.
+    assert provider.calls == [("We are cooking today.", "ru")]
+    assert client.get(url, headers=as_()).json()["glossary"] == got
+    assert len(provider.calls) == 1
+
+
+def test_a_shadowing_sentence_is_glossed_only_for_who_may_open_it(
+    client: TestClient, provider: CountingProvider
+) -> None:
+    exercise = _youtube(client, "anna")
+    for url in (
+        f"/api/prompt-glossary/shadowing/{exercise}.0",  # not hers
+        f"/api/prompt-glossary/shadowing/{exercise}.9",
+        "/api/prompt-glossary/shadowing/not-an-id.0",
+    ):
+        assert client.get(url, headers=as_("boris")).status_code == 404, url
+    assert (
+        client.get(f"/api/prompt-glossary/shadowing/{exercise}.9", headers=as_()).status_code == 404
+    )
+    assert provider.calls == []

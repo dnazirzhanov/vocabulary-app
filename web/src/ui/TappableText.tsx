@@ -1,6 +1,6 @@
 /**
  * A question whose words can be tapped for their meaning (ADR 0091), as in Reading: a Writing or
- * Speaking prompt. The meanings load on the first tap (the server keeps them per question and
+ * Speaking prompt, or a shadowing sentence (ADR 0099). The meanings load on the first tap (the server keeps them per question and
  * language) and show in the lesson's word card, with its «listen». Each word is a button, so the
  * keyboard reaches it too.
  */
@@ -12,7 +12,7 @@ import { WordPopover } from '../lesson/WordPopover.tsx';
 import styles from './TappableText.module.css';
 
 type Meaning = { l: string | null; p: string | null; t: string; d: string | null };
-type Kind = 'writing' | 'speaking';
+type Kind = 'writing' | 'speaking' | 'shadowing';
 
 // One question's meanings for this visit: a second tap, or a second screen, asks nothing more.
 const loaded = new Map<string, Promise<Record<string, Meaning>>>();
@@ -31,6 +31,12 @@ function meaningsOf(kind: Kind, questionId: string): Promise<Record<string, Mean
   return found;
 }
 
+/** The text's pieces, each word with its place among the words. */
+function numbered(text: string) {
+  let word = -1;
+  return pieces(text).map((piece) => ({ piece, word: piece.key ? ++word : word }));
+}
+
 interface Tapped {
   text: string;
   form: string;
@@ -44,12 +50,17 @@ export function TappableText({
   questionId,
   className,
   as: Tag = 'p',
+  marked = 0,
+  markClassName,
 }: {
   text: string;
   kind: Kind;
   questionId: string;
   className?: string;
   as?: 'p' | 'h1' | 'h2';
+  /** The first this many words carry `markClassName`: shadowing lights them up as they are said. */
+  marked?: number;
+  markClassName?: string;
 }) {
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const close = useCallback(() => setTapped(null), []);
@@ -69,12 +80,12 @@ export function TappableText({
   return (
     <>
       <Tag className={className} lang="en">
-        {pieces(text).map((piece, i) =>
+        {numbered(text).map(({ piece, word }, i) =>
           piece.key ? (
             <button
               key={i}
               type="button"
-              className={styles.word}
+              className={word < marked && markClassName ? `${styles.word} ${markClassName}` : styles.word}
               aria-expanded={tapped?.anchor !== undefined && tapped.form === piece.key}
               onClick={(e) => open(piece.text, piece.key!, e.currentTarget)}
             >
