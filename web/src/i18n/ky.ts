@@ -1435,6 +1435,8 @@ export const ky: Messages = {
   ytFoundAuto: 'Текст автоматтык субтитрлерден — каталарын текшериңиз',
   ytPasteOwn: 'Өз текстимди коём',
   ytNotFound: 'Видеонун тексти табылган жок. Аны YouTube’дан коюңуз:',
+  ytNotNow: 'YouTube азыр текстти берген жок. Бир мүнөттөн кийин кайра аракет кылыңыз же өзүңүз коюңуз:',
+  ytTryAgain: 'Кайра аракет кылуу',
   ytStartAt: 'Баштоо',
   ytHowLong: 'Канча үйрөнөбүз',
   ytMinutes: (n: number) => `${n} мүн`,

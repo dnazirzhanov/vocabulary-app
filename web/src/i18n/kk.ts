@@ -1434,6 +1434,8 @@ export const kk: Messages = {
   ytFoundAuto: 'Мәтін автоматты субтитрлерден — қателерін тексеріңіз',
   ytPasteOwn: 'Өз мәтінімді қоямын',
   ytNotFound: 'Бейненің мәтіні табылмады. Оны YouTube-тан қойыңыз:',
+  ytNotNow: 'YouTube қазір мәтінді бермеді. Бір минуттан кейін қайталаңыз немесе өзіңіз қойыңыз:',
+  ytTryAgain: 'Қайталап көру',
   ytStartAt: 'Басталуы',
   ytHowLong: 'Қанша үйренеміз',
   ytMinutes: (n: number) => `${n} мин`,

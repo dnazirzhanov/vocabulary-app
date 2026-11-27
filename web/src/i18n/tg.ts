@@ -1440,6 +1440,8 @@ export const tg: Messages = {
   ytFoundAuto: 'Матн аз субтитрҳои худкор — хатогиҳоро санҷед',
   ytPasteOwn: 'Матни худамро мегузорам',
   ytNotFound: 'Матни видео ёфт нашуд. Онро аз YouTube гузоред:',
+  ytNotNow: 'YouTube ҳоло матнро надод. Пас аз як дақиқа боз кӯшиш кунед ё худатон гузоред:',
+  ytTryAgain: 'Боз кӯшиш кардан',
   ytStartAt: 'Оғоз аз',
   ytHowLong: 'Чӣ қадар омӯзем',
   ytMinutes: (n: number) => `${n} дақ`,

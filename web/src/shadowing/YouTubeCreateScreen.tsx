@@ -38,7 +38,7 @@ const MAX_CLIP_MS = 10 * 60 * 1000;
 const LENGTHS = [1, 2, 3, 5, 10];
 
 /** Where the video's text came from: looked for by the server (ADR 0100), or pasted. */
-type Found = 'looking' | 'manual' | 'auto' | 'none';
+type Found = 'looking' | 'manual' | 'auto' | 'none' | 'refused';
 
 /**
  * A shadowing exercise from a YouTube video (ADR 0097), on one screen: the link, then the video's
@@ -98,8 +98,12 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
         takeCues(transcript.cues);
         setFound(transcript.kind);
       },
-      () => {
-        if (lookingFor.current === youtubeId) setFound('none');
+      (error: unknown) => {
+        if (lookingFor.current !== youtubeId) return;
+        // «No captions» is the video; anything else (YouTube refusing the server, no
+        // connection) may pass, so asking again is offered.
+        const code = error instanceof Error && 'code' in error ? error.code : null;
+        setFound(code === 'no_captions' ? 'none' : 'refused');
       },
     );
   };
@@ -159,7 +163,7 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     setMinutes(length);
     setRange(rangeFrom(sentences, sentences[first]?.start_ms ?? 0, length * 60_000));
   };
-  const pasting = found === 'none' || pasteOwn;
+  const pasting = found === 'none' || found === 'refused' || pasteOwn;
 
   const save = async () => {
     if (!video || chosen.length === 0 || tooLong || saving) return;
@@ -272,6 +276,14 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
             </div>
           )}
           {found === 'none' && <p className={styles.meta}>{t.ytNotFound}</p>}
+          {found === 'refused' && video && (
+            <div className={styles.foundRow}>
+              <p className={styles.meta}>{t.ytNotNow}</p>
+              <button type="button" className={styles.linkButton} onClick={() => lookFor(video.youtube_id)}>
+                {t.ytTryAgain}
+              </button>
+            </div>
+          )}
           {pasting && (
             <>
               <details className={styles.how}>

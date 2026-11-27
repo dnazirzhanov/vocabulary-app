@@ -80,10 +80,20 @@ def test_a_video_without_captions_is_tried_again_only_after_an_hour(
     assert youtube.asked == [VIDEO, VIDEO]
 
 
-def test_youtube_refusing_means_paste_it(client: TestClient, youtube: FakeYouTube) -> None:
+def test_youtube_refusing_is_tried_again_and_never_kept(
+    client: TestClient, youtube: FakeYouTube, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 27 Nov: YouTube answered the server «Sign in to confirm you're not a bot» for a while, and
+    # the video was kept as having no captions for an hour.
+    monkeypatch.setattr(captions, "RETRY_PAUSE_S", 0)
     youtube.answer = RuntimeError("Sign in to confirm you're not a bot")
     refused = ask(client)
-    assert (refused.status_code, refused.json()["error"]["code"]) == (404, "no_captions")
+    assert (refused.status_code, refused.json()["error"]["code"]) == (503, "captions_refused")
+    assert youtube.asked == [VIDEO, VIDEO]
+    # A minute later YouTube answers: the video's captions, not a kept «none».
+    youtube.answer = ("auto", CUES)
+    later = ask(client, "ben", MOMENT + timedelta(minutes=1))
+    assert (later.status_code, later.json()["kind"]) == (200, "auto")
 
 
 def test_only_a_video_id_is_fetched(client: TestClient, youtube: FakeYouTube) -> None:

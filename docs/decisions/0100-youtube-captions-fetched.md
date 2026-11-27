@@ -26,7 +26,12 @@ Changes ADR 0097, where the learner always pasted the text.
   - The screen says which it is: automatic captions «проверьте, нет ли ошибок».
 - **Once per video:**
   - The result is kept in `youtube_transcripts` for everyone, so a class sharing one video asks YouTube once.
-  - No captions, or a failed fetch, is kept as `none` and retried only after an hour.
+  - A video with no English captions is kept as `none` and retried only after an hour.
+  - **YouTube refusing is not kept.** On 27 November, right after release, YouTube answered the server «Sign in
+    to confirm you're not a bot» for a few minutes. That was kept as `none`, so the owner's video asked for a
+    paste for an hour. Now a refusal or timeout is tried once more after 2 s, then answers `503
+    captions_refused`, and nothing is kept. The screen says YouTube didn't give the text just now and offers
+    «Попробовать ещё раз» beside the paste box.
 - **Bounded:**
   - at most 3 fetches at once, a 25 s limit;
   - 30 asks a learner an hour (`youtube_captions_per_hour`);

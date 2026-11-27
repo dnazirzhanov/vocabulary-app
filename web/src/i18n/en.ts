@@ -1453,6 +1453,8 @@ export const en: Messages = {
   ytFoundAuto: 'Text from automatic subtitles — check it for mistakes',
   ytPasteOwn: 'Paste my own text',
   ytNotFound: 'We couldn’t find the video’s text. Paste it from YouTube:',
+  ytNotNow: 'YouTube didn’t give the text just now. Try again in a minute, or paste it yourself:',
+  ytTryAgain: 'Try again',
   ytStartAt: 'Start at',
   ytHowLong: 'How much to learn',
   ytMinutes: (n: number) => `${n} min`,

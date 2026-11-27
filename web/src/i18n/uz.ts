@@ -1442,6 +1442,8 @@ export const uz: Messages = {
   ytFoundAuto: 'Matn avtomatik subtitrlardan — xatolarini tekshiring',
   ytPasteOwn: 'O‘z matnimni qo‘yaman',
   ytNotFound: 'Video matni topilmadi. Uni YouTube’dan qo‘ying:',
+  ytNotNow: 'YouTube hozir matnni bermadi. Bir daqiqadan so‘ng qayta urinib ko‘ring yoki o‘zingiz qo‘ying:',
+  ytTryAgain: 'Qayta urinish',
   ytStartAt: 'Boshlanishi',
   ytHowLong: 'Qancha o‘rganamiz',
   ytMinutes: (n: number) => `${n} daq`,

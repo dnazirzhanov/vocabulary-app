@@ -208,6 +208,37 @@ test('the video’s text is found by itself; the learner picks which ten minutes
   expect(made.find((e) => e.mine)?.sentences).toHaveLength(120);
 });
 
+test('when YouTube refuses for a moment, asking again brings the text', async ({ page }) => {
+  // 27 Nov: YouTube told the server «confirm you're not a bot» for a while; a minute later it answered.
+  await fakeYouTube(page, VIDEO_FOUND);
+  let asks = 0;
+  await page.route('**/api/shadowing/youtube/transcript', (route) => {
+    asks += 1;
+    return asks === 1
+      ? route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'captions_refused', message: 'Not now' } }),
+        })
+      : route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ kind: 'manual', cues: [{ start_ms: 0, end_ms: 3000, text: 'Hello there.' }] }),
+        });
+  });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /Из YouTube/ }).click();
+  await page.getByLabel('Ссылка из YouTube').fill(`https://youtu.be/${VIDEO}`);
+  await page.getByRole('button', { name: 'Проверить' }).click();
+
+  // Told it may work again, with the paste box meanwhile.
+  await expect(page.getByText('YouTube сейчас не дал текст.', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Текст со временем (0:00 …)')).toBeVisible();
+  await page.getByRole('button', { name: 'Попробовать ещё раз' }).click();
+  await expect(page.getByText('Текст взяли из субтитров автора')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Предложения' }).getByRole('textbox')).toHaveValue('Hello there.');
+});
+
 test('sentence by sentence: listen, your turn, compare; finishing counts as done', async ({ page }) => {
   await fakeYouTube(page, VIDEO_FOUND);
   const made = await page.request.post('/api/shadowing/exercises', {

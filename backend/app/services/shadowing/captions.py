@@ -8,13 +8,15 @@ YouTube's terms allow (27 November 2026).
 Which captions: the channel's own English subtitles first, then YouTube's English speech
 recognition. A machine translation into English is never taken: its words are not what is said.
 
-Each video is fetched once and kept for everyone; a video without captions, or a fetch that
-failed, is kept as 'none' for an hour before anyone tries again. Pasting the text stays for when
-this finds nothing."""
+Each video is fetched once and kept for everyone; a video without English captions is kept as
+'none' for an hour before anyone tries again. YouTube refusing the server (its «Sign in to confirm
+you're not a bot» comes and goes) is tried once more and never kept: the next ask tries again.
+Pasting the text stays for when this finds nothing."""
 
 import json
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import datetime, timedelta
@@ -33,6 +35,9 @@ log = logging.getLogger(__name__)
 RETRY_AFTER = timedelta(hours=1)
 FETCH_TIMEOUT_S = 25.0
 SOCKET_TIMEOUT_S = 10
+# YouTube's refusals are often over a moment later.
+ATTEMPTS = 2
+RETRY_PAUSE_S = 2.0
 # A video of several hours still fits; beyond this the rest is left out.
 MAX_CUES = 6000
 MAX_CUE_CHARS = 500
@@ -119,6 +124,18 @@ def download(video_id: str) -> tuple[str, list[Cue]] | None:
     return (kind, cues) if cues else None
 
 
+def _download_patiently(video_id: str) -> tuple[str, list[Cue]] | None:
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            return download(video_id)
+        except Exception as error:
+            log.warning("captions for %s, try %d: %s", video_id, attempt, str(error)[:300])
+            if attempt == ATTEMPTS:
+                raise
+            time.sleep(RETRY_PAUSE_S)
+    return None
+
+
 def _keep(db: Session, video_id: str, kind: str, cues: list[Cue], now: datetime) -> None:
     row = {"youtube_id": video_id, "kind": kind, "cues": cues, "fetched_at": now}
     statement = insert(YouTubeTranscript).values(**row)
@@ -132,9 +149,9 @@ def _keep(db: Session, video_id: str, kind: str, cues: list[Cue], now: datetime)
 
 
 def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> tuple[str, list[Cue]]:
-    """The video's captions, fetched once for everyone; 404 'no_captions' when there are none
-    (or YouTube would not give them), and the learner pastes the text instead. With `fetch` off,
-    only what was already kept."""
+    """The video's captions, fetched once for everyone. 404 'no_captions' when the video has none,
+    503 'captions_refused' when YouTube would not answer now (asking again may work); either way the
+    learner may paste the text. With `fetch` off, only what was already kept."""
     if youtube_id_of(video_id) != video_id:
         raise ApiError(422, "not_a_youtube_link", "Not a YouTube video id")
     kept = db.get(YouTubeTranscript, video_id)
@@ -145,13 +162,12 @@ def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> tuple[
     if kept is not None and now - kept.fetched_at < RETRY_AFTER:
         raise ApiError(404, "no_captions", "No captions found for this video")
     try:
-        found = _pool.submit(download, video_id).result(timeout=FETCH_TIMEOUT_S)
-    except FutureTimeout:
+        found = _pool.submit(_download_patiently, video_id).result(timeout=FETCH_TIMEOUT_S)
+    except FutureTimeout as error:
         log.warning("captions for %s: timed out", video_id)
-        found = None
-    except Exception as error:  # yt-dlp raises many kinds; any of them means «paste it».
-        log.warning("captions for %s: %s", video_id, str(error)[:300])
-        found = None
+        raise ApiError(503, "captions_refused", "YouTube did not give the captions now") from error
+    except Exception as error:  # yt-dlp raises many kinds; logged above. Not kept: may pass.
+        raise ApiError(503, "captions_refused", "YouTube did not give the captions now") from error
     if found is None:
         _keep(db, video_id, "none", [], now)
         raise ApiError(404, "no_captions", "No captions found for this video")
