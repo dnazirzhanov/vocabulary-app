@@ -1485,6 +1485,8 @@ export const kk: Messages = {
   spFinish: 'Бітті',
   spStart: 'Бастау',
   spSpeed: 'Жылдамдық',
+  spSpeedNow: (speed: string) => `Жылдамдық ${speed}: таңдау`,
+  spQuickSpeeds: 'Әдеттегі жылдамдықтар',
   spSlowerStep: 'Баяуырақ',
   spFasterStep: 'Жылдамырақ',
   spPrevious: 'Алдыңғы сөйлем',

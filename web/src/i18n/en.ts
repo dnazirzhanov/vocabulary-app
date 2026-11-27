@@ -1504,6 +1504,8 @@ export const en: Messages = {
   spFinish: 'Done',
   spStart: 'Start',
   spSpeed: 'Speed',
+  spSpeedNow: (speed: string) => `Speed ${speed}: choose`,
+  spQuickSpeeds: 'Usual speeds',
   spSlowerStep: 'Slower',
   spFasterStep: 'Faster',
   spPrevious: 'Previous sentence',

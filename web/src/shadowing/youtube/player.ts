@@ -57,6 +57,7 @@ export const EARLY_MS = 60;
  */
 export function segmentClock(startMs: number, endMs: number, rate: number, clock: () => number) {
   const seekedAt = clock();
+  let speed = rate;
   let fresh = false;
   let reported = Number.NaN;
   let base = 0;
@@ -79,7 +80,15 @@ export function segmentClock(startMs: number, endMs: number, rate: number, clock
         base = reportedMs;
         baseAt = clock();
       }
-      return base + (clock() - baseAt) * rate >= endMs - EARLY_MS;
+      return base + (clock() - baseAt) * speed >= endMs - EARLY_MS;
+    },
+    /** The speed changed while playing: the clock goes on from where it is, at the new speed. */
+    setRate(next: number): void {
+      if (!Number.isNaN(reported)) {
+        base += (clock() - baseAt) * speed;
+        baseAt = clock();
+      }
+      speed = next;
     },
   };
 }
@@ -114,6 +123,8 @@ export type VideoProblem = 'unavailable' | 'not_embeddable' | 'unreachable';
 export interface VideoPlayer {
   /** Plays [start, end) at `rate`, then pauses; 'stopped' if something else took over first. */
   playSegment(startMs: number, endMs: number, rate?: number): Promise<'ended' | 'stopped'>;
+  /** A new speed, at once, even in the middle of a sentence. */
+  setRate(rate: number): void;
   /** Plays on from `fromMs` (or where it is) until paused. */
   play(fromMs?: number, rate?: number): void;
   pause(): void;
@@ -142,6 +153,8 @@ export function createPlayer(element: HTMLElement, videoId: string, events: Play
   let turn = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
   let finishTurn: ((how: 'ended' | 'stopped') => void) | null = null;
+  // The sentence playing now, so a new speed reaches its clock too.
+  let watching: ReturnType<typeof segmentClock> | null = null;
 
   const stopWatching = (how: 'ended' | 'stopped') => {
     if (timer) clearInterval(timer);
@@ -192,6 +205,7 @@ export function createPlayer(element: HTMLElement, videoId: string, events: Play
       seek(startMs);
       p.playVideo();
       const watch = segmentClock(startMs, endMs, rate, () => performance.now());
+      watching = watch;
       return new Promise((resolve) => {
         finishTurn = resolve;
         timer = setInterval(() => {
@@ -210,6 +224,10 @@ export function createPlayer(element: HTMLElement, videoId: string, events: Play
       player.setPlaybackRate(rate);
       if (fromMs !== undefined) seek(fromMs);
       player.playVideo();
+    },
+    setRate(rate) {
+      player?.setPlaybackRate(rate);
+      watching?.setRate(rate);
     },
     pause() {
       turn += 1;

@@ -1486,6 +1486,8 @@ export const ky: Messages = {
   spFinish: 'Бүттү',
   spStart: 'Баштоо',
   spSpeed: 'Ылдамдык',
+  spSpeedNow: (speed: string) => `Ылдамдык ${speed}: тандоо`,
+  spQuickSpeeds: 'Кадимки ылдамдыктар',
   spSlowerStep: 'Жайыраак',
   spFasterStep: 'Тезирээк',
   spPrevious: 'Мурунку сүйлөм',

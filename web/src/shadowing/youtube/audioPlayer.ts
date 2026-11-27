@@ -29,6 +29,9 @@ export function audioPlayer(el: HTMLAudioElement): VideoPlayer {
         }, POLL_MS);
       });
     },
+    setRate(rate) {
+      el.playbackRate = rate;
+    },
     play(fromMs, rate = 1) {
       stopWatching('stopped');
       el.playbackRate = rate;

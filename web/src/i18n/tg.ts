@@ -1491,6 +1491,8 @@ export const tg: Messages = {
   spFinish: 'Тамом',
   spStart: 'Оғоз',
   spSpeed: 'Суръат',
+  spSpeedNow: (speed: string) => `Суръат ${speed}: интихоб`,
+  spQuickSpeeds: 'Суръатҳои муқаррарӣ',
   spSlowerStep: 'Сусттар',
   spFasterStep: 'Тезтар',
   spPrevious: 'Ҷумлаи қаблӣ',

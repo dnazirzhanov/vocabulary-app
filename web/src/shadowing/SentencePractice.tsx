@@ -39,15 +39,22 @@ type Phase = 'ready' | 'listening' | 'turn' | 'starting' | 'recording' | 'compar
 /** Time to say a sentence back: slower than the original, plus a breath. */
 const turnMs = (ms: number) => Math.round(ms * 1.6 + 1500);
 
-/** Speeds as YouTube offers them, from half to one and a half. */
-const RATES = [0.5, 0.75, 1, 1.25, 1.5];
+/**
+ * Speed: − and + by a tenth, from half to double (YouTube's player takes any of these, checked on
+ * 27 Nov 2026); the speed itself opens the usual ones, as YouTube's menu.
+ */
+const MIN_RATE = 0.5;
+const MAX_RATE = 2;
+const RATE_STEP = 0.1;
+const QUICK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const RATE_KEY = 'shadowing-rate';
+const tidyRate = (rate: number) => Math.round(Math.max(MIN_RATE, Math.min(MAX_RATE, rate)) * 100) / 100;
 
 /** The speed this device used last; normal speed when none was kept (or storage is off). */
 function savedRate(): number {
   try {
-    const kept = Number(localStorage.getItem(RATE_KEY));
-    return RATES.includes(kept) ? kept : 1;
+    const kept = Number(localStorage.getItem(RATE_KEY) ?? '1');
+    return Number.isFinite(kept) && kept > 0 ? tidyRate(kept) : 1;
   } catch {
     return 1;
   }
@@ -123,17 +130,22 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
   }, [player, stopRecorder]);
   useEffect(() => () => clearAutoStop(), []);
 
-  /** One step slower or faster; kept for next time on this device. */
-  const changeRate = (step: number) => {
-    const next = RATES[Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(rate) + step))];
-    if (next === undefined || next === rate) return;
+  const [quickOpen, setQuickOpen] = useState(false);
+  /** A new speed, at once (even in the middle of a sentence); kept for next time on this device. */
+  const pickRate = (wanted: number) => {
+    const next = tidyRate(wanted);
+    setQuickOpen(false);
+    if (next === rate) return;
     setRate(next);
+    player?.setRate(next);
     try {
       localStorage.setItem(RATE_KEY, String(next));
     } catch {
       // Storage off (a private window): the speed lasts this visit.
     }
   };
+  /** A tenth slower (−1) or faster (+1). */
+  const changeRate = (step: number) => pickRate(rate + step * RATE_STEP);
 
   const goTo = (to: number) => {
     stopAll();
@@ -297,6 +309,7 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
         runMain();
       } else if (event.key === 'ArrowRight') goTo(index + 1);
       else if (event.key === 'ArrowLeft') goTo(index - 1);
+      else if (event.key === 'Escape') setQuickOpen(false);
       else if (event.key === '-') changeRate(-1);
       else if (event.key === '+' || event.key === '=') changeRate(1);
     };
@@ -473,19 +486,40 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
               <button
                 type="button"
                 className={styles.speedButton}
-                disabled={rate <= RATES[0]}
+                disabled={rate <= MIN_RATE}
                 aria-label={t.spSlowerStep}
                 onClick={() => changeRate(-1)}
               >
                 −
               </button>
-              <output className={styles.speedValue} aria-live="polite">
+              <button
+                type="button"
+                className={styles.speedValue}
+                aria-expanded={quickOpen}
+                aria-label={t.spSpeedNow(rateName(rate))}
+                onClick={() => setQuickOpen((open) => !open)}
+              >
                 {rateName(rate)}
-              </output>
+              </button>
+              {quickOpen && (
+                <div className={styles.quick} role="group" aria-label={t.spQuickSpeeds}>
+                  {QUICK_RATES.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={styles.quickRate}
+                      aria-pressed={value === rate}
+                      onClick={() => pickRate(value)}
+                    >
+                      {rateName(value)}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className={styles.speedButton}
-                disabled={rate >= RATES[RATES.length - 1]}
+                disabled={rate >= MAX_RATE}
                 aria-label={t.spFasterStep}
                 onClick={() => changeRate(1)}
               >
