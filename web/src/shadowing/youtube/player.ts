@@ -49,11 +49,11 @@ const POLL_MS = 20;
 export const EARLY_MS = 60;
 
 /**
- * When to stop a sentence. YouTube's player says where it is only a few times a second, and right
- * after a seek it may still say where it was before: so a time is believed only once one near the
- * start has come, and between reports the time runs on by the clock. Without this the end of a
- * sentence ran into the next one's first word, and a sentence played again after a later one could
- * stop at once.
+ * When to stop a sentence. A player may report where it is only now and then, and right after a
+ * seek may still say where it was before: so a time is believed only once one near the start has
+ * come, and between reports the time runs on by the clock; the pause comes 60 ms early. On desktop
+ * Chromium (27 Nov 2026) the old rule (stop once the reported time passes the end) paused 15–50 ms
+ * late and this one 36–55 ms early; this guards slower devices, which weren't measured.
  */
 export function segmentClock(startMs: number, endMs: number, rate: number, clock: () => number) {
   const seekedAt = clock();

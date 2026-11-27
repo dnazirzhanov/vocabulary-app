@@ -96,11 +96,14 @@ open runs the code it opened with, so open tabs now load a new release at the ne
     sentence of ten; now it is 0 ms and within 0.15 s.
 - **Margins:** a sentence starts 0.15 s before its first word and ends 0.3 s after its last, never into the
   next.
-- **Stopping on time:** YouTube's player says where it is only a few times a second, and right after a seek it
-  may still say where it was.
-  - The time is now believed only once one near the start has come, and runs on by the clock between reports.
-  - The pause comes 60 ms before the end, so a sentence no longer runs into the next one's first word, and one
-    played again after a later one no longer stops at once.
+- **Stopping on time, measured on real YouTube** (desktop Chromium, six sentences of the podcast): the old
+  rule paused 15–50 ms after a sentence's end; the new one pauses 36–55 ms before it. Playing an earlier sentence
+  again after a later one played it whole with both rules.
+  - So on desktop the player was not the cause of the mismatch; the old code in open tabs and the line-level
+    times were.
+  - The new clock is kept as a safeguard for slower devices, which may report the time less often or late
+    after a seek; it is not measured on phones. It believes a time only once one near the start has come,
+    runs on by the clock between reports, and pauses 60 ms early.
 - **One «Текст и звук» shift** on the create screen (±0.1 s steps, up to ±2 s), for subtitles a little off.
 
 **Timing, set aside:**
