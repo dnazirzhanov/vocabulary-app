@@ -20,6 +20,9 @@ async function openAnna(page: Page) {
     .first()
     .click();
   await page.getByRole('button', { name: /Anna's First Day/ }).click();
+  // Sentence by sentence first (ADR 0098); «Говорить вместе» is the speak-along screen.
+  await expect(page.getByText('Предложение 1 из 9').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Говорить вместе' }).click();
   await expect(page.getByRole('heading', { name: "Anna's First Day" })).toBeVisible();
 }
 

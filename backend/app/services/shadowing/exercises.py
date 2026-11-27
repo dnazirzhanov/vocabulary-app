@@ -82,7 +82,8 @@ def load_from_yaml(db: Session, storage: StorageClient, dir_path: Path) -> int:
 
     # Deactivate any exercise whose slug is no longer in the YAML.
     active_slugs = {item["slug"] for item in data}
-    for ex in db.scalars(select(ShadowingExercise)):
+    # Only curated ones: learners' own (ADR 0097) are never touched, and this runs every deploy.
+    for ex in db.scalars(select(ShadowingExercise).where(ShadowingExercise.created_by.is_(None))):
         if ex.slug not in active_slugs:
             ex.is_active = False
 

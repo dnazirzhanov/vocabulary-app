@@ -728,6 +728,13 @@ const MESSAGES: Record<string, string> = {
   generation_too_long: t.theTextIsTooLongFor,
   generation_no_credits: t.theWordPickingServiceHasRun,
   generation_refused: t.couldnTMakeCardsFromThis,
+  // Shadowing from YouTube (ADR 0097).
+  not_a_youtube_link: t.ytNotALink,
+  video_unavailable: t.ytVideoUnavailable,
+  youtube_unreachable: t.ytNoConnection,
+  too_many_exercises: t.ytTooMany,
+  clip_too_long: t.ytTooLong,
+  invalid_sentences: t.ytBadSentences,
 };
 
 /** Learner-facing message for a failed request. Never shown for a wrong answer. */
