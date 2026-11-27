@@ -375,6 +375,7 @@ export const ru = {
   answerNoChoice: 'Выберите один из вариантов.',
   fromGroups: 'От групп',
   groupLabel: 'Группа',
+  groupsLabel: 'Группы',
   dueDate: 'Срок',
   wordsToLearn: 'Слова для изучения',
   addQuestion: 'Добавить вопрос',
@@ -395,6 +396,7 @@ export const ru = {
   wordsPicked: (n: number) => `Выбрано: ${n}`,
   optionN: (n: number) => `Вариант ${n}`,
   givenToGroup: (a: Arg) => `Готово: текст у группы «${a}»`,
+  givenToGroups: (names: string) => `Готово: текст у групп ${names}`,
   wordsForText: (n: number) => `Слова к тексту · ${n}`,
   groupAnswers: 'Ответы группы',
   noAnswersYet: 'пока без ответов',
@@ -1505,6 +1507,7 @@ export const ru = {
   shGiveWhen: 'Когда',
   shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
   shGiven: (group: string) => `Задание в «${group}»`,
+  shGivenMany: (names: string) => `Задания в группах ${names}`,
   spToList: 'К списку упражнений',
 };
 

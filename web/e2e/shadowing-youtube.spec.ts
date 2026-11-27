@@ -391,3 +391,36 @@ test('the group’s owner gives an exercise with «Дать группе»; a me
   expect(exercise.id).toBeTruthy();
   await masha.close();
 });
+
+test('an exercise goes to several groups at once', async ({ page, context }) => {
+  await fakeYouTube(page, VIDEO_FOUND);
+  const owner = await named(context, 'Ольга');
+  for (const name of ['7Б', '8А']) await owner.request.post('/api/groups', { data: { name } });
+  await page.request.post('/api/shadowing/exercises', {
+    data: {
+      youtube_id: VIDEO,
+      title: 'Food talk',
+      difficulty: 'beginner',
+      clip_start_ms: 1000,
+      clip_end_ms: 2000,
+      sentences: [{ start_ms: 1000, end_ms: 2000, text: 'Hello there, my friend.' }],
+    },
+  });
+  const made: string[] = [];
+  page.on('request', (request) => {
+    const found = /\/api\/groups\/([^/]+)\/tasks$/.exec(request.url());
+    if (found && request.method() === 'POST') made.push(found[1]);
+  });
+
+  await openShadowing(page);
+  await page.getByRole('button', { name: /^Food talk/ }).click();
+  await page.getByRole('button', { name: 'Дать группе' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Дать группе «Food talk»' });
+  // Nothing ticked while there is more than one group: both are ticked.
+  await expect(dialog.getByRole('button', { name: 'Дать', exact: true })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: '7Б' }).check();
+  await dialog.getByRole('checkbox', { name: '8А' }).check();
+  await dialog.getByRole('button', { name: 'Дать', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Задания в группах «7Б», «8А»' })).toBeVisible();
+  expect(new Set(made).size).toBe(2);
+});

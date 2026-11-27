@@ -379,6 +379,7 @@ export const kk: Messages = {
   answerNoChoice: 'Нұсқалардың бірін таңдаңыз.',
   fromGroups: 'Топтардан',
   groupLabel: 'Топ',
+  groupsLabel: 'Топтар',
   dueDate: 'Мерзім',
   wordsToLearn: 'Үйренетін сөздер',
   addQuestion: 'Сұрақ қосу',
@@ -399,6 +400,7 @@ export const kk: Messages = {
   wordsPicked: (n: number) => `Таңдалды: ${n}`,
   optionN: (n: number) => `${n}-нұсқа`,
   givenToGroup: (a: Arg) => `Дайын: мәтін «${a}» тобында`,
+  givenToGroups: (names: string) => `Дайын: мәтін ${names} топтарында`,
   wordsForText: (n: number) => `Мәтінге сөздер · ${n}`,
   groupAnswers: 'Топтың жауаптары',
   noAnswersYet: 'әзірге жауап жоқ',
@@ -1481,5 +1483,6 @@ export const kk: Messages = {
   shGiveWhen: 'Қашан',
   shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
   shGiven: (group: string) => `«${group}» тобында тапсырма`,
+  shGivenMany: (names: string) => `${names} топтарында тапсырма`,
   spToList: 'Жаттығуларға оралу',
 };

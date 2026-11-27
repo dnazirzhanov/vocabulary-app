@@ -77,6 +77,25 @@ test('a reading given with its words and questions reaches the group in one step
   await masha.close();
 });
 
+test('a reading goes to several groups at once', async ({ page, context }) => {
+  const owner = await named(context, 'Ольга');
+  for (const name of ['7Б', '8А']) await owner.request.post('/api/groups', { data: { name } });
+
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();
+  await page.getByRole('button', { name: /^Культура/ }).click();
+  await page.getByRole('button', { name: /^Tea/ }).click();
+  await button(page, 'Дать группе').click();
+  // Two groups: none picked yet; both are.
+  await expect(page.getByRole('group', { name: 'Группы' })).toBeVisible();
+  await button(page, '7Б').click();
+  await button(page, '8А').click();
+  await page.getByRole('main').getByRole('button', { name: 'Дать группе', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText(/Готово: текст у групп «7Б», «8А»/);
+  const given = (await (await page.request.get('/api/reading-assignments')).json()) as { group_name: string }[];
+  expect(given.map((one) => one.group_name).sort()).toEqual(['7Б', '8А']);
+});
+
 test('with no group yet, «Дать группе» says how to get one', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('navigation').getByRole('button', { name: 'Чтение' }).click();

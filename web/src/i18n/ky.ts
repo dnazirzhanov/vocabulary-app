@@ -379,6 +379,7 @@ export const ky: Messages = {
   answerNoChoice: 'Варианттардын бирин тандаңыз.',
   fromGroups: 'Топтордон',
   groupLabel: 'Топ',
+  groupsLabel: 'Топтор',
   dueDate: 'Мөөнөт',
   wordsToLearn: 'Үйрөнүлүүчү сөздөр',
   addQuestion: 'Суроо кошуу',
@@ -399,6 +400,7 @@ export const ky: Messages = {
   wordsPicked: (n: number) => `Тандалды: ${n}`,
   optionN: (n: number) => `${n}-вариант`,
   givenToGroup: (a: Arg) => `Даяр: текст «${a}» тобунда`,
+  givenToGroups: (names: string) => `Даяр: текст ${names} топторунда`,
   wordsForText: (n: number) => `Текстке сөздөр · ${n}`,
   groupAnswers: 'Топтун жооптору',
   noAnswersYet: 'азырынча жооп жок',
@@ -1482,5 +1484,6 @@ export const ky: Messages = {
   shGiveWhen: 'Качан',
   shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
   shGiven: (group: string) => `«${group}» тобунда тапшырма`,
+  shGivenMany: (names: string) => `${names} топторунда тапшырма`,
   spToList: 'Көнүгүүлөргө кайтуу',
 };

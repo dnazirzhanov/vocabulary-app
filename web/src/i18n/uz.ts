@@ -379,6 +379,7 @@ export const uz: Messages = {
   answerNoChoice: 'Variantlardan birini tanlang.',
   fromGroups: 'Guruhlardan',
   groupLabel: 'Guruh',
+  groupsLabel: 'Guruhlar',
   dueDate: 'Muddat',
   wordsToLearn: 'O‘rganiladigan so‘zlar',
   addQuestion: 'Savol qo‘shish',
@@ -399,6 +400,7 @@ export const uz: Messages = {
   wordsPicked: (n: number) => `Tanlandi: ${n}`,
   optionN: (n: number) => `${n}-variant`,
   givenToGroup: (a: Arg) => `Tayyor: matn «${a}» guruhida`,
+  givenToGroups: (names: string) => `Tayyor: matn ${names} guruhlarida`,
   wordsForText: (n: number) => `Matnga so‘zlar · ${n}`,
   groupAnswers: 'Guruh javoblari',
   noAnswersYet: 'hozircha javob yo‘q',
@@ -1489,5 +1491,6 @@ export const uz: Messages = {
   shGiveWhen: 'Qachon',
   shGiveTaskTitle: (title: string) => `Shadowing: ${title}`,
   shGiven: (group: string) => `«${group}» guruhida topshiriq`,
+  shGivenMany: (names: string) => `${names} guruhlarida topshiriq`,
   spToList: 'Mashqlarga qaytish',
 };
