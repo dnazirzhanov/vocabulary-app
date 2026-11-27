@@ -172,6 +172,12 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
     if (mode === 'together') void player.playSegment(clipStart, clipEnd, rate);
     else if (sentence) void player.playSegment(sentence.start_ms, sentence.end_ms, rate);
   };
+  /** «Ещё раз»: record again at once, without hearing the original first. */
+  const recordAgain = () => {
+    player?.pause();
+    recorder.pausePlayback();
+    void (mode === 'together' ? together() : yourTurn());
+  };
   const mine = () => {
     player?.pause();
     void recorder.play();
@@ -405,12 +411,10 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
                   <PlayIcon /> {t.spMe}
                 </button>
               )}
-              <button
-                type="button"
-                className={styles.compareButton}
-                onClick={() => (mode === 'together' ? changeMode('together') : goTo(index))}
-              >
-                {t.shadowingRetryBtn}
+              {/* Straight to recording, in one press: to hear the original first, «Оригинал» is
+                  right beside it (the owner, 26 November 2026). */}
+              <button type="button" className={styles.compareButton} onClick={recordAgain}>
+                <span className={styles.recDot} aria-hidden="true" /> {t.shadowingRetryBtn}
               </button>
             </div>
           )}
