@@ -172,6 +172,13 @@ test('sentence by sentence: listen, your turn, compare; finishing counts as done
   await page.getByRole('button', { name: /^Two lines/ }).click();
   await expect(page.getByText('Предложение 1 из 2').first()).toBeVisible();
 
+  // A word of the sentence is tapped for its meaning, as in Reading (ADR 0099).
+  await page.getByRole('button', { name: 'there', exact: true }).click();
+  const card = page.getByRole('dialog', { name: 'there: перевод' });
+  await expect(card).toContainText('перевод «there» (демо)');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+
   // 1. Listen: the video plays this sentence only, then stops by itself.
   await page.getByRole('button', { name: 'Слушай' }).click();
   const turn = page.getByRole('button', { name: 'Твоя очередь' });

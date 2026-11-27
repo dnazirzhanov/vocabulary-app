@@ -1,9 +1,12 @@
 """Tap a word in a question (ADR 0091): the meanings of a Writing or Speaking question's words,
-as Reading gives an article's. Made by the same model and rules as a learner's own text
-(`readings.write_meanings`), once per question and card language, then kept: the questions are
-the app's own, so after the first learner every tap is instant. Only known questions are glossed:
-this is not a translator for any text."""
+or of a shadowing exercise's sentence (ADR 0099), as Reading gives an article's. Made by the same
+model and rules as a learner's own text (`readings.write_meanings`), once per question (or
+sentence) and card language, then kept for everyone who may see it. Only what the app holds is
+glossed: its own questions, and sentences of exercises the learner may open (each at most 300
+characters, at most 200 to an exercise, 50 exercises to a learner). It is not a translator for any
+text."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -11,18 +14,44 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
-from app.models import GlossaryForm, PromptGlossary
+from app.models import GlossaryForm, PromptGlossary, ShadowingExercise, User
 from app.services.generation import Provider
 from app.services.readings import _entry, forms_of
 from app.services.speaking import questions as speaking_bank
 from app.services.writing import questions as writing_bank
 
-KINDS = ("writing", "speaking")
+KINDS = ("writing", "speaking", "shadowing")
 
 
-def prompt_text(kind: str, question_id: str) -> str:
+def _sentence(db: Session, user: User, ref: str) -> str | None:
+    """A shadowing exercise's sentence, `<exercise id>.<index>`, if this learner may open it.
+    One sentence at a time: a transcript may run ten minutes, too long to gloss in one wait."""
+    from app.services.shadowing import youtube
+
+    exercise_id, _, index = ref.partition(".")
+    try:
+        exercise = db.get(ShadowingExercise, uuid.UUID(exercise_id))
+        at = int(index)
+    except ValueError:
+        return None
+    if exercise is None or not exercise.is_active or not youtube.may_open(db, user, exercise):
+        return None
+    sentences = exercise.sentences or []
+    if not 0 <= at < len(sentences):
+        return None
+    text = str(sentences[at].get("text") or "")
+    return text or None
+
+
+def prompt_text(
+    kind: str, question_id: str, db: Session | None = None, user: User | None = None
+) -> str:
     """The question's words as the learner sees them; 404 for anything else."""
-    if kind == "writing":
+    if kind == "shadowing" and db is not None and user is not None:
+        sentence = _sentence(db, user, question_id)
+        if sentence:
+            return sentence
+    elif kind == "writing":
         found = writing_bank.get(question_id)
         if found:
             return found.title
@@ -34,9 +63,15 @@ def prompt_text(kind: str, question_id: str) -> str:
 
 
 def glossary(
-    db: Session, kind: str, question_id: str, language: str, provider: Provider, now: datetime
+    db: Session,
+    kind: str,
+    question_id: str,
+    language: str,
+    provider: Provider,
+    now: datetime,
+    user: User | None = None,
 ) -> dict[str, Any]:
-    text = prompt_text(kind, question_id)
+    text = prompt_text(kind, question_id, db, user)
     kept = db.get(PromptGlossary, (kind, question_id, language))
     if kept is not None and kept.text == text:
         return kept.glossary

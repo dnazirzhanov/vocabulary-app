@@ -14,7 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { isAudioRecordingSupported } from '../speaking/audio/AudioRecorder.ts';
 import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
+import { pieces } from '../reading/text.ts';
 import { BackButton } from '../ui/BackButton.tsx';
+import { TappableText } from '../ui/TappableText.tsx';
 import { completeAttempt, createAttempt, getExerciseAudioUrl, type ShadowingExercise } from './api.ts';
 import { PauseIcon, PlayIcon } from './AudioPlayer.tsx';
 import { GiveExercise } from './GiveExercise.tsx';
@@ -270,7 +272,8 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
   });
 
   // The words said so far in the sentence being heard.
-  const words = useMemo(() => (sentence ? sentence.text.split(' ') : []), [sentence]);
+  // Counted as the tappable text counts them.
+  const words = useMemo(() => (sentence ? pieces(sentence.text).filter((p) => p.key) : []), [sentence]);
   const spoken =
     heardAt !== null && sentence && heardAt >= sentence.start_ms
       ? Math.min(
@@ -363,13 +366,16 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
 
         <section className={styles.card} aria-live="polite" aria-label={t.spSentence(shown + 1, sentences.length)}>
           {mode === 'sentences' && <p className={styles.eyebrow}>{t.spSentence(index + 1, sentences.length)}</p>}
-          <p className={styles.sentence} lang="en">
-            {words.map((word, i) => (
-              <span key={i} className={i < spoken ? styles.said : undefined}>
-                {word}{' '}
-              </span>
-            ))}
-          </p>
+          {/* Tap a word for its meaning, as in Reading (ADR 0099); the words light up as they are said. */}
+          <TappableText
+            key={shown}
+            className={styles.sentence}
+            text={sentence?.text ?? ''}
+            kind="shadowing"
+            questionId={`${exercise.id}.${shown}`}
+            marked={spoken}
+            markClassName={styles.said}
+          />
           {sentences[shown + 1] && (
             <p className={styles.upNext} lang="en">
               {sentences[shown + 1].text}
