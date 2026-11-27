@@ -15,7 +15,7 @@ import { dayLabel } from './DatePicker.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
 import { Serial } from './queue.ts';
 import { loadStudyDay, type StudyItem } from './studyToday.ts';
-import { byTime, dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
+import { ahead, byTime, dayView, inbox, keyOf, openCount, upcoming, type DayView } from './sections.ts';
 import { TaskRow } from './TaskRow.tsx';
 import { TaskSheet } from './TaskSheet.tsx';
 import { TaskView } from './TaskView.tsx';
@@ -120,6 +120,11 @@ export default function PlannerScreen({ onOpenDeck, onStartStudy }: Props) {
   const toggle = (item: Item, notice = true) => {
     // Ticked by practising: there is no tick of mine to take back.
     if (item.by_practice) return;
+    // A repeat's day still to come is done on that day (ADR 0095).
+    if (ahead(item, today)) {
+      setToast({ text: t.planNotYet });
+      return;
+    }
     const on = item.on ?? today;
     if (item.state === 'done') {
       void act(replace(item, { state: null }), () => tasksApi.unmark(item.task.id, on));

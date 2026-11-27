@@ -7,6 +7,7 @@ import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { t } from '../i18n/index.ts';
 import { BookIcon, CheckIcon, ClockIcon, ForwardIcon, PeopleIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
 import type { Item } from './api.ts';
+import { ahead } from './sections.ts';
 import { dayLabel, repeatLabel, timeLabel } from './DatePicker.tsx';
 import styles from './Planner.module.css';
 
@@ -111,6 +112,8 @@ export function TaskRow({ item, today, burst = false, onToggle, onOpen, onTomorr
           type="button"
           role="checkbox"
           aria-checked={done}
+          aria-disabled={ahead(item, today) || undefined}
+          title={ahead(item, today) ? t.planNotYet : undefined}
           className={styles.check}
           data-priority={task.priority}
           aria-label={done ? t.planUncomplete(task.title) : t.planComplete(task.title)}

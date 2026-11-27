@@ -89,9 +89,16 @@ def delete_task(
 
 @router.put("/tasks/{task_id}/marks/{on}", status_code=204)
 def mark_task(
-    task_id: uuid.UUID, on: date, body: MarkIn, user: CurrentUser, db: DbSession, now: Now
+    task_id: uuid.UUID,
+    on: date,
+    body: MarkIn,
+    user: CurrentUser,
+    db: DbSession,
+    now: Now,
+    time_zone: TimeZone,
 ) -> Response:
-    tasks.mark(db, user, task_id, on, body.state, now)
+    # «Today» is the learner's own (ADR 0095): a day still to come can't be done yet.
+    tasks.mark(db, user, task_id, on, body.state, now, now.astimezone(time_zone).date())
     return Response(status_code=204)
 
 

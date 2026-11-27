@@ -1215,6 +1215,7 @@ export const tg: Messages = {
   planStudy: 'Машғулот дар барнома',
   planStudyHint: 'Вақте ки дар барнома машғул мешавед, худ қайд мешавад',
   planByPractice: 'аз рӯи машғулот',
+  planNotYet: 'Дар ҳамон рӯз қайд кардан мумкин аст',
   groupTasks: 'Вазифаҳои гурӯҳ',
   groupTaskAdd: 'Вазифа барои гурӯҳ',
   groupTasksEmpty:

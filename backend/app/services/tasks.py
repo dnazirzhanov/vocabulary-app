@@ -24,7 +24,7 @@ from app.schemas.tasks import GroupTaskOut, TaskIn, TaskItemOut, TaskOut, TaskPa
 from app.services import group_rights
 from app.services.progress import local_day_bounds
 from app.services.promise import promise_of, set_weekdays, weekdays_of
-from app.services.study_days import days_by_user
+from app.services.study_days import days_by_user, zone_of
 
 MAX_RANGE_DAYS = 62
 # The time a study task promises when nothing was promised before (ADR 0086).
@@ -78,14 +78,26 @@ class Marks:
     done_once: set[uuid.UUID]
 
 
-def _marks(db: Session, user: User, tasks: list[Task]) -> Marks:
+def early(task: Task, on: date, state: str, at: datetime, zone: ZoneInfo) -> bool:
+    """A repeat's day marked done before that day began, on the learner's own clock (ADR 0095):
+    no longer possible, and one made before that doesn't count."""
+    return bool(task.repeat_mask) and state == "done" and at.astimezone(zone).date() < on
+
+
+def _marks(db: Session, user: User, tasks: list[Task], zone: ZoneInfo) -> Marks:
     rows = db.execute(
-        select(TaskMark.task_id, TaskMark.on, TaskMark.state).where(
+        select(TaskMark.task_id, TaskMark.on, TaskMark.state, TaskMark.at).where(
             TaskMark.user_id == user.id, TaskMark.task_id.in_([t.id for t in tasks])
         )
     ).all()
-    by_day = {(task_id, on): state for task_id, on, state in rows}
-    done_once = {task_id for task_id, _, state in rows if state == "done"}
+    by_id = {t.id: t for t in tasks}
+    kept = [
+        (task_id, on, state)
+        for task_id, on, state, at in rows
+        if not early(by_id[task_id], on, state, at, zone)
+    ]
+    by_day = {(task_id, on): state for task_id, on, state in kept}
+    done_once = {task_id for task_id, _, state in kept if state == "done"}
     return Marks(by_day, done_once)
 
 
@@ -170,10 +182,13 @@ def items(
 
 
 def practised(
-    db: Session, users: list[User], since: date, zone: ZoneInfo
+    db: Session, users: list[User], since: date, zone: ZoneInfo | None
 ) -> dict[uuid.UUID, set[date]]:
-    """The days each learner finished a session from `since` on: what ticks a study task."""
-    found = days_by_user(db, users, local_day_bounds(since, zone)[0], zone)
+    """The days each learner finished a session from `since` on: what ticks a study task. Days
+    on `zone`'s clock; None: each learner's own (a group's board, ADR 0095)."""
+    # From a day early when each has their own clock: no zone starts its day before UTC-12.
+    start = local_day_bounds(since, zone or ZoneInfo("Etc/GMT-14"))[0]
+    found = days_by_user(db, users, start, zone)
     return {
         user_id: {d for d, day in by_day.items() if day.studied}
         for user_id, by_day in found.items()
@@ -190,7 +205,7 @@ def listed(
     since = min([start] + [t.due_on for t in tasks if t.due_on and t.kind == "study"])
     days_done = practised(db, [user], since, zone).get(user.id, set())
     return items(
-        tasks, _marks(db, user, tasks), start, end, today, group_names(db, tasks), days_done
+        tasks, _marks(db, user, tasks, zone), start, end, today, group_names(db, tasks), days_done
     )
 
 
@@ -373,12 +388,17 @@ def _set_mark(db: Session, user: User, task: Task, on: date, state: str, now: da
         mark.at = now
 
 
-def mark(db: Session, user: User, task_id: uuid.UUID, on: date, state: str, now: datetime) -> None:
-    """Done or skipped for a day. A dated one-off is marked on its date; one with no date, on any.
-    Marking again is harmless."""
+def mark(
+    db: Session, user: User, task_id: uuid.UUID, on: date, state: str, now: datetime, today: date
+) -> None:
+    """Done or skipped for a day. A dated one-off is marked on its date (done early is fine); one
+    with no date, on any. A repeat's day is done on that day or later, never ahead: it may be
+    skipped ahead (ADR 0095). Marking again is harmless."""
     task = _own(db, user, task_id, edit=False)
     if task.repeat_mask and not falls_on(task, on):
         raise ApiError(422, "not_on_that_day", "The task is not on that day")
+    if task.repeat_mask and state == "done" and on > today:
+        raise ApiError(422, "not_yet", "That day hasn't come yet")
     _set_mark(db, user, task, on, state, now)
     db.commit()
 
@@ -418,17 +438,28 @@ def for_group(
     ]
     if not tasks:
         return []
-    marks = db.execute(
-        select(TaskMark.task_id, TaskMark.user_id, TaskMark.on, TaskMark.state).where(
-            TaskMark.task_id.in_([t.id for t in tasks]), TaskMark.user_id.in_(member_ids)
-        )
-    ).all()
-    by = {(task_id, user_id, on): state for task_id, user_id, on, state in marks}
-    done_any = {(task_id, user_id) for task_id, user_id, _, state in marks if state == "done"}
+    users = list(db.scalars(select(User).where(User.id.in_(member_ids))))
+    # Each member's days on their own clock, never the group's (ADR 0095).
+    zones = {u.id: zone_of(u) for u in users}
+    by_id = {t.id: t for t in tasks}
+    marks = [
+        (task_id, user_id, on, state, at.astimezone(zones[user_id]).date())
+        for task_id, user_id, on, state, at in db.execute(
+            select(
+                TaskMark.task_id, TaskMark.user_id, TaskMark.on, TaskMark.state, TaskMark.at
+            ).where(TaskMark.task_id.in_([t.id for t in tasks]), TaskMark.user_id.in_(member_ids))
+        ).all()
+        if not early(by_id[task_id], on, state, at, zones[user_id])
+    ]
+    by = {(task_id, user_id, on): state for task_id, user_id, on, state, _ in marks}
+    # A one-off is done once: on the day it was done, by the member's clock.
+    done_on = {
+        (task_id, user_id): day for task_id, user_id, _, state, day in marks if state == "done"
+    }
+    done_any = set(done_on)
     # A study task with no mark is done on a day the member practised (ADR 0086).
     if any(t.kind == "study" for t in tasks):
-        users = list(db.scalars(select(User).where(User.id.in_(member_ids))))
-        studied = practised(db, users, week[0], ZoneInfo(group.time_zone))
+        studied = practised(db, users, week[0], None)
         for task in tasks:
             if task.kind != "study":
                 continue
@@ -448,9 +479,13 @@ def for_group(
                     for day, on in zip(week, days, strict=True)
                 ]
             else:
-                # A one-off is done once, whichever day: shown on its day (today, if it has none).
+                # A one-off is done once, whichever day: shown on the day it was done when that is
+                # this week, else on its day (today, if it has none) (ADR 0095).
                 where = task.due_on or today
                 state = "done" if (task.id, user_id) in done_any else None
+                when = done_on.get((task.id, user_id))
+                if state and when in week:
+                    where = when
                 member_marks[str(member_id)] = [state if day == where else None for day in week]
         found.append(
             GroupTaskOut(

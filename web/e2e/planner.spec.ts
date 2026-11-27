@@ -57,6 +57,12 @@ test('a daily study task typed in one line: ticked, undone, and there again tomo
   // Tomorrow it is there again, not done; and it stayed done today after a reload.
   await page.getByRole('group', { name: 'Дата' }).getByRole('button', { name: 'Завтра' }).click();
   await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
+  // Tomorrow's day can't be ticked today: it is done on that day (ADR 0095).
+  const tomorrowCheck = row(page, 'Английский').getByRole('checkbox');
+  await expect(tomorrowCheck).toBeDisabled();
+  await tomorrowCheck.click({ force: true }); // a tap still reaches it, and says why
+  await expect(page.getByRole('status').filter({ hasText: 'Отметить можно в этот день' })).toBeVisible();
+  await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
   await expect(row(page, 'Английский').getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');

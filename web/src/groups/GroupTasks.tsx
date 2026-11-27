@@ -134,7 +134,8 @@ export function GroupTasks({ board, onChanged }: Props) {
                         <span className={styles.dots}>
                           {task.week.map((on, d) => {
                             const mark = task.marks[row.member_id]?.[d] ?? null;
-                            const state = !on ? 'off' : (mark ?? 'none');
+                            // Done shows on the day it was done, scheduled or not (ADR 0095).
+                            const state = mark ?? (on ? 'none' : 'off');
                             return (
                               <span
                                 key={d}

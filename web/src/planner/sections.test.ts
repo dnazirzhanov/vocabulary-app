@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Item, Task } from './api.ts';
-import { dayView, inbox, openCount, upcoming } from './sections.ts';
+import { ahead, dayView, inbox, openCount, upcoming } from './sections.ts';
 
 const T = '2026-11-23';
 let n = 0;
@@ -70,4 +70,14 @@ test('inbox, upcoming and the dots', () => {
     ],
   );
   assert.equal(openCount(items, T), 1);
+});
+
+test("a repeat's day still to come can't be ticked yet; a one-off can be done early (ADR 0095)", () => {
+  const today = '2026-11-26';
+  const daily = (on: string, state: Item['state'] = null) => item('Слова', on, { repeat_mask: 127 }, { state });
+  assert.equal(ahead(daily('2026-11-27'), today), true); // tomorrow
+  assert.equal(ahead(daily('2026-11-26'), today), false); // today
+  assert.equal(ahead(daily('2026-11-25'), today), false); // late is fine
+  assert.equal(ahead(daily('2026-11-27', 'done'), today), false); // an old early tick can still be undone
+  assert.equal(ahead(item('Эссе', '2026-11-27'), today), false); // a one-off, done early
 });
