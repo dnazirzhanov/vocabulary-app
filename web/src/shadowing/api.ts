@@ -56,6 +56,16 @@ export interface NewYouTubeExercise {
 /** Whether YouTube's player may show this video here (public, embedding allowed), with its title. */
 export const checkYouTube = (url: string) => request<YouTubeVideo>('POST', '/shadowing/youtube/check', { url });
 
+export interface YouTubeTranscript {
+  /** 'manual': the channel's own subtitles; 'auto': YouTube's speech recognition. */
+  kind: 'manual' | 'auto';
+  cues: { start_ms: number; end_ms: number; text: string }[];
+}
+
+/** The video's own captions, fetched by the server (ADR 0100); fails when there are none. */
+export const fetchTranscript = (youtubeId: string) =>
+  request<YouTubeTranscript>('POST', '/shadowing/youtube/transcript', { youtube_id: youtubeId }, 35_000, 0);
+
 export const createYouTubeExercise = (body: NewYouTubeExercise) =>
   request<ShadowingExercise>('POST', '/shadowing/exercises', body);
 

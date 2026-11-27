@@ -147,3 +147,17 @@ def limit_client_errors(user: CurrentUser) -> None:
         "Too many error reports; wait a while",
         window=3600.0,
     )
+
+
+def limit_youtube_captions(
+    user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]
+) -> None:
+    """Each new video is one request to YouTube (ADR 0100)."""
+    _check(
+        "youtube_captions",
+        user.id,
+        settings.youtube_captions_per_hour,
+        "Too many videos this hour; try again later",
+        window=60 * 60,
+        code="captions_limit",
+    )

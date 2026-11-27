@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mergeWithNext, parseTranscript, suggestedRange, toSentences } from './transcript.ts';
+import { mergeWithNext, parseTranscript, rangeFrom, suggestedRange, toSentences } from './transcript.ts';
 
 // As YouTube's «Show transcript» panel copies: a time line, then the words; a chapter's name between.
 const PANEL = `Daily English
@@ -139,6 +139,24 @@ test('the suggested part: the first minute or so', () => {
   assert.equal(sentences[last].end_ms - sentences[0].start_ms <= 60_000, true);
   assert.equal(sentences[last + 1].end_ms - sentences[0].start_ms > 60_000, true);
   assert.deepEqual(suggestedRange([]), [0, 0]);
+});
+
+test('a part chosen by its start and length: from that minute, as much as fits', () => {
+  // A sentence every 5 s for 30 minutes.
+  const sentences = Array.from({ length: 360 }, (_, i) => ({
+    start_ms: i * 5000,
+    end_ms: i * 5000 + 5000,
+    text: `s${i}`,
+  }));
+  // From 12:00, ten minutes: sentences 144 (12:00) to 263 (ends at 22:00).
+  assert.deepEqual(rangeFrom(sentences, 12 * 60_000, 10 * 60_000), [144, 263]);
+  // Near the end there is less left than asked for.
+  assert.deepEqual(rangeFrom(sentences, 29 * 60_000, 10 * 60_000), [348, 359]);
+  // Past the last sentence: the last one.
+  assert.deepEqual(rangeFrom(sentences, 99 * 60_000, 60_000), [359, 359]);
+  // A sentence longer than the part still makes a part of one.
+  assert.deepEqual(rangeFrom([{ start_ms: 0, end_ms: 90_000, text: 'long' }], 0, 60_000), [0, 0]);
+  assert.deepEqual(rangeFrom([], 0, 60_000), [0, 0]);
 });
 
 test('merging two sentences keeps their times', () => {

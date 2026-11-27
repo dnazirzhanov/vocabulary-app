@@ -11,6 +11,7 @@ from app.core.auth import CurrentUser, DbSession
 from app.core.clock import Now
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
+from app.core.ratelimit import limit_youtube_captions
 from app.models import ShadowingExercise, User
 from app.schemas.shadowing import (
     AttemptListItem,
@@ -22,9 +23,12 @@ from app.schemas.shadowing import (
     ExerciseStatusOut,
     SentenceOut,
     YouTubeCheckIn,
+    YouTubeTranscriptIn,
+    YouTubeTranscriptOut,
     YouTubeVideoOut,
 )
 from app.services.shadowing import attempts as attempts_svc
+from app.services.shadowing import captions as captions_svc
 from app.services.shadowing import exercises as exercises_svc
 from app.services.shadowing import youtube as youtube_svc
 from app.services.speaking.storage import get_storage
@@ -67,6 +71,19 @@ def list_exercises(db: DbSession, user: CurrentUser) -> list[ExerciseOut]:
 def check_youtube(body: YouTubeCheckIn, user: CurrentUser) -> YouTubeVideoOut:
     """Whether YouTube's player may show this video here, with its title."""
     return youtube_svc.check(body.url)
+
+
+@router.post("/shadowing/youtube/transcript", dependencies=[Depends(limit_youtube_captions)])
+def youtube_transcript(
+    body: YouTubeTranscriptIn,
+    db: DbSession,
+    user: CurrentUser,
+    now: Now,
+    settings: DepSettings,
+) -> YouTubeTranscriptOut:
+    """The video's own captions, fetched once for everyone (ADR 0100); 404 means paste them."""
+    kind, cues = captions_svc.transcript(db, body.youtube_id, now, settings.youtube_captions)
+    return YouTubeTranscriptOut(kind="manual" if kind == "manual" else "auto", cues=cues)
 
 
 @router.post("/shadowing/exercises", status_code=201)

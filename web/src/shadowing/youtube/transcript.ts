@@ -172,13 +172,23 @@ export function toSentences(cues: Cue[]): Sentence[] {
   }));
 }
 
+/**
+ * The sentences of a part: from the first one starting at `startMs` or later, as many as fit in
+ * `lengthMs` (always at least one).
+ */
+export function rangeFrom(sentences: Sentence[], startMs: number, lengthMs: number): [number, number] {
+  if (sentences.length === 0) return [0, 0];
+  const found = sentences.findIndex((s) => s.start_ms >= startMs);
+  const first = found < 0 ? sentences.length - 1 : found;
+  const from = sentences[first].start_ms;
+  let last = first;
+  while (last + 1 < sentences.length && sentences[last + 1].end_ms - from <= lengthMs) last += 1;
+  return [first, last];
+}
+
 /** The first sentences up to about a minute: a first exercise's suggested part. */
 export function suggestedRange(sentences: Sentence[], targetMs = 60_000): [number, number] {
-  if (sentences.length === 0) return [0, 0];
-  const from = sentences[0].start_ms;
-  let last = 0;
-  while (last + 1 < sentences.length && sentences[last + 1].end_ms - from <= targetMs) last += 1;
-  return [0, last];
+  return rangeFrom(sentences, 0, targetMs);
 }
 
 /** Two neighbouring sentences as one. */

@@ -2,8 +2,9 @@
 
 YouTube's terms allow its own visible player and nothing else: no downloading, no audio apart from
 the video. So an exercise keeps only the video's id, the chosen part and the sentences with their
-times; the learner's device plays the video in YouTube's player. The text comes from what the
-learner pasted from YouTube's «Show transcript» panel, split into sentences on the device.
+times; the learner's device plays the video in YouTube's player. The text is the video's own
+captions, fetched by the server (ADR 0100, `captions.py`), or else what the learner pasted from
+YouTube's «Show transcript» panel; the device splits it into sentences.
 
 Each learner makes their own; curated exercises (no owner) are everyone's, and a group's task may
 link one, which opens it for the group's members (ADR 0096)."""

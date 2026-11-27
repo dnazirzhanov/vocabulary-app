@@ -57,6 +57,24 @@ class YouTubeVideoOut(BaseModel):
     thumbnail_url: str
 
 
+class YouTubeTranscriptIn(BaseModel):
+    youtube_id: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)
+    ]
+
+
+class CueOut(BaseModel):
+    start_ms: int
+    end_ms: int
+    text: str
+
+
+class YouTubeTranscriptOut(BaseModel):
+    # 'manual': the channel's own subtitles; 'auto': YouTube's speech recognition.
+    kind: Literal["manual", "auto"]
+    cues: list[CueOut]
+
+
 class SentenceIn(BaseModel):
     start_ms: Ms
     end_ms: Ms

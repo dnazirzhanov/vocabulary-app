@@ -1,13 +1,27 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { t } from '../i18n/index.ts';
 import { describeError } from '../lib/api.ts';
 import { BackButton } from '../ui/BackButton.tsx';
 import { CloseIcon } from '../ui/icons.tsx';
 import { PrimaryButton } from '../ui/PrimaryButton.tsx';
-import { checkYouTube, createYouTubeExercise, type ShadowingExercise, type YouTubeVideo } from './api.ts';
+import {
+  checkYouTube,
+  createYouTubeExercise,
+  fetchTranscript,
+  type ShadowingExercise,
+  type YouTubeVideo,
+} from './api.ts';
 import { PauseIcon, PlayIcon } from './AudioPlayer.tsx';
 import { clock } from './oneAtATime.ts';
-import { mergeWithNext, parseTranscript, suggestedRange, toSentences, type Sentence } from './youtube/transcript.ts';
+import {
+  mergeWithNext,
+  parseTranscript,
+  rangeFrom,
+  suggestedRange,
+  toSentences,
+  type Cue,
+  type Sentence,
+} from './youtube/transcript.ts';
 import { useYouTube } from './youtube/useYouTube.ts';
 import styles from './YouTubeCreateScreen.module.css';
 import { levelName } from './levels.ts';
@@ -20,11 +34,16 @@ interface Props {
 const LEVELS: ShadowingExercise['difficulty'][] = ['beginner', 'intermediate', 'advanced'];
 /** As the server allows (ADR 0097). */
 const MAX_CLIP_MS = 10 * 60 * 1000;
+/** How long a part may be, in minutes; one minute to start with. */
+const LENGTHS = [1, 2, 3, 5, 10];
+
+/** Where the video's text came from: looked for by the server (ADR 0100), or pasted. */
+type Found = 'looking' | 'manual' | 'auto' | 'none';
 
 /**
  * A shadowing exercise from a YouTube video (ADR 0097), on one screen: the link, then the video's
- * text as copied from YouTube's «Show transcript», then the part to practise. Nothing is fetched
- * from YouTube but whether the video may be shown here and its title.
+ * text, then the part to practise. The server fetches the video's own captions (ADR 0100); when it
+ * finds none, the learner pastes the text from YouTube's «Show transcript».
  */
 export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
   const [link, setLink] = useState('');
@@ -38,6 +57,11 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
   const [level, setLevel] = useState<ShadowingExercise['difficulty']>('beginner');
   const [saving, setSaving] = useState(false);
   const [hearing, setHearing] = useState<number | null>(null);
+  const [found, setFound] = useState<Found | null>(null);
+  const [pasteOwn, setPasteOwn] = useState(false);
+  const [minutes, setMinutes] = useState(1);
+  /** The video whose text is being looked for: an answer for an earlier link is dropped. */
+  const lookingFor = useRef<string | null>(null);
   const { ref, player, problem } = useYouTube(video?.youtube_id ?? null);
 
   const check = async (event: FormEvent) => {
@@ -46,9 +70,10 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     setChecking(true);
     setError(null);
     try {
-      const found = await checkYouTube(link.trim());
-      setVideo(found);
-      setTitle(found.title.slice(0, 200));
+      const checked = await checkYouTube(link.trim());
+      setVideo(checked);
+      setTitle(checked.title.slice(0, 200));
+      lookFor(checked.youtube_id);
     } catch (caught) {
       setError(describeError(caught));
     } finally {
@@ -56,11 +81,32 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     }
   };
 
-  const takeText = (text: string) => {
-    setPasted(text);
-    const made = toSentences(parseTranscript(text));
+  const takeCues = (cues: Cue[]) => {
+    const made = toSentences(cues);
     setSentences(made);
     setRange(suggestedRange(made));
+    setMinutes(1);
+  };
+
+  const lookFor = (youtubeId: string) => {
+    lookingFor.current = youtubeId;
+    setFound('looking');
+    setPasteOwn(false);
+    fetchTranscript(youtubeId).then(
+      (transcript) => {
+        if (lookingFor.current !== youtubeId) return;
+        takeCues(transcript.cues);
+        setFound(transcript.kind);
+      },
+      () => {
+        if (lookingFor.current === youtubeId) setFound('none');
+      },
+    );
+  };
+
+  const takeText = (text: string) => {
+    setPasted(text);
+    takeCues(parseTranscript(text));
   };
 
   const readFile = (file: File | undefined) => {
@@ -102,6 +148,18 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
       sentences.map((s, i) => ({ value: i, label: `${i + 1}. ${clock(s.start_ms / 1000)} · ${s.text.slice(0, 40)}` })),
     [sentences],
   );
+
+  const minuteMarks = useMemo(
+    () => Array.from({ length: Math.floor((sentences.at(-1)?.start_ms ?? 0) / 60_000) + 1 }, (_, m) => m),
+    [sentences],
+  );
+  const startMinute = Math.floor((sentences[first]?.start_ms ?? 0) / 60_000);
+  const startAt = (minute: number) => setRange(rangeFrom(sentences, minute * 60_000, minutes * 60_000));
+  const lastFor = (length: number) => {
+    setMinutes(length);
+    setRange(rangeFrom(sentences, sentences[first]?.start_ms ?? 0, length * 60_000));
+  };
+  const pasting = found === 'none' || pasteOwn;
 
   const save = async () => {
     if (!video || chosen.length === 0 || tooLong || saving) return;
@@ -158,6 +216,8 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
                 setVideo(null);
                 setSentences([]);
                 setPasted('');
+                setFound(null);
+                lookingFor.current = null;
               }}
             >
               {t.ytOtherLink}
@@ -196,38 +256,58 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
             </span>
             {t.ytStepText}
           </h2>
-          <details className={styles.how}>
-            <summary>{t.ytHowToCopy}</summary>
-            <ol>
-              <li>{t.ytHow1}</li>
-              <li>{t.ytHow2}</li>
-              <li>{t.ytHow3}</li>
-              <li>{t.ytHow4}</li>
-            </ol>
-          </details>
-          <label className={styles.label} htmlFor="yt-text">
-            {t.ytTextLabel}
-          </label>
-          <textarea
-            id="yt-text"
-            className={styles.textarea}
-            rows={6}
-            placeholder={'0:00\nGood morning, everyone.\n0:03\nToday we talk about food.'}
-            value={pasted}
-            onChange={(event) => takeText(event.target.value)}
-          />
-          <label className={styles.file}>
-            {t.ytOrFile}
-            <input
-              type="file"
-              accept=".srt,.vtt,.txt,text/plain,text/vtt"
-              onChange={(event) => readFile(event.target.files?.[0])}
-            />
-          </label>
-          {noTimes && (
-            <p role="alert" className={styles.error}>
-              {t.ytNoTimes}
+          {found === 'looking' && (
+            <p className={styles.looking} role="status">
+              {t.ytLooking}
             </p>
+          )}
+          {(found === 'manual' || found === 'auto') && !pasteOwn && (
+            <div className={styles.foundRow}>
+              <p className={styles.found} role="status">
+                {found === 'manual' ? t.ytFoundOwn : t.ytFoundAuto}
+              </p>
+              <button type="button" className={styles.linkButton} onClick={() => setPasteOwn(true)}>
+                {t.ytPasteOwn}
+              </button>
+            </div>
+          )}
+          {found === 'none' && <p className={styles.meta}>{t.ytNotFound}</p>}
+          {pasting && (
+            <>
+              <details className={styles.how}>
+                <summary>{t.ytHowToCopy}</summary>
+                <ol>
+                  <li>{t.ytHow1}</li>
+                  <li>{t.ytHow2}</li>
+                  <li>{t.ytHow3}</li>
+                  <li>{t.ytHow4}</li>
+                </ol>
+              </details>
+              <label className={styles.label} htmlFor="yt-text">
+                {t.ytTextLabel}
+              </label>
+              <textarea
+                id="yt-text"
+                className={styles.textarea}
+                rows={6}
+                placeholder={'0:00\nGood morning, everyone.\n0:03\nToday we talk about food.'}
+                value={pasted}
+                onChange={(event) => takeText(event.target.value)}
+              />
+              <label className={styles.file}>
+                {t.ytOrFile}
+                <input
+                  type="file"
+                  accept=".srt,.vtt,.txt,text/plain,text/vtt"
+                  onChange={(event) => readFile(event.target.files?.[0])}
+                />
+              </label>
+              {noTimes && (
+                <p role="alert" className={styles.error}>
+                  {t.ytNoTimes}
+                </p>
+              )}
+            </>
           )}
         </section>
       )}
@@ -241,6 +321,36 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
             </span>
             {t.ytStepPart}
           </h2>
+          <div className={styles.range}>
+            <label className={styles.label}>
+              {t.ytStartAt}
+              <select
+                className={styles.select}
+                value={startMinute}
+                onChange={(event) => startAt(Number(event.target.value))}
+              >
+                {minuteMarks.map((m) => (
+                  <option key={m} value={m}>
+                    {clock(m * 60)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.label}>
+              {t.ytHowLong}
+              <select
+                className={styles.select}
+                value={minutes}
+                onChange={(event) => lastFor(Number(event.target.value))}
+              >
+                {LENGTHS.map((n) => (
+                  <option key={n} value={n}>
+                    {t.ytMinutes(n)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className={styles.range}>
             <label className={styles.label}>
               {t.ytFrom}
