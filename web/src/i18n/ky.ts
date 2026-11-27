@@ -1352,7 +1352,10 @@ export const ky: Messages = {
   shadowingFinishBtn: 'Сактоо',
   shadowingSavingLabel: 'Сакталууда…',
   shadowingSaved: 'Сакталды',
-  shadowingPermissionDenied: 'Микрофонго уруксат жок. Браузердин жөндөөлөрүнөн уруксат бериңиз.',
+  shadowingPermissionDenied:
+    'Микрофонго уруксат жок. Сайттын дарегинин жанындагы кулпуну же «aA» басыңыз → «Микрофон» → «Уруксат берүү», анан кайра аракет кылыңыз.',
+  micInAppBrowser:
+    'Бул жерде үн жазуу иштебейт: шилтеме тиркеменин ичиндеги браузерде ачылды (Telegram, Instagram…). Аны Chrome же Safariде ачыңыз: ⋮ же ··· менюсу → «Браузерде ачуу».',
   shadowingUnsupported: 'Бул түзмөктө үн жазуу иштебейт.',
   shadowingAudioError: 'Аудио иштеген жок. Кайра аракет кылыңыз.',
   shadowingHeadphonesHint: 'Кулакчын тагыңыз: үнүңүз жазуу менен аралашпайт.',

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { isAudioRecordingSupported } from '../speaking/audio/AudioRecorder.ts';
+import { inAppNow, micTrouble, reportMic } from '../speaking/audio/micHelp.ts';
 import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
 import { pieces } from '../reading/text.ts';
 import { BackButton } from '../ui/BackButton.tsx';
@@ -131,13 +132,15 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
     setPhase('starting');
     await recorder.requestPermission();
     if (!['ready', 'stopped', 'recording_interrupted'].includes(recorder.current())) {
-      setError(recorder.current() === 'permission_denied' ? t.shadowingPermissionDenied : t.shadowingUnsupported);
+      reportMic('sentences', recorder.lastError() ?? recorder.current());
+      setError(micTrouble(recorder.current() === 'permission_denied' ? 'denied' : 'unsupported'));
       setPhase('ready');
       return false;
     }
     await recorder.start();
     if (recorder.current() !== 'recording') {
-      setError(t.shadowingUnsupported);
+      reportMic('sentences', recorder.lastError() ?? recorder.current());
+      setError(micTrouble('unsupported'));
       setPhase('ready');
       return false;
     }
@@ -395,7 +398,7 @@ export function SentencePractice({ exercise, onBack, onTogether }: Props) {
             {error}
           </p>
         )}
-        {!canRecord && <p className={styles.note}>{t.spNoMic}</p>}
+        {!canRecord && <p className={styles.note}>{inAppNow() ? t.micInAppBrowser : t.spNoMic}</p>}
         {mode === 'together' && <p className={styles.note}>{t.shadowingHeadphonesHint}</p>}
 
         {mode === 'sentences' && (

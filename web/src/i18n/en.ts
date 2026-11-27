@@ -1369,7 +1369,10 @@ export const en: Messages = {
   shadowingFinishBtn: 'Save',
   shadowingSavingLabel: 'Saving…',
   shadowingSaved: 'Saved',
-  shadowingPermissionDenied: 'Microphone access denied. Allow it in your browser settings.',
+  shadowingPermissionDenied:
+    'The microphone isn’t allowed. Tap the lock or «aA» next to the site’s address → «Microphone» → «Allow», then try again.',
+  micInAppBrowser:
+    'Voice recording doesn’t work here: the link is open in an app’s built-in browser (Telegram, Instagram…). Open it in Chrome or Safari: the ⋮ or ··· menu → «Open in browser».',
   shadowingUnsupported: 'Audio recording is not supported on this device.',
   shadowingAudioError: 'Could not start the audio. Try again.',
   shadowingHeadphonesHint: 'Wear headphones, so your voice does not mix with the recording.',

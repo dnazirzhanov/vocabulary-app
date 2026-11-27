@@ -1351,7 +1351,10 @@ export const kk: Messages = {
   shadowingFinishBtn: 'Сақтау',
   shadowingSavingLabel: 'Сақталуда…',
   shadowingSaved: 'Сақталды',
-  shadowingPermissionDenied: 'Микрофонға рұқсат жоқ. Браузер баптауларынан рұқсат беріңіз.',
+  shadowingPermissionDenied:
+    'Микрофонға рұқсат жоқ. Сайт мекенжайының жанындағы құлыпты немесе «aA» басыңыз → «Микрофон» → «Рұқсат ету», сосын қайталап көріңіз.',
+  micInAppBrowser:
+    'Мұнда дауыс жазу жұмыс істемейді: сілтеме қосымшаның ішкі браузерінде ашылды (Telegram, Instagram…). Оны Chrome немесе Safari-де ашыңыз: ⋮ немесе ··· мәзірі → «Браузерде ашу».',
   shadowingUnsupported: 'Бұл құрылғыда дыбыс жазу қолжетімсіз.',
   shadowingAudioError: 'Аудио қосылмады. Қайталап көріңіз.',
   shadowingHeadphonesHint: 'Құлаққап киіңіз: дауысыңыз жазбамен араласпайды.',

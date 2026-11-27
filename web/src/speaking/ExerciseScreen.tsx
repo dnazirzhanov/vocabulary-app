@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { isAudioRecordingSupported } from './audio/AudioRecorder.ts';
+import { inAppNow, reportMic } from './audio/micHelp.ts';
 import { useAudioRecorder } from './audio/useAudioRecorder.ts';
 import {
   createSession,
@@ -52,6 +53,10 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
     useAudioRecorder({
       maxDurationMs: 180_000, // 3 minutes
     });
+  // A microphone that can't be had is reported, with the browser (ADR 0094).
+  useEffect(() => {
+    if (error) reportMic('speaking', error);
+  }, [error]);
 
   useEffect(() => {
     if (questionProp) return; // question provided by caller — no need to fetch
@@ -126,7 +131,7 @@ export function ExerciseScreen({ question: questionProp, onBack, onDone }: Exerc
 
       {!supported && (
         <p role="alert" className={styles.error}>
-          {t.speakingUnsupported}
+          {inAppNow() ? t.micInAppBrowser : t.speakingUnsupported}
         </p>
       )}
 
@@ -304,7 +309,7 @@ function stateLabel(state: string, submitKind: SubmitState['kind']): string {
     case 'requesting_permission':
       return t.speakingStateRequesting;
     case 'permission_denied':
-      return t.speakingStatePermissionDenied;
+      return inAppNow() ? t.micInAppBrowser : t.speakingStatePermissionDenied;
     case 'ready':
       return t.speakingStateReady;
     case 'recording':

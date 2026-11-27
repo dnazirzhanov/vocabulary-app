@@ -424,3 +424,62 @@ test('an exercise goes to several groups at once', async ({ page, context }) => 
   await expect(page.getByRole('button', { name: 'Задания в группах «7Б», «8А»' })).toBeVisible();
   expect(new Set(made).size).toBe(2);
 });
+
+// A phone that opened the link inside Telegram, with the microphone refused (the browser's own
+// request is replaced by one that refuses at once, as such a browser does).
+const TELEGRAM_ANDROID =
+  'Mozilla/5.0 (Linux; Android 13; SM-A515F Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.6099.230 Mobile Safari/537.36 Telegram-Android/10.6.2 (Samsung SM-A515F; Android 13; SDK 33; AVERAGE)';
+
+test.describe('without the microphone', () => {
+  for (const [where, agent, says, place] of [
+    [
+      'in Telegram’s built-in browser',
+      TELEGRAM_ANDROID,
+      'Откройте её в Chrome или Safari',
+      'mic/sentences/in-app-telegram',
+    ],
+    ['in a real browser', undefined, 'Микрофон не разрешён.', 'mic/sentences'],
+  ] as const) {
+    test(`recording refused ${where}: the learner is told what to do, and it is reported`, async ({ browser }) => {
+      const id = `e2e-mic-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const context = await browser.newContext({
+        extraHTTPHeaders: { ...DEMO, 'X-Dev-User': id },
+        viewport: { width: 390, height: 844 },
+        ...(agent ? { userAgent: agent } : {}),
+      });
+      await context.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
+      await named(context, 'Аня');
+      const page = await context.newPage();
+      await fakeYouTube(page, VIDEO_FOUND);
+      // Refused at once, as such a browser does.
+      await page.addInitScript(() => {
+        navigator.mediaDevices.getUserMedia = () =>
+          Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+      });
+      const reports: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().endsWith('/api/client-errors')) reports.push(String(request.postDataJSON()?.place));
+      });
+      await page.request.post('/api/shadowing/exercises', {
+        data: {
+          youtube_id: VIDEO,
+          title: 'Two lines',
+          difficulty: 'beginner',
+          clip_start_ms: 1000,
+          clip_end_ms: 3000,
+          sentences: [
+            { start_ms: 1000, end_ms: 2000, text: 'Hello there.' },
+            { start_ms: 2000, end_ms: 3000, text: 'Nice to meet you.' },
+          ],
+        },
+      });
+      await openShadowing(page);
+      await page.getByRole('button', { name: /^Two lines/ }).click();
+      await page.getByRole('button', { name: 'Слушай' }).click();
+      await page.getByRole('button', { name: 'Твоя очередь' }).click();
+      await expect(page.getByRole('alert')).toContainText(says);
+      await expect.poll(() => reports).toContain(place);
+      await context.close();
+    });
+  }
+});

@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { t } from '../i18n/index.ts';
 import { isAudioRecordingSupported } from '../speaking/audio/AudioRecorder.ts';
+import { micTrouble, reportMic } from '../speaking/audio/micHelp.ts';
 import { useAudioRecorder } from '../speaking/audio/useAudioRecorder.ts';
 import type { AttemptListItem, ShadowingExercise } from './api.ts';
 import { getAttemptAudioUrl, getExerciseAudioUrl, listMyAttempts, saveAttempt } from './api.ts';
@@ -158,13 +159,15 @@ export function ShadowingPlayerScreen({ exercise, onBack }: Props) {
     el.currentTime = 0;
     const ok = ['ready', 'stopped', 'recording_interrupted'];
     if (!ok.includes(recorder.current())) {
-      setError(recorder.current() === 'permission_denied' ? t.shadowingPermissionDenied : t.shadowingUnsupported);
+      reportMic('together', recorder.lastError() ?? recorder.current());
+      setError(micTrouble(recorder.current() === 'permission_denied' ? 'denied' : 'unsupported'));
       go('listen');
       return;
     }
     await recorder.start();
     if (recorder.current() !== 'recording') {
-      setError(t.shadowingUnsupported);
+      reportMic('together', recorder.lastError() ?? recorder.current());
+      setError(micTrouble('unsupported'));
       go('listen');
       return;
     }
@@ -373,7 +376,7 @@ export function ShadowingPlayerScreen({ exercise, onBack }: Props) {
               {error}
             </p>
           )}
-          {!supported && phase === 'listen' && <p className={styles.note}>{t.shadowingUnsupported}</p>}
+          {!supported && phase === 'listen' && <p className={styles.note}>{micTrouble('unsupported')}</p>}
           {!exercise.has_audio && <p className={styles.note}>{t.shadowingAudioNotAvailable}</p>}
 
           {phase === 'review' && recorder.recording && recordingUrl ? (
