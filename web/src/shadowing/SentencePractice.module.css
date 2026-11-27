@@ -70,52 +70,6 @@
   border: 0;
 }
 
-.dots {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A small dot inside a full-size tap target. */
-.dot {
-  position: relative;
-  width: 24px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.dot::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--color-option-edge);
-  border-radius: 50%;
-  background: var(--color-surface);
-  transform: translate(-50%, -50%);
-}
-
-.dot[data-said]::after {
-  border-color: var(--color-success);
-  background: var(--color-success);
-}
-
-.dot[data-current]::after {
-  width: 14px;
-  height: 14px;
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary);
-}
-
 .card {
   display: flex;
   flex-direction: column;
@@ -148,13 +102,6 @@
 .said {
   border-radius: 4px;
   background: var(--color-highlight);
-}
-
-.upNext {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-body);
-  opacity: 0.75;
 }
 
 .steps {
@@ -303,21 +250,41 @@
   cursor: default;
 }
 
-.slow {
-  min-height: var(--tap-min);
-  padding: 0 var(--space-4);
+/* Speed, as YouTube's: one step slower or faster, the speed between. */
+.speed {
+  display: flex;
+  align-items: center;
   border: 1px solid var(--color-option-edge);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   background: var(--color-surface);
+}
+
+.speedButton {
+  display: grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   color: var(--color-text);
   font: inherit;
-  font-weight: var(--weight-strong);
+  font-size: 1.5rem;
+  line-height: 1;
   cursor: pointer;
 }
 
-.slow[aria-pressed='true'] {
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary-tint);
+.speedButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.speedValue {
+  min-width: 3.5em;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .note {
@@ -416,7 +383,6 @@
     max-height: 24vh;
   }
 
-  .upNext,
   .steps {
     display: none;
   }

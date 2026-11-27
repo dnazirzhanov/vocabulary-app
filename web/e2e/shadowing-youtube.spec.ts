@@ -321,6 +321,48 @@ test('sentence by sentence: listen, your turn, compare; finishing counts as done
     .toBe(1);
 });
 
+test('the card shows only this sentence; the speed goes − and + as on YouTube and is kept', async ({ page }) => {
+  await fakeYouTube(page, VIDEO_FOUND);
+  await page.request.post('/api/shadowing/exercises', {
+    data: {
+      youtube_id: VIDEO,
+      title: 'Two lines',
+      difficulty: 'beginner',
+      clip_start_ms: 1000,
+      clip_end_ms: 3000,
+      sentences: [
+        { start_ms: 1000, end_ms: 2000, text: 'Hello there.' },
+        { start_ms: 2000, end_ms: 3000, text: 'Nice to meet you.' },
+      ],
+    },
+  });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /^Two lines/ }).click();
+  await expect(page.getByText('Предложение 1 из 2').first()).toBeVisible();
+  // No dots to jump between sentences (‹ › do it), and not the next sentence's words.
+  await expect(page.getByRole('list', { name: 'Предложения' })).toHaveCount(0);
+  await expect(page.getByText('Nice to meet you.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Следующее предложение' })).toBeVisible();
+
+  const speed = page.getByRole('group', { name: 'Скорость' });
+  await expect(speed.getByRole('status')).toHaveText('1×');
+  await speed.getByRole('button', { name: 'Быстрее' }).click();
+  await expect(speed.getByRole('status')).toHaveText('1,25×');
+  await page.getByRole('button', { name: 'Слушай' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __yt: { log: unknown[][] } }).__yt.log))
+    .toContainEqual(['rate', 1.25]);
+
+  // Kept on this device for next time.
+  await page.reload();
+  await page.getByRole('navigation').getByRole('button', { name: 'Речь' }).click();
+  await page.getByRole('button', { name: /^Two lines/ }).click();
+  await expect(speed.getByRole('status')).toHaveText('1,25×');
+  for (let i = 0; i < 3; i += 1) await speed.getByRole('button', { name: 'Медленнее' }).click();
+  await expect(speed.getByRole('status')).toHaveText('0,5×');
+  await expect(speed.getByRole('button', { name: 'Медленнее' })).toBeDisabled();
+});
+
 test('a video YouTube won’t show here is said plainly', async ({ page }) => {
   await fakeYouTube(page, {
     status: 404,
