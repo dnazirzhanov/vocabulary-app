@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import datetime, timedelta
 from itertools import pairwise
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -47,6 +47,18 @@ MAX_CUE_CHARS = 500
 _pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="captions")
 
 Cue = dict[str, Any]
+
+
+class Captions(NamedTuple):
+    """What a video gives: whose captions, their cues, and, when the cues are the channel's own
+    lines, YouTube's speech recognition word by word, so the device can put each of the channel's
+    words on the time it is said (ADR 0100)."""
+
+    kind: str
+    cues: list[Cue]
+    words: list[Cue] | None = None
+
+
 # «[Music]», «♪»: sounds, not words to say (as the pasted text is cleaned on the device).
 _SOUND = re.compile(r"\[[^\]]*\]|♪+")
 
@@ -110,9 +122,15 @@ class _Quiet:
         log.info("yt-dlp: %s", msg)
 
 
-def download(video_id: str) -> tuple[str, list[Cue]] | None:
+def _json3(ydl: Any, formats: list[dict[str, Any]]) -> list[Cue]:
+    url = next((f["url"] for f in formats if f.get("ext") == "json3" and f.get("url")), None)
+    return cues_of(json.loads(ydl.urlopen(url).read())) if url else []
+
+
+def download(video_id: str) -> Captions | None:
     """The video's captions from YouTube, or None when it has none. Raises when YouTube can't
-    be asked (blocked, down, changed)."""
+    be asked (blocked, down, changed). The channel's own lines come with the speech recognition's
+    words, when YouTube has them, for their times."""
     import yt_dlp  # Heavy to import, and only needed here.
 
     options = {
@@ -129,15 +147,18 @@ def download(video_id: str) -> tuple[str, list[Cue]] | None:
         if picked is None:
             return None
         kind, formats = picked
-        url = next((f["url"] for f in formats if f.get("ext") == "json3" and f.get("url")), None)
-        if url is None:
-            return None
-        data = json.loads(ydl.urlopen(url).read())
-    cues = cues_of(data)
-    return (kind, cues) if cues else None
+        cues = _json3(ydl, formats)
+        words = None
+        recognised = (info or {}).get("automatic_captions", {}).get("en-orig")
+        if kind == "manual" and cues and recognised:
+            try:
+                words = _json3(ydl, recognised) or None
+            except Exception as error:  # The lines alone still do, with their own times.
+                log.info("speech recognition words for %s: %s", video_id, str(error)[:200])
+    return Captions(kind, cues, words) if cues else None
 
 
-def _download_patiently(video_id: str) -> tuple[str, list[Cue]] | None:
+def _download_patiently(video_id: str) -> Captions | None:
     for attempt in range(1, ATTEMPTS + 1):
         try:
             return download(video_id)
@@ -149,19 +170,16 @@ def _download_patiently(video_id: str) -> tuple[str, list[Cue]] | None:
     return None
 
 
-def _keep(db: Session, video_id: str, kind: str, cues: list[Cue], now: datetime) -> None:
-    row = {"youtube_id": video_id, "kind": kind, "cues": cues, "fetched_at": now}
-    statement = insert(YouTubeTranscript).values(**row)
+def _keep(db: Session, video_id: str, found: Captions, now: datetime) -> None:
+    values = {"kind": found.kind, "cues": found.cues, "words": found.words, "fetched_at": now}
+    statement = insert(YouTubeTranscript).values(youtube_id=video_id, **values)
     db.execute(
-        statement.on_conflict_do_update(
-            index_elements=[YouTubeTranscript.youtube_id],
-            set_={"kind": kind, "cues": cues, "fetched_at": now},
-        )
+        statement.on_conflict_do_update(index_elements=[YouTubeTranscript.youtube_id], set_=values)
     )
     db.commit()
 
 
-def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> tuple[str, list[Cue]]:
+def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> Captions:
     """The video's captions, fetched once for everyone. 404 'no_captions' when the video has none,
     503 'captions_refused' when YouTube would not answer now (asking again may work); either way the
     learner may paste the text. With `fetch` off, only what was already kept."""
@@ -171,7 +189,7 @@ def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> tuple[
     if not fetch and (kept is None or kept.kind == "none"):
         raise ApiError(404, "no_captions", "No captions found for this video")
     if kept is not None and kept.kind != "none":
-        return kept.kind, kept.cues
+        return Captions(kept.kind, kept.cues, kept.words)
     if kept is not None and now - kept.fetched_at < RETRY_AFTER:
         raise ApiError(404, "no_captions", "No captions found for this video")
     try:
@@ -182,7 +200,8 @@ def transcript(db: Session, video_id: str, now: datetime, fetch: bool) -> tuple[
     except Exception as error:  # yt-dlp raises many kinds; logged above. Not kept: may pass.
         raise ApiError(503, "captions_refused", "YouTube did not give the captions now") from error
     if found is None:
-        _keep(db, video_id, "none", [], now)
+        _keep(db, video_id, Captions("none", []), now)
         raise ApiError(404, "no_captions", "No captions found for this video")
-    _keep(db, video_id, *found, now)
-    return found
+    captions = Captions(*found)
+    _keep(db, video_id, captions, now)
+    return captions

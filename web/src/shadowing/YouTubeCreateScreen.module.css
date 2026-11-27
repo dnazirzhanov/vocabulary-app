@@ -396,3 +396,59 @@
 .found::before {
   content: '✓ ';
 }
+
+/* «Текст и звук»: the whole text a little earlier or later. */
+.shift {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shift > .label {
+  grid-column: 1 / -1;
+}
+
+.splitHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+}
+
+.shiftValue {
+  min-width: 4.5em;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Splitting a sentence: its words, to tap where the new one starts. */
+.splitWords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1, 4px);
+  grid-column: 1 / -1;
+}
+
+.splitWord {
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px dashed var(--color-option-edge);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.splitWord:hover:not(:disabled) {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+}
+
+.splitWord:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -64,3 +64,50 @@ Now:
 - **On a real 14-minute podcast:** 238 sentences of 3–15 words, none over 7.6 s.
 
 Exercises saved before this keep their sentences; making one again from the same video gives the new ones.
+
+## Second amendment (27 November 2026): sentences people can say, text in step with the sound
+The owner, on learners' feedback: sentences were «cut mid sentence», some too long and some too short, and «the
+mismatch between [the audio and the text] also makes users very disappointed».
+
+**Found in production:** every exercise still had sentences from the code of two releases before. A tab left
+open runs the code it opened with, so open tabs now load a new release at the next tab change (the plan's PR A).
+
+**Ten ways were weighed for each problem.**
+
+**Sentences, what was chosen:**
+- **Whole sentences** up to 20 words / 10 s (was 15 / 8 s, which cut whole sentences at a comma).
+- **Cutting a longer one:** it is cut where a speaker breathes. That means after a comma, at a real pause in the
+  speech, or before «and / because / which…»; never after «the / to / my…» or inside «Mr. Smith».
+- **Joining a short one:** a short sentence joins its own speaker. It crosses to the other speaker only when it is
+  a lone word («Yes.», «Hm.»).
+- **Splitting by hand:** the creator can split a sentence at a tapped word («Разделить»).
+
+**Sentences, set aside:**
+- an AI model choosing the breaks: it costs money, adds delay and an outside dependency;
+- a browser sentence splitter: it adds little;
+- lengths per level: later.
+
+**Timing, what was chosen:**
+- **The channel's own subtitles come one line at a time.** The server now also fetches YouTube's speech
+  recognition for the video, word by word (`words`, kept with the captions).
+  - The device matches the subtitles' words to the recognised ones, in order and within each line's time, so
+    each word takes the time it is said. A word left unmatched is placed between its neighbours.
+  - On a real video: a sentence's start against its first word heard was 494 ms off typically and 1.3 s in one
+    sentence of ten; now it is 0 ms and within 0.15 s.
+- **Margins:** a sentence starts 0.15 s before its first word and ends 0.3 s after its last, never into the
+  next.
+- **Stopping on time, measured on real YouTube** (desktop Chromium, six sentences of the podcast): the old
+  rule paused 15–50 ms after a sentence's end; the new one pauses 36–55 ms before it. Playing an earlier sentence
+  again after a later one played it whole with both rules.
+  - So on desktop the player was not the cause of the mismatch; the old code in open tabs and the line-level
+    times were.
+  - The new clock is kept as a safeguard for slower devices, which may report the time less often or late
+    after a seek; it is not measured on phones. It believes a time only once one near the start has come,
+    runs on by the clock between reports, and pauses 60 ms early.
+- **One «Текст и звук» shift** on the create screen (±0.1 s steps, up to ±2 s), for subtitles a little off.
+
+**Timing, set aside:**
+- aligning on the downloaded audio, or Whisper on it: YouTube's terms, blocks and cost;
+- analysing the sound in the browser: impossible, since the player's sound can't be read.
+
+**Speed:** «Медленнее» became − 1× + (0.5–1.5×, as YouTube offers). The card shows only the sentence being said.

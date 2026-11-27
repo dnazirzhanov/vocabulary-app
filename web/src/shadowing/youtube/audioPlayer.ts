@@ -1,6 +1,6 @@
-import type { VideoPlayer } from './player.ts';
+import { EARLY_MS, type VideoPlayer } from './player.ts';
 
-const POLL_MS = 50;
+const POLL_MS = 20;
 
 /** Our own audio (a curated exercise) behind the same controls as YouTube's player. */
 export function audioPlayer(el: HTMLAudioElement): VideoPlayer {
@@ -22,7 +22,7 @@ export function audioPlayer(el: HTMLAudioElement): VideoPlayer {
         finish = resolve;
         el.play().catch(() => stopWatching('stopped'));
         timer = setInterval(() => {
-          if (el.currentTime * 1000 >= endMs || el.ended) {
+          if (el.currentTime * 1000 >= endMs - EARLY_MS || el.ended) {
             el.pause();
             stopWatching('ended');
           }

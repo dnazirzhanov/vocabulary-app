@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mergeWithNext, parseTranscript, rangeFrom, suggestedRange, toSentences, type Sentence } from './transcript.ts';
+import {
+  alignWords,
+  mergeWithNext,
+  parseTranscript,
+  rangeFrom,
+  shiftTimes,
+  splitAt,
+  suggestedRange,
+  toSentences,
+  type Sentence,
+} from './transcript.ts';
 
 // As YouTube's «Show transcript» panel copies: a time line, then the words; a chapter's name between.
 const PANEL = `Daily English
@@ -93,7 +103,8 @@ test('punctuated text becomes sentences, each ending where the next starts', () 
   assert.equal(sentences[2].start_ms, 3000 + Math.round((5 * 5000) / 8));
   for (let i = 0; i + 1 < sentences.length; i += 1) assert.equal(sentences[i].end_ms, sentences[i + 1].start_ms);
   // The last line's end isn't written anywhere: about how long its words take, at least 1.5 s.
-  assert.equal(sentences.at(-1)!.end_ms, 16000 + 1500);
+  // …and the last sentence ends a little after it (0.3 s), as its sound dies away.
+  assert.equal(sentences.at(-1)!.end_ms, 16000 + 1500 + 300);
 });
 
 test('automatic captions (no punctuation) split at pauses and never run long', () => {
@@ -117,7 +128,8 @@ test('automatic captions (no punctuation) split at pauses and never run long', (
     sentences.map((s) => s.text),
     ['so today we are going to cook some pasta together first you need water', 'and then some salt and a big pot'],
   );
-  assert.equal(sentences[1].start_ms, 9000);
+  // A little before its first word (0.15 s), so it isn't clipped.
+  assert.equal(sentences[1].start_ms, 9000 - 150);
 
   const endless = parseTranscript(
     Array.from({ length: 12 }, (_, i) => `0:${String(i * 2).padStart(2, '0')}\nwe keep on talking here`).join('\n'),
@@ -225,7 +237,8 @@ test('rolling automatic captions: each word once, at its own time, no «&gt;&gt;
   // Each starts with its first word: «Good» when its line starts, then each speaker's line.
   assert.deepEqual(
     sentences.map((s) => s.start_ms),
-    [4010, 10010, 13010],
+    // 0.15 s before each first word, never into the sentence before.
+    [3860, 9860, 12900],
   );
   // «Good» is said at 4.01 s, «evening» at 4.5 s: words have their own times, not spread evenly.
   assert.equal(parseTranscript(ROLLING)[1].start_ms, 4500);
@@ -256,4 +269,79 @@ test('a sentence of a word or two joins its neighbour; a long one is cut at a co
     'Welcome back to Mr. English channel.',
     'The 6 a.m. alarm is loud.',
   ]);
+});
+
+test('a whole sentence up to 20 words is kept; a longer one is cut where a speaker breathes', () => {
+  const words = (text: string, from: number, step = 350) =>
+    text.split(' ').map((w, i) => ({ start_ms: from + i * step, end_ms: from + i * step + step, text: w }));
+  // 18 words, 6.3 s: once cut at its comma («And before we get into our topic, | let's…»), now whole.
+  const whole = 'And before we get into our topic, let us quickly remind our friends how they can support the channel.';
+  assert.deepEqual(texts(toSentences(words(whole, 0))), [whole]);
+  // 28 words: cut once, after the comma, not after «the» or «to».
+  const long =
+    'When I was a child I wanted to become a doctor like my mother, because she helped so many people in our small town every day.';
+  const parts = texts(toSentences(words(long, 0, 300)));
+  assert.deepEqual(parts, [
+    'When I was a child I wanted to become a doctor like my mother,',
+    'because she helped so many people in our small town every day.',
+  ]);
+});
+
+test('a short turn joins the same speaker, not the other one', () => {
+  const words = (text: string, from: number) =>
+    text.split(' ').map((w, i) => ({ start_ms: from + i * 400, end_ms: from + i * 400 + 400, text: w }));
+  const cues = [
+    ...words('It helps us so much.', 0),
+    ...words('>> It does. And sharing with your friends is the best way to help our community grow.', 3000),
+  ];
+  assert.deepEqual(texts(toSentences(cues)), [
+    'It helps us so much.',
+    'It does. And sharing with your friends is the best way to help our community grow.',
+  ]);
+});
+
+test('the channel’s own lines take the recognised words’ times', () => {
+  // A line of 9 words from 0 to 9 s, but the words are said early: 0.5 s apart from 1 s.
+  const line = [{ start_ms: 0, end_ms: 9000, text: "Hello, everyone. It's six a.m. here, Paul." }];
+  const heard = 'hello everyone its 6 am here paul'
+    .split(' ')
+    .map((w, i) => ({ start_ms: 1000 + i * 500, end_ms: 1400 + i * 500, text: w }));
+  const aligned = alignWords(line, heard);
+  assert.deepEqual(
+    aligned.map((c) => c.text),
+    ['Hello,', 'everyone.', "It's", 'six', 'a.m.', 'here,', 'Paul.'],
+  );
+  // Matched words take their twin's time; «six» and «a.m.» (heard «6», «am») sit between.
+  assert.equal(aligned[0].start_ms, 1000);
+  assert.equal(aligned[2].start_ms, 2000);
+  assert.ok(aligned[3].start_ms > aligned[2].start_ms && aligned[4].start_ms < aligned[5].start_ms);
+  assert.equal(aligned[6].start_ms, 4000);
+  // So the sentence starts and stops with the sound (1 s – 4.4 s), not with the line (0 – 9 s).
+  const [only] = toSentences(aligned);
+  assert.equal(only.start_ms, 1000 - 150);
+  assert.equal(only.end_ms, 4400 + 300);
+  // Nothing heard: the text as it was.
+  assert.deepEqual(alignWords(line, []), line);
+});
+
+test('shifting and splitting', () => {
+  const two = [
+    { start_ms: 1000, end_ms: 3000, text: 'one two three four' },
+    { start_ms: 3000, end_ms: 4000, text: 'five six' },
+  ];
+  assert.deepEqual(
+    shiftTimes(two, -300).map((s) => [s.start_ms, s.end_ms]),
+    [
+      [700, 2700],
+      [2700, 3700],
+    ],
+  );
+  assert.equal(shiftTimes(two, -5000)[0].start_ms, 0);
+  assert.deepEqual(splitAt(two, 0, 1), [
+    { start_ms: 1000, end_ms: 1500, text: 'one' },
+    { start_ms: 1500, end_ms: 3000, text: 'two three four' },
+    two[1],
+  ]);
+  assert.equal(splitAt(two, 0, 0), two);
+  assert.equal(splitAt(two, 1, 2), two);
 });

@@ -157,9 +157,12 @@ const MS_PER_WORD = 400;
 const MIN_LAST_MS = 1500;
 /** Without punctuation (automatic captions): a pause this long ends a sentence. */
 const PAUSE_MS = 700;
-/** One breath for a child: longer sentences are cut at a comma or a pause. */
-const MAX_MS = 8_000;
-const MAX_WORDS = 15;
+/**
+ * A whole sentence up to this is kept whole (learners: «cut mid-sentence» was the worst); a longer
+ * one is cut where a speaker would breathe.
+ */
+const MAX_MS = 10_000;
+const MAX_WORDS = 20;
 /** Shorter than this («Yes.», «Hm.») is not worth a try alone: it joins a neighbour. */
 const MIN_WORDS = 3;
 const MIN_MS = 1_200;
@@ -199,11 +202,34 @@ const SOFT = /[,;:—–]["'»”)]*$/;
 const ABBREVIATION = /^(?:mr|mrs|ms|dr|st|vs|etc|jr|sr|prof|mt|no|e\.g|i\.e|a\.m|p\.m|u\.s)\.$/i;
 const ends = (word: string) => ENDS.test(word) && !ABBREVIATION.test(word);
 
+/** Words a thought group starts with: a good place to cut before. */
+const STARTERS = new Set(
+  'and but so because when if which who that where while then or after before until although though since unless as'.split(
+    ' ',
+  ),
+);
+/** Words that lean on the next one: never cut after them. */
+const LEANING = new Set(
+  'a an the to of in on at for with from by my your our their his her its this these those is are was were be am i you we they he she it very not can will would could should do does did have has had and or but so than'.split(
+    ' ',
+  ),
+);
+const bare = (word: string) => word.toLowerCase().replace(/[^a-z']/g, '');
+
+/** Before a sentence's first word, so it isn't clipped; after its last, its sound dies away. */
+const LEAD_MS = 150;
+const TAIL_MS = 300;
+const GAP_MS = 50;
+
 const lengthOf = (g: Word[]) => g[g.length - 1].end - g[0].at;
 const fits = (g: Word[]) => g.length <= MAX_WORDS && lengthOf(g) <= MAX_MS;
 const tooShort = (g: Word[]) => g.length < MIN_WORDS || lengthOf(g) < MIN_MS;
 
-/** A long sentence in two: at a comma or a pause, near the middle, each half a few words. */
+/**
+ * A long sentence in two, where a speaker would breathe: after a comma, at a pause in the speech,
+ * before «and / because / which…»; never after «the / to / my…» or inside «Mr. Smith». Near the
+ * middle, each half a few words.
+ */
 function cut(group: Word[]): Word[][] {
   if (fits(group) || group.length < 2) return [group];
   const low = Math.min(MIN_WORDS, Math.floor(group.length / 2));
@@ -214,7 +240,10 @@ function cut(group: Word[]): Word[][] {
     const silence = Math.max(0, group[i].at - before.end);
     const score =
       (ends(before.text) ? 3 : SOFT.test(before.text) ? 2 : 0) +
-      Math.min(silence / 400, 1.5) -
+      Math.min(silence / 300, 2) +
+      (STARTERS.has(bare(group[i].text)) ? 1 : 0) -
+      (LEANING.has(bare(before.text)) ? 2 : 0) -
+      (ABBREVIATION.test(before.text) ? 5 : 0) -
       (2 * Math.abs(i - group.length / 2)) / group.length;
     if (score > bestScore) [best, bestScore] = [i, score];
   }
@@ -232,10 +261,12 @@ function joinShort(groups: Word[][]): Word[][] {
     const withPrevious = previous && fits([...previous, ...out[i]]);
     const sameNext = withNext && !next[0].turn;
     const samePrevious = withPrevious && !out[i][0].turn;
-    if (sameNext || (withNext && !samePrevious)) {
+    // Across to the other speaker only a lone word («Yes.», «Hm.»): «I'm Emily.» stays hers.
+    const lone = out[i].length === 1;
+    if (sameNext || (withNext && lone && !samePrevious)) {
       out.splice(i, 2, [...out[i], ...next]);
       i -= 1; // the joined one may still be short
-    } else if (withPrevious) {
+    } else if (samePrevious || (withPrevious && lone)) {
       out.splice(i - 1, 2, [...previous, ...out[i]]);
       i -= 2;
     }
@@ -245,8 +276,9 @@ function joinShort(groups: Word[][]): Word[][] {
 
 /**
  * The cues as sentences to say after the video: they end at `.?!` (or, without punctuation, at a
- * pause) and where another speaker starts; one too long is cut at a comma or a pause, one too short
- * («Yes.») joins a neighbour. A sentence ends where the next one starts.
+ * pause) and where another speaker starts; one too long is cut where a speaker would breathe, one
+ * too short («Yes.») joins a neighbour. A sentence starts a little before its first word and ends a
+ * little after its last, never into the next.
  */
 export function toSentences(cues: Cue[]): Sentence[] {
   const { words, pauses } = wordsOf(cues);
@@ -269,12 +301,98 @@ export function toSentences(cues: Cue[]): Sentence[] {
   });
   if (group.length) groups.push(group);
   const sentences = joinShort(groups.flatMap(cut));
-  const last = words[words.length - 1].end;
-  return sentences.map((g, i) => ({
-    start_ms: g[0].at,
-    end_ms: i + 1 < sentences.length ? sentences[i + 1][0].at : last,
-    text: g.map((w) => w.text).join(' '),
+  const out: Sentence[] = [];
+  sentences.forEach((g, i) => {
+    const first = g[0];
+    const last = g[g.length - 1];
+    const following = sentences[i + 1]?.[0];
+    const start = Math.max(0, first.at - LEAD_MS, out[i - 1]?.end_ms ?? 0);
+    const room = following ? following.at - GAP_MS : Infinity;
+    const end = Math.max(start + 1, Math.min(last.end + TAIL_MS, Math.max(room, last.end)));
+    out.push({ start_ms: Math.round(start), end_ms: Math.round(end), text: g.map((w) => w.text).join(' ') });
+  });
+  return out;
+}
+
+const norm = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+/**
+ * The channel's own lines (or pasted text) on YouTube's recognised words: each of the text's words
+ * takes the time its recognised twin is said, so a sentence starts and stops with its sound even
+ * where a line has no word times. Words are matched in order, within their line's time (and a
+ * little around it); a word left unmatched is placed between its matched neighbours. The text's
+ * own spelling and punctuation are kept.
+ */
+export function alignWords(textCues: Cue[], recognised: Cue[]): Cue[] {
+  if (recognised.length === 0) return textCues;
+  // The text's words, each with the time of its line (where it may be said).
+  const words: { text: string; key: string; from: number; to: number }[] = [];
+  textCues.forEach((cue, index) => {
+    const next = textCues[index + 1]?.start_ms;
+    const to = cue.end_ms ?? next ?? cue.start_ms + 10_000;
+    for (const text of cue.text.split(' ').filter(Boolean))
+      words.push({ text, key: norm(text), from: cue.start_ms - 1_500, to: to + 1_500 });
+  });
+  const heard = recognised.map((cue) => ({
+    key: norm(cue.text),
+    at: cue.start_ms,
+    end: cue.end_ms ?? cue.start_ms + 400,
   }));
+  const times: ({ at: number; end: number } | null)[] = words.map(() => null);
+  let j = 0;
+  words.forEach((word, i) => {
+    if (!word.key) return;
+    for (let k = j; k < heard.length && heard[k].at <= word.to; k += 1) {
+      if (heard[k].at < word.from) {
+        j = k + 1;
+        continue;
+      }
+      if (heard[k].key === word.key) {
+        times[i] = { at: heard[k].at, end: heard[k].end };
+        j = k + 1;
+        break;
+      }
+      // Look a few words ahead only: the text may have a word the recognition missed.
+      if (k - j > 6) break;
+    }
+  });
+  // Unmatched words: spread between the matched ones around them (or their line's time).
+  return words.map((word, i) => {
+    const own = times[i];
+    if (own) return { start_ms: own.at, end_ms: own.end, text: word.text };
+    let before = i - 1;
+    while (before >= 0 && !times[before]) before -= 1;
+    let after = i + 1;
+    while (after < words.length && !times[after]) after += 1;
+    const from = before >= 0 ? times[before]!.end : Math.max(0, word.from + 1_500);
+    const to = after < words.length ? times[after]!.at : Math.max(from + 400, word.to - 1_500);
+    const share = (to - from) / (after - before);
+    const at = Math.round(from + share * (i - before - 1));
+    return { start_ms: at, end_ms: Math.round(at + Math.max(1, share)), text: word.text };
+  });
+}
+
+/** Every sentence earlier (−) or later (+), for subtitles a little off from the sound. */
+export function shiftTimes(sentences: Sentence[], ms: number): Sentence[] {
+  return sentences.map((s) => ({
+    ...s,
+    start_ms: Math.max(0, s.start_ms + ms),
+    end_ms: Math.max(1, s.end_ms + ms),
+  }));
+}
+
+/** A sentence in two before its word `at` (1 … words − 1); the time is shared by the words. */
+export function splitAt(sentences: Sentence[], index: number, at: number): Sentence[] {
+  const sentence = sentences[index];
+  const parts = sentence?.text.split(' ').filter(Boolean) ?? [];
+  if (!sentence || at < 1 || at >= parts.length) return sentences;
+  const cutMs = Math.round(sentence.start_ms + ((sentence.end_ms - sentence.start_ms) * at) / parts.length);
+  return [
+    ...sentences.slice(0, index),
+    { start_ms: sentence.start_ms, end_ms: cutMs, text: parts.slice(0, at).join(' ') },
+    { start_ms: cutMs, end_ms: sentence.end_ms, text: parts.slice(at).join(' ') },
+    ...sentences.slice(index + 1),
+  ];
 }
 
 /**
@@ -283,7 +401,8 @@ export function toSentences(cues: Cue[]): Sentence[] {
  */
 export function rangeFrom(sentences: Sentence[], startMs: number, lengthMs: number): [number, number] {
   if (sentences.length === 0) return [0, 0];
-  const found = sentences.findIndex((s) => s.start_ms >= startMs);
+  // A sentence starts a moment before its first word (LEAD_MS): one at «12:00» starts at 11:59.85.
+  const found = sentences.findIndex((s) => s.start_ms >= startMs - LEAD_MS);
   const first = found < 0 ? sentences.length - 1 : found;
   const from = sentences[first].start_ms;
   let last = first;

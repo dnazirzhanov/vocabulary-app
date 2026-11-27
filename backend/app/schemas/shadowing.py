@@ -73,6 +73,8 @@ class YouTubeTranscriptOut(BaseModel):
     # 'manual': the channel's own subtitles; 'auto': YouTube's speech recognition.
     kind: Literal["manual", "auto"]
     cues: list[CueOut]
+    # With 'manual': YouTube's speech recognition word by word, to time the channel's words.
+    words: list[CueOut] | None = None
 
 
 class SentenceIn(BaseModel):

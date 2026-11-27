@@ -19,4 +19,6 @@ class YouTubeTranscript(Base):
     kind: Mapped[str] = mapped_column(String(8))
     # [{start_ms, end_ms, text}], in order; empty when kind is 'none'.
     cues: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    # With the channel's own lines: YouTube's speech recognition, a word to a cue, for their times.
+    words: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
