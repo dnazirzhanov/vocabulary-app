@@ -1509,6 +1509,8 @@ export const ru = {
   spFinish: 'Готово',
   spStart: 'Начать',
   spSpeed: 'Скорость',
+  spSpeedNow: (speed: string) => `Скорость ${speed}: выбрать`,
+  spQuickSpeeds: 'Обычные скорости',
   spSlowerStep: 'Медленнее',
   spFasterStep: 'Быстрее',
   spPrevious: 'Предыдущее предложение',

@@ -111,3 +111,11 @@ open runs the code it opened with, so open tabs now load a new release at the ne
 - analysing the sound in the browser: impossible, since the player's sound can't be read.
 
 **Speed:** «Медленнее» became − 1× + (0.5–1.5×, as YouTube offers). The card shows only the sentence being said.
+
+**Speed, later the same day:**
+- **Live change:** the owner changed 0.75× to 1.5× while a sentence played, and nothing happened. The speed was
+  set only when a sentence started. Now it changes at once, and the stop clock follows it.
+- **Steps:** − and + go by 0.1, from 0.5× to 2×. Tapping the speed opens the usual ones (0.5×, 0.75×, 1×, 1.25×,
+  1.5×, 1.75×, 2×).
+- **Checked on real YouTube:** its embedded player takes 0.1 steps. 1.1×, 1.3× and 0.6× played at exactly those
+  speeds, although it lists only quarter steps.

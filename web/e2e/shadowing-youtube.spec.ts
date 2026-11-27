@@ -402,22 +402,61 @@ test('the card shows only this sentence; the speed goes − and + as on YouTube 
   await expect(page.getByRole('button', { name: 'Следующее предложение' })).toBeVisible();
 
   const speed = page.getByRole('group', { name: 'Скорость' });
-  await expect(speed.getByRole('status')).toHaveText('1×');
+  const now = speed.getByRole('button', { name: /^Скорость .*: выбрать$/ });
+  await expect(now).toHaveText('1×');
+  // + and − by a tenth.
   await speed.getByRole('button', { name: 'Быстрее' }).click();
-  await expect(speed.getByRole('status')).toHaveText('1,25×');
+  await expect(now).toHaveText('1,1×');
   await page.getByRole('button', { name: 'Слушай' }).click();
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __yt: { log: unknown[][] } }).__yt.log))
-    .toContainEqual(['rate', 1.25]);
+    .toContainEqual(['rate', 1.1]);
 
   // Kept on this device for next time.
   await page.reload();
   await page.getByRole('navigation').getByRole('button', { name: 'Речь' }).click();
   await page.getByRole('button', { name: /^Two lines/ }).click();
-  await expect(speed.getByRole('status')).toHaveText('1,25×');
-  for (let i = 0; i < 3; i += 1) await speed.getByRole('button', { name: 'Медленнее' }).click();
-  await expect(speed.getByRole('status')).toHaveText('0,5×');
+  await expect(now).toHaveText('1,1×');
+  for (let i = 0; i < 6; i += 1) await speed.getByRole('button', { name: 'Медленнее' }).click();
+  await expect(now).toHaveText('0,5×');
   await expect(speed.getByRole('button', { name: 'Медленнее' })).toBeDisabled();
+
+  // The usual speeds, from the speed itself, up to 2×.
+  await now.click();
+  await speed.getByRole('group', { name: 'Обычные скорости' }).getByRole('button', { name: '2×' }).click();
+  await expect(now).toHaveText('2×');
+  await expect(speed.getByRole('button', { name: 'Быстрее' })).toBeDisabled();
+});
+
+test('the speed changes at once while the sentence plays', async ({ page }) => {
+  await fakeYouTube(page, VIDEO_FOUND);
+  await page.request.post('/api/shadowing/exercises', {
+    data: {
+      youtube_id: VIDEO,
+      title: 'Long one',
+      difficulty: 'beginner',
+      clip_start_ms: 1000,
+      clip_end_ms: 9000,
+      sentences: [{ start_ms: 1000, end_ms: 9000, text: 'A long sentence to change the speed in the middle of it.' }],
+    },
+  });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /^Long one/ }).click();
+  const speed = page.getByRole('group', { name: 'Скорость' });
+  await speed.getByRole('button', { name: /: выбрать$/ }).click();
+  await speed.getByRole('button', { name: '0,75×' }).click();
+  await page.getByRole('button', { name: 'Слушай' }).click();
+  const ytLog = () => page.evaluate(() => (window as unknown as { __yt: { log: [string, number][] } }).__yt.log);
+  await expect.poll(async () => (await ytLog()).some(([what]) => what === 'play')).toBe(true);
+  // Playing: 1.5× now, without stopping.
+  await speed.getByRole('button', { name: /: выбрать$/ }).click();
+  await speed.getByRole('button', { name: '1,5×' }).click();
+  const log = await ytLog();
+  const played = log.findIndex(([what]) => what === 'play');
+  const faster = log.findIndex(([what, value], i) => i > played && what === 'rate' && value === 1.5);
+  expect(faster).toBeGreaterThan(played);
+  // No pause and no new seek between the start and the change: it played on.
+  expect(log.slice(played, faster).some(([what]) => what === 'pause' || what === 'seek')).toBe(false);
 });
 
 test('a video YouTube won’t show here is said plainly', async ({ page }) => {

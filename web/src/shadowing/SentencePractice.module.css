@@ -252,6 +252,7 @@
 
 /* Speed, as YouTube's: one step slower or faster, the speed between. */
 .speed {
+  position: relative;
   display: flex;
   align-items: center;
   border: 1px solid var(--color-option-edge);
@@ -282,9 +283,51 @@
 
 .speedValue {
   min-width: 3.5em;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-1, 4px);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
   font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  cursor: pointer;
+}
+
+/* The usual speeds, over the control, as YouTube's menu. */
+.quick {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: var(--space-1, 4px);
+  padding: var(--space-2);
+  border: 1px solid var(--color-option-edge);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 14%);
+  transform: translateX(-50%);
+}
+
+.quickRate {
+  min-width: 3.5em;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.quickRate[aria-pressed='true'] {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-tint);
+  font-weight: var(--weight-strong);
 }
 
 .note {

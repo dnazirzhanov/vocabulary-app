@@ -47,3 +47,22 @@ test('while buffering, nothing stops', () => {
   const watch = segmentClock(1_000, 2_000, 1, () => 5_000);
   assert.equal(watch.shouldStop(false, 3_000), false);
 });
+
+test('the speed changed in the middle of a sentence: it still stops at the end', () => {
+  // 0.75× for the first second, then 1.5×; the player reports every 250 ms.
+  let now = 0;
+  const watch = segmentClock(10_000, 14_000, 0.75, () => now);
+  let position = 10_000;
+  let rate = 0.75;
+  let reported = 10_000;
+  for (; now < 20_000; now += 20) {
+    if (now === 1_000) {
+      rate = 1.5;
+      watch.setRate(1.5);
+    }
+    position += 20 * rate;
+    if ((now - 120) % 250 === 0) reported = position;
+    if (watch.shouldStop(true, reported)) break;
+  }
+  assert.ok(position >= 14_000 - EARLY_MS - 40 && position <= 14_000, String(position));
+});

@@ -1493,6 +1493,8 @@ export const uz: Messages = {
   spFinish: 'Tayyor',
   spStart: 'Boshlash',
   spSpeed: 'Tezlik',
+  spSpeedNow: (speed: string) => `Tezlik ${speed}: tanlash`,
+  spQuickSpeeds: 'Odatiy tezliklar',
   spSlowerStep: 'Sekinroq',
   spFasterStep: 'Tezroq',
   spPrevious: 'Oldingi gap',
