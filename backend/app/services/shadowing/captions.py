@@ -38,8 +38,10 @@ SOCKET_TIMEOUT_S = 10
 # YouTube's refusals are often over a moment later.
 ATTEMPTS = 2
 RETRY_PAUSE_S = 2.0
-# A video of several hours still fits; beyond this the rest is left out.
-MAX_CUES = 6000
+# A video of several hours still fits, a word to a cue; beyond this the rest is left out.
+MAX_CUES = 20_000
+# A word with no end given lasts this long at most; a longer silence after it is a pause.
+WORD_MS = 800
 MAX_CUE_CHARS = 500
 # At most this many fetches at once, so a crowd of new links can't tie the server up.
 _pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="captions")
@@ -65,19 +67,30 @@ def pick_track(info: dict[str, Any]) -> tuple[str, list[dict[str, Any]]] | None:
     return None
 
 
+def _clean(text: str) -> str:
+    return re.sub(r"\s+", " ", _SOUND.sub(" ", text)).strip()[:MAX_CUE_CHARS]
+
+
 def cues_of(data: dict[str, Any]) -> list[Cue]:
-    """YouTube's json3 captions as cues: each shown line once, ending where the next begins."""
+    """YouTube's json3 captions as cues, each ending by the time the next begins. Speech
+    recognition gives each word its own time: then each word is a cue, so a sentence starts and
+    stops with its words, not with the caption line. The channel's own subtitles come by line."""
     cues: list[Cue] = []
     for event in data.get("events") or []:
         if event.get("aAppend") or not event.get("segs"):
             continue
-        raw = "".join(str(seg.get("utf8") or "") for seg in event["segs"])
-        text = re.sub(r"\s+", " ", _SOUND.sub(" ", raw)).strip()[:MAX_CUE_CHARS]
-        if not text:
-            continue
         start = int(event.get("tStartMs") or 0)
         end = start + int(event.get("dDurationMs") or 0)
-        cues.append({"start_ms": start, "end_ms": end, "text": text})
+        segs = event["segs"]
+        if len(segs) > 1 and any("tOffsetMs" in seg for seg in segs):
+            times = [start + int(seg.get("tOffsetMs") or 0) for seg in segs]
+            for seg, at, upto in zip(segs, times, [*times[1:], end], strict=True):
+                for word in _clean(str(seg.get("utf8") or "")).split():
+                    cues.append({"start_ms": at, "end_ms": min(upto, at + WORD_MS), "text": word})
+            continue
+        text = _clean("".join(str(seg.get("utf8") or "") for seg in segs))
+        if text:
+            cues.append({"start_ms": start, "end_ms": end, "text": text})
     cues.sort(key=lambda cue: cue["start_ms"])
     for cue, after in pairwise(cues):
         if after["start_ms"] > cue["start_ms"]:

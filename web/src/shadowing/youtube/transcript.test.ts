@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mergeWithNext, parseTranscript, rangeFrom, suggestedRange, toSentences } from './transcript.ts';
+import { mergeWithNext, parseTranscript, rangeFrom, suggestedRange, toSentences, type Sentence } from './transcript.ts';
 
 // As YouTube's «Show transcript» panel copies: a time line, then the words; a chapter's name between.
 const PANEL = `Daily English
@@ -84,8 +84,8 @@ test('punctuated text becomes sentences, each ending where the next starts', () 
       'Good morning, everyone.',
       'Today we talk about food.',
       'What do you like to eat?',
-      'I like apples.',
-      "Let's start.",
+      // «Let's start.» alone is too short to be worth a try: it joins the sentence before.
+      "I like apples. Let's start.",
     ],
   );
   // «Today we talk about food.» is the first 5 of 8 words in the line from 3 s to 8 s.
@@ -166,4 +166,94 @@ test('merging two sentences keeps their times', () => {
   ];
   assert.deepEqual(mergeWithNext(sentences, 0), [{ start_ms: 0, end_ms: 6000, text: 'one two three four five six' }]);
   assert.equal(mergeWithNext(sentences, 1), sentences);
+});
+
+// As YouTube's automatic captions come as .vtt: each cue repeats the line before it above the new
+// words (which carry their own times), a 10 ms cue between only scrolls, «>>» marks another
+// speaker, and «>» is written «&gt;».
+const ROLLING = `WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.300 --> 00:00:04.000 align:start position:0%
+ 
+[Music]
+
+00:00:04.000 --> 00:00:04.010 align:start position:0%
+[Music]
+ 
+
+00:00:04.010 --> 00:00:07.000 align:start position:0%
+[Music]
+Good<00:00:04.500><c> evening</c><00:00:05.000><c> and</c><00:00:05.400><c> welcome</c><00:00:06.000><c> to</c><00:00:06.400><c> our</c>
+
+00:00:07.000 --> 00:00:07.010 align:start position:0%
+Good evening and welcome to our
+ 
+
+00:00:07.010 --> 00:00:10.000 align:start position:0%
+Good evening and welcome to our
+little<00:00:07.400><c> show.</c><00:00:08.200><c> I'm</c><00:00:08.600><c> Kate.</c>
+
+00:00:10.000 --> 00:00:10.010 align:start position:0%
+little show. I'm Kate.
+ 
+
+00:00:10.010 --> 00:00:13.000 align:start position:0%
+little show. I'm Kate.
+&gt;&gt; Hi<00:00:10.400><c> Kate.</c><00:00:11.000><c> How</c><00:00:11.300><c> are</c><00:00:11.500><c> you</c><00:00:11.800><c> today?</c>
+
+00:00:13.000 --> 00:00:13.010 align:start position:0%
+&gt;&gt; Hi Kate. How are you today?
+ 
+
+00:00:13.010 --> 00:00:15.000 align:start position:0%
+&gt;&gt; Hi Kate. How are you today?
+&gt;&gt; Yes.<00:00:13.600><c> Very</c><00:00:14.000><c> well,</c><00:00:14.300><c> thanks.</c>
+`;
+
+const texts = (sentences: Sentence[]) => sentences.map((s) => s.text);
+
+test('rolling automatic captions: each word once, at its own time, no «&gt;&gt;»', () => {
+  const sentences = toSentences(parseTranscript(ROLLING));
+  assert.deepEqual(texts(sentences), [
+    // «I'm Kate.» alone is two words: it stays with the sentence before.
+    "Good evening and welcome to our little show. I'm Kate.",
+    'Hi Kate. How are you today?',
+    'Yes. Very well, thanks.',
+  ]);
+  // Each starts with its first word: «Good» when its line starts, then each speaker's line.
+  assert.deepEqual(
+    sentences.map((s) => s.start_ms),
+    [4010, 10010, 13010],
+  );
+  // «Good» is said at 4.01 s, «evening» at 4.5 s: words have their own times, not spread evenly.
+  assert.equal(parseTranscript(ROLLING)[1].start_ms, 4500);
+});
+
+test('a sentence of a word or two joins its neighbour; a long one is cut at a comma', () => {
+  const words = (text: string, from: number, step = 400) =>
+    text.split(' ').map((w, i) => ({ start_ms: from + i * step, end_ms: from + (i + 1) * step, text: w }));
+  const cues = [
+    ...words('Exactly.', 0),
+    ...words(
+      'We often just say I am good or I am okay, but there are so many more ways to say how we feel.',
+      1000,
+      300,
+    ),
+    ...words('>> Hm.', 10_000),
+    ...words('>> A simple thing is a nice message from a friend.', 12_000),
+  ];
+  const result = texts(toSentences(cues));
+  assert.deepEqual(result, [
+    'Exactly. We often just say I am good or I am okay,',
+    'but there are so many more ways to say how we feel.',
+    'Hm. A simple thing is a nice message from a friend.',
+  ]);
+  for (const text of result) assert.ok(text.split(' ').length <= 15, text);
+  // «Mr.» and «a.m.» don't end a sentence.
+  assert.deepEqual(texts(toSentences(words('Welcome back to Mr. English channel. The 6 a.m. alarm is loud.', 0))), [
+    'Welcome back to Mr. English channel.',
+    'The 6 a.m. alarm is loud.',
+  ]);
 });

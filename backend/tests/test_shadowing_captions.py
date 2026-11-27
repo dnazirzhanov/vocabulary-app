@@ -158,9 +158,10 @@ def test_speech_recognition_is_taken_but_never_a_translation() -> None:
     assert captions.pick_track(russian) is None
 
 
-def test_rolling_automatic_captions_become_each_line_once() -> None:
-    # As YouTube's json3 speech recognition comes: a window event, lines whose time overlaps the
-    # next one's, and «\n» events that only roll the window.
+def test_speech_recognition_comes_word_by_word_with_each_words_time() -> None:
+    # As YouTube's json3 speech recognition comes: a window event, words with their offsets in a
+    # line whose time overlaps the next one's, «\n» events that only roll the window, «>>» for
+    # another speaker, and sounds.
     data = {
         "events": [
             {"tStartMs": 0, "dDurationMs": 2290196, "id": 1},
@@ -173,12 +174,28 @@ def test_rolling_automatic_captions_become_each_line_once() -> None:
             {
                 "tStartMs": 4560,
                 "dDurationMs": 6720,
-                "segs": [{"utf8": "[Music] 24"}, {"utf8": " hours ♪"}],
+                "segs": [{"utf8": ">> [Music] 24"}, {"utf8": " hours ♪", "tOffsetMs": 840}],
             },
             {"tStartMs": 9000, "dDurationMs": 500, "segs": [{"utf8": "[Applause]"}]},
         ]
     }
     assert captions.cues_of(data) == [
-        {"start_ms": 0, "end_ms": 4560, "text": "Time feels"},
-        {"start_ms": 4560, "end_ms": 11280, "text": "24 hours"},
+        {"start_ms": 0, "end_ms": 680, "text": "Time"},
+        {"start_ms": 680, "end_ms": 1480, "text": "feels"},
+        {"start_ms": 4560, "end_ms": 5360, "text": ">>"},
+        {"start_ms": 4560, "end_ms": 5360, "text": "24"},
+        {"start_ms": 5400, "end_ms": 6200, "text": "hours"},
+    ]
+
+
+def test_the_channels_own_subtitles_come_line_by_line() -> None:
+    data = {
+        "events": [
+            {"tStartMs": 120, "dDurationMs": 10560, "segs": [{"utf8": "Time feels the same."}]},
+            {"tStartMs": 10680, "dDurationMs": 9830, "segs": [{"utf8": "But not for all."}]},
+        ]
+    }
+    assert captions.cues_of(data) == [
+        {"start_ms": 120, "end_ms": 10680, "text": "Time feels the same."},
+        {"start_ms": 10680, "end_ms": 20510, "text": "But not for all."},
     ]
