@@ -1216,6 +1216,13 @@ export const tg: Messages = {
   planStudyHint: 'Вақте ки дар барнома машғул мешавед, худ қайд мешавад',
   planByPractice: 'аз рӯи машғулот',
   planNotYet: 'Дар ҳамон рӯз қайд кардан мумкин аст',
+  linkMaterial: 'Мавод',
+  linkSearch: 'Ҷустуҷӯ',
+  linkEmpty: 'Ҳоло дар ин ҷо чизе нест',
+  linkLoadError: 'Рӯйхат бор нашуд. Боз кӯшиш кунед.',
+  linkRemove: (a: Arg) => `Маводи «${a}»-ро тоза кардан`,
+  linkOpen: 'Кушодан',
+  linkByDoing: 'Вақте ки инро иҷро мекунед, худ қайд мешавад',
   groupTasks: 'Вазифаҳои гурӯҳ',
   groupTaskAdd: 'Вазифа барои гурӯҳ',
   groupTasksEmpty:

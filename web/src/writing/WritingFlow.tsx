@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { request } from '../lib/api.ts';
 import { QuestionList } from './QuestionList.tsx';
 import { ResultScreen } from './ResultScreen.tsx';
 import { WritingArchive, type ArchivePlace } from './WritingArchive.tsx';
@@ -17,9 +18,24 @@ type View =
  * The whole Writing section: topics → questions → write → feedback. It keeps its own place, so the
  * app's navigation only has to know that «Письмо» is open.
  */
-export default function WritingFlow() {
+export default function WritingFlow({ questionId }: { questionId?: string } = {}) {
   const [view, setView] = useState<View>({ name: 'home' });
   const home: View = { name: 'home' };
+  // Opened from a group task's material (ADR 0096): straight to that question.
+  useEffect(() => {
+    if (!questionId) return;
+    let live = true;
+    request<WritingQuestion[]>('GET', '/writing/questions').then(
+      (all) => {
+        const question = all.find((q) => q.id === questionId);
+        if (live && question) setView({ name: 'write', question, back: { name: 'home' } });
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [questionId]);
 
   if (view.name === 'archive') {
     const { place } = view;

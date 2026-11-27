@@ -5,8 +5,18 @@
  */
 import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { t } from '../i18n/index.ts';
-import { BookIcon, CheckIcon, ClockIcon, ForwardIcon, PeopleIcon, RepeatIcon, TrashIcon } from '../ui/icons.tsx';
+import {
+  BookIcon,
+  CheckIcon,
+  ClockIcon,
+  ForwardIcon,
+  ClipIcon,
+  PeopleIcon,
+  RepeatIcon,
+  TrashIcon,
+} from '../ui/icons.tsx';
 import type { Item } from './api.ts';
+import { kindName } from './LinkPicker.tsx';
 import { ahead } from './sections.ts';
 import { dayLabel, repeatLabel, timeLabel } from './DatePicker.tsx';
 import styles from './Planner.module.css';
@@ -68,6 +78,8 @@ export function TaskRow({ item, today, burst = false, onToggle, onOpen, onTomorr
     item.overdue && item.on ? { icon: null, text: dayLabel(item.on, today) } : null,
     task.repeat_mask ? { icon: <RepeatIcon />, text: repeatLabel(task.repeat_mask) } : null,
     task.group_name ? { icon: <PeopleIcon />, text: task.group_name } : null,
+    // Its material's kind only: the title, often a whole question, is in the task's view.
+    task.link ? { icon: <ClipIcon />, text: kindName(task.link.kind) } : null,
     item.by_practice ? { icon: <BookIcon />, text: t.planByPractice } : null,
   ].filter((m) => m !== null);
 

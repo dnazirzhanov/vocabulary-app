@@ -1,12 +1,14 @@
 /**
  * Quick add (ADR 0084): one line, as in TickTick. Dates, times and repeats typed in it are found
  * and shown as chips (a tap keeps one as plain text); the buttons below set them by hand. Enter adds
- * the task and keeps the sheet open for the next one.
+ * the task and keeps the sheet open for the next one. A group's teacher can also attach material:
+ * a deck, a reading, an essay, a speaking question or a shadowing exercise (ADR 0096).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
-import { BookIcon, CalendarIcon, FlagIcon, SendIcon } from '../ui/icons.tsx';
-import type { TaskInput } from './api.ts';
+import { BookIcon, CalendarIcon, ClipIcon, CloseIcon, FlagIcon, SendIcon } from '../ui/icons.tsx';
+import type { LinkKind, TaskInput } from './api.ts';
+import { kindName, LinkPicker } from './LinkPicker.tsx';
 import { DatePicker, whenLabel, type When } from './DatePicker.tsx';
 import { parseQuick } from './parse.ts';
 import styles from './Planner.module.css';
@@ -18,11 +20,15 @@ interface Props {
   initial?: string;
   /** Starts as a study task (the empty day's example, ADR 0086). */
   study?: boolean;
+  /** A group's tasks: material can be attached (ADR 0096). */
+  linkable?: boolean;
   onAdd: (input: TaskInput) => Promise<void>;
   onClose: () => void;
 }
 
-export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClose }: Props) {
+type Chosen = { kind: LinkKind; ref: string; title: string };
+
+export function QuickAdd({ today, day, initial = '', study = false, linkable = false, onAdd, onClose }: Props) {
   const [text, setText] = useState(initial);
   const [ignore, setIgnore] = useState<string[]>([]);
   // Set by hand with the buttons; it wins over what the line says.
@@ -30,6 +36,8 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
   const [priority, setPriority] = useState(0);
   const [kind, setKind] = useState<'task' | 'study'>(study ? 'study' : 'task');
   const [picking, setPicking] = useState(false);
+  const [link, setLink] = useState<Chosen | null>(null);
+  const [linking, setLinking] = useState(false);
   const [problem, setProblem] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => input.current?.focus(), []);
@@ -51,12 +59,14 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
   const add = async () => {
     if (!title) return;
     // Cleared at once, so the next one can be typed while this one saves; back if it fails.
-    const kept = { text, ignore, manual, priority };
+    const kept = { text, ignore, manual, priority, link };
     setText('');
     setIgnore([]);
     setManual(null);
     setPriority(0);
     setPicking(false);
+    setLink(null);
+    setLinking(false);
     setProblem(false);
     input.current?.focus();
     try {
@@ -68,12 +78,14 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
         repeat_mask: when.repeatMask,
         priority: kept.priority,
         kind,
+        ...(kept.link ? { link: { kind: kept.link.kind, ref: kept.link.ref } } : {}),
       });
     } catch {
       setText((now) => now || kept.text);
       setIgnore(kept.ignore);
       setManual(kept.manual);
       setPriority(kept.priority);
+      setLink(kept.link);
       setProblem(true);
     }
   };
@@ -119,6 +131,24 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
               ))}
             </div>
           )}
+          {link && (
+            <div className={styles.foundRow}>
+              <span className={styles.linkChosen}>
+                <ClipIcon aria-hidden="true" />
+                <span>
+                  {kindName(link.kind)}: {link.title}
+                </span>
+                <button
+                  type="button"
+                  className={styles.linkChosenRemove}
+                  aria-label={t.linkRemove(link.title)}
+                  onClick={() => setLink(null)}
+                >
+                  <CloseIcon aria-hidden="true" />
+                </button>
+              </span>
+            </div>
+          )}
           <div className={styles.quickBar}>
             <button
               type="button"
@@ -150,6 +180,22 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
             >
               <BookIcon aria-hidden="true" />
             </button>
+            {linkable && (
+              <button
+                type="button"
+                className={styles.toolBtn}
+                aria-expanded={linking}
+                data-study={link ? true : undefined}
+                aria-label={t.linkMaterial}
+                title={t.linkMaterial}
+                onClick={() => {
+                  setLinking((v) => !v);
+                  setPicking(false);
+                }}
+              >
+                <ClipIcon aria-hidden="true" />
+              </button>
+            )}
             <button
               type="submit"
               className={styles.sendBtn}
@@ -166,6 +212,16 @@ export function QuickAdd({ today, day, initial = '', study = false, onAdd, onClo
             </p>
           )}
           {picking && <DatePicker value={when} today={today} onChange={setManual} />}
+          {linking && (
+            <LinkPicker
+              chosen={link ? `${link.kind}:${link.ref}` : null}
+              onPick={(chosen) => {
+                setLink(chosen);
+                setLinking(false);
+                input.current?.focus();
+              }}
+            />
+          )}
         </form>
       </section>
     </div>

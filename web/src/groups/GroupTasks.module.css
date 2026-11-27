@@ -193,3 +193,39 @@
   width: 16px;
   height: 16px;
 }
+
+/* A task's material (ADR 0096), on the teacher's opened task. */
+.material {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-top: 4px;
+  font-weight: 700;
+}
+
+.material svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-primary-strong);
+}
+
+.material span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.materialOpen {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

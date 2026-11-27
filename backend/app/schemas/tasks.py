@@ -16,6 +16,21 @@ Kind = Literal["task", "study"]
 MarkState = Literal["done", "skipped"]
 
 
+# A group task's material (ADR 0096).
+LinkKind = Literal["deck", "reading", "writing", "speaking", "shadowing"]
+
+
+class LinkIn(BaseModel):
+    kind: LinkKind
+    ref: Annotated[str, StringConstraints(min_length=1, max_length=80)]
+
+
+class LinkOut(BaseModel):
+    kind: LinkKind
+    ref: str
+    title: str
+
+
 class TaskIn(BaseModel):
     title: Title
     notes: Notes = ""
@@ -25,6 +40,7 @@ class TaskIn(BaseModel):
     repeat_mask: Mask = 0
     priority: Priority = 0
     kind: Kind = "task"
+    link: LinkIn | None = None
 
 
 class TaskPatch(BaseModel):
@@ -38,6 +54,8 @@ class TaskPatch(BaseModel):
     repeat_mask: Mask | None = None
     priority: Priority | None = None
     kind: Kind | None = None
+    # Sent: linked to this (null: no material any more).
+    link: LinkIn | None = None
 
 
 class TaskOut(BaseModel):
@@ -54,6 +72,7 @@ class TaskOut(BaseModel):
     # A group's task (ADR 0085): set by its teacher, ticked by each member for themselves.
     group_id: uuid.UUID | None = None
     group_name: str | None = None
+    link: LinkOut | None = None
 
 
 class TaskItemOut(BaseModel):
@@ -63,7 +82,8 @@ class TaskItemOut(BaseModel):
     on: date | None
     state: MarkState | None
     overdue: bool = False
-    # A study task counted done because the learner practised that day (ADR 0086), not ticked.
+    # Counted done because the learner practised that day (a study task, ADR 0086) or did the
+    # task's material (ADR 0096), not ticked.
     by_practice: bool = False
 
 

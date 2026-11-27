@@ -7,8 +7,8 @@
 import { useState } from 'react';
 import { t } from '../i18n/index.ts';
 import type { Board, GroupTask } from '../lib/types.ts';
-import { PlusIcon, TrashIcon } from '../ui/icons.tsx';
-import { tasksApi, type Item, type TaskInput } from '../planner/api.ts';
+import { ClipIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { tasksApi, type Item, type TaskInput, type TaskLink } from '../planner/api.ts';
 import { TaskView } from '../planner/TaskView.tsx';
 import { playTaskDone } from '../lib/sounds.ts';
 import { whenLabel } from '../planner/DatePicker.tsx';
@@ -18,6 +18,8 @@ import styles from './GroupTasks.module.css';
 interface Props {
   board: Board;
   onChanged: () => void;
+  /** Opens a task's material (ADR 0096). */
+  onOpenLink?: (link: TaskLink) => void;
 }
 
 const MARK = {
@@ -27,7 +29,7 @@ const MARK = {
   off: () => t.taskMarkOff,
 };
 
-export function GroupTasks({ board, onChanged }: Props) {
+export function GroupTasks({ board, onChanged, onOpenLink }: Props) {
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Item | null>(null);
@@ -126,6 +128,21 @@ export function GroupTasks({ board, onChanged }: Props) {
               </button>
               {teacher && expanded && (
                 <div className={styles.detail}>
+                  {task.task.link && (
+                    <p className={styles.material}>
+                      <ClipIcon aria-hidden="true" />
+                      <span>{task.task.link.title}</span>
+                      {onOpenLink && (
+                        <button
+                          type="button"
+                          className={styles.materialOpen}
+                          onClick={() => onOpenLink(task.task.link!)}
+                        >
+                          {t.linkOpen}
+                        </button>
+                      )}
+                    </p>
+                  )}
                   <ul className={styles.members}>
                     {/* The teacher follows everyone; a student opens the task's view instead (ADR 0092). */}
                     {students.map((row) => (
@@ -168,6 +185,7 @@ export function GroupTasks({ board, onChanged }: Props) {
           key={`${viewing.task.id}:${viewing.on ?? ''}`}
           item={viewing}
           today={board.today}
+          onOpenLink={onOpenLink}
           onClose={() => setViewing(null)}
           onToggle={() => mark(viewing, viewing.state === 'done' ? null : 'done')}
           onSkip={() => {
@@ -176,7 +194,9 @@ export function GroupTasks({ board, onChanged }: Props) {
           }}
         />
       )}
-      {adding && <QuickAdd today={board.today} day={board.today} onAdd={add} onClose={() => setAdding(false)} />}
+      {adding && (
+        <QuickAdd linkable today={board.today} day={board.today} onAdd={add} onClose={() => setAdding(false)} />
+      )}
     </section>
   );
 }

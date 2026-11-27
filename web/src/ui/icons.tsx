@@ -285,3 +285,10 @@ export const ClockIcon = (props: IconProps) => (
     <path d="M12 7.5V12l3 2" />
   </svg>
 );
+
+/** A task's material (ADR 0096): a paperclip. */
+export const ClipIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
+  </svg>
+);
