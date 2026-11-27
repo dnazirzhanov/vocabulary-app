@@ -38,3 +38,29 @@ sentence as the default, with speaking along with the whole part kept as a secon
 - The pause lands within about 50 ms of the sentence's end, plus YouTube's own reporting delay.
 - iOS may lower the video's sound while the microphone is open, or want a first tap on the video itself before
   our buttons can play it. Both need checking on a phone.
+
+## Amendment (27 November 2026): how the sentences are made
+The owner, on a real podcast's automatic captions: «sometimes the sentences are too short and not worth for the try.
+and sometimes, they are too long. and there is clearly misalignment with the audio and the text».
+
+What went wrong:
+- **Repeated text:** YouTube's automatic `.vtt` repeats each line above the new one (a rolling window), and the
+  parser kept both. So each sentence carried the words of the line before it, and its text no longer matched its
+  time in the video.
+- **Speaker marks:** «>>» (another speaker) was shown as «&gt;&gt;».
+- **Bad lengths:** every «Yes.» or «Hm.» became a sentence of its own.
+
+Now:
+- **Each word said once, at its own time:**
+  - only the new words of a rolling cue are kept, and its 10 ms scrolling cues are dropped;
+  - each word takes its own time when the captions give one: the inline `<00:00:09.120>` of a `.vtt`, or the
+    `tOffsetMs` of the server's json3 (ADR 0100). So a sentence starts and stops with its words, not with a
+    caption line.
+- **Where sentences end:** at `.?!` but not after «Mr.», «a.m.» and other abbreviations, and where another
+  speaker starts («>>», which is never shown).
+- **Lengths:**
+  - at most 15 words and 8 s, so a longer one is cut at a comma or a pause near its middle;
+  - at least 3 words and 1.2 s, so a shorter one joins a neighbour, the same speaker's first.
+- **On a real 14-minute podcast:** 238 sentences of 3–15 words, none over 7.6 s.
+
+Exercises saved before this keep their sentences; making one again from the same video gives the new ones.
