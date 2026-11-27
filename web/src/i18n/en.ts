@@ -380,6 +380,7 @@ export const en: Messages = {
   answerNoChoice: 'Choose one of the options.',
   fromGroups: 'From groups',
   groupLabel: 'Group',
+  groupsLabel: 'Groups',
   dueDate: 'Deadline',
   wordsToLearn: 'Words to learn',
   addQuestion: 'Add a question',
@@ -400,6 +401,7 @@ export const en: Messages = {
   wordsPicked: (n: number) => `Picked: ${n}`,
   optionN: (n: number) => `Option ${n}`,
   givenToGroup: (a: Arg) => `Done: the text is with «${a}»`,
+  givenToGroups: (names: string) => `Done: the text is with ${names}`,
   wordsForText: (n: number) => `Words for this text · ${n}`,
   groupAnswers: 'The group’s answers',
   noAnswersYet: 'no answers yet',
@@ -1500,5 +1502,6 @@ export const en: Messages = {
   shGiveWhen: 'When',
   shGiveTaskTitle: (title: string) => `Shadowing: ${title}`,
   shGiven: (group: string) => `Task in «${group}»`,
+  shGivenMany: (names: string) => `Tasks in ${names}`,
   spToList: 'Back to the exercises',
 };

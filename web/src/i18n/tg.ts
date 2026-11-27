@@ -379,6 +379,7 @@ export const tg: Messages = {
   answerNoChoice: 'Яке аз вариантҳоро интихоб кунед.',
   fromGroups: 'Аз гурӯҳҳо',
   groupLabel: 'Гурӯҳ',
+  groupsLabel: 'Гурӯҳҳо',
   dueDate: 'Мӯҳлат',
   wordsToLearn: 'Калимаҳо барои омӯзиш',
   addQuestion: 'Илова кардани савол',
@@ -399,6 +400,7 @@ export const tg: Messages = {
   wordsPicked: (n: number) => `Интихоб шуд: ${n}`,
   optionN: (n: number) => `Варианти ${n}`,
   givenToGroup: (a: Arg) => `Тайёр: матн дар гурӯҳи «${a}»`,
+  givenToGroups: (names: string) => `Тайёр: матн дар гурӯҳҳои ${names}`,
   wordsForText: (n: number) => `Калимаҳо ба матн · ${n}`,
   groupAnswers: 'Ҷавобҳои гурӯҳ',
   noAnswersYet: 'ҳоло ҷавоб нест',
@@ -1487,5 +1489,6 @@ export const tg: Messages = {
   shGiveWhen: 'Кай',
   shGiveTaskTitle: (title: string) => `Шэдоуинг: ${title}`,
   shGiven: (group: string) => `Супориш дар «${group}»`,
+  shGivenMany: (names: string) => `Супоришҳо дар ${names}`,
   spToList: 'Бозгашт ба машқҳо',
 };

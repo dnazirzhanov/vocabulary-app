@@ -49,10 +49,10 @@ function candidates(article: Article, kept: ReadonlySet<string>): GivenWord[] {
 }
 
 /**
- * «Дать группе» (round 2, D): one screen, top to bottom — the group and a deadline, the words to
+ * «Дать группе» (round 2, D): one screen, top to bottom — the groups and a deadline, the words to
  * learn from the text, the questions (the giver's to change, add or drop), then «Дать группе».
  * The opposite of a form in a classroom tool: everything starts filled in; most givers only pick
- * the group.
+ * the groups (one or several: each gets the same text, words and questions).
  */
 export function GiveReading({
   account,
@@ -65,7 +65,7 @@ export function GiveReading({
 }) {
   const [article, setArticle] = useState<Article | null>(null);
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
-  const [groupId, setGroupId] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const [due, setDue] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   // The words the giver kept from this text: offered even if everyday, and picked to start with.
@@ -74,7 +74,8 @@ export function GiveReading({
   const [questions, setQuestions] = useState<GivenQuestion[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [given, setGiven] = useState<string | null>(null);
+  const [given, setGiven] = useState<string[]>([]);
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -85,7 +86,7 @@ export function GiveReading({
         setArticle(loaded);
         setQuestions(editable(loaded.questions));
         setGroups(mine);
-        if (mine.length === 1) setGroupId(mine[0].id);
+        if (mine.length === 1) setChosen(new Set([mine[0].id]));
         // The words the giver kept from this text are picked to start with.
         const db = localDb();
         if (db) {
@@ -121,25 +122,40 @@ export function GiveReading({
       return next;
     });
 
+  const choose = (id: string) =>
+    setChosen((before) => {
+      const next = new Set(before);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const give = async () => {
-    if (!article || !groupId) return;
+    const targets = (groups ?? []).filter((group) => chosen.has(group.id));
+    if (!article || targets.length === 0) return;
     if (!questions.every(sound)) return setProblem(t.questionsNeedFixing);
     setBusy(true);
     setProblem(null);
-    try {
-      const done = await api.giveReading({
-        group_id: groupId,
-        reading_ref: readingRef(article.id),
-        words: words.filter((word) => picked.has(word.headword)),
-        questions: questions.map((one) => ({ ...one, q: one.q.trim() })),
-        due_on: due || null,
-      });
-      setGiven(done.group_name);
-    } catch (error) {
-      setProblem(describeError(error));
-    } finally {
-      setBusy(false);
+    // One group after another: a failure keeps the ones already given and says which is left.
+    for (const group of targets) {
+      try {
+        const done = await api.giveReading({
+          group_id: group.id,
+          reading_ref: readingRef(article.id),
+          words: words.filter((word) => picked.has(word.headword)),
+          questions: questions.map((one) => ({ ...one, q: one.q.trim() })),
+          due_on: due || null,
+        });
+        setGiven((was) => [...was, done.group_name]);
+        setChosen((was) => new Set([...was].filter((id) => id !== group.id)));
+      } catch (error) {
+        setProblem(`${group.name}: ${describeError(error)}`);
+        setBusy(false);
+        return;
+      }
     }
+    setBusy(false);
+    setFinished(true);
   };
 
   return (
@@ -157,9 +173,13 @@ export function GiveReading({
               {article.title}
             </p>
           )}
-          {given ? (
+          {finished ? (
             <div className={styles.done} role="status">
-              <p>{t.givenToGroup(given)}</p>
+              <p>
+                {given.length === 1
+                  ? t.givenToGroup(given[0])
+                  : t.givenToGroups(given.map((name) => `«${name}»`).join(', '))}
+              </p>
               <PrimaryButton type="button" onClick={onBack}>
                 {t.backToText}
               </PrimaryButton>
@@ -170,14 +190,14 @@ export function GiveReading({
               {groups && groups.length > 0 && article && (
                 <>
                   <fieldset className={styles.block}>
-                    <legend>{t.groupLabel}</legend>
+                    <legend>{groups.length > 1 ? t.groupsLabel : t.groupLabel}</legend>
                     <div className={styles.chips}>
                       {groups.map((group) => (
                         <button
                           key={group.id}
                           type="button"
-                          aria-pressed={groupId === group.id}
-                          onClick={() => setGroupId(group.id)}
+                          aria-pressed={chosen.has(group.id)}
+                          onClick={() => choose(group.id)}
                         >
                           {group.name}
                         </button>
@@ -232,7 +252,7 @@ export function GiveReading({
                 </p>
               )}
               {groups && groups.length > 0 && (
-                <PrimaryButton type="button" disabled={!groupId || busy} onClick={() => void give()}>
+                <PrimaryButton type="button" disabled={chosen.size === 0 || busy} onClick={() => void give()}>
                   {t.giveToAGroup}
                 </PrimaryButton>
               )}
