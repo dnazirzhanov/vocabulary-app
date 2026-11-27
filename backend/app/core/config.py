@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     speaking_testers: str = ""
     # Speaking sessions per learner per day (Chunk 2: upload-only; limit guards storage cost).
     speaking_sessions_per_day: int = 10
+    # A YouTube video's captions fetched by the server with yt-dlp (ADR 0100); off falls back to
+    # pasting the text. Each learner may ask this often an hour (videos already fetched are free).
+    youtube_captions: bool = True
+    youtube_captions_per_hour: int = 30
     # Max audio bytes per recording accepted by the upload endpoint; 10 MB covers ~2 min opus.
     speaking_max_audio_bytes: int = 10 * 1024 * 1024
     # Audio storage: 'filesystem' (dev/tests, writes to speaking_audio_dir) or 'supabase'.

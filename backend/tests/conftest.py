@@ -86,7 +86,7 @@ def db(database: None) -> Iterator[Session]:
                 " group_members, deck_assignments, deleted_logins, study_day_totals,"
                 " speaking_assessments, speaking_jobs, speaking_audio_assets, speaking_sessions,"
                 " pronunciation_audio, learner_facts, mentor_timeline, mentor_events,"
-                " shadowing_attempts, shadowing_exercises"
+                " shadowing_attempts, shadowing_exercises, youtube_transcripts"
                 " CASCADE"
             )
         )

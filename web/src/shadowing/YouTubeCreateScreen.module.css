@@ -345,3 +345,54 @@
 .step :is(input, textarea, select, button, label) {
   scroll-margin-bottom: 96px;
 }
+
+/* The video's text found by the server (ADR 0100): a calm note, with pasting one's own beside it. */
+.looking {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.looking::before {
+  content: '';
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: var(--space-2);
+  vertical-align: -0.1em;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .looking::before {
+    animation: none;
+  }
+}
+
+.foundRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.found {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-success-tint);
+  color: var(--color-success);
+  font-weight: var(--weight-strong, 600);
+}
+
+.found::before {
+  content: '✓ ';
+}

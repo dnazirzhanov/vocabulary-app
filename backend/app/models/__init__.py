@@ -65,6 +65,7 @@ from app.models.user import (
     WordingReport,
 )
 from app.models.writing import WritingSubmission
+from app.models.youtube_transcript import YouTubeTranscript
 
 __all__ = [
     "CardReport",
@@ -125,4 +126,5 @@ __all__ = [
     "Word",
     "WordingReport",
     "WritingSubmission",
+    "YouTubeTranscript",
 ]

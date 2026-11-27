@@ -20,6 +20,7 @@ dependencies = [
     "spacy>=3.7,<4",
     "sqlalchemy>=2.1.6",
     "uvicorn[standard]>=0.54.0",
+    "yt-dlp>=2026.8.19",
 ]
 
 [tool.uv]
@@ -57,8 +58,8 @@ plugins = ["pydantic.mypy"]
 exclude = ["alembic/versions/"]
 
 [[tool.mypy.overrides]]
-# Web Push (ADR 0031): no type information shipped.
-module = ["pywebpush", "py_vapid", "py_vapid.*"]
+# Web Push (ADR 0031) and yt-dlp (ADR 0100): no type information shipped.
+module = ["pywebpush", "py_vapid", "py_vapid.*", "yt_dlp", "yt_dlp.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

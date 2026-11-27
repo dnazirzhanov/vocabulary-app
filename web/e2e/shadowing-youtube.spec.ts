@@ -4,8 +4,8 @@ import { DEMO, expect, named, test } from './learner.ts';
 /**
  * Shadowing from a YouTube video (ADR 0097, 0098) for a learner who isn't a Speaking tester: it
  * is everyone's. YouTube isn't reached from tests: its player script is replaced by a stand-in with
- * the same API that keeps time by itself, and the server's look at YouTube (oEmbed) is answered
- * here; the backend tests check that call.
+ * the same API that keeps time by itself, and the server's looks at YouTube (oEmbed, the video's
+ * captions) are answered here; the backend tests check those calls.
  */
 test.use({
   viewport: { width: 390, height: 844 },
@@ -52,7 +52,20 @@ window.YT = {
 setTimeout(() => window.onYouTubeIframeAPIReady && window.onYouTubeIframeAPIReady(), 0);
 `;
 
-async function fakeYouTube(page: Page, check: { status: number; body: unknown }) {
+const NO_CAPTIONS = { status: 404, body: { error: { code: 'no_captions', message: 'No captions' } } };
+
+async function fakeYouTube(
+  page: Page,
+  check: { status: number; body: unknown },
+  transcript: { status: number; body: unknown } = NO_CAPTIONS,
+) {
+  await page.route('**/api/shadowing/youtube/transcript', (route) =>
+    route.fulfill({
+      status: transcript.status,
+      contentType: 'application/json',
+      body: JSON.stringify(transcript.body),
+    }),
+  );
   await page.route('https://www.youtube.com/iframe_api', (route) =>
     route.fulfill({ contentType: 'text/javascript', body: FAKE_YT }),
   );
@@ -99,6 +112,8 @@ test('a learner pastes a link and the video’s text, picks the part and gets an
   await expect(page.getByText('Daily English: Food')).toBeVisible();
   await expect(page.locator(`[data-fake-youtube="${VIDEO}"]`)).toBeVisible();
 
+  // The video has no captions of its own: the learner pastes the text.
+  await expect(page.getByText('Текст видео сам не нашёлся.', { exact: false })).toBeVisible();
   // Text without times can't be used: the learner is told what to copy.
   const text = page.getByLabel('Текст со временем (0:00 …)');
   await text.fill('Good morning, everyone.');
@@ -148,6 +163,80 @@ test('a learner pastes a link and the video’s text, picks the part and gets an
   ]);
   await page.getByRole('button', { name: 'Назад' }).click();
   await expect(page.getByRole('region', { name: 'Мои' }).getByText('Food talk')).toBeVisible();
+});
+
+test('the video’s text is found by itself; the learner picks which ten minutes to learn', async ({ page }) => {
+  // Half an hour of automatic captions, a sentence every 5 s.
+  const cues = Array.from({ length: 360 }, (_, i) => ({
+    start_ms: i * 5000,
+    end_ms: i * 5000 + 5000,
+    text: `This is sentence number ${i + 1}.`,
+  }));
+  await fakeYouTube(page, VIDEO_FOUND, { status: 200, body: { kind: 'auto', cues } });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /Из YouTube/ }).click();
+  await page.getByLabel('Ссылка из YouTube').fill(`https://www.youtube.com/watch?v=${VIDEO}`);
+  await page.getByRole('button', { name: 'Проверить' }).click();
+
+  // Nothing to paste: the text is there, said to be automatic, and the first minute is suggested.
+  await expect(page.getByText('Текст из автоматических субтитров', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Текст со временем (0:00 …)')).toBeHidden();
+  await expect(page.getByText('Предложений: 12 · 1:00')).toBeVisible();
+
+  // From 12:00, ten minutes.
+  await page.getByLabel('Начать с').selectOption('12');
+  await page.getByLabel('Сколько учить').selectOption('10');
+  await expect(page.getByText('Предложений: 120 · 10:00')).toBeVisible();
+  const sentences = page.getByRole('list', { name: 'Предложения' }).getByRole('textbox');
+  await expect(sentences.first()).toHaveValue('This is sentence number 145.');
+
+  // Their own text can still be pasted instead.
+  await page.getByRole('button', { name: 'Вставить свой текст' }).click();
+  await expect(page.getByLabel('Текст со временем (0:00 …)')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Сохранить упражнение' }).click();
+  await expect(page.getByText('Предложение 1 из 120').first()).toBeVisible();
+  const made = (await (await page.request.get('/api/shadowing/exercises')).json()) as {
+    mine: boolean;
+    clip_start_ms: number;
+    clip_end_ms: number;
+    sentences: unknown[];
+  }[];
+  expect(made.filter((e) => e.mine)).toEqual([
+    expect.objectContaining({ clip_start_ms: 720_000, clip_end_ms: 1_320_000 }),
+  ]);
+  expect(made.find((e) => e.mine)?.sentences).toHaveLength(120);
+});
+
+test('when YouTube refuses for a moment, asking again brings the text', async ({ page }) => {
+  // 27 Nov: YouTube told the server «confirm you're not a bot» for a while; a minute later it answered.
+  await fakeYouTube(page, VIDEO_FOUND);
+  let asks = 0;
+  await page.route('**/api/shadowing/youtube/transcript', (route) => {
+    asks += 1;
+    return asks === 1
+      ? route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'captions_refused', message: 'Not now' } }),
+        })
+      : route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ kind: 'manual', cues: [{ start_ms: 0, end_ms: 3000, text: 'Hello there.' }] }),
+        });
+  });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /Из YouTube/ }).click();
+  await page.getByLabel('Ссылка из YouTube').fill(`https://youtu.be/${VIDEO}`);
+  await page.getByRole('button', { name: 'Проверить' }).click();
+
+  // Told it may work again, with the paste box meanwhile.
+  await expect(page.getByText('YouTube сейчас не дал текст.', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Текст со временем (0:00 …)')).toBeVisible();
+  await page.getByRole('button', { name: 'Попробовать ещё раз' }).click();
+  await expect(page.getByText('Текст взяли из субтитров автора')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Предложения' }).getByRole('textbox')).toHaveValue('Hello there.');
 });
 
 test('sentence by sentence: listen, your turn, compare; finishing counts as done', async ({ page }) => {
