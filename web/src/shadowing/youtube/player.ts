@@ -44,7 +44,45 @@ declare global {
 
 const API = 'https://www.youtube.com/iframe_api';
 const PLAYING = 1;
-const POLL_MS = 50;
+const POLL_MS = 20;
+/** Paused this much before the end: the pause itself takes a moment to be heard. */
+export const EARLY_MS = 60;
+
+/**
+ * When to stop a sentence. YouTube's player says where it is only a few times a second, and right
+ * after a seek it may still say where it was before: so a time is believed only once one near the
+ * start has come, and between reports the time runs on by the clock. Without this the end of a
+ * sentence ran into the next one's first word, and a sentence played again after a later one could
+ * stop at once.
+ */
+export function segmentClock(startMs: number, endMs: number, rate: number, clock: () => number) {
+  const seekedAt = clock();
+  let fresh = false;
+  let reported = Number.NaN;
+  let base = 0;
+  let baseAt = 0;
+  return {
+    /** With the player's state and its reported time: whether to pause now. */
+    shouldStop(playing: boolean, reportedMs: number): boolean {
+      if (!playing) {
+        reported = Number.NaN; // buffering or an ad: the clock waits too
+        return false;
+      }
+      if (!fresh) {
+        const nearStart = reportedMs >= startMs - 2_000 && reportedMs <= startMs + 500;
+        // A player that never says so (a second of playing): believe it anyway.
+        if (!nearStart && clock() - seekedAt < 1_000) return false;
+        fresh = true;
+      }
+      if (reportedMs !== reported) {
+        reported = reportedMs;
+        base = reportedMs;
+        baseAt = clock();
+      }
+      return base + (clock() - baseAt) * rate >= endMs - EARLY_MS;
+    },
+  };
+}
 
 let loading: Promise<YTNamespace> | null = null;
 
@@ -153,13 +191,13 @@ export function createPlayer(element: HTMLElement, videoId: string, events: Play
       p.setPlaybackRate(rate);
       seek(startMs);
       p.playVideo();
+      const watch = segmentClock(startMs, endMs, rate, () => performance.now());
       return new Promise((resolve) => {
         finishTurn = resolve;
         timer = setInterval(() => {
           if (mine !== turn) return;
           // Only real playback counts: an ad or buffering first doesn't end the sentence.
-          if (p.getPlayerState() !== PLAYING) return;
-          if (p.getCurrentTime() * 1000 >= endMs) {
+          if (watch.shouldStop(p.getPlayerState() === PLAYING, p.getCurrentTime() * 1000)) {
             p.pauseVideo();
             stopWatching('ended');
           }

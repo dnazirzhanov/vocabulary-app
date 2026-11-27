@@ -27,7 +27,7 @@ def as_(name: str, moment: datetime = MOMENT) -> dict[str, str]:
     return {"X-Dev-User": name} | at(moment)
 
 
-Found = tuple[str, list[dict[str, Any]]] | None
+Found = captions.Captions | tuple[str, list[dict[str, Any]]] | None
 
 
 class FakeYouTube:
@@ -60,10 +60,30 @@ def test_captions_are_fetched_once_and_kept_for_everyone(
 ) -> None:
     first = ask(client, "ann")
     assert first.status_code == 200
-    assert first.json() == {"kind": "manual", "cues": CUES}
+    assert first.json() == {"kind": "manual", "cues": CUES, "words": None}
     again = ask(client, "ben", MOMENT + timedelta(days=30))
     assert again.json() == first.json()
     assert youtube.asked == [VIDEO]
+
+
+def test_the_channels_lines_come_with_the_recognised_words_for_their_times(
+    client: TestClient, youtube: FakeYouTube
+) -> None:
+    words = [
+        {"start_ms": 120, "end_ms": 600, "text": "Time"},
+        {"start_ms": 600, "end_ms": 1000, "text": "feels"},
+    ]
+    youtube.answer = captions.Captions("manual", CUES, words)
+    first = ask(client)
+    assert first.json() == {"kind": "manual", "cues": CUES, "words": words}
+    # Kept with them, for the next learner.
+    assert ask(client, "ben").json()["words"] == words
+    assert youtube.asked == [VIDEO]
+
+
+def test_automatic_captions_are_words_already(client: TestClient, youtube: FakeYouTube) -> None:
+    youtube.answer = captions.Captions("auto", CUES, None)
+    assert ask(client).json() == {"kind": "auto", "cues": CUES, "words": None}
 
 
 def test_a_video_without_captions_is_tried_again_only_after_an_hour(

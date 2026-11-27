@@ -60,6 +60,8 @@ export interface YouTubeTranscript {
   /** 'manual': the channel's own subtitles; 'auto': YouTube's speech recognition. */
   kind: 'manual' | 'auto';
   cues: { start_ms: number; end_ms: number; text: string }[];
+  /** With 'manual': YouTube's recognised words, one each, to time the channel's words. */
+  words?: { start_ms: number; end_ms: number; text: string }[] | null;
 }
 
 /** The video's own captions, fetched by the server (ADR 0100); fails when there are none. */

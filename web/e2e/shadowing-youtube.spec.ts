@@ -208,6 +208,62 @@ test('the video’s text is found by itself; the learner picks which ten minutes
   expect(made.find((e) => e.mine)?.sentences).toHaveLength(120);
 });
 
+test('the channel’s lines are timed by the recognised words; the text can be shifted and a sentence split', async ({
+  page,
+}) => {
+  // One subtitle line from 0 to 9 s, but its words are said from 2 s, 0.3 s apart.
+  const said = 'hello there my friend how are you today'.split(' ');
+  await fakeYouTube(page, VIDEO_FOUND, {
+    status: 200,
+    body: {
+      kind: 'manual',
+      cues: [{ start_ms: 0, end_ms: 9000, text: 'Hello there, my friend. How are you today?' }],
+      words: said.map((text, i) => ({ start_ms: 2000 + i * 300, end_ms: 2250 + i * 300, text })),
+    },
+  });
+  await openShadowing(page);
+  await page.getByRole('button', { name: /Из YouTube/ }).click();
+  await page.getByLabel('Ссылка из YouTube').fill(`https://youtu.be/${VIDEO}`);
+  await page.getByRole('button', { name: 'Проверить' }).click();
+  await expect(page.getByText('Текст взяли из субтитров автора')).toBeVisible();
+  const ytLog = () => page.evaluate(() => (window as unknown as { __yt: { log: [string, number][] } }).__yt.log);
+  const lastSeek = async () => (await ytLog()).filter(([what]) => what === 'seek').at(-1)?.[1];
+
+  // ▶ plays from just before the first word is said (1.85 s), not from the line's 0 s.
+  await page.getByRole('button', { name: 'Послушать предложение 1' }).click();
+  await expect.poll(lastSeek).toBe(1.85);
+  await page.getByRole('button', { name: 'Остановить' }).click();
+
+  // The whole text 0.3 s later.
+  const shift = page.getByRole('group', { name: 'Текст и звук' });
+  for (let i = 0; i < 3; i += 1) await shift.getByRole('button', { name: 'Позже' }).click();
+  await expect(shift.getByRole('status')).toHaveText('+0,3 с');
+  await page.getByRole('button', { name: 'Послушать предложение 1' }).click();
+  await expect.poll(lastSeek).toBe(2.15);
+  await page.getByRole('button', { name: 'Остановить' }).click();
+
+  // Split before «How».
+  await page.getByRole('button', { name: 'Разделить' }).click();
+  await page
+    .getByRole('group', { name: 'Нажмите слово, с которого начнётся новое предложение' })
+    .getByRole('button', { name: 'How' })
+    .click();
+  const sentences = page.getByRole('list', { name: 'Предложения' }).getByRole('textbox');
+  await expect(sentences).toHaveCount(2);
+  await expect(sentences.nth(0)).toHaveValue('Hello there, my friend.');
+  await expect(sentences.nth(1)).toHaveValue('How are you today?');
+
+  await page.getByRole('button', { name: 'Сохранить упражнение' }).click();
+  await expect(page.getByText('Предложение 1 из 2').first()).toBeVisible();
+  const made = (await (await page.request.get('/api/shadowing/exercises')).json()) as {
+    mine: boolean;
+    sentences: { start_ms: number; text: string }[];
+  }[];
+  const mine = made.find((e) => e.mine)!;
+  expect(mine.sentences.map((s) => s.text)).toEqual(['Hello there, my friend.', 'How are you today?']);
+  expect(mine.sentences[0].start_ms).toBe(2150);
+});
+
 test('when YouTube refuses for a moment, asking again brings the text', async ({ page }) => {
   // 27 Nov: YouTube told the server «confirm you're not a bot» for a while; a minute later it answered.
   await fakeYouTube(page, VIDEO_FOUND);
@@ -278,8 +334,9 @@ test('sentence by sentence: listen, your turn, compare; finishing counts as done
   ][];
   expect(log.find(([what]) => what === 'seek')).toEqual(['seek', 1]);
   const paused = log.filter(([what]) => what === 'pause').at(-1)!;
-  expect(paused[1]).toBeGreaterThanOrEqual(2);
-  expect(paused[1]).toBeLessThan(2.3);
+  // Paused just before the sentence's end (its pause takes a moment to be heard), never after it.
+  expect(paused[1]).toBeGreaterThanOrEqual(1.9);
+  expect(paused[1]).toBeLessThan(2);
 
   // 2. Your turn: the microphone records, the video stays paused.
   await turn.click();

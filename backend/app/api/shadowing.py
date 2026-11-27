@@ -82,8 +82,10 @@ def youtube_transcript(
     settings: DepSettings,
 ) -> YouTubeTranscriptOut:
     """The video's own captions, fetched once for everyone (ADR 0100); 404 means paste them."""
-    kind, cues = captions_svc.transcript(db, body.youtube_id, now, settings.youtube_captions)
-    return YouTubeTranscriptOut(kind="manual" if kind == "manual" else "auto", cues=cues)
+    found = captions_svc.transcript(db, body.youtube_id, now, settings.youtube_captions)
+    kind = "manual" if found.kind == "manual" else "auto"
+    words = found.words if kind == "manual" else None
+    return YouTubeTranscriptOut(kind=kind, cues=found.cues, words=words)
 
 
 @router.post("/shadowing/exercises", status_code=201)

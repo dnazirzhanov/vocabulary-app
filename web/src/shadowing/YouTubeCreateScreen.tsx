@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { t } from '../i18n/index.ts';
+import { t, uiLanguage } from '../i18n/index.ts';
 import { describeError } from '../lib/api.ts';
 import { BackButton } from '../ui/BackButton.tsx';
 import { CloseIcon } from '../ui/icons.tsx';
@@ -14,9 +14,12 @@ import {
 import { PauseIcon, PlayIcon } from './AudioPlayer.tsx';
 import { clock } from './oneAtATime.ts';
 import {
+  alignWords,
   mergeWithNext,
   parseTranscript,
   rangeFrom,
+  shiftTimes,
+  splitAt,
   suggestedRange,
   toSentences,
   type Cue,
@@ -34,6 +37,9 @@ interface Props {
 const LEVELS: ShadowingExercise['difficulty'][] = ['beginner', 'intermediate', 'advanced'];
 /** As the server allows (ADR 0097). */
 const MAX_CLIP_MS = 10 * 60 * 1000;
+/** The «text earlier / later» step and limit. */
+const SHIFT_STEP_MS = 100;
+const MAX_SHIFT_MS = 2_000;
 /** How long a part may be, in minutes; one minute to start with. */
 const LENGTHS = [1, 2, 3, 5, 10];
 
@@ -60,6 +66,12 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
   const [found, setFound] = useState<Found | null>(null);
   const [pasteOwn, setPasteOwn] = useState(false);
   const [minutes, setMinutes] = useState(1);
+  /** YouTube's recognised words for this video, when the server has them: the text's times. */
+  const [heard, setHeard] = useState<Cue[] | null>(null);
+  /** The whole text earlier (−) or later (+), for subtitles a little off from the sound. */
+  const [shift, setShift] = useState(0);
+  /** The sentence being split: its words are shown to tap where the new one starts. */
+  const [splitting, setSplitting] = useState<number | null>(null);
   /** The video whose text is being looked for: an answer for an earlier link is dropped. */
   const lookingFor = useRef<string | null>(null);
   const { ref, player, problem } = useYouTube(video?.youtube_id ?? null);
@@ -81,9 +93,12 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     }
   };
 
-  const takeCues = (cues: Cue[]) => {
-    const made = toSentences(cues);
+  const takeCues = (cues: Cue[], words: Cue[] | null = heard) => {
+    // The text on the recognised words' times, when there are any (ADR 0098 amendment).
+    const made = toSentences(words ? alignWords(cues, words) : cues);
     setSentences(made);
+    setShift(0);
+    setSplitting(null);
     setRange(suggestedRange(made));
     setMinutes(1);
   };
@@ -95,7 +110,9 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     fetchTranscript(youtubeId).then(
       (transcript) => {
         if (lookingFor.current !== youtubeId) return;
-        takeCues(transcript.cues);
+        const words = transcript.words ?? null;
+        setHeard(words);
+        takeCues(transcript.cues, words);
         setFound(transcript.kind);
       },
       (error: unknown) => {
@@ -118,7 +135,8 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
   };
 
   const [first, last] = range;
-  const chosen = sentences.slice(first, last + 1);
+  const timed = useMemo(() => shiftTimes(sentences, shift), [sentences, shift]);
+  const chosen = timed.slice(first, last + 1);
   const clipStart = chosen[0]?.start_ms ?? 0;
   const clipEnd = chosen.at(-1)?.end_ms ?? 0;
   const tooLong = clipEnd - clipStart > MAX_CLIP_MS;
@@ -132,7 +150,7 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
       return;
     }
     setHearing(index);
-    const s = sentences[index];
+    const s = timed[index];
     void player.playSegment(s.start_ms, s.end_ms).then(() => setHearing((h) => (h === index ? null : h)));
   };
 
@@ -142,6 +160,12 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
     setSentences((all) => mergeWithNext(all, index));
     setRange(([a, b]) => [a > index ? a - 1 : a, b > index ? b - 1 : b]);
   };
+  const split = (index: number, at: number) => {
+    setSentences((all) => splitAt(all, index, at));
+    setRange(([a, b]) => [a > index ? a + 1 : a, b >= index ? b + 1 : b]);
+    setSplitting(null);
+  };
+  const nudge = (ms: number) => setShift((was) => Math.max(-MAX_SHIFT_MS, Math.min(MAX_SHIFT_MS, was + ms)));
   const remove = (index: number) => {
     setSentences((all) => all.filter((_, i) => i !== index));
     setRange(([a, b]) => [a > index ? a - 1 : a, Math.max(b > index ? b - 1 : b, a > index ? a - 1 : a)]);
@@ -402,6 +426,31 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
           <p className={tooLong ? styles.error : styles.meta} role={tooLong ? 'alert' : undefined}>
             {tooLong ? t.ytTooLong : t.ytChosen(chosen.length, clock((clipEnd - clipStart) / 1000))}
           </p>
+          {/* Subtitles a little off from the sound: the whole text earlier or later, heard with ▶. */}
+          <div className={styles.shift} role="group" aria-label={t.ytShift}>
+            <span className={styles.label}>{t.ytShift}</span>
+            <button
+              type="button"
+              className={styles.smallButton}
+              disabled={shift <= -MAX_SHIFT_MS}
+              onClick={() => nudge(-SHIFT_STEP_MS)}
+            >
+              {t.ytEarlier}
+            </button>
+            <output className={styles.shiftValue} aria-live="polite">
+              {t.ytSeconds(
+                (shift / 1000).toLocaleString(uiLanguage, { signDisplay: 'exceptZero', minimumFractionDigits: 1 }),
+              )}
+            </output>
+            <button
+              type="button"
+              className={styles.smallButton}
+              disabled={shift >= MAX_SHIFT_MS}
+              onClick={() => nudge(SHIFT_STEP_MS)}
+            >
+              {t.ytLater}
+            </button>
+          </div>
           <ol className={styles.sentences} aria-label={t.ytSentences}>
             {chosen.map((s, offset) => {
               const index = first + offset;
@@ -417,15 +466,46 @@ export function YouTubeCreateScreen({ onCreated, onBack }: Props) {
                     {hearing === index ? <PauseIcon /> : <PlayIcon />}
                   </button>
                   <span className={styles.time}>{clock(s.start_ms / 1000)}</span>
-                  <textarea
-                    className={styles.sentenceText}
-                    rows={2}
-                    maxLength={300}
-                    aria-label={t.ytSentenceText(index + 1)}
-                    value={s.text}
-                    onChange={(event) => edit(index, event.target.value)}
-                  />
+                  {splitting === index ? (
+                    <div className={styles.splitWords} role="group" aria-label={t.ytSplitHint}>
+                      <p className={styles.splitHint}>{t.ytSplitHint}</p>
+                      {s.text
+                        .split(' ')
+                        .filter(Boolean)
+                        .map((word, at) => (
+                          <button
+                            key={`${word}-${at}`}
+                            type="button"
+                            className={styles.splitWord}
+                            disabled={at === 0}
+                            lang="en"
+                            onClick={() => split(index, at)}
+                          >
+                            {word}
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <textarea
+                      className={styles.sentenceText}
+                      rows={2}
+                      maxLength={300}
+                      aria-label={t.ytSentenceText(index + 1)}
+                      value={s.text}
+                      onChange={(event) => edit(index, event.target.value)}
+                    />
+                  )}
                   <span className={styles.rowActions}>
+                    {s.text.split(' ').filter(Boolean).length > 1 && (
+                      <button
+                        type="button"
+                        className={styles.smallButton}
+                        aria-pressed={splitting === index}
+                        onClick={() => setSplitting((was) => (was === index ? null : index))}
+                      >
+                        {splitting === index ? t.ytSplitCancel : t.ytSplit}
+                      </button>
+                    )}
                     {index < sentences.length - 1 && (
                       <button type="button" className={styles.smallButton} onClick={() => merge(index)}>
                         {t.ytJoin}
