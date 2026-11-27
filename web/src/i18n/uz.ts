@@ -1476,5 +1476,8 @@ export const uz: Messages = {
   spNoMic: 'Bu yerda yozib olish ishlamaydi: tinglang va ovoz chiqarib takrorlang.',
   spDone: 'Barakalla!',
   spDoneText: (n: number) => `Gaplar: ${n}`,
+  shGiveWhen: 'Qachon',
+  shGiveTaskTitle: (title: string) => `Shadowing: ${title}`,
+  shGiven: (group: string) => `«${group}» guruhida topshiriq`,
   spToList: 'Mashqlarga qaytish',
 };

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './learner.ts';
+import { DEMO, expect, named, test } from './learner.ts';
 
 /**
  * Shadowing from a YouTube video (ADR 0097, 0098) for a learner who isn't a Speaking tester: it
@@ -223,4 +223,63 @@ test('a video YouTube won’t show here is said plainly', async ({ page }) => {
   await page.getByLabel('Ссылка из YouTube').fill('https://youtu.be/gonegonegon');
   await page.getByRole('button', { name: 'Проверить' }).click();
   await expect(page.getByRole('alert')).toContainText('Это видео нельзя показать здесь');
+});
+
+test('the group’s owner gives an exercise with «Дать группе»; a member opens it from the task', async ({
+  page,
+  context,
+  browser,
+}) => {
+  await fakeYouTube(page, VIDEO_FOUND);
+  const group = await (
+    await (await named(context, 'Ольга')).request.post('/api/groups', { data: { name: '7Б' } })
+  ).json();
+  const exercise = await (
+    await page.request.post('/api/shadowing/exercises', {
+      data: {
+        youtube_id: VIDEO,
+        title: 'Food talk',
+        difficulty: 'beginner',
+        clip_start_ms: 1000,
+        clip_end_ms: 3000,
+        sentences: [
+          { start_ms: 1000, end_ms: 2000, text: 'Hello there.' },
+          { start_ms: 2000, end_ms: 3000, text: 'Nice to meet you.' },
+        ],
+      },
+    })
+  ).json();
+  const id = `e2e-s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const masha = await browser.newContext({
+    extraHTTPHeaders: { ...DEMO, 'X-Dev-User': id },
+    viewport: { width: 390, height: 844 },
+  });
+  await masha.request.patch('/api/me', { data: { daily_target_words: 5, study_days_per_week: 6 } });
+  await (await named(masha, 'Маша')).request.post(`/api/groups/join/${group.invite_code}`);
+
+  // The owner, on the exercise: «Дать группе», every day.
+  await openShadowing(page);
+  await page.getByRole('button', { name: /^Food talk/ }).click();
+  await page.getByRole('button', { name: 'Дать группе' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Дать группе «Food talk»' });
+  await dialog.getByRole('radio', { name: 'Каждый день' }).check();
+  await expect(dialog.getByRole('textbox', { name: 'Название' })).toHaveValue('Шэдоуинг: Food talk');
+  await dialog.getByRole('button', { name: 'Дать', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Задание в «7Б»' })).toBeVisible();
+
+  // The member: the task in «Планы», its material opens the exercise.
+  const mashaPage = await masha.newPage();
+  await fakeYouTube(mashaPage, VIDEO_FOUND);
+  await mashaPage.goto('/');
+  await mashaPage.getByRole('navigation').getByRole('button', { name: 'Планы' }).click();
+  const row = mashaPage.getByRole('listitem').filter({ hasText: 'Шэдоуинг: Food talk' });
+  await row.getByRole('button', { name: /Шэдоуинг: Food talk/ }).click();
+  const view = mashaPage.getByRole('dialog');
+  await expect(view).toContainText('Food talk');
+  await view.getByRole('button', { name: 'Открыть' }).click();
+  await expect(mashaPage.getByText('Предложение 1 из 2').first()).toBeVisible();
+  // Not hers to give.
+  await expect(mashaPage.getByRole('button', { name: 'Дать группе' })).toHaveCount(0);
+  expect(exercise.id).toBeTruthy();
+  await masha.close();
 });

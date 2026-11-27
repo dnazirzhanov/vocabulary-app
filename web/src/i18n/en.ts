@@ -1487,5 +1487,8 @@ export const en: Messages = {
   spNoMic: "Recording doesn't work here: listen and repeat out loud.",
   spDone: 'Well done!',
   spDoneText: (n: number) => `Sentences: ${n}`,
+  shGiveWhen: 'When',
+  shGiveTaskTitle: (title: string) => `Shadowing: ${title}`,
+  shGiven: (group: string) => `Task in «${group}»`,
   spToList: 'Back to the exercises',
 };
